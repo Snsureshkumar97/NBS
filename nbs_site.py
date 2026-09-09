@@ -301,6 +301,61 @@ footer .legal b{color:#8a6410}
 .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
   padding-top:22px;border-top:1px solid var(--bd)}
 
+/* ---------- motion ----------------------------------------------------- */
+/* Everything below is decoration, and decoration that moves has a cost: it
+   competes for attention with the numbers, and for some people it causes
+   actual discomfort. So it is all short, none of it loops forever except the
+   one thing that is genuinely conveying "this is live", and the whole lot is
+   switched off for anyone who has asked their system for reduced motion. */
+@media(prefers-reduced-motion:no-preference){
+  .reveal{opacity:0;transform:translateY(14px);
+    transition:opacity .6s cubic-bezier(.2,.7,.3,1),
+               transform .6s cubic-bezier(.2,.7,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  /* Staggered, so a row of cards arrives as a sequence rather than a flash. */
+  .reveal[data-d="1"]{transition-delay:.07s}
+  .reveal[data-d="2"]{transition-delay:.14s}
+  .reveal[data-d="3"]{transition-delay:.21s}
+
+  /* The hero chart draws itself once, the way a chart actually fills in. */
+  .drawline{stroke-dasharray:1200;stroke-dashoffset:1200;
+    animation:draw 2.2s cubic-bezier(.3,.8,.4,1) .3s forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .fadein{opacity:0;animation:fadein .5s ease 1.6s forwards}
+  @keyframes fadein{to{opacity:1}}
+  .popin{opacity:0;transform:scale(.82);
+    animation:popin .45s cubic-bezier(.2,1.4,.4,1) forwards}
+  @keyframes popin{to{opacity:1;transform:scale(1)}}
+
+  /* The one continuous loop: a pulse travelling the pipeline, which is the
+     diagram saying "this runs every second" rather than being ornament. */
+  .flow{stroke-dasharray:5 9;animation:flow 1.4s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-14}}
+}
+@media(prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none}
+  .fadein,.popin{opacity:1}
+}
+
+/* ---------- the pipeline diagram --------------------------------------- */
+.diagram{background:var(--surface);border:1px solid var(--bd);
+  border-radius:var(--r);padding:22px 18px 16px;margin:0 0 14px}
+.diagram svg{width:100%;height:auto;display:block;overflow:visible}
+.diagram figcaption{color:var(--ink-3);font-size:13px;margin-top:14px;
+  text-align:center}
+.dg-label{font-size:11px;font-weight:700;letter-spacing:.4px;
+  fill:var(--ink-2);text-transform:uppercase}
+.dg-sub{font-size:10.5px;fill:var(--ink-3)}
+.dg-box{fill:#fff;stroke:var(--bd)}
+.dg-gate{fill:#fffaf0;stroke:#f3e2c0}
+.dg-out{fill:#f1f8f2;stroke:#b5dcb7}
+.dg-wait{fill:var(--raised);stroke:var(--bd)}
+.dg-wire{stroke:var(--bd);stroke-width:1.5;fill:none}
+
+/* ---------- the hero chart --------------------------------------------- */
+.heroart{margin:34px auto 0;max-width:560px}
+.heroart svg{width:100%;height:auto;display:block;overflow:visible}
+
 /* ---------- forms (login / connect) ---------- */
 .mid{max-width:520px;margin:0 auto;padding:56px 0 20px}
 .panel{background:#fff;border:1px solid var(--bd);border-radius:var(--r);
@@ -457,6 +512,55 @@ def shell(title, body, user=None, active="", description="", noindex=False):
  </div>
 </div></footer>
 
+<script>
+// Reveal-on-scroll. An IntersectionObserver rather than a scroll handler,
+// because the browser can do this off the main thread and a scroll listener
+// firing on every pixel cannot. Elements are revealed once and unobserved —
+// content that re-animates when you scroll back up is a distraction.
+//
+// THE IMPORTANT PART IS THE FALLBACK. A .reveal element starts at opacity 0,
+// so anything that stops the observer firing does not merely skip an
+// animation, it leaves the page BLANK. That has to be impossible, so:
+// no observer support, reduced motion, a hidden or background tab, or simply
+// three seconds passing — any of them shows everything. The animation is
+// allowed to fail; the content is not.
+(function(){{
+  var els = [].slice.call(document.querySelectorAll(".reveal"));
+  if(!els.length) return;
+
+  function showAll(){{
+    for(var i=0;i<els.length;i++) els[i].classList.add("in");
+  }}
+
+  var reduce = window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // A tab that is not being looked at may never lay out, and an observer that
+  // never fires would leave this reader with an empty page when they return.
+  if(reduce || document.hidden || !("IntersectionObserver" in window)){{
+    showAll();
+    return;
+  }}
+
+  try{{
+    var io = new IntersectionObserver(function(entries){{
+      entries.forEach(function(e){{
+        if(e.isIntersecting){{
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }}
+      }});
+    }}, {{rootMargin: "0px 0px -8% 0px", threshold: 0.08}});
+    els.forEach(function(el){{ io.observe(el); }});
+  }}catch(err){{
+    showAll();
+    return;
+  }}
+
+  // The backstop. Whatever happened above, nothing stays invisible for long.
+  setTimeout(showAll, 3000);
+}})();
+</script>
 </body></html>"""
 
 
@@ -471,12 +575,141 @@ def _next(*pairs):
     return f'<div class="next">{links}</div>'
 
 
+def pipeline_svg():
+    """The five steps as a diagram, with the two gates drawn as gates.
+
+    Worth the space because the shape of the thing is the argument: price data
+    goes in, most of it is stopped, and only what clears both gates becomes a
+    ticket. A list of five bullet points says the same words and none of that.
+
+    Drawn as inline SVG rather than an image so it inherits the page's colours,
+    stays sharp at any size, and the labels are real text a screen reader can
+    read out in order.
+    """
+    return """
+<figure class="diagram reveal">
+ <svg viewBox="0 0 880 220" role="img"
+      aria-label="The pipeline: 15-minute candles feed trend, momentum and the
+      option chain. A trend-strength gate and a reward-to-risk gate sit in
+      front of the output, and most readings are stopped by one of them,
+      leaving WAIT. Only what clears both becomes a ticket.">
+
+  <!-- the wire everything sits on -->
+  <path class="dg-wire" d="M84 110 H796"/>
+  <path class="dg-wire flow" d="M84 110 H796" stroke="#387ed1" stroke-width="2"/>
+
+  <!-- 1. candles -->
+  <g class="popin" style="animation-delay:.1s">
+   <rect class="dg-box" x="20" y="76" width="128" height="68" rx="3"/>
+   <text class="dg-label" x="84" y="100" text-anchor="middle">CANDLES</text>
+   <text class="dg-sub" x="84" y="118" text-anchor="middle">15-minute bars</text>
+   <text class="dg-sub" x="84" y="132" text-anchor="middle">pre-open dropped</text>
+  </g>
+
+  <!-- 2. the three readings, stacked -->
+  <g class="popin" style="animation-delay:.25s">
+   <rect class="dg-box" x="186" y="34" width="132" height="46" rx="3"/>
+   <text class="dg-label" x="252" y="54" text-anchor="middle">TREND</text>
+   <text class="dg-sub" x="252" y="70" text-anchor="middle">EMA 20 / 50</text>
+
+   <rect class="dg-box" x="186" y="88" width="132" height="46" rx="3"/>
+   <text class="dg-label" x="252" y="108" text-anchor="middle">MOMENTUM</text>
+   <text class="dg-sub" x="252" y="124" text-anchor="middle">MACD · RSI · VWAP</text>
+
+   <rect class="dg-box" x="186" y="142" width="132" height="46" rx="3"/>
+   <text class="dg-label" x="252" y="162" text-anchor="middle">OPTION CHAIN</text>
+   <text class="dg-sub" x="252" y="178" text-anchor="middle">PCR · open interest</text>
+
+   <path class="dg-wire" d="M148 110 H170 M170 57 V163 M170 57 H186
+                            M170 110 H186 M170 163 H186"/>
+  </g>
+
+  <!-- 3. the ADX gate -->
+  <g class="popin" style="animation-delay:.4s">
+   <path class="dg-wire" d="M318 110 H356"/>
+   <rect class="dg-gate" x="356" y="76" width="118" height="68" rx="3"/>
+   <text class="dg-label" x="415" y="100" text-anchor="middle"
+         style="fill:#8a6410">ADX GATE</text>
+   <text class="dg-sub" x="415" y="118" text-anchor="middle">strength floor</text>
+   <text class="dg-sub" x="415" y="132" text-anchor="middle">blocks, not weights</text>
+  </g>
+
+  <!-- 4. the reward:risk gate -->
+  <g class="popin" style="animation-delay:.55s">
+   <path class="dg-wire" d="M474 110 H512"/>
+   <rect class="dg-gate" x="512" y="76" width="130" height="68" rx="3"/>
+   <text class="dg-label" x="577" y="100" text-anchor="middle"
+         style="fill:#8a6410">REWARD : RISK</text>
+   <text class="dg-sub" x="577" y="118" text-anchor="middle">reach from ATR</text>
+   <text class="dg-sub" x="577" y="132" text-anchor="middle">below the floor = no</text>
+  </g>
+
+  <!-- 5. the two outcomes -->
+  <g class="popin" style="animation-delay:.7s">
+   <path class="dg-wire" d="M642 110 H690"/>
+   <rect class="dg-out" x="690" y="52" width="170" height="46" rx="3"/>
+   <text class="dg-label" x="775" y="72" text-anchor="middle"
+         style="fill:#3d8b40">TICKET</text>
+   <text class="dg-sub" x="775" y="88" text-anchor="middle">strike · T1 T2 T3 · stop</text>
+
+   <rect class="dg-wait" x="690" y="122" width="170" height="46" rx="3"/>
+   <text class="dg-label" x="775" y="142" text-anchor="middle">WAIT</text>
+   <text class="dg-sub" x="775" y="158" text-anchor="middle">most of most days</text>
+
+   <path class="dg-wire" d="M690 75 H668 V145 H690 M668 110 H642"/>
+  </g>
+ </svg>
+ <figcaption>Two gates sit in front of the output, and they are the point:
+  most readings are stopped by one of them.</figcaption>
+</figure>
+"""
+
+
+def hero_svg():
+    """A small chart that draws itself once, then marks a level and stops.
+
+    It is the only ornament on the page that exists purely to be looked at, so
+    it is deliberately small, runs once rather than looping, and is drawn from
+    the same shapes the real chart uses — candles, a moving average, a target
+    line — rather than an abstract swoosh that could belong to any product.
+    """
+    return """
+<div class="heroart" aria-hidden="true">
+ <svg viewBox="0 0 560 150">
+  <defs>
+   <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#387ed1" stop-opacity=".16"/>
+    <stop offset="1" stop-color="#387ed1" stop-opacity="0"/>
+   </linearGradient>
+  </defs>
+
+  <!-- the target line the price is heading for -->
+  <line class="fadein" x1="0" y1="38" x2="560" y2="38" stroke="#4caf50"
+        stroke-width="1" stroke-dasharray="5 5" style="animation-delay:2s"/>
+  <text class="fadein" x="556" y="32" text-anchor="end" font-size="10"
+        fill="#4caf50" font-weight="700" style="animation-delay:2.1s">T1</text>
+
+  <path d="M0 116 L60 108 L120 118 L180 96 L240 102 L300 78 L360 84 L420 60
+           L480 66 L540 44 L560 40 V150 H0 Z" fill="url(#hg)"
+        class="fadein" style="animation-delay:1.4s"/>
+  <path class="drawline"
+        d="M0 116 L60 108 L120 118 L180 96 L240 102 L300 78 L360 84 L420 60
+           L480 66 L540 44 L560 40"
+        fill="none" stroke="#387ed1" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle class="fadein" cx="540" cy="44" r="4" fill="#387ed1"
+          style="animation-delay:2.2s"/>
+ </svg>
+</div>
+"""
+
+
 def _figure(slug):
     entry = SHOTS.get(slug)
     if not entry or not shot_path(slug):
         return ""
     _, head, caption = entry
-    return (f'<figure><img src="/shot/{slug}.png" alt="{_esc(head)}" loading="lazy">'
+    return (f'<figure class="reveal"><img src="/shot/{slug}.png" alt="{_esc(head)}" loading="lazy">'
             f'<figcaption><b>{_esc(head)}</b>{_esc(caption)}</figcaption></figure>')
 
 
@@ -538,7 +771,8 @@ def home_page(user=None, record=None):
    and the working shown in sentences rather than hidden behind a score.</p>
   <div class="cta">{cta}
    <a class="btn ghost" href="/how-it-works">See how it decides</a></div>
-  <div class="shotwrap"><img src="/shot/board.png"
+  {hero_svg()}
+  <div class="shotwrap reveal"><img src="/shot/board.png"
    alt="The {_esc(BRAND)} signal board" width="1570" height="1030"></div>
  </div>
 
@@ -550,15 +784,15 @@ def home_page(user=None, record=None):
    on Nifty to look good is a rule that was fitted to the past rather than
    found in it.</p>
   <div class="grid g3">
-   <div class="card"><div class="idx">Nifty 50</div>
+   <div class="card reveal"><div class="idx">Nifty 50</div>
     <h3>15-minute candles</h3>
     <p>Trend from stacked EMAs, momentum from MACD and RSI, position from VWAP,
      and the strike taken from the nearest expiry's chain.</p></div>
-   <div class="card"><div class="idx">Bank Nifty</div>
+   <div class="card reveal" data-d="1"><div class="idx">Bank Nifty</div>
     <h3>Same checks, wider range</h3>
     <p>Bigger points per move, so targets and stop come out further apart —
      they are derived from ATR, not from a fixed number of points.</p></div>
-   <div class="card"><div class="idx">Sensex</div>
+   <div class="card reveal" data-d="2"><div class="idx">Sensex</div>
     <h3>Same checks again</h3>
     <p>Run identically, which is the only way the three results can be
      compared to each other at a glance.</p></div>
@@ -571,7 +805,8 @@ def home_page(user=None, record=None):
   <p class="sub">There is no model here and nothing is learned. It is a
    sequence of checks with a gate at the end, which is why it can always tell
    you why it said what it said.</p>
-  <ol class="steps">
+  {pipeline_svg()}
+  <ol class="steps reveal">
    <li><h3>Fetch the candles</h3><p>15-minute bars from your own Zerodha
     session, with the pre-open auction bar dropped.</p></li>
    <li><h3>Read the trend</h3><p>The {_cfg("EMA_FAST", 20)}- and
@@ -600,7 +835,7 @@ def home_page(user=None, record=None):
  </section>
 
  <section>
-  <div class="callout warm">
+  <div class="callout warm reveal">
    <p class="kicker">What it measured</p>
    <h2>It has been tested, and the result was not good</h2>
    <p>This is the part a site like this normally leaves out, so it is on the
@@ -618,7 +853,7 @@ def home_page(user=None, record=None):
  <section>
   <p class="kicker">Boundaries</p>
   <h2>What it will not do</h2>
-  <div class="grid g2">
+  <div class="grid g2 reveal">
    <div><ul class="plain">
     <li><span class="x">&times;</span><span>Place an order. Not now, not with a
      confirmation, not on a schedule.</span></li>
@@ -674,6 +909,7 @@ def how_page(user=None, record=None):
 <div class="wrap"><div class="narrow prose">
 
  <section class="first">
+  {pipeline_svg()}
   <h2>1. The candles</h2>
   <p>15-minute bars for the index, pulled under your own Zerodha session. Two
    things happen to them before any indicator sees them.</p>
@@ -813,7 +1049,7 @@ def how_page(user=None, record=None):
  </section>
 
  <section>
-  <div class="callout warm">
+  <div class="callout warm reveal">
    <h3>Reading this page is not the same as it working</h3>
    <p>Every rule above is defensible on its own terms, and the whole of it was
     still measured negative after costs across three years. Coherent and
@@ -924,7 +1160,7 @@ def results_page(user=None, record=None):
 <div class="wrap"><div class="narrow prose">
 
  <section class="first">
-  <div class="callout warm">
+  <div class="callout warm reveal">
    <h2 style="margin-top:0">Roughly break-even before costs. Negative after.</h2>
    <p>Across three years of 15-minute candles and 8,837 signals, the rule set
     described on this site measured approximately break-even <em>before</em>
@@ -1143,7 +1379,7 @@ def access_page(user=None, record=None):
 <div class="wrap"><div class="narrow prose">
 
  <section class="first">
-  <ol class="steps">
+  <ol class="steps reveal">
    <li><h3>The owner creates your account</h3>
     <p>You are given an email and a password.
      {"There is no public sign-up form on this server — if you should have access and do not, ask the person running it."
@@ -1312,7 +1548,7 @@ def disclaimer_page(user=None, record=None):
         "else.") + f"""
 <div class="wrap"><div class="narrow prose">
  <section class="first">
-  <div class="callout warm">
+  <div class="callout warm reveal">
    <h2 style="margin-top:0">This is not investment advice</h2>
    <p>{_esc(BRAND)} is a decision-support screen. It applies a fixed,
     published rule set to index data and displays the result. It is <b>not</b>

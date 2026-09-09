@@ -210,6 +210,61 @@ footer .legal b{color:#8a6410}
 .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
   padding-top:22px;border-top:1px solid var(--bd)}
 
+/* ---------- motion ----------------------------------------------------- */
+/* Everything below is decoration, and decoration that moves has a cost: it
+   competes for attention with the numbers, and for some people it causes
+   actual discomfort. So it is all short, none of it loops forever except the
+   one thing that is genuinely conveying "this is live", and the whole lot is
+   switched off for anyone who has asked their system for reduced motion. */
+@media(prefers-reduced-motion:no-preference){
+  .reveal{opacity:0;transform:translateY(14px);
+    transition:opacity .6s cubic-bezier(.2,.7,.3,1),
+               transform .6s cubic-bezier(.2,.7,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  /* Staggered, so a row of cards arrives as a sequence rather than a flash. */
+  .reveal[data-d="1"]{transition-delay:.07s}
+  .reveal[data-d="2"]{transition-delay:.14s}
+  .reveal[data-d="3"]{transition-delay:.21s}
+
+  /* The hero chart draws itself once, the way a chart actually fills in. */
+  .drawline{stroke-dasharray:1200;stroke-dashoffset:1200;
+    animation:draw 2.2s cubic-bezier(.3,.8,.4,1) .3s forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .fadein{opacity:0;animation:fadein .5s ease 1.6s forwards}
+  @keyframes fadein{to{opacity:1}}
+  .popin{opacity:0;transform:scale(.82);
+    animation:popin .45s cubic-bezier(.2,1.4,.4,1) forwards}
+  @keyframes popin{to{opacity:1;transform:scale(1)}}
+
+  /* The one continuous loop: a pulse travelling the pipeline, which is the
+     diagram saying "this runs every second" rather than being ornament. */
+  .flow{stroke-dasharray:5 9;animation:flow 1.4s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-14}}
+}
+@media(prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none}
+  .fadein,.popin{opacity:1}
+}
+
+/* ---------- the pipeline diagram --------------------------------------- */
+.diagram{background:var(--surface);border:1px solid var(--bd);
+  border-radius:var(--r);padding:22px 18px 16px;margin:0 0 14px}
+.diagram svg{width:100%;height:auto;display:block;overflow:visible}
+.diagram figcaption{color:var(--ink-3);font-size:13px;margin-top:14px;
+  text-align:center}
+.dg-label{font-size:11px;font-weight:700;letter-spacing:.4px;
+  fill:var(--ink-2);text-transform:uppercase}
+.dg-sub{font-size:10.5px;fill:var(--ink-3)}
+.dg-box{fill:#fff;stroke:var(--bd)}
+.dg-gate{fill:#fffaf0;stroke:#f3e2c0}
+.dg-out{fill:#f1f8f2;stroke:#b5dcb7}
+.dg-wait{fill:var(--raised);stroke:var(--bd)}
+.dg-wire{stroke:var(--bd);stroke-width:1.5;fill:none}
+
+/* ---------- the hero chart --------------------------------------------- */
+.heroart{margin:34px auto 0;max-width:560px}
+.heroart svg{width:100%;height:auto;display:block;overflow:visible}
+
 /* ---------- forms (login / connect) ---------- */
 .mid{max-width:520px;margin:0 auto;padding:56px 0 20px}
 .panel{background:#fff;border:1px solid var(--bd);border-radius:var(--r);
@@ -301,4 +356,53 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
  </div>
 </div></footer>
 
+<script>
+// Reveal-on-scroll. An IntersectionObserver rather than a scroll handler,
+// because the browser can do this off the main thread and a scroll listener
+// firing on every pixel cannot. Elements are revealed once and unobserved —
+// content that re-animates when you scroll back up is a distraction.
+//
+// THE IMPORTANT PART IS THE FALLBACK. A .reveal element starts at opacity 0,
+// so anything that stops the observer firing does not merely skip an
+// animation, it leaves the page BLANK. That has to be impossible, so:
+// no observer support, reduced motion, a hidden or background tab, or simply
+// three seconds passing — any of them shows everything. The animation is
+// allowed to fail; the content is not.
+(function(){
+  var els = [].slice.call(document.querySelectorAll(".reveal"));
+  if(!els.length) return;
+
+  function showAll(){
+    for(var i=0;i<els.length;i++) els[i].classList.add("in");
+  }
+
+  var reduce = window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // A tab that is not being looked at may never lay out, and an observer that
+  // never fires would leave this reader with an empty page when they return.
+  if(reduce || document.hidden || !("IntersectionObserver" in window)){
+    showAll();
+    return;
+  }
+
+  try{
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
+      });
+    }, {rootMargin: "0px 0px -8% 0px", threshold: 0.08});
+    els.forEach(function(el){ io.observe(el); });
+  }catch(err){
+    showAll();
+    return;
+  }
+
+  // The backstop. Whatever happened above, nothing stays invisible for long.
+  setTimeout(showAll, 3000);
+})();
+</script>
 </body></html>
