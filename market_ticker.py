@@ -33,25 +33,49 @@ import requests
 # Ticker, label, and whether a number needs decimals to mean anything. Order is
 # the order they scroll in: Asia, then Europe, then the US, then crypto —
 # roughly the order the trading day actually happens in.
+# Ticker, label, decimals, and which block it belongs to. India first and in
+# depth, because that is what this tool is about and what the person watching
+# actually trades — the sector indices say where the move is coming from, which
+# a single NIFTY number cannot. The world block after it is context: an Indian
+# index does not open in a vacuum.
+#
+# Every ticker here was checked against Yahoo rather than guessed. ^BSEMD (BSE
+# Midcap) returns nothing and is deliberately absent.
 MARKETS = [
-    ("^NSEI",    "NIFTY 50",   2),
-    ("^NSEBANK", "BANK NIFTY", 2),
-    ("^BSESN",   "SENSEX",     2),
-    ("^N225",    "NIKKEI",     0),
-    ("^HSI",     "HANG SENG",  0),
-    ("^FTSE",    "FTSE 100",   2),
-    ("^GDAXI",   "DAX",        2),
-    ("^GSPC",    "S&P 500",    2),
-    ("^DJI",     "DOW JONES",  0),
-    ("^IXIC",    "NASDAQ",     2),
-    ("^VIX",     "VIX",        2),
-    ("INR=X",    "USD/INR",    2),
-    ("GC=F",     "GOLD",       1),
-    ("BZ=F",     "BRENT",      2),
-    ("BTC-USD",  "BTC/USD",    0),
+    ("^NSEI",                "NIFTY 50",        2, "india"),
+    ("^NSEBANK",             "BANK NIFTY",      2, "india"),
+    ("^BSESN",               "SENSEX",          2, "india"),
+    ("NIFTY_FIN_SERVICE.NS", "FIN NIFTY",       2, "india"),
+    ("^INDIAVIX",            "INDIA VIX",       2, "india"),
+    ("^NSEMDCP50",           "NIFTY MIDCAP 50", 2, "india"),
+    ("^CRSLDX",              "NIFTY 500",       2, "india"),
+    ("^CNXIT",               "NIFTY IT",        2, "india"),
+    ("^CNXBANK" ,            "NIFTY BANK IDX",  2, "india"),
+    ("^CNXAUTO",             "NIFTY AUTO",      2, "india"),
+    ("^CNXPHARMA",           "NIFTY PHARMA",    2, "india"),
+    ("^CNXFMCG",             "NIFTY FMCG",      2, "india"),
+    ("^CNXMETAL",            "NIFTY METAL",     2, "india"),
+    ("^CNXENERGY",           "NIFTY ENERGY",    2, "india"),
+    ("^CNXPSUBANK",          "NIFTY PSU BANK",  2, "india"),
+    ("^CNXINFRA",            "NIFTY INFRA",     2, "india"),
+    ("^CNXREALTY",           "NIFTY REALTY",    2, "india"),
+    ("^CNXMEDIA",            "NIFTY MEDIA",     2, "india"),
+    ("INR=X",                "USD/INR",         2, "india"),
+
+    ("^N225",                "NIKKEI",          0, "world"),
+    ("^HSI",                 "HANG SENG",       0, "world"),
+    ("^FTSE",                "FTSE 100",        2, "world"),
+    ("^GDAXI",               "DAX",             2, "world"),
+    ("^GSPC",                "S&P 500",         2, "world"),
+    ("^DJI",                 "DOW JONES",       0, "world"),
+    ("^IXIC",                "NASDAQ",          2, "world"),
+    ("^VIX",                 "VIX",             2, "world"),
+    ("GC=F",                 "GOLD",            1, "world"),
+    ("BZ=F",                 "BRENT",           2, "world"),
+    ("BTC-USD",              "BTC/USD",         0, "world"),
 ]
 
-TTL = 60
+TTL = 90
 _lock = threading.Lock()
 _cache = {"at": 0.0, "rows": []}
 _UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
@@ -91,13 +115,18 @@ def rows(force=False):
         if not force and _cache["rows"] and now - _cache["at"] < TTL:
             return list(_cache["rows"])
     out = []
-    for ticker, label, dp in MARKETS:
+    for ticker, label, dp, group in MARKETS:
         try:
             row = _one(ticker, label, dp)
         except Exception:
             row = None
         if row:
+            row["group"] = group
             out.append(row)
+        # A small gap between calls. Thirty requests in a burst looks like
+        # scraping; spread over a couple of seconds it looks like a page load,
+        # and nothing here is time-critical enough to care.
+        time.sleep(0.05)
     with _lock:
         # A partial answer beats replacing a good strip with an empty one, so
         # a fetch that came back with nothing leaves the last good rows alone.
@@ -110,8 +139,8 @@ def rows(force=False):
 def start_background(stop_event=None):
     """Keep the cache warm so no page load ever waits on Yahoo.
 
-    Fifteen sequential HTTP calls is a second or two; doing that inside a
-    request would make the first visitor of every minute pay for it.
+    Thirty sequential HTTP calls is a few seconds; doing that inside a request
+    would make the first visitor of every cache window pay for it.
     """
     def loop():
         while stop_event is None or not stop_event.is_set():

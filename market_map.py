@@ -17,8 +17,20 @@ never any number the tool calculates or trades on. A stale weight makes a
 box slightly the wrong size; it cannot make a price wrong.
 """
 
-import tkinter as tk
-from tkinter import font as tkfont
+# Tk is needed only by MarketMapWindow, which is the desktop app's own
+# window. Everything else here — the constituent lists, squarify(), breadth(),
+# heat_colour() — is arithmetic, and the website needs exactly those. A hosted
+# Python image often has no tkinter at all, so importing it unconditionally
+# would make this module unimportable on the very box that only wants the
+# arithmetic.
+try:
+    import tkinter as tk
+    from tkinter import font as tkfont
+    HAVE_TK = True
+except Exception:            # ImportError, or a Tk that cannot find a display
+    tk = None
+    tkfont = None
+    HAVE_TK = False
 
 # --- palette, matched to the main window -----------------------------------
 BG_APP = "#0b0d12"
@@ -176,7 +188,14 @@ def squarify(values, x, y, dx, dy):
     return out
 
 
-class MarketMapWindow(tk.Toplevel):
+# Subclassing happens at import time, so the base has to exist even when Tk
+# does not. Without Tk the class is still defined and still importable; it
+# simply cannot be instantiated, which is the honest outcome on a machine with
+# no display.
+_WindowBase = tk.Toplevel if HAVE_TK else object
+
+
+class MarketMapWindow(_WindowBase):
     """A separate window so the heat map gets real estate without squeezing
     the signal ticket. Reads prices straight from the shared streamer."""
 

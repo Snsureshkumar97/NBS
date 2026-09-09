@@ -43,6 +43,7 @@ import pandas as pd
 
 import config
 import explain
+import market_map
 import signal_engine
 import tickets
 import user_kite
@@ -175,6 +176,8 @@ class Feed:
         self.base_df = {}         # index name -> the completed REST candles
         self.base_oi = {}         # index name -> the last option-chain snapshot
         self._last_live = 0.0     # when the live recompute last ran
+        self.eq_tokens = {}       # tradingsymbol -> token, for the heat map
+        self._eq_tried = False
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
         self.state = {
@@ -548,6 +551,77 @@ class Feed:
                              "l": bar["l"], "c": bar["c"]}
         return out
 
+    def _subscribe_constituents(self):
+        """Stream every index constituent, for the heat map.
+
+        Fifty-seven symbols across the three indices, subscribed in QUOTE mode
+        so each tick carries the day's percentage change directly rather than
+        making us remember yesterday's close for all of them.
+
+        Tried once. If the instrument dump fails there is no point retrying it
+        every second — the map goes without, and everything else is unaffected.
+        """
+        if self._eq_tried or self.streamer is None:
+            return
+        self._eq_tried = True
+        symbols = sorted({row[0] for rows in market_map.CONSTITUENTS.values()
+                          for row in rows})
+        token = user_kite.token_for(self.email)
+        if not token:
+            self._eq_tried = False        # no token yet; worth trying again
+            return
+        try:
+            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            found = provider.equity_tokens(symbols)
+        except Exception:
+            return
+        if not found:
+            return
+        self.eq_tokens = found
+        try:
+            self.streamer.subscribe(list(found.values()), quote=True)
+        except Exception:
+            pass
+
+    def heat_map(self, name, width=900, height=460):
+        """The treemap for one index, laid out at the size the browser asked
+        for.
+
+        The layout is computed here rather than in the page because squarify()
+        already exists and is tested — porting it to JavaScript would mean two
+        implementations of the same arithmetic, and the one in the browser
+        would be the untested one.
+        """
+        rows = market_map.rows_for(name, self.eq_tokens, self.streamer)
+        rows = [r for r in rows if (r.get("weight") or 0) > 0]
+        if not rows:
+            return {"tiles": [], "breadth": None, "ready": bool(self.eq_tokens)}
+        # Biggest first, which is what makes a squarified treemap readable.
+        rows.sort(key=lambda r: -r["weight"])
+        rects = market_map.squarify([r["weight"] for r in rows],
+                                    0, 0, float(width), float(height))
+        tiles = []
+        for r, rect in zip(rows, rects):
+            x, y, w, h = rect
+            tiles.append({"sym": r["sym"], "sector": r["sector"],
+                          "weight": r["weight"], "pct": r["pct"],
+                          "x": round(x, 1), "y": round(y, 1),
+                          "w": round(w, 1), "h": round(h, 1)})
+        known = [r for r in rows if r.get("pct") is not None]
+        breadth = None
+        if known:
+            wsum = sum(r["weight"] for r in known) or 1
+            breadth = {
+                "up": sum(1 for r in known if r["pct"] > 0),
+                "down": sum(1 for r in known if r["pct"] < 0),
+                "flat": sum(1 for r in known if r["pct"] == 0),
+                "known": len(known), "total": len(rows),
+                "weighted": round(sum(r["pct"] * r["weight"]
+                                      for r in known) / wsum, 2),
+            }
+        return {"tiles": tiles, "breadth": breadth,
+                "ready": bool(self.eq_tokens)}
+
     def _tick_loop(self):
         """Read the socket's memory a few times a second and act on it.
 
@@ -560,6 +634,7 @@ class Feed:
             if st is None:
                 return
             try:
+                self._subscribe_constituents()
                 for name, tok in list(self.tokens.items()):
                     px = st.price(tok)
                     if px is not None:

@@ -197,7 +197,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # the marketing pages are the reason the site is reachable at all, and
     # gating them would leave a visitor staring at a login form with nothing
     # anywhere telling them what they would be logging in to.
-    GATED = ("/app", "/api/state", "/api/tick", "/chart/", "/connect")
+    GATED = ("/app", "/api/state", "/api/tick", "/api/map/", "/chart/",
+             "/connect")
 
     def _cookie(self, name):
         raw = self.headers.get("Cookie") or ""
@@ -404,6 +405,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
             if path.startswith("/api/candles/"):
                 return self._candles(user, path[len("/api/candles/"):])
+            if path.startswith("/api/map/"):
+                return self._heat_map(user, path[len("/api/map/"):], qs)
 
             # ---- plumbing --------------------------------------------------
             if path == "/healthz":
@@ -503,6 +506,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
             k: (feed.tickets.public(k) or {}).get("ticket")
             for k in config.INSTRUMENTS
         }
+        return self._send(json.dumps(payload), "application/json")
+
+    def _heat_map(self, user, key, qs):
+        """The index's constituents as a treemap, laid out at the size the
+        page asked for.
+
+        Streamed prices, so it moves with everything else. It answers the one
+        question the signal engine cannot: is the whole index moving, or is
+        one heavyweight dragging it while the rest goes the other way?
+        """
+        def num(name, default, lo, hi):
+            try:
+                v = int(float((qs.get(name) or [str(default)])[0]))
+            except (TypeError, ValueError):
+                v = default
+            return max(lo, min(hi, v))
+
+        feed = feeds.for_user(user)
+        payload = feed.heat_map(key, width=num("w", 900, 240, 2000),
+                                     height=num("h", 460, 160, 1200))
+        payload["index"] = key
         return self._send(json.dumps(payload), "application/json")
 
     def _chart(self, user, key, qs):
@@ -1017,6 +1041,32 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 
 /* The three boxes across the top: where the market is, what it has done
    today, and how much of the rule set agrees. */
+/* ---------- the market map ---------- */
+/* A treemap: each constituent's box sized by its index weight and coloured by
+   its move today. Absolutely-positioned divs rather than a canvas, because
+   these need to be hoverable, selectable and readable by a screen reader —
+   a canvas would be a picture of a table. */
+.mapwrap{position:relative;background:var(--sunken);border:1px solid var(--bd);
+  border-radius:var(--r-sm);overflow:hidden;height:460px;margin-top:4px}
+@media(max-width:640px){.mapwrap{height:340px}}
+.mtile{position:absolute;overflow:hidden;border:1px solid rgba(255,255,255,.55);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:2px;transition:background-color .4s ease}
+.mtile b{font-size:11px;font-weight:700;line-height:1.15;letter-spacing:-.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mtile i{font-size:10px;font-style:normal;font-variant-numeric:tabular-nums;
+  line-height:1.2;opacity:.92}
+.mtile.tiny b{font-size:9px} .mtile.tiny i{display:none}
+.mtile.mini b{display:none} .mtile.mini i{display:none}
+.mapbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  font-size:12px;color:var(--ink-3);margin-top:10px}
+.mapbar b{color:var(--ink-2);font-weight:650}
+.mapbar .w{font-variant-numeric:tabular-nums;font-weight:700}
+.maplegend{display:flex;align-items:center;gap:6px;margin-left:auto}
+.maplegend span{font-size:10.5px}
+.maplegend .sw{width:52px;height:8px;border-radius:2px;
+  background:linear-gradient(90deg,#d92d20,#f3f4f6,#0f8f62)}
+
 /* ---------- the world markets strip ---------- */
 /* Two identical copies of the row slide left together; when the first has
    fully passed, the animation restarts and the second is exactly where the
@@ -1027,7 +1077,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
   background:var(--surface);height:38px}
 .ticker:hover .tk-track{animation-play-state:paused}
 .tk-track{display:flex;width:max-content;align-items:center;height:38px;
-  animation:tkslide 90s linear infinite}
+  /* Duration scales with how much is in the strip — a fixed time would make
+     a long list sprint and a short one crawl. Set from JS as --tkdur. */
+  animation:tkslide var(--tkdur,150s) linear infinite}
 @keyframes tkslide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){
   /* Motion someone did not ask for, in their peripheral vision, all day. */
@@ -1040,6 +1092,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 .tk .p{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
 .tk .c{font-size:11.5px;font-variant-numeric:tabular-nums;font-weight:600}
 .tk .dot{width:5px;height:5px;border-radius:50%;flex:none;align-self:center}
+/* Marks where the Indian block ends and the world block begins, so the strip
+   reads as two lists rather than one long undifferentiated one. */
+.tk-sep{display:inline-flex;align-items:center;padding:0 16px;font-size:10px;
+  font-weight:800;letter-spacing:1.2px;color:var(--ink-3);white-space:nowrap;
+  border-right:1px solid var(--bd-soft)}
 
 /* ---------- the welcome bar ---------- */
 .welcome{display:flex;align-items:flex-end;justify-content:space-between;
@@ -1343,6 +1400,14 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
    <div class="card">
     <p class="eyebrow">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
+   </div>
+   <div class="card">
+    <p class="eyebrow">Market map &middot; <span id="mapidx">—</span> constituents</p>
+    <div class="mapwrap" id="mapwrap"></div>
+    <div class="mapbar">
+     <span id="mapbreadth">loading…</span>
+     <div class="maplegend"><span>&minus;2%</span><i class="sw"></i><span>+2%</span></div>
+    </div>
    </div>
    <div class="card">
     <p class="eyebrow">Track record · wins and losses</p>
@@ -2175,7 +2240,7 @@ function chartReset(){
 $("cvin").onclick    = () => chartZoom(1/1.3, null);
 $("cvout").onclick   = () => chartZoom(1.3, null);
 $("cvreset").onclick = () => chartReset();
-addEventListener("resize", () => { chartDraw(); sparkline(); });
+addEventListener("resize", () => { chartDraw(); sparkline(); heatMap(true); });
 
 function render(s){
   if(!s) return;
@@ -2280,6 +2345,7 @@ function render(s){
 
   chartWant(CUR);
   sparkline();
+  heatMap();
 
   const rec=s.record||{};
   $("record").innerHTML = rec.n
@@ -2296,13 +2362,96 @@ function render(s){
        This fills in as signals close, and it shows losses as well as wins.</p>`;
 }
 
+// ------------------------------------------------------------ market map
+// Each constituent sized by its index weight and coloured by its move today.
+// The layout arrives already computed — squarify() lives in market_map.py and
+// is the same code the desktop window uses, so there is one implementation of
+// that arithmetic rather than two that drift apart.
+//
+// The colour ramp is built here rather than server-side because it belongs to
+// this page's palette: market_map.heat_colour() answers in the desktop app's
+// dark theme, and a dark tile on a white card would look like a bug.
+function heat(pct){
+  if(pct == null) return "#eef0f3";
+  const p = Math.max(-2, Math.min(2, pct)) / 2;
+  // Toward white at zero, so "barely moved" reads as barely coloured.
+  const mix = (a, b, t) => Math.round(a + (b - a) * t);
+  const [r0,g0,b0] = [246,247,249];
+  const [r1,g1,b1] = p >= 0 ? [15,143,98] : [217,45,32];
+  const t = Math.abs(p);
+  return `rgb(${mix(r0,r1,t)},${mix(g0,g1,t)},${mix(b0,b1,t)})`;
+}
+
+let MAPKEY = null, MAPAT = 0;
+
+async function heatMap(force){
+  const box = $("mapwrap");
+  if(!box) return;
+  const w = Math.round(box.clientWidth), h = Math.round(box.clientHeight);
+  if(w < 40) return;
+  if(!force && CUR === MAPKEY && Date.now() - MAPAT < 2000) return;
+  MAPKEY = CUR; MAPAT = Date.now();
+  $("mapidx").textContent = CUR || "—";
+  let d;
+  try{
+    d = await (await fetch(`/api/map/${encodeURIComponent(CUR)}?w=${w}&h=${h}`,
+                           {cache:"no-store"})).json();
+  }catch(e){ return; }
+  if(d.index !== CUR) return;              // the user switched mid-flight
+
+  if(!d.tiles || !d.tiles.length){
+    box.innerHTML = `<div style="display:flex;height:100%;align-items:center;
+      justify-content:center;color:var(--ink-3);font-size:13px;padding:20px;
+      text-align:center">${d.ready
+        ? "Waiting for the first tick on the constituents."
+        : "Connect Zerodha to stream the constituents."}</div>`;
+    $("mapbreadth").textContent = "";
+    return;
+  }
+
+  box.innerHTML = d.tiles.map(t => {
+    const bg = heat(t.pct);
+    // Dark text on pale tiles, white on saturated ones, so the label stays
+    // readable at both ends of the ramp instead of only in the middle.
+    const strong = t.pct != null && Math.abs(t.pct) > 1.0;
+    const size = t.w < 34 || t.h < 20 ? "mini" : (t.w < 62 || t.h < 32 ? "tiny" : "");
+    const pct = t.pct == null ? "—"
+              : (t.pct >= 0 ? "+" : "\u2212") + Math.abs(t.pct).toFixed(2) + "%";
+    return `<div class="mtile ${size}" title="${esc(t.sym)} \u00b7 ${esc(t.sector)}`
+         + ` \u00b7 ${t.weight}% of the index \u00b7 ${pct}"`
+         + ` style="left:${t.x}px;top:${t.y}px;width:${t.w}px;height:${t.h}px;`
+         + `background:${bg};color:${strong ? "#fff" : "var(--ink)"}">`
+         + `<b>${esc(t.sym)}</b><i>${pct}</i></div>`;
+  }).join("");
+
+  const b = d.breadth;
+  $("mapbreadth").innerHTML = b
+    ? `<b>${b.up}</b> up \u00b7 <b>${b.down}</b> down`
+      + (b.flat ? ` \u00b7 <b>${b.flat}</b> flat` : "")
+      + ` &nbsp;|&nbsp; weighted <span class="w" style="color:${
+          b.weighted>0?"var(--up)":b.weighted<0?"var(--down)":"var(--ink-2)"}">`
+      + `${b.weighted>=0?"+":"\u2212"}${Math.abs(b.weighted).toFixed(2)}%</span>`
+      + ` &nbsp;|&nbsp; ${b.known} of ${b.total} streaming`
+    : "Waiting for ticks.";
+}
+
 // -------------------------------------------------------- world markets
 // Rendered twice into the same track. The animation slides it exactly half
 // its width, so the copy lands where the original started and the loop has
 // no visible seam. Refreshed on the server's own minute, not the page's.
 function renderTicker(rows){
   if(!rows || !rows.length) return;
+  // Roughly six seconds of travel per item, so adding markets makes the strip
+  // longer rather than faster.
+  $("tkt").style.setProperty("--tkdur", (rows.length * 6) + "s");
+  let group = null;
   const one = rows.map(r => {
+    let sep = "";
+    if(r.group && r.group !== group){
+      // No divider before the first block — it would read as a stray label.
+      if(group !== null) sep = `<span class="tk-sep">WORLD</span>`;
+      group = r.group;
+    }
     const up = r.pct == null ? 0 : r.pct;
     const col = up > 0 ? "var(--up)" : up < 0 ? "var(--down)" : "var(--ink-3)";
     const chg = r.change == null ? ""
@@ -2310,7 +2459,7 @@ function renderTicker(rows){
         + `${Math.abs(r.change).toLocaleString("en-IN")}`
         + (r.pct==null?"":` (${r.pct>=0?"+":"\u2212"}${Math.abs(r.pct).toFixed(2)}%)`)
         + `</span>`;
-    return `<span class="tk"><i class="dot" style="background:${col}"></i>`
+    return sep + `<span class="tk"><i class="dot" style="background:${col}"></i>`
          + `<span class="n">${esc(r.label)}</span>`
          + `<span class="p">${r.price.toLocaleString("en-IN",
               {minimumFractionDigits:r.dp,maximumFractionDigits:r.dp})}</span>`
