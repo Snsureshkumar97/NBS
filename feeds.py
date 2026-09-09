@@ -43,7 +43,7 @@ import config
 import explain
 import tickets
 import user_kite
-from data_providers import FreeDataProvider, KiteDataProvider
+from data_providers import FreeDataProvider, KiteDataProvider, KiteStreamer
 from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
 
 # A feed with nobody watching it is switched off after this long. Generous
@@ -158,6 +158,17 @@ class Feed:
         self.tickets = tickets.TicketBook(email if key != SHARED else None)
         self.events = []          # what just happened, newest first
         self.bell_closed = False  # whether today's tickets were squared up
+
+        # The live price feed. Polling REST every thirty seconds can only ever
+        # show a snapshot up to thirty seconds stale, and asking faster gets
+        # you rate-limited. The WebSocket pushes every tick instead, which is
+        # what the desktop app has always used and why its numbers moved and
+        # the website's did not.
+        self.streamer = None
+        self.tokens = {}          # index name -> instrument token
+        self.opt_tokens = {}      # index name -> the open ticket's contract
+        self.ticker = None        # the fast loop that reads it
+        self.spots = {}           # index name -> newest streamed spot
         self.state = {
             "indices": {},
             "market_open": False,
@@ -213,6 +224,7 @@ class Feed:
                 # `now` is required and must be IST — passing nothing raised a
                 # TypeError that the outer handler swallowed, so the loop used
                 # to fail silently on every pass and the page never updated.
+                self._start_stream()
                 open_now = is_market_open(now_ist())
                 for name in config.INSTRUMENTS:
                     if _stopping.is_set() or self._idle():
@@ -272,6 +284,9 @@ class Feed:
                 continue
             self._sleep(_settings["interval"])
         self._set(feed="idle")
+        # A socket left open for a tab nobody has looked at in four minutes is
+        # a subscription Zerodha is still counting.
+        self.stop_stream()
         with _lock:
             if _feeds.get(self.key) is self:
                 del _feeds[self.key]
@@ -302,6 +317,146 @@ class Feed:
                 pass
             time.sleep(0.5)
         self.hist_at = time.time()
+
+    # ------------------------------------------------------------ streaming
+    def _start_stream(self):
+        """Open the tick socket for this user, once, and subscribe the three
+        indices.
+
+        Failures are not fatal. Streaming makes the numbers move; the analysis
+        underneath it works without one, so a socket that will not open costs
+        you smoothness rather than the tool.
+        """
+        if self.streamer is not None or _settings["mode"] != "kite":
+            return
+        token = user_kite.token_for(self.email)
+        if not token:
+            return
+        try:
+            st = KiteStreamer(config.KITE_API_KEY, token)
+            if not st.start():
+                return
+        except Exception:
+            return
+        self.streamer = st
+        try:
+            provider = KiteDataProvider(config.KITE_API_KEY, token)
+        except Exception:
+            return
+        toks = []
+        for name in config.INSTRUMENTS:
+            try:
+                t = provider.index_token(name)
+            except Exception:
+                t = None
+            if t:
+                self.tokens[name] = t
+                toks.append(t)
+        if toks:
+            try:
+                st.subscribe(toks, quote=True)
+            except Exception:
+                pass
+        self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
+                                       name=f"ticks:{self.key}")
+        self.ticker.start()
+
+    def _subscribe_ticket(self, name):
+        """Add an open ticket's own contract to the feed.
+
+        The index token is not enough: a ticket is tracked on the premium of
+        one specific strike, and that contract has its own price, which is the
+        one the P&L is actually made of.
+        """
+        if self.streamer is None or self.opt_tokens.get(name) is not None:
+            return
+        book = self.tickets.books.get(name)
+        trade = book.trade if book else None
+        if trade is None or trade["status"] != "OPEN" or not trade.get("use_premium"):
+            return
+        token = user_kite.token_for(self.email)
+        if not token:
+            return
+        try:
+            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            tok = provider.option_token(trade["index"], trade["strike"],
+                                        trade["option_type"])
+        except Exception:
+            tok = None
+        if not tok:
+            return
+        self.opt_tokens[name] = tok
+        try:
+            self.streamer.subscribe([tok], quote=True)
+        except Exception:
+            pass
+
+    def _tick_loop(self):
+        """Read the socket's memory a few times a second and act on it.
+
+        No network happens here — the kiteconnect library fills a dict on its
+        own background thread and this only reads it, which is why it can run
+        at this rate without costing anything.
+        """
+        while not _stopping.is_set() and not self._idle():
+            st = self.streamer
+            if st is None:
+                return
+            try:
+                for name, tok in list(self.tokens.items()):
+                    px = st.price(tok)
+                    if px is not None:
+                        with self.lock:
+                            self.spots[name] = px
+                for name in list(config.INSTRUMENTS):
+                    self._subscribe_ticket(name)
+                    tok = self.opt_tokens.get(name)
+                    if not tok:
+                        continue
+                    px = st.price(tok)
+                    if px is None:
+                        continue
+                    self.tickets.live_price(name, px)
+                    # Targets are checked on the tick, so one reached at
+                    # 11:44:09 is stamped 11:44:09 rather than at the next
+                    # poll with whatever price it had by then.
+                    for ev in self.tickets.tick_price(name, px):
+                        ev["at"] = now_ist().strftime("%H:%M:%S")
+                        with self.lock:
+                            self.events.insert(0, ev)
+                            del self.events[30:]
+                        if ev.get("kind") == "closed":
+                            self.opt_tokens.pop(name, None)
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+    def ticks(self):
+        """The newest streamed prices, for the page's fast poll."""
+        st = self.streamer
+        with self.lock:
+            spots = dict(self.spots)
+        out = {"spots": spots, "live": bool(st is not None and st.connected),
+               "age": None, "premium": {}}
+        if st is not None:
+            try:
+                age = st.age_seconds()
+                out["age"] = round(age, 1) if age is not None else None
+            except Exception:
+                pass
+            for name, tok in list(self.opt_tokens.items()):
+                px = st.price(tok)
+                if px is not None:
+                    out["premium"][name] = px
+        return out
+
+    def stop_stream(self):
+        st, self.streamer = self.streamer, None
+        if st is not None:
+            try:
+                st.stop()
+            except Exception:
+                pass
 
     def _sleep(self, seconds):
         """Wait, but come back early if we're stopping or something woke us."""
@@ -382,3 +537,4 @@ def stop_all():
     with _lock:
         for feed in _feeds.values():
             feed.wake.set()
+            feed.stop_stream()

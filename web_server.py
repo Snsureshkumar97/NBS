@@ -195,7 +195,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # the marketing pages are the reason the site is reachable at all, and
     # gating them would leave a visitor staring at a login form with nothing
     # anywhere telling them what they would be logging in to.
-    GATED = ("/app", "/api/state", "/chart/", "/connect")
+    GATED = ("/app", "/api/state", "/api/tick", "/chart/", "/connect")
 
     def _cookie(self, name):
         raw = self.headers.get("Cookie") or ""
@@ -390,6 +390,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(PAGE)
             if path == "/api/state":
                 return self._api_state(user)
+            if path == "/api/tick":
+                return self._api_tick(user)
             if path.startswith("/chart/") and path.endswith(".svg"):
                 return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
             if path.startswith("/api/candles/"):
@@ -475,6 +477,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "events": snap.get("events") or [],
             "record": track_record(),
             "order": list(config.INSTRUMENTS.keys()),
+        }
+        return self._send(json.dumps(payload), "application/json")
+
+    def _api_tick(self, user):
+        """Prices only, read straight out of the tick socket's memory.
+
+        Separate from /api/state on purpose. State is a heavy object — three
+        recommendations, their reasoning, the ticket book, the day's totals —
+        and it changes when the analysis runs, which is every thirty seconds.
+        Prices change several times a second, so they get their own endpoint
+        that touches no network and can be asked for at that rate.
+        """
+        feed = feeds.for_user(user)
+        payload = feed.ticks()
+        payload["tickets"] = {
+            k: (feed.tickets.public(k) or {}).get("ticket")
+            for k in config.INSTRUMENTS
         }
         return self._send(json.dumps(payload), "application/json")
 
@@ -1314,7 +1333,8 @@ function markets(s){
              el.setAttribute("role","tab"); w.appendChild(el);
              el.addEventListener("click",()=>{CUR=k;render(LAST);}); }
     el.setAttribute("aria-selected", k===CUR?"true":"false");
-    el.innerHTML=`<div><div class="nm">${esc(k)}</div><div class="px">${px}</div></div>
+    el.innerHTML=`<div><div class="nm">${esc(k)}</div>
+      <div class="px" id="px-${esc(k)}">${px}</div></div>
       <div class="st" style="color:${col}"><i class="chip" style="background:${col}"></i>${esc(label)}</div>`;
   });
 }
@@ -1347,7 +1367,11 @@ function blank(msg,detail){
 // travel; the premium ladder is what the OPTION is expected to be worth when
 // it gets there, starting from the live LTP of the suggested strike. The
 // second one is the money, so it is not hidden behind anything.
-let LMODE = "index";
+// "auto" until the reader picks a side. The desktop tracks a ticket on the
+// live premium whenever there is one, and the premium is the number actually
+// paid — so defaulting to index points meant the website quietly answered a
+// different question than the app did, using the same word for it.
+let LMODE = "auto";
 let LOTS = 1;
 let LOTS_SYNCED = false;
 
@@ -1391,12 +1415,16 @@ function ladder(r, tk){
   const pb = $("lb-premium");
   pb.disabled = !havePrem;
   pb.title = havePrem ? "" : "No live option chain for this strike right now.";
-  if(!havePrem && LMODE === "premium") LMODE = "index";
-  $("lb-index").classList.toggle("on", LMODE === "index");
-  pb.classList.toggle("on", LMODE === "premium");
+  // Resolve "auto" every render rather than once, so a strike that only gets
+  // a live price mid-session still lands on the premium view when it does.
+  let mode = LMODE;
+  if(mode === "auto") mode = havePrem ? "premium" : "index";
+  if(!havePrem && mode === "premium") mode = "index";
+  $("lb-index").classList.toggle("on", mode === "index");
+  pb.classList.toggle("on", mode === "premium");
   $("lswitch").style.display = (r.targets||[]).some(v => v != null) ? "flex" : "none";
 
-  const prem = LMODE === "premium";
+  const prem = mode === "premium";
   const tg   = (prem ? r.premium_targets : r.targets) || [null,null,null];
   const stop = prem ? r.premium_stop : r.stop;
   const base = prem ? r.ltp : r.spot;
@@ -2192,10 +2220,63 @@ async function tick(){
   try{ LAST=await (await fetch("/api/state",{cache:"no-store"})).json(); render(LAST); }
   catch(e){ $("mkt").textContent="connection lost"; $("beat").className="beat"; }
 }
+
+// ---------------------------------------------------------------- ticks
+// The prices, on their own timer. The full state is three recommendations and
+// their reasoning and only changes when the analysis runs; the prices change
+// several times a second. Asking for them separately is what makes the spot
+// and the premium move here the way they move in the desktop app, instead of
+// stepping once every poll.
+async function priceTick(){
+  if(document.hidden) return;              // a background tab is not watching
+  let t;
+  try{ t = await (await fetch("/api/tick",{cache:"no-store"})).json(); }
+  catch(e){ return; }
+  LIVE = t;
+
+  // The market cards, straight from the socket.
+  for(const [k, px] of Object.entries(t.spots||{})){
+    const el = document.getElementById("px-"+k);
+    if(el) el.textContent = px.toLocaleString("en-IN",{maximumFractionDigits:2});
+  }
+  $("beat").className = "beat" + (t.live ? " live" : "");
+  if(t.live && t.age != null) $("upd").textContent = "live";
+
+  // The Spot tile in the ticket stats, and the tile row above the ladder.
+  const spot = (t.spots||{})[CUR];
+  if(spot != null){
+    const st = document.querySelectorAll("#tstats .tstat");
+    if(st.length >= 4) st[3].querySelector(".v").textContent = num(spot, 0);
+    const first = document.querySelector("#tiles .tile .v");
+    if(first) first.textContent = num(spot, 2);
+  }
+
+  // An open ticket's Now and P&L, which is the pair a held position is about.
+  const tk = (t.tickets||{})[CUR];
+  if(tk && tk.open){
+    const dp = tk.tracked_on === "premium" ? 2 : 0;
+    const cells = document.querySelectorAll("#tstats .tstat");
+    if(cells.length >= 5){
+      cells[2].querySelector(".v").textContent = num(tk.now, dp);
+      const v = cells[4].querySelector(".v");
+      v.textContent = tk.pnl==null ? "—"
+        : (tk.pnl>=0?"+":"\u2212")+"\u20b9"+Math.abs(Math.round(tk.pnl)).toLocaleString("en-IN");
+      v.style.color = tk.pnl==null ? "var(--ink-3)"
+                    : tk.pnl>0 ? "var(--up)" : tk.pnl<0 ? "var(--down)" : "var(--ink-2)";
+    }
+    // If a target or the stop was reached on a tick, the ladder has to say so
+    // now rather than at the next full poll — that is the whole point of
+    // checking on the tick in the first place.
+    const before = JSON.stringify([tk.hit, tk.sl_hit]);
+    if(before !== LASTHIT){ LASTHIT = before; if(LAST) tick(); }
+  }
+}
+let LIVE = null, LASTHIT = null;
 $("honest").textContent="A three-year backtest of this rule set on 15-minute candles "+
   "measured roughly break-even before costs and negative after them. It is published "+
   "so it can be checked, not because it is known to work.";
 tick(); setInterval(tick,3000);
+priceTick(); setInterval(priceTick,1000);
 addEventListener("resize",()=>{clearTimeout(window._rz);
   window._rz=setTimeout(()=>render(LAST),260)});
 </script>

@@ -74,6 +74,7 @@ class IndexBook:
         self.last_bias_signature = None
         self.last_ticket_at = None     # datetime, per index
         self.wait_reason = None        # (code, short, long)
+        self.live = None               # newest streamed price for this index
 
     # -- the gate that only this index knows about -------------------------
     def last_ticket_epoch(self):
@@ -518,6 +519,35 @@ class TicketBook:
         del self.closed[40:]            # a session strip, not an archive
         return {"kind": "closed", "index": book.name, "trade": row}
 
+    def tick_price(self, name, price):
+        """Check an open ticket against ONE streamed price.
+
+        The analysis cycle runs every thirty seconds; ticks arrive several
+        times a second. Without this, a target reached at 11:44:09 would be
+        registered at 11:44:30 with the price it happened to have by then —
+        which is not when it was reached and not what it was worth. The
+        desktop has always checked on the tick, so the website does too.
+        """
+        if price is None:
+            return []
+        with self.lock:
+            book = self.books.get(name)
+            if book is None or book.trade is None or book.trade["status"] != "OPEN":
+                return []
+            evs = self._check_price(book, price, book.last_rec)
+            for ev in evs:
+                ev["live"] = True
+            return evs
+
+    def live_price(self, name, price):
+        """Remember the newest streamed price for an index, so the ticket
+        panel can quote a premium that is current rather than one that is up
+        to a poll old."""
+        with self.lock:
+            book = self.books.get(name)
+            if book is not None:
+                book.live = price
+
     # =====================================================================
     # manual actions
     # =====================================================================
@@ -561,10 +591,13 @@ class TicketBook:
     # =====================================================================
     # reading
     # =====================================================================
-    def _public_trade(self, trade, rec=None):
+    def _public_trade(self, trade, rec=None, live=None):
         if trade is None:
             return None
-        price = self._price_for(trade, rec) if rec is not None else None
+        # A streamed price beats a polled one: it is the same number, seconds
+        # fresher, and it is what the desktop quotes.
+        price = live if live is not None else (
+            self._price_for(trade, rec) if rec is not None else None)
         entry = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
         pnl = None
         if (trade["use_premium"] and trade["lot_size"]
@@ -596,7 +629,7 @@ class TicketBook:
             rec = rec if rec is not None else book.last_rec
             wait = book.wait_reason
             return {
-                "ticket": self._public_trade(book.trade, rec),
+                "ticket": self._public_trade(book.trade, rec, book.live),
                 "wait": ({"code": wait[0], "badge": wait[1], "why": wait[2]}
                          if wait else None),
             }
@@ -622,7 +655,7 @@ class TicketBook:
                 t = book.trade
                 if t is None or t["status"] != "OPEN":
                     continue
-                pub = self._public_trade(t, book.last_rec)
+                pub = self._public_trade(t, book.last_rec, book.live)
                 if pub and pub["pnl"] is not None:
                     open_pnl += pub["pnl"]
                     per[name] = round(per.get(name, 0.0) + pub["pnl"], 2)
