@@ -45,6 +45,21 @@ def home_config_dir() -> str:
     the trade log, and for the same reason: the things you'd hate to lose must
     not live next to code you replace.
     """
+    # On a host like Render the home directory is wiped on every deploy, so
+    # accounts and broker tokens have to live on a mounted disk instead.
+    # TRADING_TOOL_HOME points at it. Unset — which is every desktop install —
+    # behaves exactly as before.
+    override = os.environ.get("TRADING_TOOL_HOME", "").strip()
+    if override:
+        try:
+            os.makedirs(override, exist_ok=True)
+            try:
+                os.chmod(override, 0o700)      # it holds credentials
+            except OSError:
+                pass
+            return override
+        except OSError:
+            pass
     try:
         d = os.path.join(os.path.expanduser("~"), ".trading-tool")
         os.makedirs(d, exist_ok=True)

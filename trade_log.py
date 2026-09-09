@@ -49,6 +49,19 @@ def log_dir():
     'trading-tool 11' is worth almost nothing. Keeping it in ~/ means every
     copy of the tool, forever, appends to the same file.
     """
+    # Same reasoning as config.home_config_dir(): a hosted deployment has no
+    # durable home directory, and a month of trade history is exactly the kind
+    # of thing that must not be wiped by a redeploy.
+    override = os.environ.get("TRADING_TOOL_LOGS", "").strip()
+    if not override:
+        base = os.environ.get("TRADING_TOOL_HOME", "").strip()
+        override = os.path.join(base, LOG_DIR_NAME) if base else ""
+    if override:
+        try:
+            os.makedirs(override, exist_ok=True)
+            return override
+        except OSError:
+            pass
     try:
         d = os.path.join(os.path.expanduser("~"), LOG_DIR_NAME)
         os.makedirs(d, exist_ok=True)

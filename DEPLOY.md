@@ -169,3 +169,94 @@ host a website.**
   than quietly serving yesterday's numbers. Check for it before trusting a price.
 - `~/.trading-tool/.env` holds live credentials. On a shared or cloud machine
   that file is worth as much as your Zerodha password.
+
+---
+
+# Hosting the tool on Render
+
+The website has two halves and they need different hosts. The eight public
+pages are static and belong on a CDN — see `export_site.py` for Vercel. The
+tool itself is not request-shaped: it holds a Zerodha WebSocket open, keeps
+ticket state in memory between polls, and writes accounts and trade history to
+disk. That needs a process that stays running.
+
+## Before you start: the plan matters
+
+Render's **free** web services will not work for this, for two specific
+reasons rather than as a general caution:
+
+* **They spin down after ~15 minutes without a request.** Spun down, the
+  WebSocket dies and ticket state is lost. The next visitor also waits about
+  fifty seconds for a cold start.
+* **They have no persistent disk.** `users.json` and `trades.csv` would be
+  erased on every deploy and every restart — accounts and a month of trade
+  history, gone.
+
+The **Starter** plan removes the spin-down and allows the 1GB disk in
+`render.yaml`. If you would rather not pay for it, running the tool on your own
+machine works properly and costs nothing; only the public pages need hosting.
+
+## Steps
+
+1. **Push the repo.** Render deploys from GitHub, so the branch has to be
+   there first.
+
+2. **Render → New → Blueprint**, point it at the repo. It reads
+   `render.yaml` and creates the service, the disk, and a generated
+   `WEB_ADMIN_KEY`. It will ask you for the three values marked
+   `sync: false`.
+
+3. **Set `WEB_PUBLIC_URL`** to the hostname Render assigns, e.g.
+   `https://nbs-signal-tool.onrender.com` — no trailing slash. Zerodha
+   redirects here after a login, so it has to be exact.
+
+4. **Set `KITE_API_KEY` and `KITE_API_SECRET`** from your Kite Connect app.
+
+5. **Set the Redirect URL on the Kite app** to that same address plus
+   `/kite/callback`. Read the warning below first — this is the step with a
+   consequence.
+
+6. **Create your account.** A fresh disk has no accounts, so nobody can log
+   in yet. Open `https://<service>.onrender.com/admin?key=<WEB_ADMIN_KEY>`
+   (read the key out of Render's dashboard) and create it there. Keep that
+   link private; it is the only thing standing in front of the account list.
+
+7. **Point the public site at it.** Re-export with the app's address so every
+   Log in button goes to the real thing instead of the placeholder:
+
+       python3 export_site.py --app-url https://<service>.onrender.com \
+                              --base-url https://<your>.vercel.app
+       npx vercel deploy --prod dist
+
+## The one real trade-off: Kite allows ONE redirect URL per app
+
+A Kite Connect app has exactly one Redirect URL, and this is not a setting you
+can have both ways:
+
+* Point it at Render, and the **website** can connect Zerodha — but the
+  desktop app's one-click login breaks, because it waits for the token on
+  `http://127.0.0.1:5055/` and Zerodha will now deliver it to Render instead.
+* Leave it on `http://127.0.0.1:5055/` and the **desktop** keeps working,
+  but nobody can connect Zerodha through the website.
+
+There is no configuration that avoids this. The three honest ways out:
+
+1. **A second Kite Connect app** for the website, with its own key, secret
+   and redirect URL. Zerodha bills per app, so check their current pricing.
+2. **Make the website primary** and accept that the desktop app loses its
+   one-click login. Everything else in the desktop app still works.
+3. **Keep the desktop primary** and run the website locally alongside it,
+   with only the public pages hosted.
+
+## Notes
+
+* `TRADING_TOOL_HOME=/var/data` is what moves the durable files onto the
+  mounted disk. Without it they would be written to a home directory that
+  does not survive a deploy.
+* `$PORT` is assigned by Render and wins over the port in `WEB_PUBLIC_URL` —
+  the public address is https on 443 while the process is handed something
+  like 10000 to bind to.
+* `--host 0.0.0.0` is required, or Render's proxy cannot reach the process
+  and every request returns 502.
+* The health check is `/healthz`, which answers without touching Zerodha.
+* Region is `singapore`, the closest Render offers to NSE.

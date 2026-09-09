@@ -2446,7 +2446,7 @@ addEventListener("resize",()=>{clearTimeout(window._rz);
 # ---------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(description="Serve the signal tool as a website.")
-    ap.add_argument("--host", default="127.0.0.1",
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
                     help="127.0.0.1 = this machine only (default). 0.0.0.0 = reachable from outside.")
     ap.add_argument("--port", type=int, default=None,
                     help="defaults to the port in WEB_PUBLIC_URL, else 8080")
@@ -2475,11 +2475,19 @@ def main():
     # can silently disagree, and the login times out with nothing to explain it.
     port = args.port
     if port is None:
-        try:
-            parsed = urllib.parse.urlparse(config.WEB_PUBLIC_URL or "")
-            port = parsed.port or 8080
-        except Exception:
-            port = 8080
+        # A platform that assigns the port tells you so through $PORT, and it
+        # wins over WEB_PUBLIC_URL: the public address is https on 443 while
+        # the process is handed something like 10000 to bind to, so reading the
+        # port off the public URL would bind to the wrong one.
+        env_port = os.environ.get("PORT", "").strip()
+        if env_port.isdigit():
+            port = int(env_port)
+        else:
+            try:
+                parsed = urllib.parse.urlparse(config.WEB_PUBLIC_URL or "")
+                port = parsed.port or 8080
+            except Exception:
+                port = 8080
     args.port = port
 
     interval = args.interval or (config.ANALYSIS_INTERVAL_SEC if args.mode == "kite"

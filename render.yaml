@@ -1,0 +1,75 @@
+# render.yaml — the tool, hosted
+# =============================================================================
+# Render reads this when you point it at the repo ("New → Blueprint"). It
+# creates one web service with a mounted disk, and asks you for the three
+# secrets rather than storing them here.
+#
+# WHY THE PLAN IS NOT free
+#   Render's free web services do two things this tool cannot survive:
+#
+#     1. They spin down after about fifteen minutes without a request. This
+#        tool is not request-shaped — it holds a Zerodha WebSocket open and
+#        recomputes on a timer. Spun down, the socket dies, ticket state is
+#        lost, and the first visitor afterwards waits ~50s for a cold start.
+#     2. They have no persistent disk. users.json and trades.csv would be
+#        wiped on every deploy and every restart, so accounts and a month of
+#        trade history would simply vanish.
+#
+#   The paid Starter plan removes the spin-down and allows the disk below.
+#   If you would rather not pay, run it on your own machine — that works
+#   properly and costs nothing.
+#
+# WHY A DISK AND NOT A DATABASE
+#   Because the tool writes two files, and swapping them for Postgres to host
+#   it would be rewriting the storage layer to solve a deployment problem.
+#   A 1GB disk is a few cents and changes no code.
+
+services:
+  - type: web
+    name: nbs-signal-tool
+    runtime: python
+    plan: starter                  # see the note above: free will not work
+    region: singapore              # closest Render region to NSE/Zerodha
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    # 0.0.0.0 because Render's proxy has to reach it; $PORT is assigned.
+    startCommand: python web_server.py --host 0.0.0.0
+
+    healthCheckPath: /healthz
+
+    disk:
+      name: nbs-data
+      # Everything durable lives here — accounts, sessions, broker tokens,
+      # trade history. TRADING_TOOL_HOME below points the tool at it.
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      - key: TRADING_TOOL_HOME
+        value: /var/data
+
+      # The public address. Zerodha redirects here after a login, and it must
+      # match the Redirect URL registered on your Kite Connect app EXACTLY.
+      # Set it to https://<your-service>.onrender.com once Render tells you
+      # the hostname, then set the same value + /kite/callback on Kite.
+      - key: WEB_PUBLIC_URL
+        sync: false
+
+      # Your Kite Connect app. One app serves every user of this site; each
+      # person still logs in themselves and gets their own access token.
+      - key: KITE_API_KEY
+        sync: false
+      - key: KITE_API_SECRET
+        sync: false
+
+      # Guards /admin, which is the only way accounts are created. Render
+      # generates one and keeps it — read it out of the dashboard.
+      - key: WEB_ADMIN_KEY
+        generateValue: true
+
+      # Accounts are made by you on /admin, not by strangers signing up.
+      - key: WEB_ALLOW_SIGNUP
+        value: "0"
+
+      - key: PYTHON_VERSION
+        value: "3.12.6"
