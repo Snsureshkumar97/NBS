@@ -1081,7 +1081,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 .rung:last-child{border-bottom:0}
 .rung .k{width:44px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ink-3)}
 .rung .bar{flex:1;height:4px;border-radius:2px;background:var(--bd-soft);overflow:hidden}
-.rung .bar i{display:block;height:100%;border-radius:2px}
+.rung .bar i{display:block;height:100%;border-radius:2px;
+  transition:width .45s ease-out}
 .rung .n{width:92px;text-align:right;font-size:14.5px;font-weight:650;
   font-variant-numeric:tabular-nums}
 .rung .rs{width:104px;text-align:right;font-size:12px;color:var(--ink-3);
@@ -1387,11 +1388,17 @@ function ladder(r, tk){
     $("lswitch").style.display = "none";
     const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
                  ["T3",tg[2],"var(--up)"],["Stop",tk.stop,"var(--down)"]];
-    const spread=Math.max(...rungs.map(x=>x[1]==null?0:Math.abs(x[1]-(base||0))))||1;
     $("ladder").innerHTML = rungs.map(([k,v,c])=>{
       const done = k==="Stop" ? tk.sl_hit : (tk.hit||{})[k];
       const when = k==="Stop" ? tk.sl_hit_time : (tk.hit_time||{})[k];
-      const pct=v==null?0:Math.min(100,Math.abs(v-(base||0))/spread*100);
+      // How far price has actually travelled from entry toward this level —
+      // the desktop's "38% of the way". The old bar drew the level's distance
+      // from entry instead, which is fixed the moment the ticket is issued and
+      // therefore never moved at all.
+      let pct = 0;
+      if(v != null && base != null && tk.now != null && v !== base){
+        pct = Math.max(0, Math.min(100, (tk.now - base) / (v - base) * 100));
+      }
       let rs = "";
       if(per && v!=null && base!=null){
         const amt=(v-base)*per;
@@ -1399,7 +1406,8 @@ function ladder(r, tk){
       }
       return `<div class="rung${done?" done":""}"><div class="k">${k}${
           done?` <span class="tick">✓ ${esc(when||"")}</span>`:""}</div>
-        <div class="bar"><i style="width:${done?100:pct}%;background:${v==null?"transparent":c}"></i></div>
+        <div class="bar" title="${done?"reached":Math.round(pct)+"% of the way"}"
+          ><i style="width:${done?100:pct}%;background:${v==null?"transparent":c}"></i></div>
         <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
         <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
     }).join("");
@@ -1675,9 +1683,22 @@ function sparkline(){
                         $("dmlo").textContent=""; $("dmhi").textContent=""; };
   if(!bars.length){ blank(); return; }
   const lastDay = new Date(bars[bars.length-1][0]*1000).toDateString();
-  const today = bars.filter(b => new Date(b[0]*1000).toDateString() === lastDay);
+  let today = bars.filter(b => new Date(b[0]*1000).toDateString() === lastDay);
   if(today.length < 2){ blank(); return; }
 
+  // The newest candle is up to fifteen minutes old and its close only moves
+  // when the analysis refreshes. The streamed spot is where the market is
+  // now, so the line is drawn out to it.
+  const liveSpot = (LIVE && LIVE.spots && LIVE.spots[CUR] != null)
+                   ? LIVE.spots[CUR] : null;
+  if(liveSpot != null){
+    today = today.slice();
+    const last = today[today.length-1].slice();
+    last[4] = liveSpot;
+    last[2] = Math.max(last[2], liveSpot);
+    last[3] = Math.min(last[3], liveSpot);
+    today[today.length-1] = last;
+  }
   const open = today[0][1], close = today[today.length-1][4];
   const chg = close - open, pct = open ? chg/open*100 : 0;
   const upC = css("--up"), downC = css("--down"), col = chg >= 0 ? upC : downC;
@@ -2200,6 +2221,7 @@ function render(s){
   }
 
   chartWant(CUR);
+  sparkline();
 
   const rec=s.record||{};
   $("record").innerHTML = rec.n
@@ -2233,42 +2255,54 @@ async function priceTick(){
   try{ t = await (await fetch("/api/tick",{cache:"no-store"})).json(); }
   catch(e){ return; }
   LIVE = t;
+  if(!LAST || !LAST.indices) return;
 
-  // The market cards, straight from the socket.
+  // Merge the streamed prices into the state the page renders from, then
+  // render normally. Patching individual cells was quicker but it only moved
+  // the two numbers it knew about — the ladder, the tiles and the progress
+  // bars all still stepped once every thirty seconds, which is exactly what
+  // "the rest of it isn't live" meant.
+  let changed = false;
   for(const [k, px] of Object.entries(t.spots||{})){
-    const el = document.getElementById("px-"+k);
-    if(el) el.textContent = px.toLocaleString("en-IN",{maximumFractionDigits:2});
+    const r = LAST.indices[k];
+    if(r && px != null && r.spot !== px){ r.spot = px; changed = true; }
   }
-  $("beat").className = "beat" + (t.live ? " live" : "");
-  if(t.live && t.age != null) $("upd").textContent = "live";
-
-  // The Spot tile in the ticket stats, and the tile row above the ladder.
-  const spot = (t.spots||{})[CUR];
-  if(spot != null){
-    const st = document.querySelectorAll("#tstats .tstat");
-    if(st.length >= 4) st[3].querySelector(".v").textContent = num(spot, 0);
-    const first = document.querySelector("#tiles .tile .v");
-    if(first) first.textContent = num(spot, 2);
+  // Two sources of a premium, and the ticket's wins: an open ticket is tracked
+  // on its own frozen strike, while `ltp` is whatever strike is being suggested
+  // right now. Applying the suggestion over a live ticket would quote a
+  // different contract under the ticket's own numbers.
+  for(const [k, px] of Object.entries(t.ltp||{})){
+    const r = LAST.indices[k];
+    if(r && px != null && r.ltp !== px){ r.ltp = px; changed = true; }
   }
-
-  // An open ticket's Now and P&L, which is the pair a held position is about.
-  const tk = (t.tickets||{})[CUR];
-  if(tk && tk.open){
-    const dp = tk.tracked_on === "premium" ? 2 : 0;
-    const cells = document.querySelectorAll("#tstats .tstat");
-    if(cells.length >= 5){
-      cells[2].querySelector(".v").textContent = num(tk.now, dp);
-      const v = cells[4].querySelector(".v");
-      v.textContent = tk.pnl==null ? "—"
-        : (tk.pnl>=0?"+":"\u2212")+"\u20b9"+Math.abs(Math.round(tk.pnl)).toLocaleString("en-IN");
-      v.style.color = tk.pnl==null ? "var(--ink-3)"
-                    : tk.pnl>0 ? "var(--up)" : tk.pnl<0 ? "var(--down)" : "var(--ink-2)";
+  for(const [k, px] of Object.entries(t.premium||{})){
+    const r = LAST.indices[k];
+    if(r && px != null && r.ltp !== px){ r.ltp = px; changed = true; }
+  }
+  for(const [k, tk] of Object.entries(t.tickets||{})){
+    if(!tk || !LAST.tickets || !LAST.tickets[k]) continue;
+    const cur = LAST.tickets[k].ticket;
+    if(cur){
+      if(cur.now !== tk.now || cur.pnl !== tk.pnl){ changed = true; }
+      cur.now = tk.now; cur.pnl = tk.pnl;
+      cur.hit = tk.hit; cur.hit_time = tk.hit_time;
+      cur.sl_hit = tk.sl_hit; cur.sl_hit_time = tk.sl_hit_time;
+      cur.status = tk.status; cur.open = tk.open;
     }
-    // If a target or the stop was reached on a tick, the ladder has to say so
-    // now rather than at the next full poll — that is the whole point of
-    // checking on the tick in the first place.
-    const before = JSON.stringify([tk.hit, tk.sl_hit]);
-    if(before !== LASTHIT){ LASTHIT = before; if(LAST) tick(); }
+  }
+  if(t.live) $("upd").textContent = "live";
+  $("beat").className = "beat" + (t.live ? " live" : "");
+
+  if(changed) render(LAST);
+
+  // A target reached on a tick changes more than a price — the ticket may
+  // have closed and the day's totals moved with it, and only the full state
+  // knows that.
+  const tk = (t.tickets||{})[CUR];
+  if(tk){
+    const sig = JSON.stringify([tk.hit, tk.sl_hit, tk.open]);
+    if(LASTHIT !== null && sig !== LASTHIT) tick();
+    LASTHIT = sig;
   }
 }
 let LIVE = null, LASTHIT = null;

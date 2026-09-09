@@ -167,6 +167,8 @@ class Feed:
         self.streamer = None
         self.tokens = {}          # index name -> instrument token
         self.opt_tokens = {}      # index name -> the open ticket's contract
+        self.sug_tokens = {}      # index name -> (strike, type, token) suggested
+        self.sug_px = {}          # index name -> that contract's live premium
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
         self.state = {
@@ -391,6 +393,45 @@ class Feed:
         except Exception:
             pass
 
+    def _subscribe_suggested(self, name):
+        """Stream the premium of the strike currently being SUGGESTED.
+
+        An open ticket has its contract subscribed already, but most of the
+        day there is no ticket — only a suggestion — and that is exactly when
+        someone is deciding whether to take it. Leaving its premium to the
+        thirty-second analysis meant the one number a buyer actually pays sat
+        still while everything around it moved.
+
+        The suggestion changes as spot drifts across strikes, so this
+        re-resolves when it does and keeps the handful of tokens it has seen.
+        """
+        if self.streamer is None:
+            return
+        with self.lock:
+            entry = self.state["indices"].get(name)
+            pub = (entry or {}).get("public") or {}
+        strike, opt = pub.get("strike"), pub.get("option_type")
+        if not strike or not opt:
+            return
+        have = self.sug_tokens.get(name)
+        if have and have[0] == strike and have[1] == opt:
+            return                     # already streaming this one
+        token = user_kite.token_for(self.email)
+        if not token:
+            return
+        try:
+            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            tok = provider.option_token(name, strike, opt)
+        except Exception:
+            tok = None
+        if not tok:
+            return
+        self.sug_tokens[name] = (strike, opt, tok)
+        try:
+            self.streamer.subscribe([tok], quote=True)
+        except Exception:
+            pass
+
     def _tick_loop(self):
         """Read the socket's memory a few times a second and act on it.
 
@@ -409,6 +450,13 @@ class Feed:
                         with self.lock:
                             self.spots[name] = px
                 for name in list(config.INSTRUMENTS):
+                    self._subscribe_suggested(name)
+                    sug = self.sug_tokens.get(name)
+                    if sug:
+                        px = st.price(sug[2])
+                        if px is not None:
+                            with self.lock:
+                                self.sug_px[name] = px
                     self._subscribe_ticket(name)
                     tok = self.opt_tokens.get(name)
                     if not tok:
@@ -436,8 +484,10 @@ class Feed:
         st = self.streamer
         with self.lock:
             spots = dict(self.spots)
+        with self.lock:
+            sug = dict(self.sug_px)
         out = {"spots": spots, "live": bool(st is not None and st.connected),
-               "age": None, "premium": {}}
+               "age": None, "premium": {}, "ltp": sug}
         if st is not None:
             try:
                 age = st.age_seconds()
