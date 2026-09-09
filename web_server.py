@@ -545,8 +545,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(
                 f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} 300" '
                 f'width="{w}" height="300" style="width:100%;height:auto">'
-                f'<rect width="{w}" height="300" fill="#fcfcfc"/>'
-                f'<text x="{w//2}" y="150" fill="#9b9b9b" font-size="14" '
+                f'<rect width="{w}" height="300" fill="#0f0f12"/>'
+                f'<text x="{w//2}" y="150" fill="#6f6f7b" font-size="14" '
                 f'text-anchor="middle" font-family="sans-serif">waiting for candles…'
                 f'</text></svg>', "image/svg+xml")
         return self._send(chart_svg(df, rec, None, width=w), "image/svg+xml")
@@ -902,7 +902,7 @@ PAGE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="dark">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>NBS Signal Tool — Nifty · Bank Nifty · Sensex</title>
 <style>
@@ -912,11 +912,11 @@ PAGE = r"""<!doctype html>
    re-checked against for colour-blind separation — the notes in
    chart_panel.py record what the previous pair failed on. */
 :root{
-  --bg:#ffffff; --surface:#ffffff; --raised:#f5f5f5; --sunken:#fcfcfc;
-  --bd:#e9e9e9; --bd-soft:#f0f0f0;
-  --ink:#3c3c3c; --ink-2:#6c6c6c; --ink-3:#9b9b9b;
-  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#387ed1;
-  --ema-fast:#387ed1; --ema-slow:#f6a500; --vwap:#9b59b6;
+  --bg:#0b0b0d; --surface:#141417; --raised:#1b1b20; --sunken:#0f0f12;
+  --bd:#2a2a31; --bd-soft:#1e1e24;
+  --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#6f6f7b;
+  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
+  --ema-fast:#4d94e8; --ema-slow:#f6a500; --vwap:#b07ad4;
   --r:3px; --r-sm:3px;
 }
 *{box-sizing:border-box}
@@ -927,7 +927,7 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .wrap{max-width:1120px;margin:0 auto;padding:0 20px 64px}
 
 /* ---------- header ---------- */
-header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
+header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
   backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--bd-soft)}
 .hd{max-width:1120px;margin:0 auto;padding:13px 20px;display:flex;
   align-items:center;gap:14px;justify-content:space-between}
@@ -948,10 +948,10 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 .notice{border-radius:var(--r);padding:14px 16px;margin:16px 0 0;font-size:13px;
   line-height:1.65;display:flex;gap:11px;align-items:flex-start}
 .notice svg{flex:none;margin-top:2px}
-.notice.risk{background:#fff2ee;border:1px solid #ffc7b4;color:#8a4a33}
-.notice.risk b{color:#d84315}
-.notice.stale{background:#fffaf0;border:1px solid #f3e2c0;color:#7a6a48}
-.notice.stale b{color:#b07d15}
+.notice.risk{background:#2a1610;border:1px solid #5c2a18;color:#e0b0a0}
+.notice.risk b{color:#ff8a65}
+.notice.stale{background:#1c1710;border:1px solid #3a2f18;color:#d8c9a8}
+.notice.stale b{color:#f0bf55}
 
 /* ---------- index switcher ---------- */
 .markets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0 0}
@@ -1018,7 +1018,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 /* The lots selector. Nothing here places an order, so this only scales the
    rupee column — it is a "what would that be worth to me" dial, not a size. */
 .lots{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
-.lots select{background:var(--bg);color:var(--ink);border:1px solid var(--bd);
+.lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
   border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
 
 /* The indicator panel — the same readings the desktop app shows down its
@@ -1049,7 +1049,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 .mapwrap{position:relative;background:var(--sunken);border:1px solid var(--bd);
   border-radius:var(--r-sm);overflow:hidden;height:460px;margin-top:4px}
 @media(max-width:640px){.mapwrap{height:340px}}
-.mtile{position:absolute;overflow:hidden;border:1px solid rgba(255,255,255,.55);
+.mtile{position:absolute;overflow:hidden;border:1px solid rgba(0,0,0,.35);
   display:flex;flex-direction:column;justify-content:center;align-items:center;
   padding:2px;transition:background-color .4s ease}
 .mtile b{font-size:11px;font-weight:700;line-height:1.15;letter-spacing:-.2px;
@@ -1065,7 +1065,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 .maplegend{display:flex;align-items:center;gap:6px;margin-left:auto}
 .maplegend span{font-size:10.5px}
 .maplegend .sw{width:52px;height:8px;border-radius:2px;
-  background:linear-gradient(90deg,#d92d20,#f3f4f6,#0f8f62)}
+  background:linear-gradient(90deg,#ff5722,#242429,#4caf50)}
 
 /* ---------- the world markets strip ---------- */
 /* Two identical copies of the row slide left together; when the first has
@@ -1132,8 +1132,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 .thead .eyebrow{margin:0}
 .badge{font-size:10.5px;font-weight:800;letter-spacing:.7px;padding:4px 10px;
   border-radius:999px;border:1px solid transparent;white-space:nowrap}
-.badge.open{background:#f1f8f2;border-color:#b5dcb7;color:#3d8b40}
-.badge.hold{background:#fffaf0;border-color:#f3e2c0;color:#8a6410}
+.badge.open{background:#122017;border-color:#1f4a2c;color:#7ed492}
+.badge.hold{background:#1c1710;border-color:#3a2f18;color:#e0a93a}
 .badge.prev{background:var(--raised);border-color:var(--bd);color:var(--ink-3)}
 .tclear{margin-left:auto}
 .contract{font-size:13px;color:var(--ink-2);margin-top:4px}
@@ -1160,7 +1160,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
   color:var(--ink-3);font-weight:700;flex:none}
 .chips{display:flex;gap:7px;flex-wrap:wrap;flex:1}
 .chip2{font-size:12px;font-weight:650;padding:4px 11px;border-radius:999px;
-  border:1px solid var(--bd);background:var(--bg);
+  border:1px solid var(--bd);background:var(--raised);
   font-variant-numeric:tabular-nums;
   /* The chips change as prices move; a hard cut between colours reads as a
      flicker, so the change is eased instead. */
@@ -1244,8 +1244,8 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 <header><div class="hd">
   <a class="brand" href="/" style="color:inherit;text-decoration:none">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="1" y="1" width="22" height="22" rx="6" fill="#f5f5f5" stroke="#e9e9e9"/>
-      <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#387ed1"
+      <rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/>
+      <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8"
             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="19" cy="13.9" r="2" fill="#4caf50"/>
     </svg>
@@ -1278,8 +1278,8 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 
  <div class="notice risk">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-   <circle cx="8" cy="8" r="7" stroke="#d84315" stroke-width="1.5"/>
-   <path d="M8 4.6v4.2M8 11.2v.6" stroke="#d84315" stroke-width="1.7" stroke-linecap="round"/>
+   <circle cx="8" cy="8" r="7" stroke="#ff8a65" stroke-width="1.5"/>
+   <path d="M8 4.6v4.2M8 11.2v.6" stroke="#ff8a65" stroke-width="1.7" stroke-linecap="round"/>
   </svg>
   <div><b>Read before acting on anything here.</b> This is the output of a mechanical
    rule set — not advice, and not from a SEBI-registered research analyst or investment
@@ -1288,21 +1288,21 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 
  <div class="notice stale" id="connect" style="display:none">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-   <path d="M6.4 9.6L2.8 13.2M9.6 6.4l3.6-3.6" stroke="#b07d15" stroke-width="1.6"
+   <path d="M6.4 9.6L2.8 13.2M9.6 6.4l3.6-3.6" stroke="#f0bf55" stroke-width="1.6"
          stroke-linecap="round"/>
    <path d="M4.6 6.2a2.6 2.6 0 013.7 0l1.5 1.5a2.6 2.6 0 010 3.7"
-         stroke="#b07d15" stroke-width="1.6" stroke-linecap="round"/>
+         stroke="#f0bf55" stroke-width="1.6" stroke-linecap="round"/>
   </svg>
   <div><b>Your Zerodha account is not connected.</b> <span id="connectmsg"></span>
    The signals below are computed under your own broker session, so there is
    nothing to show until you connect it.
-   <a href="/connect" style="color:#b07d15;font-weight:700">Connect now &rarr;</a></div>
+   <a href="/connect" style="color:#f0bf55;font-weight:700">Connect now &rarr;</a></div>
  </div>
 
  <div class="notice stale" id="stale" style="display:none">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-   <path d="M8 1.8l6.4 11.4H1.6L8 1.8z" stroke="#b07d15" stroke-width="1.5" stroke-linejoin="round"/>
-   <path d="M8 6.4v3M8 11.4v.6" stroke="#b07d15" stroke-width="1.6" stroke-linecap="round"/>
+   <path d="M8 1.8l6.4 11.4H1.6L8 1.8z" stroke="#f0bf55" stroke-width="1.5" stroke-linejoin="round"/>
+   <path d="M8 6.4v3M8 11.4v.6" stroke="#f0bf55" stroke-width="1.6" stroke-linecap="round"/>
   </svg>
   <div><b>Live data feed is down.</b> <span id="stalemsg"></span>
    Everything below is the last reading before it stopped — not the current market.</div>
@@ -1727,7 +1727,7 @@ function sessionStrip(sess, order){
     ? keys.map(k => {
         const v = per[k], col = v>0?"var(--up)":v<0?"var(--down)":"var(--ink-2)";
         return `<span class="chip2" style="color:${col};border-color:${
-          v>0?"#b5dcb7":v<0?"#ffc7b4":"var(--bd)"}">${esc(k)} ${money(v)}</span>`;
+          v>0?"#1f4a2c":v<0?"#5c2a18":"var(--bd)"}">${esc(k)} ${money(v)}</span>`;
       }).join("")
     : `<span class="chip2" style="color:var(--ink-3)">Nothing closed yet today</span>`;
 
@@ -2372,11 +2372,11 @@ function render(s){
 // this page's palette: market_map.heat_colour() answers in the desktop app's
 // dark theme, and a dark tile on a white card would look like a bug.
 function heat(pct){
-  if(pct == null) return "#eef0f3";
+  if(pct == null) return "#1b1b20";
   const p = Math.max(-2, Math.min(2, pct)) / 2;
   // Toward white at zero, so "barely moved" reads as barely coloured.
   const mix = (a, b, t) => Math.round(a + (b - a) * t);
-  const [r0,g0,b0] = [246,247,249];
+  const [r0,g0,b0] = [30,30,36];
   const [r1,g1,b1] = p >= 0 ? [15,143,98] : [217,45,32];
   const t = Math.abs(p);
   return `rgb(${mix(r0,r1,t)},${mix(g0,g1,t)},${mix(b0,b1,t)})`;
@@ -2413,14 +2413,14 @@ async function heatMap(force){
     const bg = heat(t.pct);
     // Dark text on pale tiles, white on saturated ones, so the label stays
     // readable at both ends of the ramp instead of only in the middle.
-    const strong = t.pct != null && Math.abs(t.pct) > 1.0;
+    const strong = t.pct != null && Math.abs(t.pct) > 0.8;
     const size = t.w < 34 || t.h < 20 ? "mini" : (t.w < 62 || t.h < 32 ? "tiny" : "");
     const pct = t.pct == null ? "—"
               : (t.pct >= 0 ? "+" : "\u2212") + Math.abs(t.pct).toFixed(2) + "%";
     return `<div class="mtile ${size}" title="${esc(t.sym)} \u00b7 ${esc(t.sector)}`
          + ` \u00b7 ${t.weight}% of the index \u00b7 ${pct}"`
          + ` style="left:${t.x}px;top:${t.y}px;width:${t.w}px;height:${t.h}px;`
-         + `background:${bg};color:${strong ? "#fff" : "var(--ink)"}">`
+         + `background:${bg};color:${strong ? "#fff" : "var(--ink-2)"}">`
          + `<b>${esc(t.sym)}</b><i>${pct}</i></div>`;
   }).join("");
 

@@ -99,15 +99,21 @@ def _esc(s):
 # LOOK
 # ===========================================================================
 CSS = """
-/* Kite's palette. The people using this site already have kite.zerodha.com
-   open in another tab, and a second trading screen that looks like a different
-   universe is a small tax paid on every glance between them. Blue #387ed1,
-   #4caf50 up, #ff5722 down, hairline greys, 3px corners, no gradients. */
+/* Black. Kite's semantics kept — #4caf50 up, #ff5722 down, a blue accent,
+   hairline borders, 3px corners, no gradients — but inverted onto near-black,
+   because this is looked at for hours and a white field at 09:15 is a lamp
+   pointed at your face.
+
+   The accent is lifted from Kite's #4d94e8 to #4d94e8: the darker blue reads
+   fine on white and goes muddy on black, and an accent you have to hunt for
+   has stopped being one. Up and down keep their exact hues, because those two
+   carry meaning, and re-tuning them per theme is how a red comes to look like
+   an amber on one screen and not the other. */
 :root{
-  --bg:#ffffff; --surface:#fbfbfb; --raised:#f5f5f5; --sunken:#fcfcfc;
-  --bd:#e9e9e9; --bd-soft:#f0f0f0;
-  --ink:#3c3c3c; --ink-2:#6c6c6c; --ink-3:#9b9b9b;
-  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#387ed1;
+  --bg:#0b0b0d; --surface:#141417; --raised:#1b1b20; --sunken:#0f0f12;
+  --bd:#2a2a31; --bd-soft:#1e1e24;
+  --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#6f6f7b;
+  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --r:3px; --r-sm:3px;
 }
 *{box-sizing:border-box}
@@ -125,7 +131,7 @@ a:hover{text-decoration:underline}
 .narrow{max-width:760px;margin:0}
 
 /* ---------- header ---------- */
-header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.88);
+header{position:sticky;top:0;z-index:30;background:rgba(11,11,13,.9);
   backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--bd)}
 .hd{max-width:1060px;margin:0 auto;padding:11px 22px;display:flex;
   align-items:center;gap:18px;justify-content:space-between}
@@ -142,7 +148,7 @@ nav a.on{color:var(--ink);font-weight:650}
   padding:9px 17px;border-radius:10px;font-size:14.5px;border:0;cursor:pointer;
   font-family:inherit}
 .btn:hover{text-decoration:none;filter:brightness(1.08)}
-.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--bd);box-shadow:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--bd);box-shadow:none}
 @media(max-width:1000px){nav .hide{display:none}}
 
 /* Below 1000px the header links are hidden to keep the bar from wrapping, so
@@ -151,7 +157,7 @@ nav a.on{color:var(--ink);font-weight:650}
    can push with your thumb. */
 .subnav{display:none}
 @media(max-width:1000px){
-  .subnav{display:block;position:sticky;top:56px;z-index:29;background:#fff;
+  .subnav{display:block;position:sticky;top:56px;z-index:29;background:var(--bg);
     border-bottom:1px solid var(--bd-soft);overflow-x:auto;
     -webkit-overflow-scrolling:touch;scrollbar-width:none}
   .subnav::-webkit-scrollbar{display:none}
@@ -217,7 +223,7 @@ ol.steps{list-style:none;counter-reset:s;margin:0;padding:0;display:grid;gap:14p
 ol.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--bd);
   border-radius:var(--r);padding:20px 22px 20px 68px;position:relative}
 ol.steps li::before{content:counter(s);position:absolute;left:22px;top:19px;
-  width:30px;height:30px;border-radius:50%;background:#fff;
+  width:30px;height:30px;border-radius:50%;background:var(--raised);
   border:1px solid var(--bd);color:var(--accent);font-weight:700;font-size:14px;
   display:flex;align-items:center;justify-content:center}
 ol.steps p{color:var(--ink-2);font-size:14.5px;margin:0}
@@ -244,18 +250,18 @@ figcaption b{color:var(--ink);display:block;margin-bottom:3px}
 .callout{border-radius:var(--r);padding:26px 28px 22px;margin:0}
 .callout h2,.callout h3{margin-top:0}
 .callout p:last-child{margin-bottom:0}
-.warm{background:#fffaf0;border:1px solid #f3e2c0;color:#5f5340}
-.warm .kicker{color:#b07d15}
-.warm h2,.warm h3{color:#8a6410}
-.warm b{color:#6f4f08}
-.warm a{color:#8a6410;text-decoration:underline}
+.warm{background:#1c1710;border:1px solid #3a2f18;color:#d8c9a8}
+.warm .kicker{color:#e0a93a}
+.warm h2,.warm h3{color:#f0bf55}
+.warm b{color:#f7d489}
+.warm a{color:#f0bf55;text-decoration:underline}
 .cool{background:var(--surface);border:1px solid var(--bd);color:var(--ink-2)}
 .figs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0 20px}
 @media(max-width:760px){.figs{grid-template-columns:repeat(2,1fr)}}
-.fig{background:#fff;border:1px solid #f0e3c8;border-radius:var(--r-sm);
+.fig{background:#221c12;border:1px solid #3a2f18;border-radius:var(--r-sm);
   padding:16px 16px 14px}
-.fig .n{font-size:25px;font-weight:700;letter-spacing:-.6px;color:#8a6410;line-height:1.1}
-.fig .l{font-size:12px;color:#7d7060;margin-top:5px;line-height:1.45}
+.fig .n{font-size:25px;font-weight:700;letter-spacing:-.6px;color:#f0bf55;line-height:1.1}
+.fig .l{font-size:12px;color:#b3a894;margin-top:5px;line-height:1.45}
 
 /* ---------- lists with marks ---------- */
 ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:11px}
@@ -263,13 +269,13 @@ ul.plain li{display:flex;gap:12px;align-items:flex-start;color:var(--ink-2);font
 ul.plain .x,ul.plain .t{flex:none;width:20px;height:20px;border-radius:50%;
   font-size:12px;display:flex;align-items:center;justify-content:center;
   margin-top:2px;font-weight:700}
-ul.plain .x{background:#fff2ee;border:1px solid #ffc7b4;color:#d84315}
-ul.plain .t{background:#f1f8f2;border:1px solid #b5dcb7;color:#3d8b40}
+ul.plain .x{background:#2a1610;border:1px solid #5c2a18;color:#ff8a65}
+ul.plain .t{background:#122017;border:1px solid #1f4a2c;color:#7ed492}
 
 /* ---------- faq ---------- */
 details{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-sm);
   padding:16px 20px;margin-bottom:10px}
-details[open]{background:#fff}
+details[open]{background:var(--raised)}
 summary{cursor:pointer;font-weight:650;font-size:15.5px;list-style:none}
 summary::-webkit-details-marker{display:none}
 summary::after{content:"+";float:right;color:var(--ink-3);font-weight:400;font-size:19px;
@@ -289,9 +295,9 @@ details p{color:var(--ink-2);font-size:14.5px;margin:12px 0 0}
 /* ---------- footer ---------- */
 footer{border-top:1px solid var(--bd-soft);padding:48px 0 60px;color:var(--ink-3);
   font-size:13.5px;margin-top:70px;background:var(--sunken)}
-footer .legal{background:#fffaf0;border:1px solid #f3e2c0;border-radius:var(--r-sm);
-  padding:18px 20px;margin-bottom:32px;line-height:1.7;color:#5f5340;font-size:13px}
-footer .legal b{color:#8a6410}
+footer .legal{background:#1c1710;border:1px solid #3a2f18;border-radius:var(--r-sm);
+  padding:18px 20px;margin-bottom:32px;line-height:1.7;color:#c9bc9e;font-size:13px}
+footer .legal b{color:#f0bf55}
 .fcols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:26px;margin-bottom:30px}
 @media(max-width:760px){.fcols{grid-template-columns:1fr 1fr}}
 .fcols h5{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--ink-3);
@@ -346,9 +352,9 @@ footer .legal b{color:#8a6410}
 .dg-label{font-size:11px;font-weight:700;letter-spacing:.4px;
   fill:var(--ink-2);text-transform:uppercase}
 .dg-sub{font-size:10.5px;fill:var(--ink-3)}
-.dg-box{fill:#fff;stroke:var(--bd)}
-.dg-gate{fill:#fffaf0;stroke:#f3e2c0}
-.dg-out{fill:#f1f8f2;stroke:#b5dcb7}
+.dg-box{fill:var(--raised);stroke:var(--bd)}
+.dg-gate{fill:#1c1710;stroke:#3a2f18}
+.dg-out{fill:#122017;stroke:#1f4a2c}
 .dg-wait{fill:var(--raised);stroke:var(--bd)}
 .dg-wire{stroke:var(--bd);stroke-width:1.5;fill:none}
 
@@ -358,33 +364,33 @@ footer .legal b{color:#8a6410}
 
 /* ---------- forms (login / connect) ---------- */
 .mid{max-width:520px;margin:0 auto;padding:56px 0 20px}
-.panel{background:#fff;border:1px solid var(--bd);border-radius:var(--r);
+.panel{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
   padding:26px 26px 28px;box-shadow:none}
 .panel h1{font-size:22px;letter-spacing:-.4px;margin:0 0 6px}
 .panel .sub{font-size:14.5px;margin:0 0 20px}
 label.f{display:block;font-size:12px;color:var(--ink-2);font-weight:700;
   margin:14px 0 6px;letter-spacing:.2px}
-input[type=email],input[type=password],input[type=text]{width:100%;background:#fff;
+input[type=email],input[type=password],input[type=text]{width:100%;background:var(--sunken);
   color:var(--ink);border:1px solid var(--bd);border-radius:9px;padding:11px 12px;
   font-size:15px;font-family:inherit}
 input:focus{outline:2px solid var(--accent);outline-offset:1px}
 button.wide{width:100%;margin-top:20px}
-.err{background:#fff2ee;border:1px solid #ffc7b4;color:#d84315;border-radius:var(--r-sm);
+.err{background:#2a1610;border:1px solid #5c2a18;color:#ff8a65;border-radius:var(--r-sm);
   padding:11px 13px;font-size:13.5px;margin-bottom:16px}
-.ok{background:#f1f8f2;border:1px solid #b5dcb7;color:#3d8b40;border-radius:var(--r-sm);
+.ok{background:#122017;border:1px solid #1f4a2c;color:#7ed492;border-radius:var(--r-sm);
   padding:11px 13px;font-size:13.5px;margin-bottom:16px}
-.warnbox{background:#fffaf0;border:1px solid #f3e2c0;color:#5f5340;border-radius:var(--r-sm);
+.warnbox{background:#1c1710;border:1px solid #3a2f18;color:#d8c9a8;border-radius:var(--r-sm);
   padding:11px 13px;font-size:13.5px;margin-bottom:16px}
-.warnbox b{color:#8a6410}
+.warnbox b{color:#f0bf55}
 .hint{color:var(--ink-3);font-size:12.5px;margin-top:8px}
 .alt{text-align:center;margin-top:16px;font-size:13.5px;color:var(--ink-3)}
 .state{display:inline-flex;align-items:center;gap:8px;border-radius:999px;
   padding:6px 13px;font-size:12.5px;font-weight:700;border:1px solid var(--bd);
   background:var(--surface);color:var(--ink-2)}
 .state .d{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ink-3)}
-.state.on{background:#f1f8f2;border-color:#b5dcb7;color:#3d8b40}
+.state.on{background:#122017;border-color:#1f4a2c;color:#7ed492}
 .state.on .d{background:var(--up)}
-.state.off{background:#fffaf0;border-color:#f3e2c0;color:#8a6410}
+.state.off{background:#1c1710;border-color:#3a2f18;color:#e0a93a}
 .state.off .d{background:var(--warn)}
 .rows{margin:18px 0 0;border-top:1px solid var(--bd-soft)}
 .row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;
@@ -400,7 +406,7 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
 # header logo, scales to any tab size, and costs a few hundred bytes — and
 # because a missing favicon is a 404 in every visitor's console.
 FAVICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-           '<rect width="24" height="24" rx="6" fill="#387ed1"/>'
+           '<rect width="24" height="24" rx="6" fill="#4d94e8"/>'
            '<path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#ffffff" '
            'stroke-width="2" fill="none" stroke-linecap="round" '
            'stroke-linejoin="round"/>'
@@ -433,8 +439,8 @@ def sitemap_xml(base):
 
 
 LOGO = ('<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
-        '<rect x="1" y="1" width="22" height="22" rx="6" fill="#f5f5f5" stroke="#e9e9e9"/>'
-        '<path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#387ed1" '
+        '<rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/>'
+        '<path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8" '
         'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>'
         '<circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg>')
 
@@ -464,7 +470,7 @@ def shell(title, body, user=None, active="", description="", noindex=False):
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="dark">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 {'<meta name="robots" content="noindex">' if noindex else ''}
 <meta name="description" content="{_esc(description or (BRAND + ' — a rule-based decision-support screen for Nifty, Bank Nifty and Sensex index options. Not advice, not SEBI-registered.'))}">
@@ -596,7 +602,7 @@ def pipeline_svg():
 
   <!-- the wire everything sits on -->
   <path class="dg-wire" d="M84 110 H796"/>
-  <path class="dg-wire flow" d="M84 110 H796" stroke="#387ed1" stroke-width="2"/>
+  <path class="dg-wire flow" d="M84 110 H796" stroke="#4d94e8" stroke-width="2"/>
 
   <!-- 1. candles -->
   <g class="popin" style="animation-delay:.1s">
@@ -629,7 +635,7 @@ def pipeline_svg():
    <path class="dg-wire" d="M318 110 H356"/>
    <rect class="dg-gate" x="356" y="76" width="118" height="68" rx="3"/>
    <text class="dg-label" x="415" y="100" text-anchor="middle"
-         style="fill:#8a6410">ADX GATE</text>
+         style="fill:#f0bf55">ADX GATE</text>
    <text class="dg-sub" x="415" y="118" text-anchor="middle">strength floor</text>
    <text class="dg-sub" x="415" y="132" text-anchor="middle">blocks, not weights</text>
   </g>
@@ -639,7 +645,7 @@ def pipeline_svg():
    <path class="dg-wire" d="M474 110 H512"/>
    <rect class="dg-gate" x="512" y="76" width="130" height="68" rx="3"/>
    <text class="dg-label" x="577" y="100" text-anchor="middle"
-         style="fill:#8a6410">REWARD : RISK</text>
+         style="fill:#f0bf55">REWARD : RISK</text>
    <text class="dg-sub" x="577" y="118" text-anchor="middle">reach from ATR</text>
    <text class="dg-sub" x="577" y="132" text-anchor="middle">below the floor = no</text>
   </g>
@@ -678,8 +684,8 @@ def hero_svg():
  <svg viewBox="0 0 560 150">
   <defs>
    <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#387ed1" stop-opacity=".16"/>
-    <stop offset="1" stop-color="#387ed1" stop-opacity="0"/>
+    <stop offset="0" stop-color="#4d94e8" stop-opacity=".16"/>
+    <stop offset="1" stop-color="#4d94e8" stop-opacity="0"/>
    </linearGradient>
   </defs>
 
@@ -695,9 +701,9 @@ def hero_svg():
   <path class="drawline"
         d="M0 116 L60 108 L120 118 L180 96 L240 102 L300 78 L360 84 L420 60
            L480 66 L540 44 L560 40"
-        fill="none" stroke="#387ed1" stroke-width="2.4"
+        fill="none" stroke="#4d94e8" stroke-width="2.4"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <circle class="fadein" cx="540" cy="44" r="4" fill="#387ed1"
+  <circle class="fadein" cx="540" cy="44" r="4" fill="#4d94e8"
           style="animation-delay:2.2s"/>
  </svg>
 </div>
