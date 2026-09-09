@@ -52,6 +52,7 @@ import accounts
 import config
 import feeds
 import kite_auth
+import market_ticker
 import nbs_site
 import trade_log
 import user_kite
@@ -72,6 +73,7 @@ _state = {
     "started": None,
     "mode": "kite",
 }
+_stop_ticker = threading.Event()
 
 # One-time nonces for Zerodha logins, each remembering WHOSE login it is.
 #
@@ -392,6 +394,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_state(user)
             if path == "/api/tick":
                 return self._api_tick(user)
+            if path == "/api/markets":
+                # Public on purpose: it is world index levels off a free feed,
+                # not anybody's data, and the strip is drawn before login on
+                # the marketing pages too.
+                return self._send(json.dumps({"rows": market_ticker.rows()}),
+                                  "application/json")
             if path.startswith("/chart/") and path.endswith(".svg"):
                 return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
             if path.startswith("/api/candles/"):
@@ -1009,6 +1017,40 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
 
 /* The three boxes across the top: where the market is, what it has done
    today, and how much of the rule set agrees. */
+/* ---------- the world markets strip ---------- */
+/* Two identical copies of the row slide left together; when the first has
+   fully passed, the animation restarts and the second is exactly where the
+   first began, so the seam never shows. CSS rather than a scroll timer,
+   which keeps it on the compositor and off the main thread — this must not
+   compete with the tick loop for frames. */
+.ticker{position:relative;overflow:hidden;border-bottom:1px solid var(--bd);
+  background:var(--surface);height:38px}
+.ticker:hover .tk-track{animation-play-state:paused}
+.tk-track{display:flex;width:max-content;align-items:center;height:38px;
+  animation:tkslide 90s linear infinite}
+@keyframes tkslide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){
+  /* Motion someone did not ask for, in their peripheral vision, all day. */
+  .tk-track{animation:none}
+  .ticker{overflow-x:auto}
+}
+.tk{display:inline-flex;align-items:baseline;gap:7px;padding:0 18px;
+  font-size:12.5px;white-space:nowrap;border-right:1px solid var(--bd-soft)}
+.tk .n{color:var(--ink-2);font-weight:650;letter-spacing:.2px}
+.tk .p{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+.tk .c{font-size:11.5px;font-variant-numeric:tabular-nums;font-weight:600}
+.tk .dot{width:5px;height:5px;border-radius:50%;flex:none;align-self:center}
+
+/* ---------- the welcome bar ---------- */
+.welcome{display:flex;align-items:flex-end;justify-content:space-between;
+  gap:18px;flex-wrap:wrap;margin-top:20px}
+.welcome .eyebrow{margin:0 0 6px}
+.welcome h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0;
+  letter-spacing:-.7px;font-weight:700}
+.welcome .who{color:var(--accent)}
+.welcome .said{color:var(--ink-2);font-size:14.5px;margin:7px 0 0}
+.welcome .acts{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+
 .top3{display:grid;grid-template-columns:1.15fr 1.35fr .8fr;gap:14px;margin-top:14px}
 @media(max-width:900px){.top3{grid-template-columns:1fr}}
 .spark{width:100%;height:76px;display:block;margin-top:8px}
@@ -1160,7 +1202,22 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   </div>
 </div></header>
 
+<div class="ticker" aria-label="World market levels"><div class="tk-track" id="tkt"></div></div>
+
 <div class="wrap">
+
+ <div class="welcome">
+  <div>
+   <p class="eyebrow">Overview</p>
+   <h1>Welcome, <span class="who" id="who">—</span></h1>
+   <p class="said" id="said">Nifty, Bank Nifty and Sensex — one screen for the session.</p>
+  </div>
+  <div class="acts">
+   <a class="lbtn" href="/how-it-works">How it works</a>
+   <a class="lbtn" href="/connect">Zerodha</a>
+   <a class="lbtn" href="/results">Results</a>
+  </div>
+ </div>
 
  <div class="notice risk">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -2127,6 +2184,7 @@ function render(s){
   // signal under another index's name.
   if(!CUR || !(s.order||[]).includes(CUR)) CUR=(s.order||[])[0];
   markets(s);
+  greet(s);
 
   $("beat").className = "beat" + (s.market_open && !s.stale ? " live" : "");
   $("mkt").textContent = s.stale ? "feed down" : (s.market_open?"Market open":"Market closed");
@@ -2238,6 +2296,55 @@ function render(s){
        This fills in as signals close, and it shows losses as well as wins.</p>`;
 }
 
+// -------------------------------------------------------- world markets
+// Rendered twice into the same track. The animation slides it exactly half
+// its width, so the copy lands where the original started and the loop has
+// no visible seam. Refreshed on the server's own minute, not the page's.
+function renderTicker(rows){
+  if(!rows || !rows.length) return;
+  const one = rows.map(r => {
+    const up = r.pct == null ? 0 : r.pct;
+    const col = up > 0 ? "var(--up)" : up < 0 ? "var(--down)" : "var(--ink-3)";
+    const chg = r.change == null ? ""
+      : `<span class="c" style="color:${col}">${r.change>=0?"+":"\u2212"}`
+        + `${Math.abs(r.change).toLocaleString("en-IN")}`
+        + (r.pct==null?"":` (${r.pct>=0?"+":"\u2212"}${Math.abs(r.pct).toFixed(2)}%)`)
+        + `</span>`;
+    return `<span class="tk"><i class="dot" style="background:${col}"></i>`
+         + `<span class="n">${esc(r.label)}</span>`
+         + `<span class="p">${r.price.toLocaleString("en-IN",
+              {minimumFractionDigits:r.dp,maximumFractionDigits:r.dp})}</span>`
+         + `${chg}</span>`;
+  }).join("");
+  $("tkt").innerHTML = one + one;      // the seamless half
+}
+
+async function markets_(){
+  try{
+    const d = await (await fetch("/api/markets",{cache:"no-store"})).json();
+    renderTicker(d.rows);
+  }catch(e){}
+}
+
+// The name in the greeting. Accounts here are email addresses and nobody has
+// given us a display name, so the local part is the closest thing to one —
+// and it is what the person typed, which beats inventing a formatting rule
+// for somebody else's name.
+function greet(s){
+  const who = $("who");
+  const email = s && s.user;
+  if(!email){ who.textContent = "—"; return; }
+  who.textContent = email.split("@")[0];
+  who.title = email;
+  const k = s.kite || {};
+  $("said").textContent = k.connected
+    ? (k.user_id ? `Connected to Zerodha as ${k.user_id}. Nifty, Bank Nifty and `
+                 + `Sensex — one screen for the session.`
+                 : "Connected to Zerodha. Nifty, Bank Nifty and Sensex — one "
+                 + "screen for the session.")
+    : "Connect your Zerodha account to see live signals.";
+}
+
 async function tick(){
   try{ LAST=await (await fetch("/api/state",{cache:"no-store"})).json(); render(LAST); }
   catch(e){ $("mkt").textContent="connection lost"; $("beat").className="beat"; }
@@ -2325,6 +2432,7 @@ $("honest").textContent="A three-year backtest of this rule set on 15-minute can
   "so it can be checked, not because it is known to work.";
 tick(); setInterval(tick,3000);
 priceTick(); setInterval(priceTick,1000);
+markets_(); setInterval(markets_,60000);
 addEventListener("resize",()=>{clearTimeout(window._rz);
   window._rz=setTimeout(()=>render(LAST),260)});
 </script>
@@ -2386,6 +2494,9 @@ def main():
     # few minutes after they close it. In free mode they all share one, started
     # the same way and on the same terms.
     feeds.configure(args.mode, interval)
+
+    # Kept warm in the background so no page load ever waits on Yahoo.
+    market_ticker.start_background(_stop_ticker)
 
     srv = Server((args.host, args.port), Handler)
     where = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
@@ -2451,6 +2562,7 @@ def main():
     except KeyboardInterrupt:
         print("\nStopping…")
     finally:
+        _stop_ticker.set()
         feeds.stop_all()
         srv.server_close()
 
