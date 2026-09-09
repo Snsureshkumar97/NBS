@@ -136,10 +136,22 @@ def export(out_dir, app_url, base_url):
     # cleanUrls serves /how-it-works from how-it-works.html, so the static
     # site keeps the same addresses the live server uses and nothing that
     # links to it has to know it moved.
+    # Anyone who bookmarked /login on this domain, or types it, should end up
+    # at the tool rather than at a 404. The pages themselves already link
+    # straight there; this only catches the addresses people arrive at by
+    # other means.
+    redirects = []
+    if app_url:
+        base = app_url.rstrip("/")
+        for path in APP_PATHS:
+            redirects.append({"source": path, "destination": base + path,
+                              "permanent": False})
+
     vercel = {
         "$schema": "https://openapi.vercel.sh/vercel.json",
         "cleanUrls": True,
         "trailingSlash": False,
+        "redirects": redirects,
         "headers": [
             {"source": "/shot/(.*)",
              "headers": [{"key": "Cache-Control",

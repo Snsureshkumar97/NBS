@@ -2,6 +2,38 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/login",
+      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/login",
+      "permanent": false
+    },
+    {
+      "source": "/app",
+      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/app",
+      "permanent": false
+    },
+    {
+      "source": "/connect",
+      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/connect",
+      "permanent": false
+    },
+    {
+      "source": "/logout",
+      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/logout",
+      "permanent": false
+    },
+    {
+      "source": "/signup",
+      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/signup",
+      "permanent": false
+    },
+    {
+      "source": "/admin",
+      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/admin",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/shot/(.*)",
