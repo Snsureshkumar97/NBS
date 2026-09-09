@@ -39,8 +39,11 @@ import threading
 import time
 import traceback
 
+import pandas as pd
+
 import config
 import explain
+import signal_engine
 import tickets
 import user_kite
 from data_providers import FreeDataProvider, KiteDataProvider, KiteStreamer
@@ -169,6 +172,9 @@ class Feed:
         self.opt_tokens = {}      # index name -> the open ticket's contract
         self.sug_tokens = {}      # index name -> (strike, type, token) suggested
         self.sug_px = {}          # index name -> that contract's live premium
+        self.base_df = {}         # index name -> the completed REST candles
+        self.base_oi = {}         # index name -> the last option-chain snapshot
+        self._last_live = 0.0     # when the live recompute last ran
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
         self.state = {
@@ -246,6 +252,8 @@ class Feed:
                         except Exception:
                             evs = []
                         with self.lock:
+                            self.base_df[name] = rec.get("candles")
+                            self.base_oi[name] = rec.get("option_chain")
                             self.state["indices"][name] = {
                                 "rec": rec,
                                 "public": _public(rec, name),
@@ -432,6 +440,114 @@ class Feed:
         except Exception:
             pass
 
+    # ------------------------------------------------- the live recompute
+    def _df_with_live_bar(self, name):
+        """The completed REST candles with the in-progress one, assembled from
+        the tick stream, appended on the end.
+
+        This is what makes the indicators live. Without it EMA, MACD, RSI, ADX
+        and VWAP can only move when a whole fifteen-minute candle closes and
+        gets fetched — which is exactly why the website's gauges sat still
+        while the desktop's moved.
+        """
+        with self.lock:
+            df = self.base_df.get(name)
+        if df is None or df.empty:
+            return None
+        st, tok = self.streamer, self.tokens.get(name)
+        if st is None or not tok:
+            return df
+        bar = st.forming_bar(tok)
+        if not bar:
+            return df
+        try:
+            ts = pd.Timestamp(bar["start"], unit="s", tz="UTC").tz_convert(
+                df.index.tz or "Asia/Kolkata")
+            # REST usually hands back the current, incomplete candle too — drop
+            # it so the streamed one replaces it rather than duplicating it.
+            if len(df) and df.index[-1] >= ts:
+                df = df.iloc[:-1]
+            if df.empty:
+                return None
+            # Indices carry no real volume, and VWAP treats 0 as "unknown" and
+            # forward-fills. Carrying the previous bar's figure keeps the
+            # forming bar behaving like every other one rather than punching a
+            # hole in it. An estimate, and it only affects VWAP.
+            vol = float(df["Volume"].iloc[-1]) if "Volume" in df.columns else 0.0
+            row = pd.DataFrame(
+                {"Open": [bar["o"]], "High": [bar["h"]], "Low": [bar["l"]],
+                 "Close": [bar["c"]], "Volume": [vol]}, index=[ts])
+            return pd.concat([df, row])
+        except Exception:
+            return df
+
+    def _live_analysis(self):
+        """Recompute every index on its live candle, about once a second.
+
+        The option chain is NOT re-fetched — it comes over REST and cannot
+        change faster than the poll that gets it. What is recomputed is
+        everything derived from price, which is the part that moves.
+        """
+        for name in config.INSTRUMENTS:
+            df = self._df_with_live_bar(name)
+            if df is None or len(df) < 60:
+                continue
+            with self.lock:
+                oi = self.base_oi.get(name)
+            if not isinstance(oi, dict) or "available" not in oi:
+                oi = signal_engine.compute_option_chain_signal(None)
+            try:
+                tech = signal_engine.compute_technical_signal(df)
+                spot = float(df["Close"].iloc[-1])
+                step = config.INSTRUMENTS[name]["strike_step"]
+                try:
+                    # ADX is already in tech — passing it stops reachability
+                    # recomputing it once per index per second.
+                    reach = signal_engine.compute_reachability(
+                        spot, oi, df, now_ist(), adx=tech.get("adx"))
+                except Exception:
+                    reach = None
+                rec = signal_engine.build_recommendation(name, tech, oi, step,
+                                                          reach=reach)
+                try:
+                    rec["trend"] = signal_engine.compute_market_trend(df)
+                except Exception:
+                    rec["trend"] = None
+                rec["candles"] = df
+            except Exception:
+                continue
+
+            try:
+                evs = self.tickets.update(name, rec)
+            except Exception:
+                evs = []
+            with self.lock:
+                entry = self.state["indices"].get(name)
+                if entry is None:
+                    continue
+                entry["rec"] = rec
+                entry["public"] = _public(rec, name)
+                entry["why"] = explain.explain(rec)
+                entry["at"] = now_ist().strftime("%H:%M:%S")
+                for ev in evs:
+                    ev["at"] = entry["at"]
+                    self.events.insert(0, ev)
+                del self.events[30:]
+
+    def forming(self):
+        """The in-progress candle per index, so the chart's last bar can move
+        instead of waiting for the next fetch."""
+        st = self.streamer
+        if st is None:
+            return {}
+        out = {}
+        for name, tok in list(self.tokens.items()):
+            bar = st.forming_bar(tok)
+            if bar:
+                out[name] = {"t": int(bar["start"]), "o": bar["o"], "h": bar["h"],
+                             "l": bar["l"], "c": bar["c"]}
+        return out
+
     def _tick_loop(self):
         """Read the socket's memory a few times a second and act on it.
 
@@ -475,6 +591,12 @@ class Feed:
                             del self.events[30:]
                         if ev.get("kind") == "closed":
                             self.opt_tokens.pop(name, None)
+                # Everything derived from price, recomputed on the forming
+                # candle — the same thing the desktop does every second, and
+                # the reason its gauges move and the website's did not.
+                if time.time() - self._last_live > 1.0:
+                    self._last_live = time.time()
+                    self._live_analysis()
             except Exception:
                 pass
             time.sleep(0.5)
@@ -487,7 +609,7 @@ class Feed:
         with self.lock:
             sug = dict(self.sug_px)
         out = {"spots": spots, "live": bool(st is not None and st.connected),
-               "age": None, "premium": {}, "ltp": sug}
+               "age": None, "premium": {}, "ltp": sug, "bar": self.forming()}
         if st is not None:
             try:
                 age = st.age_seconds()

@@ -2290,6 +2290,20 @@ async function priceTick(){
       cur.status = tk.status; cur.open = tk.open;
     }
   }
+  // The candle currently being built. Without this the chart's right-hand
+  // edge froze for fifteen minutes at a time while every number around it
+  // moved — the bar was only ever redrawn when a finished one was fetched.
+  const bar = (t.bar||{})[CH.key];
+  if(bar && CH.data && CH.data.candles && CH.data.candles.length){
+    const bars = CH.data.candles, last = bars[bars.length-1];
+    if(last[0] === bar.t){                       // same bar, still forming
+      last[1]=bar.o; last[2]=bar.h; last[3]=bar.l; last[4]=bar.c;
+    } else if(bar.t > last[0]){                  // a new bar has opened
+      bars.push([bar.t, bar.o, bar.h, bar.l, bar.c, null]);
+      if(CH.pinned) CH.i0 = Math.max(0, bars.length - CH.n);
+    }
+    chartDraw();
+  }
   if(t.live) $("upd").textContent = "live";
   $("beat").className = "beat" + (t.live ? " live" : "");
 
