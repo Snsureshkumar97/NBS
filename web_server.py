@@ -50,10 +50,11 @@ import urllib.parse
 
 import accounts
 import config
-import explain
+import feeds
 import kite_auth
-import signal_engine
+import nbs_site
 import trade_log
+import user_kite
 from chart_panel import chart_svg
 from main import (
     fetch_recommendation, get_provider, is_market_open, now_ist,
@@ -61,56 +62,45 @@ from main import (
 )
 
 # ---------------------------------------------------------------------------
-# SHARED STATE — written by the worker thread, read by every request
+# SHARED STATE
 # ---------------------------------------------------------------------------
+# The analysis loops live in feeds.py now — one per user who is actually
+# watching, each running under that person's own Zerodha token. What is left
+# here belongs to the server as a whole rather than to anybody's session.
 _lock = threading.Lock()
 _state = {
-    "indices": {},          # key -> {"rec": ..., "why": ..., "df": ...}
     "started": None,
-    "last_error": None,
-    "mode": "free",
-    "market_open": False,
-    "updated": None,
-    "feed": "unknown",      # "ok" | "missing" | "expired" — Zerodha token health
+    "mode": "kite",
 }
-_stop = threading.Event()
 
-# Set when the operator finishes a login, so the worker retries AT ONCE instead
-# of sitting out the rest of its back-off. Without this you log in successfully
-# and the page keeps showing the old error for another half minute, which reads
-# exactly like the login having failed.
-_wake = threading.Event()
-
-
-def _sleep(seconds):
-    """Wait, but come back early if we're stopping or something woke us."""
-    if _stop.wait(0):
-        return
-    if _wake.wait(seconds):
-        _wake.clear()
-
-# One-time nonces for operator logins. A login that comes back without a nonce
-# this server issued is somebody else's login, and is refused — otherwise a
-# stranger could complete the Zerodha flow with their own account and leave the
-# server running on their credentials.
-_nonces = {}
+# One-time nonces for Zerodha logins, each remembering WHOSE login it is.
+#
+# A login that comes back without a nonce this server issued is somebody
+# else's and is refused. Without the email alongside it, a stranger could
+# complete Zerodha's flow with their own account and have the token filed
+# against another user here — so the nonce is not just proof that we started
+# a login, it is the record of who we started it for.
+_nonces = {}                  # nonce -> (issued_at, email; None = the operator)
 NONCE_TTL = 600
 
 
-def _new_nonce():
+def _new_nonce(email=None):
     n = secrets.token_urlsafe(24)
     now = time.time()
-    for k, t in list(_nonces.items()):        # sweep expired ones
+    for k, (t, _owner) in list(_nonces.items()):      # sweep expired ones
         if now - t > NONCE_TTL:
             _nonces.pop(k, None)
-    _nonces[n] = now
+    _nonces[n] = (now, email)
     return n
 
 
 def _burn_nonce(n):
-    """Valid at most once. Returns True only the first time."""
-    t = _nonces.pop(n, None)
-    return t is not None and (time.time() - t) <= NONCE_TTL
+    """Valid at most once. Returns (ok, email)."""
+    entry = _nonces.pop(n, None)
+    if not entry:
+        return False, None
+    issued, email = entry
+    return (time.time() - issued) <= NONCE_TTL, email
 
 
 def lan_address():
@@ -138,109 +128,6 @@ def _admin_ok(qs):
     return hmac.compare_digest(given, key)
 
 
-def _public(rec):
-    """The parts of a recommendation a browser needs. Deliberately explicit —
-    dumping the whole dict would ship the candle DataFrame and the raw option
-    chain to every visitor on every poll."""
-    if not rec:
-        return None
-    tech = rec.get("technical") or {}
-    trend = rec.get("trend") or {}
-    return {
-        "index": rec.get("index"),
-        "bias": rec.get("bias"),
-        "action": rec.get("action"),
-        "confidence": rec.get("confidence"),
-        "spot": rec.get("spot"),
-        "strike": rec.get("suggested_strike"),
-        "option_type": rec.get("option_type"),
-        "targets": rec.get("index_targets"),
-        "stop": rec.get("index_stop_loss"),
-        "risk_points": rec.get("risk_points"),
-        "reach_points": rec.get("reach_points"),
-        "reach_to_risk": rec.get("reach_to_risk"),
-        "reach_reason": rec.get("reach_reason"),
-        "not_worth_it": rec.get("not_worth_it"),
-        "adx_blocked": rec.get("adx_blocked"),
-        "blockers": rec.get("blockers") or [],
-        "votes": rec.get("votes") or {},
-        "agree": rec.get("agree"), "dissent": rec.get("dissent"),
-        "adx": tech.get("adx"), "adx_ok": tech.get("adx_ok"),
-        "rsi": round(tech["last_rsi"], 1) if tech.get("last_rsi") is not None else None,
-        "macd_hist": tech.get("macd_hist"),
-        "vwap_gap": tech.get("vwap_gap"),
-        "trend": {
-            "label": trend.get("label"), "adx": trend.get("adx"),
-            "momentum": trend.get("momentum"), "direction": trend.get("direction"),
-            "displacement_atr": trend.get("displacement_atr"),
-            "stalled": trend.get("stalled"),
-            "day_change": trend.get("day_change"), "day_change_pct": trend.get("day_change_pct"),
-            "day_high": trend.get("day_high"), "day_low": trend.get("day_low"),
-            "range_pos_pct": trend.get("range_pos_pct"),
-        },
-    }
-
-
-def worker(mode, interval, expiry=None):
-    """Fetch and analyse all three indices on a loop. One thread, shared by
-    every visitor — the analysis is identical for everyone, so computing it
-    per-request would just be the same numbers at N times the cost (and N
-    times the load on Zerodha)."""
-    provider = None
-    while not _stop.is_set():
-        try:
-            if provider is None:
-                provider = get_provider(mode)
-            open_now = is_market_open()
-            for key in config.INSTRUMENTS:
-                if _stop.is_set():
-                    break
-                try:
-                    rec, notes = fetch_recommendation(provider, key, "15m", None,
-                                                       quiet=True, expiry=expiry)
-                    with _lock:
-                        _state["indices"][key] = {
-                            "rec": rec,
-                            "public": _public(rec),
-                            "why": explain.explain(rec),
-                            "df": rec.get("candles"),
-                            "notes": notes,
-                            "at": now_ist().strftime("%H:%M:%S"),
-                        }
-                        _state["last_error"] = None
-                except Exception as exc:
-                    with _lock:
-                        _state["last_error"] = f"{key}: {exc}"
-                _stop.wait(1.0)
-            feed = "ok"
-            if mode == "kite":
-                try:
-                    feed, _ = kite_auth.token_status()
-                except Exception:
-                    feed = "unknown"
-            with _lock:
-                _state["market_open"] = open_now
-                _state["updated"] = now_ist().strftime("%H:%M:%S")
-                _state["feed"] = feed
-        except MissingKiteCredentials as exc:
-            with _lock:
-                _state["last_error"] = str(exc)
-                _state["feed"] = "missing"
-            provider = None
-            _sleep(30)
-            continue          # retry immediately once woken, don't also sleep `interval`
-        except Exception:
-            with _lock:
-                _state["last_error"] = traceback.format_exc(limit=2)
-            provider = None
-            _sleep(10)
-            continue
-        _sleep(interval)
-
-
-# ---------------------------------------------------------------------------
-# TRACK RECORD — the honest bit
-# ---------------------------------------------------------------------------
 def track_record():
     """Every closed trade this tool has ever logged, summarised without
     flattering. A signal site that shows only its current call and never its
@@ -303,7 +190,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------- accounts
     SESSION_COOKIE = "sd_session"
-    OPEN_PATHS = ("/login", "/signup", "/logout", "/healthz", "/admin", "/kite/callback")
+
+    # Paths that need somebody logged in. Everything else is public on purpose:
+    # the marketing pages are the reason the site is reachable at all, and
+    # gating them would leave a visitor staring at a login form with nothing
+    # anywhere telling them what they would be logging in to.
+    GATED = ("/app", "/api/state", "/chart/", "/connect")
 
     def _cookie(self, name):
         raw = self.headers.get("Cookie") or ""
@@ -365,7 +257,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_signup(form)
             if path == "/admin":
                 return self._do_admin_action(form)
-            return self._send("<h1>404</h1>", code=404)
+            if path == "/connect":
+                return self._do_connect(form)
+            if path == "/api/ticket":
+                return self._do_ticket(form)
+            return self._send(nbs_site.result_page(
+                "Not found", "There is no page at that address.", ok=False,
+                back="/", back_label="Go to the home page"), code=404)
         except Exception:
             return self._send(f"<pre>{traceback.format_exc(limit=3)}</pre>", code=500)
 
@@ -373,131 +271,385 @@ class Handler(http.server.BaseHTTPRequestHandler):
         token, err = accounts.authenticate(form.get("email"), form.get("password"),
                                            ip=self._client_ip())
         if err:
-            return self._send(auth_page("login", error=err, email=form.get("email", "")))
+            return self._send(nbs_site.login_page(error=err,
+                                                  email=form.get("email", "")))
         self._set_session(token)
-        return self._redirect("/")
+        # Straight to the tool rather than the home page. Somebody who just
+        # typed a password was not looking for the marketing copy.
+        return self._redirect("/app")
 
     def _do_signup(self, form):
         if not config.WEB_ALLOW_SIGNUP:
             return self._send("<h1>404</h1>", code=404)
         if not form.get("understood"):
-            return self._send(auth_page("signup", email=form.get("email", ""),
+            return self._send(nbs_site.signup_page(
+                email=form.get("email", ""),
                 error="Please tick the box confirming you've read what this is."))
         ok, msg = accounts.create_user(form.get("email"), form.get("password"))
         if not ok:
-            return self._send(auth_page("signup", error=msg, email=form.get("email", "")))
+            return self._send(nbs_site.signup_page(error=msg, email=form.get("email", "")))
         token, err = accounts.authenticate(form.get("email"), form.get("password"),
                                           ip=self._client_ip())
         if err:
-            return self._send(auth_page("login", error="Account created — please log in."))
+            return self._send(nbs_site.login_page(
+                notice="Account created — please log in."))
         self._set_session(token)
-        return self._redirect("/")
+        return self._redirect("/app")
 
     def _do_admin_action(self, form):
         if not _admin_ok({"key": [form.get("key", "")]}):
             return self._send("<h1>404</h1>", code=404)
         action, email = form.get("action"), form.get("email")
-        if action == "disable":
-            accounts.set_disabled(email, True)
+        note = ""
+        if action == "create":
+            # The missing half of this page until now: accounts could be
+            # disabled, deleted and reset here but only ever created by the
+            # signup form — so closing signup, which is the sensible default,
+            # left no way to make one at all.
+            ok, note = accounts.create_user(email, form.get("password", ""))
+            if ok:
+                note = f"Created {email}. Give them that password directly."
+        elif action == "disable":
+            _, note = accounts.set_disabled(email, True)
         elif action == "enable":
-            accounts.set_disabled(email, False)
+            _, note = accounts.set_disabled(email, False)
         elif action == "delete":
-            accounts.delete_user(email)
+            _, note = accounts.delete_user(email)
         elif action == "password":
-            accounts.set_password(email, form.get("password", ""))
-        return self._redirect(f"/admin?key={urllib.parse.quote(form.get('key',''))}")
+            _, note = accounts.set_password(email, form.get("password", ""))
+        elif action == "unlink":
+            # Kills the stored broker token without touching the account, for
+            # when a user asks you to cut it and cannot reach the site.
+            _, note = user_kite.disconnect(email)
+            note = f"Disconnected {email} from Zerodha."
+        key = urllib.parse.quote(form.get("key", ""))
+        return self._redirect(f"/admin?key={key}&note={urllib.parse.quote(note or '')}")
 
     def do_GET(self):
         self._extra_headers = []
         path, _, query = self.path.partition("?")
         path = path.rstrip("/") or "/"
         try:
-            import urllib.parse
             qs = urllib.parse.parse_qs(query)
         except Exception:
             qs = {}
         user = self._current_user()
-        if (config.WEB_REQUIRE_LOGIN and not user
-                and path not in self.OPEN_PATHS and not path.startswith("/chart/")):
+
+        # One gate, checked once, instead of a condition repeated per route.
+        if not user and any(path == g or path.startswith(g) for g in self.GATED):
+            # The chart is data too. Gating the page but not the image it pulls
+            # would leak the signals through the picture.
+            if path.startswith("/chart/"):
+                return self._send("", "image/svg+xml", code=403)
             return self._redirect("/login")
-        # The chart is data too — gate it, or the signals leak via the image.
-        if (config.WEB_REQUIRE_LOGIN and not user and path.startswith("/chart/")):
-            return self._send("", "image/svg+xml", code=403)
 
         try:
-            if path == "/login":
-                if user:
-                    return self._redirect("/")
-                return self._send(auth_page("login"))
-            if path == "/signup":
-                if not config.WEB_ALLOW_SIGNUP:
-                    return self._send("<h1>404</h1>", code=404)
-                if user:
-                    return self._redirect("/")
-                return self._send(auth_page("signup"))
-            if path == "/logout":
-                accounts.logout(self._cookie(self.SESSION_COOKIE))
-                self._set_session(None, clear=True)
-                return self._redirect("/login")
+            # ---- the public site -----------------------------------------
             if path == "/":
-                # Zerodha lets an app have exactly ONE redirect URL. Rather than
-                # forcing a choice between the desktop button and the website,
+                # Zerodha allows an app exactly ONE redirect URL. Rather than
+                # forcing a choice between the desktop button and this site,
                 # the home page also answers to a login coming back — so an
                 # existing "http://127.0.0.1:5055/" setting keeps working for
                 # both, as long as the web server runs on that port.
                 if qs.get("request_token") or qs.get("status"):
                     return self._callback(qs)
+            page = nbs_site.PAGES.get(path)
+            if page:
+                return self._send(page(user=user, record=track_record()))
+
+            if path.startswith("/shot/") and path.endswith(".png"):
+                return self._shot(path[len("/shot/"):-len(".png")])
+            if path in ("/favicon.svg", "/favicon.ico"):
+                return self._send(nbs_site.FAVICON, "image/svg+xml")
+            if path == "/robots.txt":
+                return self._send(nbs_site.robots_txt(self._base()), "text/plain")
+            if path == "/sitemap.xml":
+                return self._send(nbs_site.sitemap_xml(self._base()),
+                                  "application/xml")
+
+            # ---- accounts -------------------------------------------------
+            if path == "/login":
+                if user:
+                    return self._redirect("/app")
+                return self._send(nbs_site.login_page())
+            if path == "/signup":
+                if not config.WEB_ALLOW_SIGNUP:
+                    return self._not_found()
+                if user:
+                    return self._redirect("/app")
+                return self._send(nbs_site.signup_page())
+            if path == "/logout":
+                accounts.logout(self._cookie(self.SESSION_COOKIE))
+                self._set_session(None, clear=True)
+                return self._redirect("/")
+            if path == "/connect":
+                return self._connect(user)
+
+            # ---- the tool itself ------------------------------------------
+            if path == "/app":
                 return self._send(PAGE)
             if path == "/api/state":
-                with _lock:
-                    payload = {
-                        "market_open": _state["market_open"],
-                        "updated": _state["updated"],
-                        "mode": _state["mode"],
-                        "user": user,
-                        "feed": _state["feed"],
-                        "stale": _state["feed"] in ("missing", "expired"),
-                        "error": _state["last_error"],
-                        "indices": {k: v["public"] for k, v in _state["indices"].items()},
-                        "why": {k: v["why"] for k, v in _state["indices"].items()},
-                        "record": track_record(),
-                        "order": list(config.INSTRUMENTS.keys()),
-                    }
-                return self._send(json.dumps(payload), "application/json")
+                return self._api_state(user)
             if path.startswith("/chart/") and path.endswith(".svg"):
-                key = path[len("/chart/"):-len(".svg")]
-                with _lock:
-                    entry = _state["indices"].get(key)
-                    df = entry["df"] if entry else None
-                    rec = entry["rec"] if entry else None
-                # The browser tells us how wide the chart will actually be, so
-                # it can be drawn at that size instead of scaled (and squashed)
-                # to fit afterwards. Clamped, because the width arrives from
-                # the client and nothing from a client is trusted.
-                try:
-                    w = int(float((qs.get("w") or ["900"])[0]))
-                except (TypeError, ValueError):
-                    w = 900
-                w = max(320, min(1600, w))
-                if df is None or len(df) < 2:
-                    return self._send(
-                        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} 300" '
-                        f'width="{w}" height="300" style="width:100%;height:auto">'
-                        f'<rect width="{w}" height="300" fill="#141924"/>'
-                        f'<text x="{w//2}" y="150" fill="#6b7280" font-size="14" '
-                        f'text-anchor="middle" font-family="sans-serif">waiting for candles…'
-                        f'</text></svg>', "image/svg+xml")
-                return self._send(chart_svg(df, rec, None, width=w), "image/svg+xml")
+                return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
+            if path.startswith("/api/candles/"):
+                return self._candles(user, path[len("/api/candles/"):])
+
+            # ---- plumbing --------------------------------------------------
             if path == "/healthz":
                 return self._send("ok", "text/plain")
             if path == "/admin":
                 return self._admin(qs)
             if path == "/kite/callback":
                 return self._callback(qs)
-            return self._send("<h1>404</h1>", code=404)
+            return self._not_found()
         except Exception:
             return self._send(f"<pre>{traceback.format_exc(limit=3)}</pre>", code=500)
 
+    def _base(self):
+        """This server's public address, for the absolute URLs a sitemap needs.
+
+        WEB_PUBLIC_URL when it is set, because behind a proxy the Host header
+        is the only other thing we have and it is supplied by the client.
+        """
+        if config.WEB_PUBLIC_URL:
+            return config.WEB_PUBLIC_URL
+        host = self.headers.get("Host", "")
+        return f"{'https' if self._is_https() else 'http'}://{host}" if host else ""
+
+    def _not_found(self):
+        return self._send(nbs_site.result_page(
+            "Not found", "There is no page at that address.", ok=False,
+            back="/", back_label="Go to the home page"), code=404)
+
+    # --------------------------------------------------------------- images
+    def _shot(self, slug):
+        """Serve one of the app screenshots.
+
+        From a whitelist in nbs_site rather than by joining the slug onto a
+        directory: "serve any png from the app folder" and "serve any file from
+        the app folder" are one path-traversal bug apart, and the app folder is
+        where .env used to live.
+        """
+        path = nbs_site.shot_path(slug)
+        if not path:
+            return self._send("", "image/png", code=404)
+        try:
+            with open(path, "rb") as f:
+                body = f.read()
+        except OSError:
+            return self._send("", "image/png", code=404)
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(body)))
+        # These change only when the app is re-shot, so let a visitor's browser
+        # keep them rather than re-fetching a megabyte of PNG on every page.
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    # ---------------------------------------------------------------- state
+    def _api_state(self, user):
+        """This user's own feed, started by the act of asking for it."""
+        feed = feeds.for_user(user)
+        snap = feed.snapshot()
+        kite = user_kite.summary(user) if _state["mode"] != "free" else {
+            "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
+        payload = {
+            "market_open": snap["market_open"],
+            "updated": snap["updated"],
+            "mode": _state["mode"],
+            "user": user,
+            "feed": snap["feed"],
+            "stale": snap["feed"] in ("missing", "stale", "expired"),
+            "error": snap["error"],
+            "kite": kite,
+            "needs_connect": not kite["connected"],
+            "indices": snap["indices"],
+            "why": snap["why"],
+            "tickets": snap.get("tickets") or {},
+            "session": snap.get("session") or {},
+            "events": snap.get("events") or [],
+            "record": track_record(),
+            "order": list(config.INSTRUMENTS.keys()),
+        }
+        return self._send(json.dumps(payload), "application/json")
+
+    def _chart(self, user, key, qs):
+        feed = feeds.for_user(user)
+        df, rec = feed.candles(key)
+        # The browser reports how wide the chart will actually be, so it can be
+        # drawn at that size instead of scaled — and squashed — to fit
+        # afterwards. Clamped, because the width arrives from a client and
+        # nothing from a client is trusted.
+        try:
+            w = int(float((qs.get("w") or ["900"])[0]))
+        except (TypeError, ValueError):
+            w = 900
+        w = max(320, min(1600, w))
+        if df is None or len(df) < 2:
+            return self._send(
+                f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} 300" '
+                f'width="{w}" height="300" style="width:100%;height:auto">'
+                f'<rect width="{w}" height="300" fill="#fcfcfc"/>'
+                f'<text x="{w//2}" y="150" fill="#9b9b9b" font-size="14" '
+                f'text-anchor="middle" font-family="sans-serif">waiting for candles…'
+                f'</text></svg>', "image/svg+xml")
+        return self._send(chart_svg(df, rec, None, width=w), "image/svg+xml")
+
+    def _do_ticket(self, form):
+        """The settings that used to be checkboxes on the desktop window, and
+        the one manual action: clearing a ticket.
+
+        POST rather than GET because each of these changes something. Nothing
+        here places or cancels an order — there is no order to cancel. Clearing
+        marks a ticket closed and logs it, which is a statement about the
+        record, not about a position.
+        """
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        feed = feeds.for_user(user)
+        book = feed.tickets
+
+        def as_bool(name):
+            v = form.get(name)
+            return None if v is None else v not in ("0", "false", "False", "")
+
+        action = form.get("action")
+        if action == "clear":
+            book.clear(form.get("index") or "")
+        else:
+            try:
+                lots = int(form["lots"]) if "lots" in form else None
+            except (TypeError, ValueError):
+                lots = None
+            book.configure(lots=lots, reentry=as_bool("reentry"),
+                           auto_rearm=as_bool("auto_rearm"),
+                           limits=as_bool("limits"))
+        return self._send(json.dumps({"ok": True, "session": book.session()}),
+                          "application/json")
+
+    def _candles(self, user, key):
+        """The bars themselves, as JSON, for the interactive chart.
+
+        The SVG endpoint stays: it is what a browser with no JavaScript, and
+        the desktop app's own renderer, both use. This one exists because a
+        picture cannot be hovered — a crosshair that reads out the bar under
+        the pointer has to have the bars in the browser.
+        """
+        import indicators as ind
+
+        feed = feeds.for_user(user)
+        df, rec = feed.candles(key)
+        if df is None or len(df) < 2:
+            return self._send(json.dumps({"candles": [], "index": key}),
+                              "application/json")
+
+        def col(name):
+            try:
+                return df[name]
+            except KeyError:
+                return None
+
+        def clean(series):
+            """NaN is not JSON. Indicator series begin with a warm-up window of
+            them, so they are sent as nulls and the chart simply starts the
+            line where the data does."""
+            if series is None:
+                return None
+            out = []
+            for v in series:
+                try:
+                    f = float(v)
+                except (TypeError, ValueError):
+                    out.append(None)
+                    continue
+                out.append(None if (f != f or f in (float("inf"), float("-inf")))
+                           else round(f, 2))
+            return out
+
+        try:
+            ema_fast = clean(ind.ema(df["Close"], config.EMA_FAST))
+            ema_slow = clean(ind.ema(df["Close"], config.EMA_SLOW))
+        except Exception:
+            ema_fast = ema_slow = None
+        try:
+            vwap = clean(ind.vwap(df))
+        except Exception:
+            vwap = None
+
+        # Epoch seconds, so the browser can format them in the viewer's own
+        # locale instead of us shipping pre-formatted strings we would then
+        # have to keep consistent with the axis.
+        times = []
+        for ts in df.index:
+            try:
+                times.append(int(ts.timestamp()))
+            except Exception:
+                times.append(None)
+
+        o, h, l, c = (clean(col("Open")), clean(col("High")),
+                      clean(col("Low")), clean(col("Close")))
+        v = clean(col("Volume"))
+        bars = [[times[i], o[i], h[i], l[i], c[i], (v[i] if v else None)]
+                for i in range(len(df))
+                if None not in (times[i], o[i], h[i], l[i], c[i])]
+
+        pub = feeds._public(rec, key) or {}
+        tg = pub.get("targets") or []
+        payload = {
+            "index": key,
+            "interval": "15m",
+            "candles": bars,
+            "ema_fast": ema_fast, "ema_slow": ema_slow, "vwap": vwap,
+            "ema_fast_len": config.EMA_FAST, "ema_slow_len": config.EMA_SLOW,
+            "levels": {
+                "t1": tg[0] if len(tg) > 0 else None,
+                "t2": tg[1] if len(tg) > 1 else None,
+                "t3": tg[2] if len(tg) > 2 else None,
+                "stop": pub.get("stop"),
+                "spot": pub.get("spot"),
+            },
+            "action": pub.get("action"),
+            "bias": pub.get("bias"),
+            "strike": pub.get("strike"),
+            "option_type": pub.get("option_type"),
+        }
+        return self._send(json.dumps(payload), "application/json")
+
+    # -------------------------------------------------------- kite, per user
+    def _connect(self, user, error=None, notice=None):
+        app_ok, app_why = user_kite.app_ready()
+        info = user_kite.summary(user)
+        return self._send(nbs_site.connect_page(
+            user, info["state"], info["detail"], user_id=info["user_id"],
+            since=info["since"], app_ok=app_ok, app_why=app_why,
+            error=error, notice=notice))
+
+    def _do_connect(self, form):
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        action = form.get("action")
+        if action == "disconnect":
+            user_kite.disconnect(user)
+            feeds.wake(user)
+            return self._connect(user, notice="Disconnected from Zerodha.")
+        if action != "start":
+            return self._connect(user)
+
+        app_ok, app_why = user_kite.app_ready()
+        if not app_ok:
+            return self._connect(user, error=app_why)
+        try:
+            url = user_kite.login_url(_new_nonce(user))
+        except Exception as exc:
+            return self._connect(user, error=str(exc))
+        return self._redirect(url)
 
     # ------------------------------------------------------------- operator
     def _admin(self, qs):
@@ -511,125 +663,174 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # Same response whether the key is wrong or unset — no hints.
             return self._send("<h1>404</h1>", code=404)
 
-        state, detail = kite_auth.token_status()
         cb = config.web_callback_url()
+        note = (qs.get("note") or [""])[0]
+        key_q = self._esc((qs.get("key") or [""])[0])
+
         rows = [
-            ("Data feed", {"ok": "live", "missing": "NOT LOGGED IN",
-                           "expired": "TOKEN EXPIRED"}.get(state, state)),
-            ("Detail", detail),
-            ("Callback URL", cb or "WEB_PUBLIC_URL is not set in .env"),
             ("Mode", _state["mode"]),
-            ("Last update", _state["updated"] or "never"),
-            ("Last error", (_state["last_error"] or "none").split("\n")[0]),
+            ("Started", _state["started"] or "just now"),
+            ("Live feeds", str(len(feeds.active())) + " (one per user watching)"),
+            ("Callback URL", cb or "WEB_PUBLIC_URL is not set in .env"),
+            ("Kite app", "configured" if (config.KITE_API_KEY and config.KITE_API_SECRET)
+                         else "KITE_API_KEY / KITE_API_SECRET MISSING"),
+            ("Accounts", f"{accounts.user_count()} · signup "
+                         + ("OPEN to anyone" if config.WEB_ALLOW_SIGNUP else "closed")),
         ]
-        rows.append(("Accounts", f"{accounts.user_count()} · signup "
-                     + ("OPEN to anyone" if config.WEB_ALLOW_SIGNUP else "closed")
-                     + " · login " + ("required" if config.WEB_REQUIRE_LOGIN else "NOT required")))
         body = "".join(f"<tr><td><b>{k}</b></td><td>{self._esc(str(v))}</td></tr>"
                        for k, v in rows)
+        body += "</table>"
 
-        key_q = self._esc((qs.get("key") or [""])[0])
+        # Create an account. This is the only way one is made when signup is
+        # closed, which is the default and the point.
+        body += (f"<h3>Create an account</h3>"
+                 f"<form method=post action=/admin class=row>"
+                 f"<input type=hidden name=key value='{key_q}'>"
+                 f"<input name=email type=email placeholder='email' required>"
+                 f"<input name=password type=text placeholder='password "
+                 f"({accounts.MIN_PASSWORD}+ characters)' required "
+                 f"minlength={accounts.MIN_PASSWORD} size=34>"
+                 f"<button name=action value=create>Create</button></form>"
+                 f"<p class=mut>The password box is plain text on purpose — you "
+                 f"have to read it back to them, and there is no email to send "
+                 f"it in. Pick a passphrase, hand it over, and tell them to "
+                 f"treat it as temporary.</p>")
+
         users = accounts.list_users()
         if users:
-            ulist = "".join(
-                f"<tr><td>{self._esc(u['email'])}</td>"
-                f"<td class=mut>{self._esc(u['created'] or '')}</td>"
-                f"<td class=mut>{self._esc(u['last_login'] or 'never')}</td>"
-                f"<td>{'DISABLED' if u['disabled'] else 'active'}</td>"
-                f"<td><form method=post action=/admin style='display:flex;gap:5px'>"
-                f"<input type=hidden name=key value='{key_q}'>"
-                f"<input type=hidden name=email value='{self._esc(u['email'])}'>"
-                f"<button name=action value='{'enable' if u['disabled'] else 'disable'}'>"
-                f"{'Enable' if u['disabled'] else 'Disable'}</button>"
-                f"<button name=action value=delete>Delete</button></form></td></tr>"
-                for u in users)
-            body += ("</table><h3>Accounts</h3><table><tr><th>Email</th><th>Created</th>"
-                     "<th>Last login</th><th>State</th><th></th></tr>" + ulist)
+            urows = ""
+            for u in users:
+                info = accounts.get_user(u["email"]) or {}
+                kite = ("connected " + self._esc(info.get("kite_user_id") or "")
+                        if info.get("kite_token") else "—")
+                urows += (
+                    f"<tr><td>{self._esc(u['email'])}</td>"
+                    f"<td class=mut>{self._esc(u['created'] or '')}</td>"
+                    f"<td class=mut>{self._esc(u['last_login'] or 'never')}</td>"
+                    f"<td class=mut>{kite}</td>"
+                    f"<td>{'DISABLED' if u['disabled'] else 'active'}</td>"
+                    f"<td><form method=post action=/admin class=row>"
+                    f"<input type=hidden name=key value='{key_q}'>"
+                    f"<input type=hidden name=email value='{self._esc(u['email'])}'>"
+                    f"<button name=action value='{'enable' if u['disabled'] else 'disable'}'>"
+                    f"{'Enable' if u['disabled'] else 'Disable'}</button>"
+                    f"<button name=action value=unlink>Unlink Kite</button>"
+                    f"<button name=action value=delete>Delete</button></form></td></tr>")
+            body += ("<h3>Accounts</h3><table><tr><th>Email</th><th>Created</th>"
+                     "<th>Last login</th><th>Zerodha</th><th>State</th><th></th></tr>"
+                     + urows + "</table>")
         else:
-            body += "</table><h3>Accounts</h3><table><tr><td class=mut>Nobody has signed up yet.</td></tr>"
+            body += "<h3>Accounts</h3><p class=mut>No accounts yet.</p>"
 
-        body += ("<tr><td colspan=5><form method=post action=/admin "
-                 "style='display:flex;gap:6px;margin-top:8px;flex-wrap:wrap'>"
+        body += (f"<h3>Reset a password</h3>"
+                 f"<form method=post action=/admin class=row>"
                  f"<input type=hidden name=key value='{key_q}'>"
-                 "<input name=email placeholder='email' required>"
-                 "<input name=password type=password placeholder='new password' required>"
-                 "<button name=action value=password>Set password</button>"
-                 "</form><p class=mut>There is no email-based reset, so this is how a "
-                 "locked-out user gets back in. It signs out all their sessions.</p>"
-                 "</td></tr>")
+                 f"<input name=email type=email placeholder='email' required>"
+                 f"<input name=password type=text placeholder='new password' required "
+                 f"minlength={accounts.MIN_PASSWORD} size=28>"
+                 f"<button name=action value=password>Set password</button></form>"
+                 f"<p class=mut>There is no email-based reset, so this is how a "
+                 f"locked-out user gets back in. It signs out all their sessions.</p>")
 
+        warn = ""
         if not cb:
-            action = ("<p style='color:#f59e0b'>Set <code>WEB_PUBLIC_URL</code> in "
-                      ".env to this server's public address, and set the same value "
-                      "+ <code>/kite/callback</code> as the Redirect URL on your Kite "
-                      "app. Then reload this page.</p>")
+            warn = ("<p class=warn>Set <code>WEB_PUBLIC_URL</code> in .env to this "
+                    "server's public address, and set the same value + "
+                    "<code>/kite/callback</code> as the Redirect URL on your Kite "
+                    "Connect app. Until then nobody can connect Zerodha.</p>")
         elif not config.KITE_API_KEY or not config.KITE_API_SECRET:
-            action = ("<p style='color:#ef4444'>KITE_API_KEY / KITE_API_SECRET are "
-                      "missing from this server's .env.</p>")
-        else:
-            nonce = _new_nonce()
-            params = urllib.parse.urlencode({"n": nonce})
-            try:
-                url = kite_auth._kite(config.KITE_API_KEY).login_url()
-                url += "&redirect_params=" + urllib.parse.quote(params)
-                action = (f"<p><a class=btn href='{self._esc(url)}'>Log in to Zerodha"
-                          f"</a></p><p class=mut>Valid for 10 minutes, single use.</p>")
-            except Exception as exc:
-                action = f"<p style='color:#ef4444'>{self._esc(str(exc))}</p>"
+            warn = ("<p class=warn>KITE_API_KEY / KITE_API_SECRET are missing from "
+                    "this server's .env. Nobody can connect Zerodha without "
+                    "them.</p>")
 
         return self._send(f"""<!doctype html><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=robots content=noindex><title>operator</title>
 <style>body{{background:#0b0d12;color:#eef1f6;font:14px/1.6 -apple-system,sans-serif;
-padding:28px;max-width:760px;margin:0 auto}}table{{border-collapse:collapse;width:100%}}
-td,th{{padding:7px 10px;border-bottom:1px solid #2a3141;vertical-align:top;text-align:left}}
+padding:28px;max-width:900px;margin:0 auto}}table{{border-collapse:collapse;width:100%}}
+td,th{{padding:7px 10px;border-bottom:1px solid #2a3141;vertical-align:middle;text-align:left}}
 th{{font-size:11px;color:#657189;text-transform:uppercase;letter-spacing:.5px}}
 button,input{{background:#1c2330;color:#eef1f6;border:1px solid #2a3141;border-radius:6px;
-padding:6px 10px;font-size:12px;cursor:pointer}}
-h3{{font-size:14px;margin:22px 0 8px}}
-.btn{{display:inline-block;background:#3b82f6;color:#fff;padding:10px 18px;
-border-radius:8px;text-decoration:none;font-weight:700}}
-.mut{{color:#6b7280;font-size:12px}}code{{background:#1c2330;padding:1px 5px;border-radius:4px}}
-</style><h2>Operator</h2><table>{body}</table>{action}
-<p class=mut>The daily token is Zerodha's rule, not this tool's — they clear every
-access token each morning. Log in once after about 07:30 IST and the feed stays
-up for the rest of the session.</p>""")
+padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit}}
+input{{cursor:text}} button:hover{{border-color:#387ed1}}
+.row{{display:flex;gap:6px;flex-wrap:wrap;align-items:center}}
+h2{{margin:0 0 4px}} h3{{font-size:14px;margin:26px 0 8px}}
+.mut{{color:#6b7280;font-size:12px;margin:8px 0 0}}
+.warn{{color:#fab219;background:#1a1610;border:1px solid #3d3218;border-radius:8px;
+padding:10px 13px}}
+.note{{color:#4ecf9c;background:#0f2119;border:1px solid #1d4a37;border-radius:8px;
+padding:10px 13px;margin:0 0 16px}}
+code{{background:#1c2330;padding:1px 5px;border-radius:4px}}
+a{{color:#387ed1}}
+</style>
+<h2>Operator</h2>
+<p class=mut style="margin:0 0 18px">{self._esc(nbs_site.BRAND)} · users connect
+their own Zerodha accounts from <a href=/connect>/connect</a>, so there is no
+daily login for you to do here.</p>
+{f'<p class=note>{self._esc(note)}</p>' if note else ''}
+{warn}
+<table>{body}""")
 
     def _callback(self, qs):
-        """Zerodha redirects the operator's browser here after login."""
+        """Zerodha redirects a browser here after a login.
+
+        The nonce says whose login it was. That is the whole security of this
+        route: without it, anyone who arrived holding a request token would
+        have it exchanged and filed against whichever account happened to be
+        asking, including somebody else's.
+        """
         nonce = (qs.get("n") or [""])[0]
         token = (qs.get("request_token") or [""])[0]
+        user = self._current_user()
 
-        def page(title, colour, msg):
-            return self._send(
-                f"<!doctype html><meta charset=utf-8><title>{title}</title>"
-                f"<body style='background:#0b0d12;color:#eef1f6;"
-                f"font:15px/1.6 -apple-system,sans-serif;padding:40px;max-width:640px;"
-                f"margin:0 auto'><h2 style='color:{colour}'>{title}</h2>"
-                f"<p>{self._esc(msg)}</p>")
+        def done(title, message, ok=True):
+            return self._send(nbs_site.result_page(
+                title, message, ok=ok, user=user,
+                back="/connect" if user else "/",
+                back_label="Back to the connect page" if user
+                           else "Go to the home page"), code=200 if ok else 400)
 
         if not token:
-            return page("Login failed", "#ef4444",
-                        (qs.get("message") or ["Zerodha didn't return a request token."])[0])
-        if not _burn_nonce(nonce):
-            # Either a replay, an expired attempt, or somebody else's login.
-            return page("Refused", "#ef4444",
-                        "This login wasn't started from this server's operator page, "
-                        "or it has already been used. Start again from /admin.")
+            return done("Login failed", (qs.get("message") or
+                        ["Zerodha didn't return a request token."])[0], ok=False)
+
+        ok, owner = _burn_nonce(nonce)
+        if not ok:
+            return done("Refused",
+                        "This login wasn't started from this server, or it has "
+                        "already been used. Start again from the connect page.",
+                        ok=False)
+
+        if owner:
+            # A user connecting their own account. Their session has to still
+            # be the one that started it — a token exchanged into an account
+            # nobody is signed in to would be a token nobody asked for.
+            if owner != user:
+                return done("Refused",
+                            "That login was started by a different account on "
+                            "this server. Log in as that account and try again.",
+                            ok=False)
+            good, msg = user_kite.connect(owner, token)
+            if not good:
+                return done("Connection failed", msg, ok=False)
+            feeds.wake(owner)      # pick the token up now, not after the back-off
+            return done("Connected", msg + " The feed is live for the rest of "
+                        "today's session — Zerodha clears it again tomorrow "
+                        "morning.")
+
+        # No owner on the nonce means the operator's own server-level login,
+        # kept for the desktop app and for running the site in shared mode.
         try:
-            access = kite_auth.exchange(config.KITE_API_KEY, config.KITE_API_SECRET, token)
+            access = kite_auth.exchange(config.KITE_API_KEY, config.KITE_API_SECRET,
+                                        token)
             kite_auth.save_env({"KITE_API_KEY": config.KITE_API_KEY,
                                 "KITE_API_SECRET": config.KITE_API_SECRET,
                                 "KITE_ACCESS_TOKEN": access})
             config.apply_credentials(access_token=access)
-            with _lock:
-                _state["last_error"] = None
-                _state["feed"] = "ok"
-            _wake.set()          # the worker picks the new token up now, not in 30s
-            return page("Logged in", "#2ecc71",
-                        "The data feed is live again for the rest of today's session. "
-                        "You can close this tab.")
+            return done("Logged in", "The server-level token has been saved. "
+                        "Website users still connect their own accounts.")
         except Exception as exc:
-            return page("Exchange failed", "#ef4444", str(exc))
+            return done("Exchange failed", str(exc), ok=False)
 
     @staticmethod
     def _esc(s):
@@ -650,19 +851,22 @@ PAGE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<meta name="color-scheme" content="dark">
-<title>Signal Desk — Nifty · Bank Nifty · Sensex</title>
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>NBS Signal Tool — Nifty · Bank Nifty · Sensex</title>
 <style>
-/* Colours below are not chosen by eye. The chart hues were run through a
-   colour-blind separation validator; the notes in chart_panel.py say what
-   failed and why these replaced it. */
+/* Kite's palette, so this screen and kite.zerodha.com can sit in adjacent
+   tabs without the eye having to re-calibrate between them. The up/down pair
+   is #4caf50 / #ff5722, which is what Kite uses and what the chart hues were
+   re-checked against for colour-blind separation — the notes in
+   chart_panel.py record what the previous pair failed on. */
 :root{
-  --bg:#0b0d12; --surface:#111621; --raised:#161d2b; --sunken:#0d111a;
-  --bd:#222c3e; --bd-soft:#1a2333;
-  --ink:#eef1f6; --ink-2:#9aa6bd; --ink-3:#657189;
-  --up:#199e70; --down:#ef4444; --warn:#fab219; --accent:#9085e9;
-  --ema-fast:#3987e5; --ema-slow:#c98500; --vwap:#d55181;
-  --r:14px; --r-sm:10px;
+  --bg:#ffffff; --surface:#ffffff; --raised:#f5f5f5; --sunken:#fcfcfc;
+  --bd:#e9e9e9; --bd-soft:#f0f0f0;
+  --ink:#3c3c3c; --ink-2:#6c6c6c; --ink-3:#9b9b9b;
+  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#387ed1;
+  --ema-fast:#387ed1; --ema-slow:#f6a500; --vwap:#9b59b6;
+  --r:3px; --r-sm:3px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -672,7 +876,7 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .wrap{max-width:1120px;margin:0 auto;padding:0 20px 64px}
 
 /* ---------- header ---------- */
-header{position:sticky;top:0;z-index:20;background:rgba(11,13,18,.86);
+header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
   backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--bd-soft)}
 .hd{max-width:1120px;margin:0 auto;padding:13px 20px;display:flex;
   align-items:center;gap:14px;justify-content:space-between}
@@ -684,19 +888,19 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,13,18,.86);
   border:1px solid var(--bd);border-radius:999px;padding:5px 12px;
   font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .beat{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
-.beat.live{background:var(--up);box-shadow:0 0 0 0 rgba(25,158,112,.6);
+.beat.live{background:var(--up);box-shadow:0 0 0 0 rgba(76,175,80,.55);
   animation:beat 2.4s infinite}
-@keyframes beat{0%{box-shadow:0 0 0 0 rgba(25,158,112,.5)}
-  70%{box-shadow:0 0 0 7px rgba(25,158,112,0)}100%{box-shadow:0 0 0 0 rgba(25,158,112,0)}}
+@keyframes beat{0%{box-shadow:0 0 0 0 rgba(76,175,80,.45)}
+  70%{box-shadow:0 0 0 7px rgba(76,175,80,0)}100%{box-shadow:0 0 0 0 rgba(76,175,80,0)}}
 
 /* ---------- notices ---------- */
 .notice{border-radius:var(--r);padding:14px 16px;margin:16px 0 0;font-size:13px;
   line-height:1.65;display:flex;gap:11px;align-items:flex-start}
 .notice svg{flex:none;margin-top:2px}
-.notice.risk{background:#1b1416;border:1px solid #3d2126;color:#f0c9cd}
-.notice.risk b{color:#ff9ba3}
-.notice.stale{background:#1a1610;border:1px solid #3d3218;color:#f6dfae}
-.notice.stale b{color:var(--warn)}
+.notice.risk{background:#fff2ee;border:1px solid #ffc7b4;color:#8a4a33}
+.notice.risk b{color:#d84315}
+.notice.stale{background:#fffaf0;border:1px solid #f3e2c0;color:#7a6a48}
+.notice.stale b{color:#b07d15}
 
 /* ---------- index switcher ---------- */
 .markets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0 0}
@@ -734,10 +938,10 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,13,18,.86);
 .tag{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
   padding:4px 11px;font-size:11.5px;font-weight:700;letter-spacing:.3px;
   border:1px solid transparent}
-.tag.up{background:rgba(25,158,112,.14);color:#4fd6a3;border-color:rgba(25,158,112,.35)}
-.tag.down{background:rgba(239,68,68,.13);color:#ff8f8f;border-color:rgba(239,68,68,.32)}
+.tag.up{background:rgba(76,175,80,.12);color:#3d8b40;border-color:rgba(76,175,80,.35)}
+.tag.down{background:rgba(255,87,34,.11);color:#d84315;border-color:rgba(255,87,34,.3)}
 .tag.flat{background:var(--raised);color:var(--ink-2);border-color:var(--bd)}
-.tag.warn{background:rgba(250,178,25,.12);color:#f3c869;border-color:rgba(250,178,25,.3)}
+.tag.warn{background:rgba(246,165,0,.12);color:#b07d15;border-color:rgba(246,165,0,.3)}
 
 /* ---------- stat tiles ---------- */
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
@@ -748,20 +952,136 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,13,18,.86);
 .tile .d{font-size:11px;color:var(--ink-3);margin-top:1px}
 
 /* ---------- levels ---------- */
-.ladder{margin-top:16px;border-top:1px solid var(--bd-soft);padding-top:14px}
+/* The index/premium switch above the ladder. Two buttons rather than a
+   select, because the whole point is that both readings exist and one of them
+   is the number you actually pay — a collapsed dropdown hides that. */
+.lswitch{display:flex;gap:6px;margin-top:16px}
+.lbtn{background:var(--raised);border:1px solid var(--bd);color:var(--ink-2);
+  border-radius:999px;padding:5px 13px;font-size:12px;font-weight:650;
+  cursor:pointer;font-family:inherit}
+.lbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.lbtn:disabled{opacity:.45;cursor:not-allowed}
+.lnote{color:var(--ink-3);font-size:12px;margin-top:10px;line-height:1.6}
+.lnote b{color:var(--ink-2)}
+
+/* The lots selector. Nothing here places an order, so this only scales the
+   rupee column — it is a "what would that be worth to me" dial, not a size. */
+.lots{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
+.lots select{background:var(--bg);color:var(--ink);border:1px solid var(--bd);
+  border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
+
+/* The indicator panel — the same readings the desktop app shows down its
+   right-hand side, as a bar each side of centre so agreement and dissent are
+   the same shape in both directions. */
+.gauges{margin-top:16px;border-top:1px solid var(--bd-soft);padding-top:6px}
+.gauge{display:grid;grid-template-columns:88px 1fr 96px;gap:12px;
+  align-items:center;padding:8px 0;border-bottom:1px solid var(--bd-soft)}
+.gauge:last-child{border-bottom:0}
+.gauge .gn{font-size:12.5px;color:var(--ink-2);font-weight:600}
+.gauge .gt{height:5px;border-radius:3px;background:var(--bd-soft);
+  position:relative;overflow:hidden}
+.gauge .gt i{position:absolute;top:0;height:100%;border-radius:3px;
+  transition:left .35s ease,width .35s ease,background .25s ease}
+.gauge .gt u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;
+  background:var(--bd);transform:translateX(-.5px)}
+.gauge .gv{text-align:right;font-size:12.5px;font-weight:650;
+  font-variant-numeric:tabular-nums}
+.gnote{color:var(--ink-3);font-size:11.5px;margin-top:9px}
+
+/* The three boxes across the top: where the market is, what it has done
+   today, and how much of the rule set agrees. */
+.top3{display:grid;grid-template-columns:1.15fr 1.35fr .8fr;gap:14px;margin-top:14px}
+@media(max-width:900px){.top3{grid-template-columns:1fr}}
+.spark{width:100%;height:76px;display:block;margin-top:8px}
+.sparkrange{display:flex;justify-content:space-between;font-size:11px;
+  color:var(--ink-3);font-variant-numeric:tabular-nums;margin-top:2px}
+.daymove{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.daymove .big{font-size:25px;font-weight:700;letter-spacing:-.6px;
+  font-variant-numeric:tabular-nums}
+.daymove .pct{font-size:14px;font-weight:600}
+.ring{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:4px}
+.ring svg{display:block}
+.ring .lab{font-size:12px;color:var(--ink-3)}
+.ring .sub2{font-size:11.5px;color:var(--ink-3);text-align:center}
+.ringtxt{font-size:22px;font-weight:700;fill:var(--ink);
+  font-variant-numeric:tabular-nums}
+/* The arc grows into place rather than snapping, so a change of confidence
+   between polls reads as a movement instead of a different number. */
+.ringarc{transition:stroke-dashoffset .5s ease, stroke .3s ease}
+
+/* ---------- the ticket ---------- */
+.thead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.thead .eyebrow{margin:0}
+.badge{font-size:10.5px;font-weight:800;letter-spacing:.7px;padding:4px 10px;
+  border-radius:999px;border:1px solid transparent;white-space:nowrap}
+.badge.open{background:#f1f8f2;border-color:#b5dcb7;color:#3d8b40}
+.badge.hold{background:#fffaf0;border-color:#f3e2c0;color:#8a6410}
+.badge.prev{background:var(--raised);border-color:var(--bd);color:var(--ink-3)}
+.tclear{margin-left:auto}
+.contract{font-size:13px;color:var(--ink-2);margin-top:4px}
+.contract b{color:var(--ink)}
+.issued{font-size:12px;color:var(--ink-3);margin-top:3px}
+.tstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+  gap:14px;margin-top:14px;padding:13px 0;border-top:1px solid var(--bd-soft);
+  border-bottom:1px solid var(--bd-soft)}
+.tstat .l{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--ink-3);font-weight:700}
+.tstat .v{font-size:19px;font-weight:700;letter-spacing:-.4px;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+.whyhold{font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.65;
+  background:var(--surface);border:1px solid var(--bd-soft);
+  border-radius:var(--r-sm);padding:11px 13px}
+.rung .k .tick{color:var(--up);font-weight:700}
+.rung.done .k{color:var(--up)}
+
+/* ---------- the session strip ---------- */
+.session{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-top:14px;padding:14px 16px;background:var(--surface);
+  border:1px solid var(--bd);border-radius:var(--r)}
+.session .lbl{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--ink-3);font-weight:700;flex:none}
+.chips{display:flex;gap:7px;flex-wrap:wrap;flex:1}
+.chip2{font-size:12px;font-weight:650;padding:4px 11px;border-radius:999px;
+  border:1px solid var(--bd);background:var(--bg);
+  font-variant-numeric:tabular-nums;
+  /* The chips change as prices move; a hard cut between colours reads as a
+     flicker, so the change is eased instead. */
+  transition:color .3s ease,border-color .3s ease}
+.today{text-align:right;flex:none}
+.today .n{font-size:22px;font-weight:700;letter-spacing:-.5px;
+  font-variant-numeric:tabular-nums}
+.today .d{font-size:11px;color:var(--ink-3);margin-top:1px}
+.feedline{font-size:12px;color:var(--ink-3);margin-top:9px}
+.feedline span{margin-right:14px;white-space:nowrap}
+@media(max-width:640px){.session{flex-direction:column;align-items:stretch}
+  .today{text-align:left}}
+
+.ladder{margin-top:12px;border-top:1px solid var(--bd-soft);padding-top:14px}
 .rung{display:flex;align-items:center;gap:12px;padding:7px 0;
   border-bottom:1px solid var(--bd-soft)}
 .rung:last-child{border-bottom:0}
 .rung .k{width:44px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ink-3)}
 .rung .bar{flex:1;height:4px;border-radius:2px;background:var(--bd-soft);overflow:hidden}
 .rung .bar i{display:block;height:100%;border-radius:2px}
-.rung .n{width:96px;text-align:right;font-size:14.5px;font-weight:650;
+.rung .n{width:92px;text-align:right;font-size:14.5px;font-weight:650;
   font-variant-numeric:tabular-nums}
+.rung .rs{width:104px;text-align:right;font-size:12px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+@media(max-width:560px){.rung .rs{display:none}}
 
 /* ---------- chart ---------- */
-.chartwrap{background:var(--sunken);border:1px solid var(--bd-soft);
-  border-radius:var(--r-sm);padding:6px;margin-top:4px}
-img.chart{width:100%;height:auto;display:block;border-radius:7px}
+.chartwrap{background:var(--bg);border:1px solid var(--bd);
+  border-radius:var(--r-sm);margin-top:4px;overflow:hidden}
+.chartbar{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:7px 10px;border-bottom:1px solid var(--bd-soft);flex-wrap:wrap}
+.chartlegend{display:flex;gap:13px;font-size:11.5px;color:var(--ink-3);
+  flex-wrap:wrap;font-variant-numeric:tabular-nums;align-items:center}
+.chartlegend b{color:var(--ink);font-weight:650}
+.chartlegend .o{color:var(--ink-2)}
+.chartctl{display:flex;gap:5px;flex:none}
+.chartctl .lbtn{padding:3px 10px;font-size:12px;line-height:1.5}
+#cv{display:block;width:100%;height:430px;cursor:crosshair;touch-action:none}
+@media(max-width:640px){#cv{height:330px}}
 .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:11px;font-size:11.5px;
   color:var(--ink-2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -803,18 +1123,19 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 </style></head><body>
 
 <header><div class="hd">
-  <div class="brand">
+  <a class="brand" href="/" style="color:inherit;text-decoration:none">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="1" y="1" width="22" height="22" rx="6" fill="#161d2b" stroke="#222c3e"/>
-      <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#9085e9"
+      <rect x="1" y="1" width="22" height="22" rx="6" fill="#f5f5f5" stroke="#e9e9e9"/>
+      <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#387ed1"
             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="19" cy="13.9" r="2" fill="#199e70"/>
+      <circle cx="19" cy="13.9" r="2" fill="#4caf50"/>
     </svg>
-    <div>Signal Desk<small>Nifty · Bank Nifty · Sensex</small></div>
-  </div>
+    <div>NBS Signal Tool<small>Nifty · Bank Nifty · Sensex</small></div>
+  </a>
   <div class="row" style="display:flex;gap:8px;align-items:center">
     <span class="pill"><span class="beat" id="beat"></span><span id="mkt">connecting</span></span>
     <span class="pill" id="upd">—</span>
+    <a class="pill" id="kite" href="/connect" style="text-decoration:none">Zerodha</a>
     <a class="pill" id="signout" href="/logout" style="display:none;text-decoration:none">Sign out</a>
   </div>
 </div></header>
@@ -823,18 +1144,31 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 
  <div class="notice risk">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-   <circle cx="8" cy="8" r="7" stroke="#ff9ba3" stroke-width="1.5"/>
-   <path d="M8 4.6v4.2M8 11.2v.6" stroke="#ff9ba3" stroke-width="1.7" stroke-linecap="round"/>
+   <circle cx="8" cy="8" r="7" stroke="#d84315" stroke-width="1.5"/>
+   <path d="M8 4.6v4.2M8 11.2v.6" stroke="#d84315" stroke-width="1.7" stroke-linecap="round"/>
   </svg>
   <div><b>Read before acting on anything here.</b> This is the output of a mechanical
    rule set — not advice, and not from a SEBI-registered research analyst or investment
    adviser. No orders are placed for you. <span id="honest"></span></div>
  </div>
 
+ <div class="notice stale" id="connect" style="display:none">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+   <path d="M6.4 9.6L2.8 13.2M9.6 6.4l3.6-3.6" stroke="#b07d15" stroke-width="1.6"
+         stroke-linecap="round"/>
+   <path d="M4.6 6.2a2.6 2.6 0 013.7 0l1.5 1.5a2.6 2.6 0 010 3.7"
+         stroke="#b07d15" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>
+  <div><b>Your Zerodha account is not connected.</b> <span id="connectmsg"></span>
+   The signals below are computed under your own broker session, so there is
+   nothing to show until you connect it.
+   <a href="/connect" style="color:#b07d15;font-weight:700">Connect now &rarr;</a></div>
+ </div>
+
  <div class="notice stale" id="stale" style="display:none">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-   <path d="M8 1.8l6.4 11.4H1.6L8 1.8z" stroke="#fab219" stroke-width="1.5" stroke-linejoin="round"/>
-   <path d="M8 6.4v3M8 11.4v.6" stroke="#fab219" stroke-width="1.6" stroke-linecap="round"/>
+   <path d="M8 1.8l6.4 11.4H1.6L8 1.8z" stroke="#b07d15" stroke-width="1.5" stroke-linejoin="round"/>
+   <path d="M8 6.4v3M8 11.4v.6" stroke="#b07d15" stroke-width="1.6" stroke-linecap="round"/>
   </svg>
   <div><b>Live data feed is down.</b> <span id="stalemsg"></span>
    Everything below is the last reading before it stopped — not the current market.</div>
@@ -842,21 +1176,83 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 
  <div class="markets" id="markets" role="tablist"></div>
 
+ <div class="session" id="session" style="display:none">
+  <span class="lbl">Session</span>
+  <div class="chips" id="schips"></div>
+  <div class="today">
+   <div class="n" id="snet">—</div>
+   <div class="d" id="sdetail"></div>
+  </div>
+ </div>
+ <div class="feedline" id="sfeed"></div>
+
+ <div class="top3">
+  <div class="card">
+   <p class="eyebrow">Market trend</p>
+   <div class="hero"><div class="v" id="trend"
+        style="font-size:23px;letter-spacing:-.5px">—</div></div>
+   <div class="sub" id="trendsub" style="margin-top:5px"></div>
+  </div>
+  <div class="card">
+   <p class="eyebrow">Day move</p>
+   <div class="daymove">
+    <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
+   </div>
+   <canvas class="spark" id="spark"></canvas>
+   <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
+  </div>
+  <div class="card">
+   <p class="eyebrow">Confidence</p>
+   <div class="ring" id="ring"></div>
+  </div>
+ </div>
+
  <div class="card" style="margin-top:14px">
-  <p class="eyebrow">Signal</p>
+  <div class="thead">
+   <p class="eyebrow" id="teyebrow">Signal</p>
+   <span class="badge prev" id="tbadge" style="display:none"></span>
+   <button class="lbtn tclear" id="tclear" type="button"
+           style="display:none">Clear ticket</button>
+  </div>
   <div class="hero">
    <div class="v" id="bias">—</div>
    <span class="tag flat" id="conftag" style="display:none"></span>
   </div>
+  <div class="contract" id="tcontract" style="display:none"></div>
+  <div class="issued" id="tissued" style="display:none"></div>
+  <div class="tstats" id="tstats" style="display:none"></div>
+  <div class="whyhold" id="twhy" style="display:none"></div>
   <div class="sub" id="reason"></div>
   <div class="tiles" id="tiles"></div>
+  <div class="lswitch" id="lswitch">
+   <button class="lbtn on" id="lb-index" type="button">Index points</button>
+   <button class="lbtn" id="lb-premium" type="button">Option premium (LTP)</button>
+   <div class="lots" id="lotswrap" style="margin-left:auto">
+    <label for="lots">Lots</label>
+    <select id="lots"></select>
+   </div>
+  </div>
   <div class="ladder" id="ladder"></div>
+  <div class="lnote" id="lnote"></div>
+  <div class="gauges" id="gauges"></div>
+  <div class="gnote" id="gnote"></div>
  </div>
 
  <div class="grid">
   <div class="card">
    <p class="eyebrow">Price · 15-minute candles</p>
-   <div class="chartwrap"><img class="chart" id="chart" alt="Candlestick chart with moving averages and trade levels"></div>
+   <div class="chartwrap">
+    <div class="chartbar">
+     <div class="chartlegend" id="cvlegend"></div>
+     <div class="chartctl">
+      <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
+      <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
+      <button class="lbtn" id="cvreset" type="button">Reset</button>
+     </div>
+    </div>
+    <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
+     earlier candles, scroll to zoom."></canvas>
+   </div>
    <div class="legend">
     <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
     <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
@@ -868,9 +1264,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 
   <div>
    <div class="card">
-    <p class="eyebrow">Market trend</p>
-    <div class="hero"><div class="v" id="trend" style="font-size:25px;letter-spacing:-.7px">—</div></div>
-    <div class="sub" id="trendsub" style="margin-top:5px"></div>
+    <p class="eyebrow">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
    </div>
    <div class="card">
@@ -936,10 +1330,746 @@ function blank(msg,detail){
   $("conftag").style.display="none";
   $("reason").textContent=detail||"";
   $("tiles").innerHTML=""; $("ladder").innerHTML="";
+  $("lswitch").style.display="none"; $("lnote").innerHTML="";
+  $("gauges").innerHTML=""; $("gnote").textContent="";
+  $("ring").innerHTML=""; $("dmv").textContent="—"; $("dmp").textContent="";
+  $("dmlo").textContent=""; $("dmhi").textContent="";
+  $("tbadge").style.display="none"; $("tclear").style.display="none";
+  $("tcontract").style.display="none"; $("tissued").style.display="none";
+  $("tstats").style.display="none"; $("twhy").style.display="none";
   $("trend").textContent="—"; $("trend").style.color="var(--ink-3)";
   $("trendsub").textContent=""; $("trendtiles").innerHTML="";
-  $("why").innerHTML=""; $("chart").removeAttribute("src");
+  $("why").innerHTML=""; CH.data=null; CH.key=null; chartDraw();
 }
+
+// ---------------------------------------------------------------- ladder
+// Two readings of the same trade. The index ladder is where the INDEX has to
+// travel; the premium ladder is what the OPTION is expected to be worth when
+// it gets there, starting from the live LTP of the suggested strike. The
+// second one is the money, so it is not hidden behind anything.
+let LMODE = "index";
+let LOTS = 1;
+let LOTS_SYNCED = false;
+
+function ladder(r, tk){
+  // A ticket outranks the live reading. Once one is issued its levels are
+  // frozen, and showing the recalculated ones beside an open position would
+  // be showing numbers that trade is not being measured against.
+  if(tk && tk.open){
+    const prem = tk.tracked_on === "premium";
+    const base = tk.entry, tg = tk.targets || [null,null,null];
+    const dp = prem ? 2 : 0;
+    const per = (prem && tk.lot_size) ? tk.lot_size * (tk.lots||1) : 0;
+    $("lswitch").style.display = "none";
+    const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
+                 ["T3",tg[2],"var(--up)"],["Stop",tk.stop,"var(--down)"]];
+    const spread=Math.max(...rungs.map(x=>x[1]==null?0:Math.abs(x[1]-(base||0))))||1;
+    $("ladder").innerHTML = rungs.map(([k,v,c])=>{
+      const done = k==="Stop" ? tk.sl_hit : (tk.hit||{})[k];
+      const when = k==="Stop" ? tk.sl_hit_time : (tk.hit_time||{})[k];
+      const pct=v==null?0:Math.min(100,Math.abs(v-(base||0))/spread*100);
+      let rs = "";
+      if(per && v!=null && base!=null){
+        const amt=(v-base)*per;
+        rs = (amt>=0?"+":"−")+"₹"+Math.abs(Math.round(amt)).toLocaleString("en-IN");
+      }
+      return `<div class="rung${done?" done":""}"><div class="k">${k}${
+          done?` <span class="tick">✓ ${esc(when||"")}</span>`:""}</div>
+        <div class="bar"><i style="width:${done?100:pct}%;background:${v==null?"transparent":c}"></i></div>
+        <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
+        <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
+    }).join("");
+    $("lnote").innerHTML = prem
+      ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
+        + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
+      : `No live chain for this strike at entry, so the ticket is tracked on the `
+        + `index itself. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`;
+    return;
+  }
+
+  const havePrem = r.ltp != null && (r.premium_targets||[]).some(v => v != null);
+  const pb = $("lb-premium");
+  pb.disabled = !havePrem;
+  pb.title = havePrem ? "" : "No live option chain for this strike right now.";
+  if(!havePrem && LMODE === "premium") LMODE = "index";
+  $("lb-index").classList.toggle("on", LMODE === "index");
+  pb.classList.toggle("on", LMODE === "premium");
+  $("lswitch").style.display = (r.targets||[]).some(v => v != null) ? "flex" : "none";
+
+  const prem = LMODE === "premium";
+  const tg   = (prem ? r.premium_targets : r.targets) || [null,null,null];
+  const stop = prem ? r.premium_stop : r.stop;
+  const base = prem ? r.ltp : r.spot;
+  const dp   = prem ? 2 : 0;      // premiums are paise; index points are not
+
+  const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
+               ["T3",tg[2],"var(--up)"],["Stop",stop,"var(--down)"]];
+  const spread=Math.max(...rungs.map(x=>x[1]==null?0:Math.abs(x[1]-(base||0))))||1;
+
+  // What each level is worth in rupees, at the lot size Zerodha uses for this
+  // index and the number of lots chosen above. Shown only on the premium
+  // ladder, because a rupee figure against an index point is meaningless.
+  const per = (prem && r.lot_size) ? r.lot_size * LOTS : 0;
+  $("lotswrap").style.display = per ? "flex" : "none";
+
+  $("ladder").innerHTML = rungs.map(([k,v,c])=>{
+    const pct=v==null?0:Math.min(100,Math.abs(v-(base||0))/spread*100);
+    let rs = "";
+    if(per && v!=null && base!=null){
+      const amt = (v - base) * per;
+      rs = (amt>=0?"+":"−") + "₹" + Math.abs(Math.round(amt)).toLocaleString("en-IN");
+    }
+    return `<div class="rung"><div class="k">${k}</div>
+      <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c}"></i></div>
+      <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
+      <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
+  }).join("");
+
+  // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
+  // list, so raising the cap in config raises it here too.
+  const maxL = r.max_lots || 5;
+  const sel = $("lots");
+  if(!LOTS_SYNCED && LAST && LAST.session && LAST.session.lots){
+    LOTS = LAST.session.lots; LOTS_SYNCED = true;
+  }
+  if(sel.options.length !== maxL){
+    sel.innerHTML = "";
+    for(let i=1;i<=maxL;i++) sel.add(new Option(String(i), String(i)));
+  }
+  sel.value = String(Math.min(LOTS, maxL));
+  if(r.lot_size) $("lotswrap").title = r.lot_size + " per lot";
+
+  // The note carries the caveat rather than a tooltip, because the premium
+  // numbers are a delta approximation and saying so quietly would be worse
+  // than not showing them.
+  let note = "";
+  if(prem){
+    note = `From a live premium of <b>${num(r.ltp,2)}</b> on `
+         + `<b>${esc(String(r.strike||""))} ${esc(r.option_type||"")}</b>`
+         + (r.expiry ? ` (expiry ${esc(String(r.expiry))})` : "") + ". ";
+    note += r.premium_source === "live"
+      ? "Each level is the index target converted at roughly 0.5 delta — an "
+      + "approximation that ignores time decay, so treat it as a guide rather "
+      + "than a quote."
+      : "Estimated from the point move; no live chain price was available for "
+      + "this strike.";
+  } else if(havePrem){
+    note = `The suggested strike is trading at <b>${num(r.ltp,2)}</b>. `
+         + "Switch to option premium to see these levels as prices.";
+  } else if((r.targets||[]).some(v=>v!=null)){
+    note = "No live option chain for this strike right now, so only the index "
+         + "levels are available.";
+  }
+  $("lnote").innerHTML = note;
+}
+
+$("lb-index").onclick   = () => { LMODE="index";   if(LAST) render(LAST); };
+$("lb-premium").onclick = () => { LMODE="premium"; if(LAST) render(LAST); };
+$("lots").onchange = e => {
+  LOTS = parseInt(e.target.value,10)||1;
+  if(LAST) render(LAST);
+  // Sent to the server too: the lots a ticket is issued for are frozen with
+  // it, so the number has to be known there before the next one fires, not
+  // only in this tab.
+  fetch("/api/ticket", {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({lots:String(LOTS)})}).catch(()=>{});
+};
+
+$("tclear").onclick = () => {
+  if(!confirm("Clear this ticket?\n\nIt is marked closed and written to your "
+            + "trade log at the current price — nothing is cancelled with your "
+            + "broker, because nothing was ever placed there.")) return;
+  fetch("/api/ticket", {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({action:"clear", index:CUR})})
+    .then(() => tick()).catch(()=>{});
+};
+
+// --------------------------------------------------------------- ticket
+// A live signal and an issued ticket are different things, and the badge names
+// the rule that is holding one rather than asserting a generic reason. The
+// desktop learned this the hard way: it used to print "a ticket is issued when
+// the direction changes" whichever of the five gates was actually holding,
+// which is true for exactly one of them — the least common one.
+function ticketBox(r, state){
+  const tk = state && state.ticket, wait = state && state.wait;
+  const open = !!(tk && tk.open);
+
+  $("teyebrow").textContent = open ? "Signal ticket" : "Signal";
+  const badge = $("tbadge");
+  if(open){
+    badge.style.display = ""; badge.className = "badge open";
+    badge.textContent = "OPEN";
+  } else if(wait && wait.badge && wait.code !== "neutral"){
+    badge.style.display = ""; badge.className = "badge hold";
+    badge.textContent = wait.badge;
+  } else if(r.action && r.bias && r.bias !== "NEUTRAL"){
+    badge.style.display = ""; badge.className = "badge prev";
+    badge.textContent = "PREVIEW";
+  } else badge.style.display = "none";
+
+  $("tclear").style.display = open ? "" : "none";
+
+  const c = $("tcontract");
+  if(open){
+    c.style.display = "";
+    c.innerHTML = `<b>${esc(tk.index)} ${esc(String(tk.strike))} ${esc(tk.option_type)}</b>`
+                + ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`;
+    $("tissued").style.display = "";
+    $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`;
+  } else {
+    c.style.display = "none"; $("tissued").style.display = "none";
+  }
+
+  // The stats row. Entry and Now are the two numbers a held position is
+  // actually about; the rupee figure is what the difference is worth at the
+  // lots this ticket was issued for — frozen with it, not with the selector.
+  const st = $("tstats");
+  if(open){
+    st.style.display = "";
+    const dp = tk.tracked_on === "premium" ? 2 : 0;
+    const pnl = tk.pnl;
+    const pc = pnl == null ? "var(--ink-3)" : pnl > 0 ? "var(--up)"
+             : pnl < 0 ? "var(--down)" : "var(--ink-2)";
+    const cell = (l,v,col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
+               + `<div class="v"${col?` style="color:${col}"`:""}>${v}</div></div>`;
+    st.innerHTML =
+        cell("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+" : 1")
+      + cell("Entry", num(tk.entry,dp))
+      + cell("Now", num(tk.now,dp))
+      + cell("Spot", num(r.spot,0))
+      + cell(`${tk.lots} lot${tk.lots!==1?"s":""}`,
+             pnl==null ? "—"
+               : (pnl>=0?"+":"−")+"₹"+Math.abs(Math.round(pnl)).toLocaleString("en-IN"),
+             pc);
+  } else st.style.display = "none";
+
+  // Why nothing was issued. Shown only when there is a real rule holding it,
+  // not for the ordinary case of the indicators simply disagreeing.
+  const wh = $("twhy");
+  if(!open && wait && wait.why && wait.code !== "neutral"){
+    wh.style.display = ""; wh.textContent = wait.why;
+  } else wh.style.display = "none";
+}
+
+// -------------------------------------------------------------- session
+function sessionStrip(sess, order){
+  if(!sess || !sess.per_index){ $("session").style.display="none";
+                                $("sfeed").textContent=""; return; }
+  const per = sess.per_index, keys = (order||[]).filter(k => per[k] != null);
+  const money = v => (v>=0?"+":"−") + "₹"
+                   + Math.abs(Math.round(v)).toLocaleString("en-IN");
+  // Always shown, even at zero. The desktop keeps its session strip on screen
+  // all day saying "nothing yet", and a total that appears only once you are
+  // up or down is a total you cannot trust to be complete.
+  $("session").style.display = "flex";
+
+  $("schips").innerHTML = keys.length
+    ? keys.map(k => {
+        const v = per[k], col = v>0?"var(--up)":v<0?"var(--down)":"var(--ink-2)";
+        return `<span class="chip2" style="color:${col};border-color:${
+          v>0?"#b5dcb7":v<0?"#ffc7b4":"var(--bd)"}">${esc(k)} ${money(v)}</span>`;
+      }).join("")
+    : `<span class="chip2" style="color:var(--ink-3)">Nothing closed yet today</span>`;
+
+  const net = sess.net || 0;
+  $("snet").textContent = money(net);
+  $("snet").style.color = net>0?"var(--up)":net<0?"var(--down)":"var(--ink-2)";
+  $("sdetail").textContent = `booked ${money(sess.booked||0)} · open ${money(sess.open||0)}`;
+
+  // The day's budget, stated whether or not the brake is switched on — the
+  // count is worth seeing even when nothing is capping it.
+  const bits = [];
+  if(sess.issued != null){
+    bits.push(`<span>${sess.issued} ticket${sess.issued===1?"":"s"} today`
+      + (sess.limits && sess.max_trades ? ` of ${sess.max_trades}` : "") + `</span>`);
+  }
+  if(sess.wins != null) bits.push(`<span>${sess.wins} ran to target</span>`);
+  if(sess.stops != null) bits.push(`<span>${sess.stops} stopped out</span>`);
+  if(!sess.limits) bits.push(`<span>daily limits off</span>`);
+  $("sfeed").innerHTML = bits.join("");
+}
+
+// ----------------------------------------------------------- confidence
+// The engine reports confidence as a word, because that is how the decision
+// is actually made — from the split between inputs that agreed and inputs
+// that dissented. The ring shows that split as the fraction it is, and the
+// word underneath, so the number cannot be read as a probability of profit.
+// It is not one, and nothing here should be mistaken for one.
+function ringBox(r){
+  const agree = r.agree, dissent = r.dissent;
+  const label = r.confidence || "—";
+  // On a neutral bias the engine reports confidence as N/A, because there is
+  // no call for anything to be confident about. Showing a percentage beside
+  // that would be a number contradicting the word next to it, so the ring is
+  // emptied instead — the vote split still gets said underneath.
+  const rated = label !== "N/A" && label !== "—";
+  const known = rated && agree != null && dissent != null && (agree + dissent) > 0;
+  const pct = known ? Math.round(agree / (agree + dissent) * 100) : null;
+  const colour = label === "High" ? "var(--up)"
+               : label === "Medium" ? "var(--warn)"
+               : label === "Low" ? "var(--down)" : "var(--ink-3)";
+  const R = 34, C = 2 * Math.PI * R;
+  const off = pct == null ? C : C * (1 - pct/100);
+  $("ring").innerHTML = `
+    <svg width="92" height="92" viewBox="0 0 92 92" role="img"
+         aria-label="Confidence ${pct==null?"unavailable":pct+" percent"}, ${esc(label)}">
+      <circle cx="46" cy="46" r="${R}" fill="none" stroke="var(--bd-soft)" stroke-width="9"/>
+      <circle class="ringarc" cx="46" cy="46" r="${R}" fill="none" stroke="${colour}"
+              stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+              transform="rotate(-90 46 46)"/>
+      <text class="ringtxt" x="46" y="46" text-anchor="middle" dominant-baseline="central"
+        >${pct==null?"—":pct+"%"}</text>
+    </svg>
+    <div class="lab" style="color:${colour};font-weight:650">${esc(label)}</div>
+    <div class="sub2">${(agree != null && dissent != null && (agree+dissent) > 0)
+        ? agree+" of "+(agree+dissent)+" inputs agree"
+        : "no vote yet"}</div>`;
+}
+
+// -------------------------------------------------------------- sparkline
+// Today's closes only. A sparkline that quietly ran across yesterday too
+// would make an opening gap look like a move that happened during the day.
+function sparkline(){
+  const el = $("spark"), g = el.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const w = el.clientWidth, h = el.clientHeight;
+  if(el.width !== Math.round(w*dpr) || el.height !== Math.round(h*dpr)){
+    el.width = Math.round(w*dpr); el.height = Math.round(h*dpr);
+  }
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+
+  const bars = ((CH.data||{}).candles) || [];
+  const blank = () => { $("dmv").textContent="—"; $("dmp").textContent="";
+                        $("dmlo").textContent=""; $("dmhi").textContent=""; };
+  if(!bars.length){ blank(); return; }
+  const lastDay = new Date(bars[bars.length-1][0]*1000).toDateString();
+  const today = bars.filter(b => new Date(b[0]*1000).toDateString() === lastDay);
+  if(today.length < 2){ blank(); return; }
+
+  const open = today[0][1], close = today[today.length-1][4];
+  const chg = close - open, pct = open ? chg/open*100 : 0;
+  const upC = css("--up"), downC = css("--down"), col = chg >= 0 ? upC : downC;
+  let lo = Infinity, hi = -Infinity;
+  for(const b of today){ if(b[3]<lo) lo=b[3]; if(b[2]>hi) hi=b[2]; }
+  const span = (hi-lo) || 1;
+  const X = i => (i/(today.length-1)) * (w-2) + 1;
+  const Y = v => h - 4 - (v-lo)/span * (h-8);
+
+  // A filled area under the line, faded out, so the direction of the day is
+  // legible at a glance rather than only from the sign of the number.
+  const grad = g.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0, col + "33"); grad.addColorStop(1, col + "00");
+  g.beginPath(); g.moveTo(X(0), Y(today[0][4]));
+  today.forEach((b,i) => g.lineTo(X(i), Y(b[4])));
+  g.lineTo(X(today.length-1), h); g.lineTo(X(0), h); g.closePath();
+  g.fillStyle = grad; g.fill();
+
+  g.beginPath(); g.moveTo(X(0), Y(today[0][4]));
+  today.forEach((b,i) => g.lineTo(X(i), Y(b[4])));
+  g.strokeStyle = col; g.lineWidth = 1.6; g.lineJoin = "round"; g.stroke();
+
+  // the open, as the line everything today is measured against
+  g.save(); g.setLineDash([3,3]); g.strokeStyle = css("--ink-3"); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, Math.round(Y(open))+0.5);
+  g.lineTo(w, Math.round(Y(open))+0.5); g.stroke(); g.restore();
+
+  const f = v => v.toLocaleString("en-IN",{maximumFractionDigits:2});
+  $("dmv").textContent = (chg>=0?"+":"−") + f(Math.abs(chg));
+  $("dmv").style.color = col;
+  $("dmp").textContent = "(" + (chg>=0?"+":"−") + Math.abs(pct).toFixed(2) + "%)";
+  $("dmp").style.color = col;
+  $("dmlo").textContent = "low " + f(lo);
+  $("dmhi").textContent = "high " + f(hi);
+}
+
+// --------------------------------------------------------------- gauges
+// Each reading as a bar either side of a centre line: right and green for
+// agreement with the call, left and red against it, nothing at all for an
+// input that abstained. A dash is not a neutral vote — the engine ignores it
+// entirely, and the note under the panel says so rather than leaving a reader
+// to assume a blank bar was counted as zero.
+function gauges(r, why){
+  const rows = [];
+  (why && why.votes || []).forEach(v => {
+    rows.push([v.name, v.vote, v.reading || "", v.vote===null?"var(--ink-3)"
+               : v.vote>0?"var(--up)":v.vote<0?"var(--down)":"var(--ink-3)"]);
+  });
+  if(why && why.gate){
+    const ok = why.gate.ok;
+    rows.push(["ADX Gate", ok===true?1:ok===false?-1:null,
+               (r.adx==null?"—":r.adx + (ok===true?" PASS":ok===false?" WEAK":"")),
+               ok===true?"var(--up)":ok===false?"var(--down)":"var(--ink-3)"]);
+  }
+  if(r.reach_points != null){
+    rows.push(["Room to Run", r.reach_to_risk!=null && r.reach_to_risk>=1 ? 1
+               : r.reach_to_risk!=null ? -1 : null,
+               num(r.reach_points,0) + " pts",
+               r.reach_to_risk==null?"var(--ink-3)"
+               : r.reach_to_risk>=1?"var(--up)":"var(--warn)"]);
+  }
+  if(!rows.length){ $("gauges").innerHTML=""; $("gnote").textContent=""; return; }
+
+  $("gauges").innerHTML = rows.map(([name,vote,reading,colour]) => {
+    // Magnitude is capped: these votes are small integers, and a bar that
+    // grew without limit would say more about the scale than the reading.
+    const mag = vote==null ? 0 : Math.min(1, Math.abs(vote)/2);
+    const w = mag*50;
+    const left = vote>0 ? 50 : 50-w;
+    return `<div class="gauge">
+      <div class="gn">${esc(name)}</div>
+      <div class="gt"><u></u><i style="left:${left}%;width:${w}%;background:${colour}"></i></div>
+      <div class="gv" style="color:${colour}">${esc(reading)||"—"}</div>
+    </div>`;
+  }).join("");
+  $("gnote").textContent = "A dash is an input that abstained — it is ignored, not counted as neutral.";
+}
+
+// =====================================================================
+// THE CHART
+// =====================================================================
+// Drawn here rather than fetched as a picture, because a picture cannot be
+// scrolled and cannot tell you what the bar under your pointer was. Hand-rolled
+// on a canvas rather than pulled from a charting library: the page's content
+// security policy allows no third-party script, and the rest of this tool has
+// no build step to bundle one into.
+//
+// The server keeps a deep window of bars (see feeds.py), so dragging left
+// really does walk back through earlier sessions rather than running out after
+// the indicator warm-up.
+const CH = {
+  key:null, data:null, at:0,
+  i0:0, n:130,          // first visible bar, and how many are visible
+  pinned:true,          // stuck to the right edge until the user drags away
+  hover:null, drag:null, pinch:null,
+};
+const CH_MIN_BARS = 20, CH_MAX_BARS = 600;
+const PAD = {l:0, r:64, t:10, b:24};
+
+const cv = $("cv"), cx = cv.getContext("2d");
+
+function chartWant(key){
+  const stale = Date.now() - CH.at > 30000;
+  if(key === CH.key && !stale){ chartDraw(); return; }
+  const first = key !== CH.key;
+  CH.key = key;
+  CH.at = Date.now();
+  fetch("/api/candles/" + encodeURIComponent(key), {cache:"no-store"})
+    .then(r => r.json())
+    .then(d => {
+      if(CH.key !== key) return;          // the user switched index mid-flight
+      CH.data = d;
+      const len = (d.candles||[]).length;
+      if(first || CH.pinned){
+        CH.n = Math.min(CH.n, Math.max(CH_MIN_BARS, len));
+        CH.i0 = Math.max(0, len - CH.n);  // newest bars, which is where you look
+        if(first) CH.pinned = true;
+      }
+      chartDraw();
+      sparkline();
+    })
+    .catch(() => {});
+}
+
+function chartSize(){
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if(cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)){
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  }
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  return {w, h};
+}
+
+// A gridline step that lands on a number a person would have chosen: 1, 2 or
+// 5 times a power of ten, never 1.37.
+function niceStep(range, want){
+  const raw = range / Math.max(1, want);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  return (norm > 5 ? 10 : norm > 2 ? 5 : norm > 1 ? 2 : 1) * mag;
+}
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function chartDraw(){
+  const {w,h} = chartSize();
+  const C = {
+    ink: css("--ink"), ink2: css("--ink-2"), ink3: css("--ink-3"),
+    bd: css("--bd"), bdSoft: css("--bd-soft"), bg: css("--bg"),
+    up: css("--up"), down: css("--down"), warn: css("--warn"),
+    accent: css("--accent"), fast: css("--ema-fast"), slow: css("--ema-slow"),
+    vwap: css("--vwap"),
+  };
+  cx.clearRect(0,0,w,h);
+  cx.fillStyle = C.bg; cx.fillRect(0,0,w,h);
+
+  const d = CH.data, bars = (d && d.candles) || [];
+  if(!bars.length){
+    cx.fillStyle = C.ink3; cx.font = "13px -apple-system,sans-serif";
+    cx.textAlign = "center";
+    cx.fillText("waiting for candles…", w/2, h/2);
+    $("cvlegend").textContent = "";
+    return;
+  }
+
+  CH.n  = Math.max(CH_MIN_BARS, Math.min(CH_MAX_BARS, Math.min(CH.n, bars.length)));
+  CH.i0 = Math.max(0, Math.min(bars.length - CH.n, CH.i0));
+  const i0 = CH.i0, i1 = Math.min(bars.length, i0 + CH.n);
+  const view = bars.slice(i0, i1);
+
+  const plotW = w - PAD.l - PAD.r, plotH = h - PAD.t - PAD.b;
+  const bw = plotW / view.length;
+
+  // ---- price range over what is actually on screen -------------------
+  let lo = Infinity, hi = -Infinity;
+  for(const b of view){ if(b[3] < lo) lo = b[3]; if(b[2] > hi) hi = b[2]; }
+  const overlays = [d.ema_fast, d.ema_slow, d.vwap];
+  for(const arr of overlays){
+    if(!arr) continue;
+    for(let i=i0;i<i1;i++){ const v=arr[i];
+      if(v!=null){ if(v<lo) lo=v; if(v>hi) hi=v; } }
+  }
+  // Levels are drawn, so they are included — but only when they are near
+  // enough not to squash the candles into a band. An ATR-derived target
+  // always is; a stale one from another session might not be.
+  const L = (d.levels)||{};
+  const span0 = (hi - lo) || 1;
+  for(const v of [L.t1,L.t2,L.t3,L.stop]){
+    if(v==null) continue;
+    if(v > hi && v - hi > span0*0.9) continue;
+    if(v < lo && lo - v > span0*0.9) continue;
+    if(v<lo) lo=v; if(v>hi) hi=v;
+  }
+  const pad = (hi-lo||1) * 0.08; lo -= pad; hi += pad;
+  const span = hi - lo || 1;
+  const Y = v => PAD.t + (hi - v) / span * plotH;
+  const X = i => PAD.l + (i - i0 + 0.5) * bw;
+
+  // ---- horizontal grid + price axis ----------------------------------
+  cx.font = "11px -apple-system,sans-serif";
+  cx.textBaseline = "middle";
+  const step = niceStep(span, Math.max(3, Math.round(plotH/62)));
+  cx.lineWidth = 1;
+  for(let v = Math.ceil(lo/step)*step; v <= hi; v += step){
+    const y = Math.round(Y(v)) + 0.5;
+    cx.strokeStyle = C.bdSoft;
+    cx.beginPath(); cx.moveTo(PAD.l, y); cx.lineTo(w - PAD.r, y); cx.stroke();
+    cx.fillStyle = C.ink3; cx.textAlign = "left";
+    cx.fillText(v.toLocaleString("en-IN",{maximumFractionDigits: step<1?2:0}),
+                w - PAD.r + 7, y);
+  }
+
+  // ---- vertical grid + time axis --------------------------------------
+  const fmtT = t => new Date(t*1000).toLocaleTimeString("en-IN",
+                     {hour:"2-digit", minute:"2-digit", hour12:false});
+  const fmtD = t => new Date(t*1000).toLocaleDateString("en-IN",
+                     {day:"2-digit", month:"short"});
+  const everyN = Math.max(1, Math.round(view.length / Math.max(2, Math.floor(plotW/86))));
+  cx.textAlign = "center"; cx.textBaseline = "top";
+  let lastDay = null;
+  for(let k=0;k<view.length;k++){
+    const t = view[k][0];
+    const day = new Date(t*1000).toDateString();
+    const newDay = lastDay !== null && day !== lastDay;
+    lastDay = day;
+    if(k % everyN !== 0 && !newDay) continue;
+    const x = Math.round(X(i0+k)) + 0.5;
+    cx.strokeStyle = newDay ? C.bd : C.bdSoft;
+    cx.beginPath(); cx.moveTo(x, PAD.t); cx.lineTo(x, PAD.t+plotH); cx.stroke();
+    cx.fillStyle = C.ink3;
+    cx.fillText(newDay ? fmtD(t) : fmtT(t), x, PAD.t+plotH+6);
+  }
+
+  // ---- overlays --------------------------------------------------------
+  function line(arr, colour, dash){
+    if(!arr) return;
+    cx.save(); cx.strokeStyle = colour; cx.lineWidth = 1.4;
+    cx.setLineDash(dash||[]); cx.beginPath();
+    let started = false;
+    for(let i=i0;i<i1;i++){
+      const v = arr[i]; if(v == null){ started = false; continue; }
+      const x = X(i), y = Y(v);
+      if(!started){ cx.moveTo(x,y); started = true; } else cx.lineTo(x,y);
+    }
+    cx.stroke(); cx.restore();
+  }
+  line(d.vwap, C.vwap, [4,3]);
+  line(d.ema_slow, C.slow);
+  line(d.ema_fast, C.fast);
+
+  // ---- candles ---------------------------------------------------------
+  const body = Math.max(1, Math.min(bw*0.68, 14));
+  for(let k=0;k<view.length;k++){
+    const [t,o,hg,lw,c] = view[k];
+    const up = c >= o, colour = up ? C.up : C.down;
+    const x = X(i0+k);
+    cx.strokeStyle = colour; cx.fillStyle = colour; cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(Math.round(x)+0.5, Y(hg)); cx.lineTo(Math.round(x)+0.5, Y(lw));
+    cx.stroke();
+    const yo = Y(o), yc = Y(c);
+    const top = Math.min(yo,yc), tall = Math.max(1, Math.abs(yc-yo));
+    if(bw < 2.2) { cx.fillRect(Math.round(x), top, 1, tall); }
+    else if(up) { // hollow up candles, the way Kite draws them
+      cx.fillStyle = C.bg;
+      cx.fillRect(x-body/2, top, body, tall);
+      cx.strokeRect(Math.round(x-body/2)+0.5, Math.round(top)+0.5,
+                    Math.round(body), Math.round(tall));
+    } else {
+      cx.fillRect(x-body/2, top, body, tall);
+    }
+  }
+
+  // ---- levels ----------------------------------------------------------
+  function level(v, label, colour){
+    if(v == null) return;
+    const y = Y(v); if(y < PAD.t-1 || y > PAD.t+plotH+1) return;
+    cx.save();
+    cx.strokeStyle = colour; cx.lineWidth = 1; cx.setLineDash([5,4]);
+    cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
+    cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
+    cx.setLineDash([]);
+    cx.fillStyle = colour;
+    cx.fillRect(w-PAD.r, y-8, PAD.r, 16);
+    cx.fillStyle = "#fff"; cx.font = "10px -apple-system,sans-serif";
+    cx.textAlign = "left"; cx.textBaseline = "middle";
+    cx.fillText(label + " " + Math.round(v).toLocaleString("en-IN"),
+                w-PAD.r+4, y);
+    cx.restore();
+  }
+  level(L.t1, "T1", C.up); level(L.t2, "T2", C.up); level(L.t3, "T3", C.up);
+  level(L.stop, "SL", C.down);
+
+  // ---- last price ------------------------------------------------------
+  const last = bars[bars.length-1];
+  if(i1 >= bars.length){
+    const y = Y(last[4]);
+    cx.save();
+    cx.strokeStyle = C.ink3; cx.setLineDash([2,3]); cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
+    cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
+    cx.setLineDash([]);
+    cx.fillStyle = last[4] >= last[1] ? C.up : C.down;
+    cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
+    cx.fillStyle = "#fff"; cx.font = "600 11px -apple-system,sans-serif";
+    cx.textAlign = "left"; cx.textBaseline = "middle";
+    cx.fillText(last[4].toLocaleString("en-IN",{maximumFractionDigits:2}),
+                w-PAD.r+5, y);
+    cx.restore();
+  }
+
+  // ---- crosshair -------------------------------------------------------
+  let readout = last, hoverIdx = bars.length-1;
+  if(CH.hover){
+    const k = Math.max(0, Math.min(view.length-1,
+                Math.floor((CH.hover.x - PAD.l) / bw)));
+    hoverIdx = i0 + k; readout = bars[hoverIdx];
+    const x = Math.round(X(hoverIdx)) + 0.5;
+    const y = Math.max(PAD.t, Math.min(PAD.t+plotH, CH.hover.y));
+    cx.save();
+    cx.strokeStyle = C.ink3; cx.setLineDash([3,3]); cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(x, PAD.t); cx.lineTo(x, PAD.t+plotH); cx.stroke();
+    cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
+    cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
+    cx.setLineDash([]);
+    // price under the pointer, on the axis
+    const pv = hi - (y - PAD.t) / plotH * span;
+    cx.fillStyle = C.ink; cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
+    cx.fillStyle = "#fff"; cx.font = "11px -apple-system,sans-serif";
+    cx.textAlign = "left"; cx.textBaseline = "middle";
+    cx.fillText(pv.toLocaleString("en-IN",{maximumFractionDigits:2}), w-PAD.r+5, y);
+    // time under the pointer, on the bottom axis
+    const lbl = fmtD(readout[0]) + " " + fmtT(readout[0]);
+    cx.font = "11px -apple-system,sans-serif"; cx.textAlign = "center";
+    const tw = cx.measureText(lbl).width + 12;
+    cx.fillStyle = C.ink;
+    cx.fillRect(Math.min(w-PAD.r-tw/2, Math.max(tw/2, x))-tw/2, PAD.t+plotH+2, tw, 17);
+    cx.fillStyle = "#fff"; cx.textBaseline = "top";
+    cx.fillText(lbl, Math.min(w-PAD.r-tw/2, Math.max(tw/2, x)), PAD.t+plotH+6);
+    cx.restore();
+  }
+
+  // ---- the OHLC readout, in the bar above the canvas -------------------
+  const f = v => v==null ? "—" : v.toLocaleString("en-IN",{maximumFractionDigits:2});
+  const chg = readout[4] - readout[1];
+  const pc  = readout[1] ? (chg/readout[1]*100) : 0;
+  const cc  = chg >= 0 ? C.up : C.down;
+  $("cvlegend").innerHTML =
+    `<span class="o">${esc(d.index||"")} · 15m</span>`
+  + `<span>O <b>${f(readout[1])}</b></span>`
+  + `<span>H <b>${f(readout[2])}</b></span>`
+  + `<span>L <b>${f(readout[3])}</b></span>`
+  + `<span>C <b>${f(readout[4])}</b></span>`
+  + `<span style="color:${cc}">${chg>=0?"+":""}${f(chg)} (${chg>=0?"+":""}${pc.toFixed(2)}%)</span>`
+  + `<span class="o">EMA ${d.ema_fast_len||20}<i class="key" style="display:inline-block;`
+  + `margin-left:5px;background:${C.fast}"></i></span>`
+  + `<span class="o">EMA ${d.ema_slow_len||50}<i class="key" style="display:inline-block;`
+  + `margin-left:5px;background:${C.slow}"></i></span>`
+  + `<span class="o">VWAP<i class="key dash" style="display:inline-block;margin-left:5px"></i></span>`
+  + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
+}
+
+// ---- interaction --------------------------------------------------------
+function chartZoom(factor, anchorX){
+  const bars = ((CH.data||{}).candles)||[];
+  if(!bars.length) return;
+  const plotW = cv.clientWidth - PAD.l - PAD.r;
+  const frac = anchorX == null ? 1 : Math.max(0, Math.min(1, (anchorX-PAD.l)/plotW));
+  const at = CH.i0 + frac * CH.n;                 // keep this bar under the cursor
+  const next = Math.max(CH_MIN_BARS, Math.min(CH_MAX_BARS,
+                 Math.min(bars.length, Math.round(CH.n * factor))));
+  CH.i0 = Math.round(at - frac * next);
+  CH.n = next;
+  CH.i0 = Math.max(0, Math.min(bars.length - CH.n, CH.i0));
+  CH.pinned = (CH.i0 + CH.n >= bars.length);
+  chartDraw();
+}
+
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect();
+  chartZoom(e.deltaY > 0 ? 1.15 : 1/1.15, e.clientX - r.left);
+}, {passive:false});
+
+cv.addEventListener("pointerdown", e => {
+  cv.setPointerCapture(e.pointerId);
+  CH.drag = {x:e.clientX, i0:CH.i0};
+  cv.style.cursor = "grabbing";
+});
+cv.addEventListener("pointermove", e => {
+  const r = cv.getBoundingClientRect();
+  CH.hover = {x: e.clientX - r.left, y: e.clientY - r.top};
+  if(CH.drag){
+    const bars = ((CH.data||{}).candles)||[];
+    const bw = (cv.clientWidth - PAD.l - PAD.r) / Math.max(1, CH.n);
+    const moved = Math.round((e.clientX - CH.drag.x) / bw);
+    CH.i0 = Math.max(0, Math.min(Math.max(0, bars.length - CH.n),
+                                 CH.drag.i0 - moved));
+    CH.pinned = (CH.i0 + CH.n >= bars.length);
+  }
+  chartDraw();
+});
+function endDrag(){ CH.drag = null; cv.style.cursor = "crosshair"; }
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("pointerleave", () => { endDrag(); CH.hover = null; chartDraw(); });
+cv.addEventListener("dblclick", () => chartReset());
+
+function chartReset(){
+  const bars = ((CH.data||{}).candles)||[];
+  CH.n = Math.min(130, Math.max(CH_MIN_BARS, bars.length || 130));
+  CH.i0 = Math.max(0, bars.length - CH.n);
+  CH.pinned = true;
+  chartDraw();
+}
+$("cvin").onclick    = () => chartZoom(1/1.3, null);
+$("cvout").onclick   = () => chartZoom(1.3, null);
+$("cvreset").onclick = () => chartReset();
+addEventListener("resize", () => { chartDraw(); sparkline(); });
 
 function render(s){
   if(!s) return;
@@ -955,10 +2085,18 @@ function render(s){
   const so = $("signout");
   if(s.user){ so.style.display="inline-flex"; so.title = s.user; }
   else so.style.display="none";
-  $("stale").style.display = s.stale ? "flex" : "none";
+  // Needing to connect and having a broken feed are different problems with
+  // different fixes, so they are different notices — and only ever one of
+  // them, because "connect your account" also explains the missing data.
+  const needs = !!s.needs_connect;
+  $("connect").style.display = needs ? "flex" : "none";
+  $("connectmsg").textContent = (s.kite && s.kite.detail) || "";
+  $("kite").textContent = needs ? "Connect Zerodha" : "Zerodha";
+  $("kite").style.color = needs ? "#b07d15" : "";
+  $("stale").style.display = (!needs && s.stale) ? "flex" : "none";
   $("stalemsg").textContent = s.feed==="expired"
     ? "Zerodha clears access tokens every morning and today's has not been renewed."
-    : "The server is not logged in to Zerodha.";
+    : "The connection to Zerodha is not returning data.";
 
   const r=s.indices[CUR];
   if(!r){ blank("No data yet for "+CUR,
@@ -989,15 +2127,10 @@ function render(s){
          r.reach_points==null?"":num(r.reach_points,0)+" pts of room",
          r.reach_to_risk==null?"":(r.reach_to_risk>=2?"var(--up)":r.reach_to_risk<0.6?"var(--down)":"var(--warn)"));
 
-  const tg=r.targets||[null,null,null];
-  const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],["T3",tg[2],"var(--up)"],["Stop",r.stop,"var(--down)"]];
-  const spread=Math.max(...rungs.map(x=>x[1]==null?0:Math.abs(x[1]-(r.spot||0))))||1;
-  $("ladder").innerHTML = rungs.map(([k,v,c])=>{
-    const pct=v==null?0:Math.min(100,Math.abs(v-(r.spot||0))/spread*100);
-    return `<div class="rung"><div class="k">${k}</div>
-      <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c}"></i></div>
-      <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,0)}</div></div>`;
-  }).join("");
+  const tstate = (s.tickets||{})[CUR] || null;
+  ticketBox(r, tstate);
+  ladder(r, tstate && tstate.ticket);
+  sessionStrip(s.session, s.order);
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -1015,6 +2148,8 @@ function render(s){
          r.vwap_gap>0?"var(--up)":r.vwap_gap<0?"var(--down)":"");
 
   const w=(s.why||{})[CUR];
+  gauges(r, w);
+  ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.
     let rows=(w.votes||[]).map(v=>{
@@ -1036,8 +2171,7 @@ function render(s){
     $("why").innerHTML=rows;
   }
 
-  const cw=Math.round($("chart").parentElement.clientWidth||900);
-  $("chart").src="/chart/"+encodeURIComponent(CUR)+".svg?w="+cw+"&t="+Date.now();
+  chartWant(CUR);
 
   const rec=s.record||{};
   $("record").innerHTML = rec.n
@@ -1073,107 +2207,6 @@ addEventListener("resize",()=>{clearTimeout(window._rz);
 # ---------------------------------------------------------------------------
 # LOGIN / SIGNUP PAGES
 # ---------------------------------------------------------------------------
-def auth_page(kind, error=None, email=""):
-    """The signup form states the measured result of this rule set, above the
-    fields, before anyone can create an account.
-
-    That is not decoration and it is not legal cover. Someone signing up cannot
-    run the backtest — this page is the only place they will ever learn what
-    they are agreeing to look at. Leaving it out would mean strangers acting on
-    numbers whose expectancy I have measured and they haven't.
-    """
-    signup = kind == "signup"
-    esc = lambda t: (str(t or "").replace("&", "&amp;").replace("<", "&lt;")
-                     .replace(">", "&gt;").replace('"', "&quot;"))
-    disclosure = """
-     <div class="disc">
-      <b>Before you create an account, please read this.</b>
-      <p>This site shows the output of a mechanical rule set applied to Nifty,
-      Bank Nifty and Sensex. It is <b>not advice</b>, and it does not come from a
-      SEBI-registered research analyst or investment adviser.</p>
-      <p><b>It has been tested, and the result was not good.</b> Across three
-      years and 8,837 signals on 15-minute candles, it measured roughly
-      break-even before costs and <b>negative after</b> brokerage, the option
-      bid-ask and time decay. Its targets are reached about a third of the time.</p>
-      <p>It is published so it can be checked, not because it is known to work.
-      Treat everything here as something to examine, never as something to act
-      on. Options can lose their entire value.</p>
-     </div>
-     <label class="ack"><input type="checkbox" name="understood" value="1" required>
-      I have read the above and understand this rule set tested negative after costs.</label>
-    """ if signup else ""
-
-    other = ('<a href="/login">Already have an account? Log in</a>' if signup
-             else ('<a href="/signup">Create an account</a>'
-                   if config.WEB_ALLOW_SIGNUP else ''))
-    warn = ""
-    if signup or kind == "login":
-        warn = ("" if (config.WEB_PUBLIC_URL or "").startswith("https://")
-                else '<p class="insecure">This page is not using HTTPS. Do not use a '
-                     'password here that you use anywhere else.</p>')
-
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>{'Create account' if signup else 'Log in'} — Signal Desk</title>
-<style>
- :root{{--bg:#0b0d12;--surface:#111621;--bd:#222c3e;--ink:#eef1f6;--ink-2:#9aa6bd;
-  --ink-3:#657189;--accent:#9085e9;--down:#ef4444;--warn:#fab219}}
- *{{box-sizing:border-box}}
- body{{margin:0;background:var(--bg);color:var(--ink);display:flex;min-height:100vh;
-  align-items:center;justify-content:center;padding:24px;
-  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}}
- .box{{width:100%;max-width:460px}}
- .brand{{display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:18px}}
- .brand small{{display:block;font-weight:500;font-size:11px;color:var(--ink-3);
-  letter-spacing:.3px;text-transform:uppercase}}
- form{{background:var(--surface);border:1px solid var(--bd);border-radius:14px;padding:22px}}
- h1{{font-size:19px;margin:0 0 16px}}
- label.f{{display:block;font-size:12px;color:var(--ink-2);font-weight:600;margin:12px 0 5px}}
- input[type=email],input[type=password]{{width:100%;background:#0d111a;color:var(--ink);
-  border:1px solid var(--bd);border-radius:9px;padding:11px 12px;font-size:15px}}
- input:focus{{outline:2px solid var(--accent);outline-offset:1px}}
- button{{width:100%;margin-top:18px;background:var(--accent);color:#fff;border:0;
-  border-radius:9px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}}
- .err{{background:#2a1616;border:1px solid #5c2020;color:#ffb4b4;border-radius:9px;
-  padding:10px 12px;font-size:13px;margin-bottom:14px}}
- .disc{{background:#1b1416;border:1px solid #3d2126;border-radius:10px;padding:13px 15px;
-  font-size:12.5px;line-height:1.6;color:#f0c9cd;margin-bottom:14px}}
- .disc b{{color:#ff9ba3}} .disc p{{margin:8px 0 0}}
- .ack{{display:flex;gap:9px;font-size:12.5px;color:var(--ink-2);align-items:flex-start;
-  margin-top:12px}}
- .ack input{{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--accent)}}
- .insecure{{color:var(--warn);font-size:12px;margin:12px 0 0}}
- .alt{{text-align:center;margin-top:14px;font-size:13px}}
- a{{color:var(--accent);text-decoration:none}}
- .hint{{color:var(--ink-3);font-size:11.5px;margin-top:6px}}
-</style></head><body><div class="box">
- <div class="brand">
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-   <rect x="1" y="1" width="22" height="22" rx="6" fill="#161d2b" stroke="#222c3e"/>
-   <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#9085e9" stroke-width="1.9"
-         stroke-linecap="round" stroke-linejoin="round"/>
-   <circle cx="19" cy="13.9" r="2" fill="#199e70"/></svg>
-  <div>Signal Desk<small>Nifty · Bank Nifty · Sensex</small></div>
- </div>
- <form method="post" action="/{'signup' if signup else 'login'}">
-  <h1>{'Create an account' if signup else 'Log in'}</h1>
-  {f'<div class="err">{esc(error)}</div>' if error else ''}
-  {disclosure}
-  <label class="f" for="email">Email</label>
-  <input id="email" type="email" name="email" value="{esc(email)}" required autocomplete="email">
-  <label class="f" for="password">Password</label>
-  <input id="password" type="password" name="password" required
-         autocomplete="{'new-password' if signup else 'current-password'}"
-         minlength="{accounts.MIN_PASSWORD if signup else 1}">
-  {f'<p class="hint">At least {accounts.MIN_PASSWORD} characters. A short phrase beats a short scramble.</p>' if signup else ''}
-  {warn}
-  <button type="submit">{'Create account' if signup else 'Log in'}</button>
-  <div class="alt">{other}</div>
-  {'<div class="alt hint">Forgotten passwords are reset by the site owner — there is no email reset yet.</div>' if not signup else ''}
- </form>
-</div></body></html>"""
-
-
 def main():
     ap = argparse.ArgumentParser(description="Serve the signal tool as a website.")
     ap.add_argument("--host", default="127.0.0.1",
@@ -1184,9 +2217,9 @@ def main():
     ap.add_argument("--interval", type=int, default=None,
                     help="seconds between full refreshes")
     ap.add_argument("--require-login", action="store_true",
-                    help="nobody sees the signals without an account")
+                    help="accepted and ignored — the tool is always behind a login")
     ap.add_argument("--allow-signup", action="store_true",
-                    help="let visitors create their own accounts (implies --require-login)")
+                    help="let visitors create their own accounts instead of only the owner")
     args = ap.parse_args()
 
     # Flags win over .env, so you can try accounts for one run without
@@ -1194,9 +2227,11 @@ def main():
     # feature is a bad trade.
     if args.allow_signup:
         config.WEB_ALLOW_SIGNUP = True
-        config.WEB_REQUIRE_LOGIN = True      # signup with no gate is pointless
-    if args.require_login:
-        config.WEB_REQUIRE_LOGIN = True
+    # WEB_REQUIRE_LOGIN is gone as a switch. The tool is always behind a login
+    # now and the marketing pages are always public, because with a per-user
+    # broker connection there is no longer a coherent "everyone sees the same
+    # unauthenticated screen" mode to turn back on.
+    config.WEB_REQUIRE_LOGIN = True
 
     # If WEB_PUBLIC_URL says a port, serve on that port. Otherwise the address
     # you told setup_web about and the address the server actually listens on
@@ -1216,8 +2251,12 @@ def main():
         _state["mode"] = args.mode
         _state["started"] = now_ist().isoformat()
 
-    t = threading.Thread(target=worker, args=(args.mode, interval), daemon=True)
-    t.start()
+    # No worker thread is started here any more. In kite mode each user's feed
+    # runs under their own Zerodha token, so it cannot exist before they do —
+    # feeds.py starts one when somebody actually opens the tool and reaps it a
+    # few minutes after they close it. In free mode they all share one, started
+    # the same way and on the same terms.
+    feeds.configure(args.mode, interval)
 
     srv = Server((args.host, args.port), Handler)
     where = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"
@@ -1232,7 +2271,7 @@ def main():
     # If there's no admin password yet, invent one and save it rather than
     # making the operator think one up, get it wrong, or skip the step and
     # wonder later why /admin is a 404. Generated once and reused after that.
-    if not config.WEB_ADMIN_KEY and args.mode == "kite":
+    if not config.WEB_ADMIN_KEY:
         try:
             key = secrets.token_urlsafe(24)
             kite_auth.save_env({"WEB_ADMIN_KEY": key})
@@ -1246,13 +2285,14 @@ def main():
     print("=" * 70)
     print(f"  Website:  {where}")
     if config.WEB_ADMIN_KEY:
-        print(f"\n  DAILY LOGIN LINK — open this each morning, keep it private:")
+        print(f"\n  OPERATOR PAGE — create accounts here, keep this link private:")
         print(f"    {base}/admin?key={config.WEB_ADMIN_KEY}")
         if not config.WEB_PUBLIC_URL:
             print("    (WEB_PUBLIC_URL isn't set, so that link assumes this machine.")
             print("     Run  python3 setup_web.py  if you're hosting it somewhere else.)")
     else:
-        print("\n  No admin login available in free mode — none is needed.")
+        print("\n  No admin key is set, so /admin is closed. Set WEB_ADMIN_KEY "
+              "in .env to create accounts.")
     if args.host == "0.0.0.0":
         lan = lan_address()
         if lan:
@@ -1263,21 +2303,17 @@ def main():
         print("\n  Bound to 0.0.0.0 — anyone who can reach this machine can see the site.")
         print("  Visitors need nothing; the credentials stay on this machine. But put")
         print("  it behind nginx or Caddy before pointing a real domain at it.")
-    if config.WEB_REQUIRE_LOGIN:
-        n = accounts.user_count()
-        print(f"\n  ACCOUNTS: login required · {n} account(s) · signup "
-              + ("OPEN to anyone" if config.WEB_ALLOW_SIGNUP else "closed"))
-        if config.WEB_ALLOW_SIGNUP:
-            print(f"    Anyone can register at {base}/signup")
-        elif n == 0:
-            print("    Nobody can log in yet. Create the first account with:")
-            print("      python3 web_server.py --allow-signup")
-        if not (config.WEB_PUBLIC_URL or "").startswith("https://"):
-            print("    NOT on HTTPS — fine on your own machine, negligent on the")
-            print("    open internet. Passwords would cross the network in the clear.")
-    else:
-        print("\n  ACCOUNTS: off — anyone who can reach the address sees everything.")
-        print("    Try them with:  python3 web_server.py --allow-signup")
+    count = accounts.user_count()
+    print(f"\n  ACCOUNTS: {count} · signup "
+          + ("OPEN to anyone" if config.WEB_ALLOW_SIGNUP else "closed — you make them"))
+    if config.WEB_ALLOW_SIGNUP:
+        print(f"    Anyone can register at {base}/signup")
+    elif count == 0 and config.WEB_ADMIN_KEY:
+        print("    Nobody can log in yet. Create the first account on the")
+        print("    operator page above.")
+    if not (config.WEB_PUBLIC_URL or "").startswith("https://"):
+        print("    NOT on HTTPS — fine on your own machine, negligent on the")
+        print("    open internet. Passwords would cross the network in the clear.")
 
     print(f"\n  Mode: {args.mode}   ·   refresh every {interval}s   ·   Ctrl+C to stop")
     print("=" * 70)
@@ -1286,7 +2322,7 @@ def main():
     except KeyboardInterrupt:
         print("\nStopping…")
     finally:
-        _stop.set()
+        feeds.stop_all()
         srv.server_close()
 
 

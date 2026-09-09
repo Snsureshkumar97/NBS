@@ -300,3 +300,54 @@ def logout(token):
         data = _load()
         if data["sessions"].pop(_token_key(token), None) is not None:
             _save(data)
+
+
+# ---------------------------------------------------------------------------
+# per-user extras
+# ---------------------------------------------------------------------------
+# Everything above this line is about proving who someone is. What follows is
+# about remembering things *for* them — currently just their Zerodha
+# connection, kept here rather than in a second file because a user and their
+# broker token have to be deleted in the same breath. A separate store would
+# eventually be left holding a live token for an account that no longer exists.
+
+def get_user(email):
+    """A user record with the password hash removed.
+
+    The hash never leaves this module. Callers want the extras — when they
+    joined, whether they've connected a broker — and handing them the hash as
+    well only creates places for it to be logged or rendered by accident.
+    """
+    email = (email or "").strip().lower()
+    with _lock:
+        user = _load()["users"].get(email)
+    if not user:
+        return None
+    out = {k: v for k, v in user.items() if k != "password"}
+    out["email"] = email
+    return out
+
+
+def update_user(email, patch):
+    """Merge fields into a user record. Returns (ok, message).
+
+    `password` and `disabled` are refused: both have their own function that
+    also invalidates sessions, and a caller reaching them through here would
+    silently skip that step, leaving a signed-out user still signed in.
+    """
+    email = (email or "").strip().lower()
+    reserved = {"password", "disabled"}
+    bad = reserved & set(patch or {})
+    if bad:
+        return False, f"Use the dedicated function for: {', '.join(sorted(bad))}."
+    with _lock:
+        data = _load()
+        if email not in data["users"]:
+            return False, "No such account."
+        for k, v in (patch or {}).items():
+            if v is None:
+                data["users"][email].pop(k, None)
+            else:
+                data["users"][email][k] = v
+        _save(data)
+    return True, "Saved."

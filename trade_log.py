@@ -63,8 +63,30 @@ def _log_path():
     return os.path.join(log_dir(), CSV_NAME)
 
 
-def _append(row):
-    path = _log_path()
+def user_log_path(email):
+    """A private trades.csv for one website account.
+
+    The desktop app is one person at one machine, so it has always written to
+    a single file. The website is not: a shared CSV would interleave three
+    people's tickets into one history that describes nobody, and would let any
+    of them read the others' trades through the daily-limit counters.
+
+    Named by a hash rather than the address, so the folder listing is not a
+    list of the site's users.
+    """
+    import hashlib
+    key = hashlib.sha256((email or "").strip().lower().encode("utf-8")).hexdigest()[:16]
+    d = os.path.join(log_dir(), "users", key)
+    try:
+        os.makedirs(d, exist_ok=True)
+        os.chmod(d, 0o700)
+    except OSError:
+        return _log_path()
+    return os.path.join(d, CSV_NAME)
+
+
+def _append(row, path=None):
+    path = path or _log_path()
     new = not os.path.exists(path)
     try:
         with open(path, "a", newline="") as f:
@@ -111,13 +133,13 @@ def _base_row(trade, rec, now):
     }
 
 
-def log_open(trade, rec, now):
+def log_open(trade, rec, now, path=None):
     row = _base_row(trade, rec, now)
     row.update(event="OPEN", status="OPEN")
-    return _append(row)
+    return _append(row, path)
 
 
-def log_close(trade, rec, now, exit_price, pnl):
+def log_close(trade, rec, now, exit_price, pnl, path=None):
     row = _base_row(trade, rec, now)
     row.update(
         event="CLOSE",
@@ -127,7 +149,7 @@ def log_close(trade, rec, now, exit_price, pnl):
         status=trade["status"],
         pnl=pnl,
     )
-    return _append(row)
+    return _append(row, path)
 
 
 # ---------------------------------------------------------------------------
