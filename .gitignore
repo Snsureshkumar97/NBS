@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Credentials. These live in ~/.trading-tool, not here — this is a guard
+# against one ever being created beside the code by accident, because a
+# committed API secret is not something you can take back.
+.env
+.env.*
+*.key
+*.pem
+
+# Per-user data written at runtime: accounts, sessions, broker tokens and
+# trade history. All of it belongs in the home folder, never in the repo.
+users.json
+trades.csv
+
+# Built things, regenerable from source
+Nifty Signals.app/
+dist/
+build/
+
+# The pre-git safety copy. Git is the history now.
+.backup-*/

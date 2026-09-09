@@ -1,0 +1,174 @@
+// ============================================================================
+//  Option Premium Signal (v1.0) — apply this DIRECTLY on an option's own
+//  chart (e.g. search "NSE:NIFTY25081424000CE" and open its chart), NOT on
+//  the Nifty/BankNifty/Sensex index chart.
+//
+//  Because it runs on the option contract's own candles, close/high/low ARE
+//  the live premium — no linked symbol, no request.security, nothing that
+//  can throw an "invalid symbol" error. This is the simplest and most
+//  reliable way to get genuinely live premium-based entry/targets/SL.
+//
+//  Suggested workflow:
+//    1. Use the main "Nifty/BankNifty/Sensex CE-PE Bias" indicator on the
+//       INDEX chart to decide direction (CE or PE) and the ATM strike.
+//    2. Search that specific option contract on TradingView, open its chart.
+//    3. Apply THIS indicator there for entry/target/SL in real premium terms.
+//
+//  For educational/informational use only. NOT SEBI-registered investment
+//  advice. No signal generator can guarantee accuracy — always confirm with
+//  your own analysis, use proper position sizing, and never risk more than
+//  you can afford to lose. Option premiums move fast and can decay to zero
+//  by expiry — this indicator does not model theta/IV, it only reacts to
+//  the premium's own price action.
+// ============================================================================
+//@version=5
+indicator("Option Premium Signal (apply on the option's own chart)", overlay=true, max_labels_count=500)
+
+// ---------------------------- INPUTS ---------------------------------------
+grp1 = "Trend Settings"
+emaFastLen   = input.int(20, "Fast EMA", group=grp1)
+emaSlowLen   = input.int(50, "Slow EMA", group=grp1)
+stAtrPeriod  = input.int(10, "Supertrend ATR Period", group=grp1)
+stMult       = input.float(3.0, "Supertrend Multiplier", step=0.1, group=grp1)
+
+grp2 = "Momentum Settings"
+rsiLen       = input.int(14, "RSI Length", group=grp2)
+rsiBullMin   = input.int(50, "RSI Bullish Threshold", group=grp2)
+rsiBearMax   = input.int(50, "RSI Bearish Threshold", group=grp2)
+rsiOverbought= input.int(80, "RSI Overbought (avoid fresh entry above this)", group=grp2)
+rsiOversold  = input.int(20, "RSI Oversold (avoid fresh exit-signal below this)", group=grp2)
+
+grp3 = "VWAP Settings"
+useVwap      = input.bool(true, "Use VWAP as confirmation filter (best on intraday TFs)", group=grp3)
+
+grp4 = "Premium Target / Risk Settings"
+atrLen       = input.int(14, "ATR Length (for target/SL)", group=grp4)
+t1Mult       = input.float(1.0, "Target 1 = ATR x", step=0.1, group=grp4)
+t2Mult       = input.float(2.0, "Target 2 = ATR x", step=0.1, group=grp4)
+t3Mult       = input.float(3.5, "Target 3 = ATR x", step=0.1, group=grp4)
+slMult       = input.float(1.2, "Stop-Loss = ATR x", step=0.1, group=grp4)
+minBarsBetween = input.int(10, "Min bars between new signals", group=grp4)
+
+grp5 = "Display"
+showLabels   = input.bool(true, "Show signal labels on chart", group=grp5)
+showLevels   = input.bool(true, "Show target/SL lines", group=grp5)
+
+// ---------------------------- INDICATORS (on THIS chart's own candles) ------
+// NOTE: since this runs on the option's own chart, all of these are already
+// computed on the live premium — no extra data linking required.
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+rsiVal  = ta.rsi(close, rsiLen)
+atrVal  = ta.atr(atrLen)
+
+[stLine, stDir] = ta.supertrend(stMult, stAtrPeriod)
+stBullish = stDir < 0
+stBearish = stDir > 0
+
+vwapVal = ta.vwap(hlc3)
+
+// ---------------------------- SCORING ---------------------------------------
+// Options only go up when you're long (you bought a Call OR a Put contract —
+// either way you PROFIT when ITS PREMIUM rises), so scoring here only needs
+// to ask "is the premium likely to keep rising (BUY / hold) or turn down
+// (AVOID / exit)?" — there's no "short the premium" case for a retail option
+// buyer.
+trendScore = (close > emaSlow and emaFast > emaSlow) ? 1 : (close < emaSlow and emaFast < emaSlow) ? -1 : 0
+stScore    = stBullish ? 1 : stBearish ? -1 : 0
+rsiScore   = (rsiVal > rsiBullMin and rsiVal < rsiOverbought) ? 1 : (rsiVal < rsiBearMax and rsiVal > rsiOversold) ? -1 : 0
+vwapScore  = useVwap ? (close > vwapVal ? 1 : close < vwapVal ? -1 : 0) : 0
+
+totalScore = trendScore + stScore + rsiScore + vwapScore   // -4..+4
+
+buySetup  = totalScore >= 3
+exitSetup = totalScore <= -3
+
+// ---------------------------- SIGNAL DEBOUNCE --------------------------------
+var int lastSignalBar = na
+canSignal = na(lastSignalBar) or (bar_index - lastSignalBar >= minBarsBetween)
+
+buySignal  = buySetup  and canSignal and not buySetup[1]
+exitSignal = exitSetup and canSignal and not exitSetup[1]
+
+if buySignal or exitSignal
+    lastSignalBar := bar_index
+
+// ---------------------------- PREMIUM TARGETS (3 tiers) ----------------------
+var float entryPremium = na
+var float t1 = na
+var float t2 = na
+var float t3 = na
+var float slPremium = na
+
+if buySignal
+    entryPremium := close
+    t1 := close + atrVal * t1Mult
+    t2 := close + atrVal * t2Mult
+    t3 := close + atrVal * t3Mult
+    slPremium := math.max(close - atrVal * slMult, 0.05)   // premiums can't go below ~0
+
+// ---------------------------- PLOTTING ---------------------------------------
+plot(emaFast, "EMA Fast", color=color.new(color.blue, 0), linewidth=1)
+plot(emaSlow, "EMA Slow", color=color.new(color.orange, 0), linewidth=1)
+plot(useVwap ? vwapVal : na, "VWAP", color=color.new(color.purple, 0), linewidth=1)
+plot(stLine, "Supertrend", color=stBullish ? color.new(color.green, 0) : color.new(color.red, 0), linewidth=2)
+
+plotshape(buySignal, title="BUY Signal", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.small)
+plotshape(exitSignal, title="EXIT/AVOID Signal", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small)
+
+if buySignal and showLabels
+    txt = "BUY THIS OPTION @ " + str.tostring(entryPremium, format.mintick) +
+          "\nT1: " + str.tostring(t1, format.mintick) +
+          "\nT2: " + str.tostring(t2, format.mintick) +
+          "\nT3: " + str.tostring(t3, format.mintick) +
+          "\nSL: " + str.tostring(slPremium, format.mintick) +
+          "\nTime: " + str.format_time(time, "HH:mm") +
+          "\nScore: " + str.tostring(totalScore)
+    label.new(bar_index, low, txt, style=label.style_label_up,
+      color=color.new(color.green, 10), textcolor=color.white, size=size.small)
+
+if exitSignal and showLabels
+    label.new(bar_index, high, "MOMENTUM TURNING DOWN\n(consider exit/avoid fresh buy)\nScore: " + str.tostring(totalScore),
+      style=label.style_label_down, color=color.new(color.red, 10), textcolor=color.white, size=size.small)
+
+if showLevels and buySignal
+    line.new(bar_index, t1, bar_index + 20, t1, color=color.new(color.green, 40), style=line.style_dotted, width=1)
+    line.new(bar_index, t2, bar_index + 20, t2, color=color.new(color.green, 20), style=line.style_dashed, width=1)
+    line.new(bar_index, t3, bar_index + 20, t3, color=color.new(color.green, 0), style=line.style_solid, width=1)
+    line.new(bar_index, slPremium, bar_index + 20, slPremium, color=color.new(color.red, 0), style=line.style_dashed, width=1)
+
+// ---------------------------- DASHBOARD TABLE ---------------------------------
+var table dash = table.new(position.top_right, 2, 8, border_width=1)
+if barstate.islast
+    table.cell(dash, 0, 0, "Contract", bgcolor=color.new(color.blue, 20), text_color=color.white)
+    table.cell(dash, 1, 0, syminfo.tickerid, bgcolor=color.new(color.blue, 20), text_color=color.white)
+    table.cell(dash, 0, 1, "Live Premium (LTP)")
+    table.cell(dash, 1, 1, str.tostring(close, format.mintick))
+    table.cell(dash, 0, 2, "Trend (EMA)")
+    table.cell(dash, 1, 2, trendScore > 0 ? "Bullish" : trendScore < 0 ? "Bearish" : "Neutral", text_color = trendScore > 0 ? color.green : trendScore < 0 ? color.red : color.gray)
+    table.cell(dash, 0, 3, "Supertrend")
+    table.cell(dash, 1, 3, stScore > 0 ? "Bullish" : "Bearish", text_color = stScore > 0 ? color.green : color.red)
+    table.cell(dash, 0, 4, "RSI (" + str.tostring(rsiLen) + ")")
+    table.cell(dash, 1, 4, str.tostring(rsiVal, "#.##"), text_color = rsiScore > 0 ? color.green : rsiScore < 0 ? color.red : color.gray)
+    table.cell(dash, 0, 5, "VWAP")
+    table.cell(dash, 1, 5, useVwap ? (vwapScore > 0 ? "Bullish" : vwapScore < 0 ? "Bearish" : "Neutral") : "Off", text_color = vwapScore > 0 ? color.green : vwapScore < 0 ? color.red : color.gray)
+    table.cell(dash, 0, 6, "TOTAL SCORE")
+    table.cell(dash, 1, 6, str.tostring(totalScore) + "/4", bgcolor = totalScore >= 3 ? color.new(color.green, 60) : totalScore <= -3 ? color.new(color.red, 60) : color.new(color.gray, 70))
+    table.cell(dash, 0, 7, "Last Signal")
+    table.cell(dash, 1, 7, na(entryPremium) ? "None yet" : "BUY @ " + str.tostring(entryPremium, format.mintick))
+
+// ---------------------------- ALERTS -------------------------------------------
+alertcondition(buySignal, title="Buy Option Signal", message="{{ticker}}: BUY @ {{close}}")
+alertcondition(exitSignal, title="Exit/Avoid Option Signal", message="{{ticker}}: momentum turning — consider exit")
+
+// ============================================================================
+// DISCLAIMER: Runs directly on the option contract's own price, so all
+// numbers here ARE the real live premium — nothing estimated or linked.
+// BUT option premiums move very differently from the underlying index: they
+// decay with time (theta) even if the index goes nowhere, and they can be
+// thin/choppy on low-volume strikes, which can make EMA/RSI/Supertrend less
+// reliable than on the index itself. This indicator does not know your
+// contract's expiry or how many days are left — theta decay accelerates in
+// the final days, which no price-action indicator captures. Treat this as
+// one more input, not a guarantee. Not SEBI-registered investment advice.
+// ============================================================================

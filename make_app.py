@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+"""
+make_app.py — turn the tool into a real application you can double-click
+================================================================================
+    python3 make_app.py
+
+Run this once. Afterwards the terminal is optional: there is an icon you click,
+the window opens, and that is the whole routine.
+
+  macOS    builds "Nifty Signals.app" and offers to put it in ~/Applications,
+           so it shows up in Spotlight and can be kept in the Dock.
+  Windows  builds "Nifty Signals.bat" plus an .ico, and tells you the two
+           clicks that turn it into a desktop shortcut.
+  Linux    installs a .desktop entry into the applications menu.
+
+Nothing is bundled or frozen — the app is a small launcher that starts the code
+sitting in this folder with whichever Python on your machine actually has Tk.
+That matters: it means fixing a bug is still just replacing a .py file, and the
+icon keeps working. It also means MOVING OR RENAMING THIS FOLDER breaks the
+launcher; re-run this script if you do, and it will repoint itself.
+"""
+
+import os
+import platform
+import shutil
+import stat
+import subprocess
+import sys
+
+import app_icon
+
+APP_NAME = "Nifty Signals"
+BUNDLE_ID = "local.trading.niftysignals"
+HERE = os.path.dirname(os.path.abspath(__file__))
+ENTRY = os.path.join(HERE, "gui.py")
+LINE = "=" * 72
+
+# Where a working Python might be hiding. Finder and the Start menu launch apps
+# with a stripped-down PATH that usually does NOT include Homebrew, which is the
+# single most common reason a hand-made .app dies silently on launch. So the
+# launcher searches real paths instead of trusting PATH.
+MAC_CANDIDATES = [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+    "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+    "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3",
+    "/Library/Frameworks/Python.framework/Versions/3.10/bin/python3",
+    "/Library/Frameworks/Python.framework/Versions/3.9/bin/python3",
+    "/opt/homebrew/bin/python3",
+    "/usr/local/bin/python3",
+    "/usr/bin/python3",
+]
+
+
+def say(msg=""):
+    print(msg)
+
+
+def usable_python(path):
+    """Usable means it can import Tk. A Python without Tk starts, prints a
+    traceback nobody sees, and exits — which looks exactly like the icon being
+    broken."""
+    if not os.path.exists(path):
+        return False
+    try:
+        r = subprocess.run([path, "-c", "import tkinter"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=25)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def find_python(candidates):
+    found = [p for p in candidates if usable_python(p)]
+    # The one running this script is a fine answer too, and often the right one.
+    if usable_python(sys.executable) and sys.executable not in found:
+        found.insert(0, sys.executable)
+    return found
+
+
+# ---------------------------------------------------------------------------
+# icons
+
+
+def write_ico(path, sizes=(16, 32, 48, 64, 128, 256)):
+    """A .ico is just a tiny directory of images, and since Vista each one may
+    be a PNG. So we can build it with struct alone."""
+    import struct
+    pngs = []
+    for n in sizes:
+        tmp = path + f".{n}.tmp"
+        app_icon.draw(n).to_png(tmp)
+        with open(tmp, "rb") as f:
+            pngs.append((n, f.read()))
+        os.remove(tmp)
+
+    header = struct.pack("<HHH", 0, 1, len(pngs))
+    offset = 6 + 16 * len(pngs)
+    entries, blobs = b"", b""
+    for n, blob in pngs:
+        entries += struct.pack("<BBBBHHII",
+                               0 if n >= 256 else n, 0 if n >= 256 else n,
+                               0, 0, 1, 32, len(blob), offset)
+        offset += len(blob)
+        blobs += blob
+    with open(path, "wb") as f:
+        f.write(header + entries + blobs)
+    return path
+
+
+def write_icns(dest_dir):
+    """iconutil ships with macOS, so no Pillow and no downloads."""
+    iconset = os.path.join(dest_dir, "icon.iconset")
+    os.makedirs(iconset, exist_ok=True)
+    pairs = [(16, "16x16", 1), (32, "16x16", 2), (32, "32x32", 1), (64, "32x32", 2),
+             (128, "128x128", 1), (256, "128x128", 2), (256, "256x256", 1),
+             (512, "256x256", 2), (512, "512x512", 1), (1024, "512x512", 2)]
+    for px, name, scale in pairs:
+        suffix = "@2x" if scale == 2 else ""
+        app_icon.draw(px).to_png(os.path.join(iconset, f"icon_{name}{suffix}.png"))
+    icns = os.path.join(dest_dir, "icon.icns")
+    try:
+        subprocess.run(["iconutil", "-c", "icns", iconset, "-o", icns],
+                       check=True, capture_output=True)
+        shutil.rmtree(iconset, ignore_errors=True)
+        return icns
+    except Exception:
+        shutil.rmtree(iconset, ignore_errors=True)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# macOS
+
+
+MAC_LAUNCHER = r'''#!/bin/bash
+# Generated by make_app.py — re-run that script instead of editing this.
+CODE_DIR="__CODE_DIR__"
+PY="__PYTHON__"
+LOG_DIR="$HOME/trading-tool-logs"
+LOG="$LOG_DIR/app-launch.log"
+mkdir -p "$LOG_DIR"
+
+fail() {
+  # A double-clicked app has nowhere to print, so an error the user never sees
+  # is the same as no error at all. Put it on screen.
+  /usr/bin/osascript -e "display dialog \"$1\" with title \"__APP_NAME__\" buttons {\"OK\"} default button 1 with icon stop" >/dev/null 2>&1
+  exit 1
+}
+
+if [ ! -f "$CODE_DIR/gui.py" ]; then
+  fail "The tool's folder has moved or been renamed.\n\nIt was at:\n$CODE_DIR\n\nPut it back, or open Terminal in the new folder and run:  python3 make_app.py"
+fi
+
+if [ ! -x "$PY" ]; then
+  for p in __CANDIDATES__; do
+    if [ -x "$p" ] && "$p" -c 'import tkinter' >/dev/null 2>&1; then PY="$p"; break; fi
+  done
+fi
+[ -x "$PY" ] || fail "Python with Tk could not be found.\n\nInstall it from python.org/downloads, then run:  python3 make_app.py"
+
+cd "$CODE_DIR" || fail "Could not open $CODE_DIR"
+
+# Missing libraries are the second-most-common launch failure. Say so plainly
+# rather than letting an ImportError disappear into the log.
+if ! "$PY" -c 'import kiteconnect, pandas' >/dev/null 2>&1; then
+  MISSING=$("$PY" - <<'EOF'
+mods = []
+for m in ("kiteconnect", "pandas"):
+    try:
+        __import__(m)
+    except Exception:
+        mods.append(m)
+print(" ".join(mods))
+EOF
+)
+  fail "Missing: $MISSING\n\nOpen Terminal and run:\n\n    $PY -m pip install $MISSING"
+fi
+
+{
+  echo "--- launch $(date) ---"
+  echo "python: $PY"
+} >> "$LOG"
+
+exec "$PY" gui.py >> "$LOG" 2>&1
+'''
+
+MAC_PLIST = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>__APP_NAME__</string>
+  <key>CFBundleDisplayName</key><string>__APP_NAME__</string>
+  <key>CFBundleIdentifier</key><string>__BUNDLE_ID__</string>
+  <key>CFBundleExecutable</key><string>launcher</string>
+  <key>CFBundleIconFile</key><string>icon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleVersion</key><string>1.0</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>LSMinimumSystemVersion</key><string>10.13</string>
+</dict>
+</plist>
+'''
+
+
+def build_macos(pythons):
+    app_dir = os.path.join(HERE, f"{APP_NAME}.app")
+    shutil.rmtree(app_dir, ignore_errors=True)
+    macos = os.path.join(app_dir, "Contents", "MacOS")
+    res = os.path.join(app_dir, "Contents", "Resources")
+    os.makedirs(macos)
+    os.makedirs(res)
+
+    with open(os.path.join(app_dir, "Contents", "Info.plist"), "w") as f:
+        f.write(MAC_PLIST.replace("__APP_NAME__", APP_NAME)
+                         .replace("__BUNDLE_ID__", BUNDLE_ID))
+
+    launcher = os.path.join(macos, "launcher")
+    body = (MAC_LAUNCHER
+            .replace("__CODE_DIR__", HERE)
+            .replace("__PYTHON__", pythons[0])
+            .replace("__CANDIDATES__", " ".join(f'"{p}"' for p in MAC_CANDIDATES))
+            .replace("__APP_NAME__", APP_NAME))
+    with open(launcher, "w") as f:
+        f.write(body)
+    os.chmod(launcher, os.stat(launcher).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    say(" Drawing the icon…")
+    if not write_icns(res):
+        say(" (iconutil unavailable — the app will use the default icon)")
+
+    # Finder caches bundle metadata aggressively; touching it makes the new icon
+    # appear now rather than after a relaunch.
+    try:
+        subprocess.run(["touch", app_dir], capture_output=True)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return app_dir
+
+
+# ---------------------------------------------------------------------------
+# Windows
+
+
+WIN_BAT = r'''@echo off
+title __APP_NAME__
+cd /d "__CODE_DIR__"
+if not exist gui.py (
+  echo The tool's folder has moved or been renamed.
+  echo Expected: __CODE_DIR__
+  pause
+  exit /b 1
+)
+where pythonw >nul 2>&1
+if %errorlevel%==0 (
+  start "" pythonw gui.py
+  exit /b 0
+)
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+  echo Python was not found.
+  echo Install it from python.org and tick "Add python.exe to PATH".
+  pause
+  exit /b 1
+)
+python gui.py
+if %errorlevel% neq 0 pause
+'''
+
+
+def build_windows():
+    bat = os.path.join(HERE, f"{APP_NAME}.bat")
+    with open(bat, "w") as f:
+        f.write(WIN_BAT.replace("__CODE_DIR__", HERE).replace("__APP_NAME__", APP_NAME))
+    ico = write_ico(os.path.join(HERE, "icon.ico"))
+    return bat, ico
+
+
+# ---------------------------------------------------------------------------
+# Linux
+
+
+def build_linux(pythons):
+    icon = os.path.join(HERE, "icon.png")
+    app_icon.draw(256).to_png(icon)
+    apps = os.path.expanduser("~/.local/share/applications")
+    os.makedirs(apps, exist_ok=True)
+    path = os.path.join(apps, "nifty-signals.desktop")
+    with open(path, "w") as f:
+        f.write(f"""[Desktop Entry]
+Type=Application
+Name={APP_NAME}
+Comment=Options signal tool
+Exec={pythons[0]} {ENTRY}
+Path={HERE}
+Icon={icon}
+Terminal=false
+Categories=Office;Finance;
+""")
+    os.chmod(path, 0o755)
+    # Optional refresh — plenty of distros do not ship it, and a missing
+    # helper must not fail a build that has already written the file.
+    try:
+        subprocess.run(["update-desktop-database", apps], capture_output=True)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return path
+
+
+# ---------------------------------------------------------------------------
+
+
+def main():
+    say(LINE)
+    say(" MAKE THIS AN APP")
+    say(LINE)
+
+    if not os.path.exists(ENTRY):
+        say(f" Can't find gui.py next to this script ({HERE}).")
+        say(" Run make_app.py from inside the tool's folder.")
+        return 1
+
+    system = platform.system()
+    say(f" System   : {system}")
+    say(f" Code     : {HERE}")
+
+    say("\n Looking for a Python that has Tk…")
+    pythons = find_python(MAC_CANDIDATES if system == "Darwin" else [])
+    if system == "Windows":
+        pythons = [sys.executable]
+    if not pythons:
+        say("\n No Python with Tk was found.")
+        say(" Install the official build from https://www.python.org/downloads/")
+        say(" (on Homebrew:  brew install python-tk)")
+        return 1
+    for p in pythons:
+        say(f"   {p}")
+    say(f" Using    : {pythons[0]}")
+
+    if system == "Darwin":
+        app = build_macos(pythons)
+        say("\n" + LINE)
+        say(" DONE")
+        say(LINE)
+        say(f" Built: {app}")
+        dest = os.path.expanduser("~/Applications")
+        say("\n To keep it with your other apps:")
+        say(f"   mkdir -p {dest} && mv \"{app}\" {dest}/")
+        say("\n Then just double-click it. Right-click its Dock icon while it is")
+        say(" running and choose Options > Keep in Dock to pin it.")
+        say("\n First launch may say the developer cannot be verified — that is")
+        say(" macOS talking about YOUR OWN file. Right-click the app and choose")
+        say(" Open, once. After that it opens normally.")
+    elif system == "Windows":
+        bat, ico = build_windows()
+        say("\n" + LINE)
+        say(" DONE")
+        say(LINE)
+        say(f" Built: {bat}")
+        say(f" Icon : {ico}")
+        say("\n To get a desktop icon:")
+        say("   1. Right-click the .bat  >  Show more options  >  Send to  >")
+        say("      Desktop (create shortcut)")
+        say("   2. Right-click the new shortcut  >  Properties  >  Change Icon")
+        say(f"      >  Browse  >  pick {ico}")
+        say("   3. Right-click it again  >  Pin to Start  (or drag to taskbar)")
+    else:
+        path = build_linux(pythons)
+        say("\n" + LINE)
+        say(" DONE")
+        say(LINE)
+        say(f" Installed: {path}")
+        say(" It should appear in your applications menu now.")
+
+    say("\n Log of every launch: ~/trading-tool-logs/app-launch.log")
+    say(" If the icon does nothing, that file says why.\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

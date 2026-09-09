@@ -1,0 +1,262 @@
+// ============================================================================
+//  Nifty / BankNifty / Sensex — CE/PE Bias Indicator  (v1.2)
+//  Auto-detects which index you're on (Nifty/BankNifty/Sensex/other), shows
+//  it + a suggested ATM strike, plus 3-tier targets and optional LIVE option
+//  premium (LTP) with its own 3-tier premium targets.
+//
+//  For educational/informational use only. NOT SEBI-registered investment
+//  advice. No signal generator can guarantee accuracy — always confirm with
+//  your own analysis, use proper position sizing, and never risk more than
+//  you can afford to lose.
+// ============================================================================
+//@version=5
+indicator("Nifty/BankNifty/Sensex CE-PE Bias + 3 Targets", overlay=true, max_labels_count=500)
+
+// ---------------------------- INPUTS ---------------------------------------
+grp0 = "Instrument"
+strikeStepOverride = input.int(0, "Strike step override (0 = auto-detect: 50 for Nifty, 100 for BankNifty/Sensex)", group=grp0)
+
+grp1 = "Trend Settings"
+emaFastLen   = input.int(20, "Fast EMA", group=grp1)
+emaSlowLen   = input.int(50, "Slow EMA", group=grp1)
+stAtrPeriod  = input.int(10, "Supertrend ATR Period", group=grp1)
+stMult       = input.float(3.0, "Supertrend Multiplier", step=0.1, group=grp1)
+
+grp2 = "Momentum Settings"
+rsiLen       = input.int(14, "RSI Length", group=grp2)
+rsiBullMin   = input.int(50, "RSI Bullish Threshold", group=grp2)
+rsiBearMax   = input.int(50, "RSI Bearish Threshold", group=grp2)
+rsiOverbought= input.int(75, "RSI Overbought (avoid fresh CE above this)", group=grp2)
+rsiOversold  = input.int(25, "RSI Oversold (avoid fresh PE below this)", group=grp2)
+
+grp3 = "VWAP Settings"
+useVwap      = input.bool(true, "Use VWAP as confirmation filter (best on intraday TFs)", group=grp3)
+
+grp4 = "Index-Level Target / Risk Settings"
+atrLen       = input.int(14, "ATR Length (for target/SL)", group=grp4)
+t1Mult       = input.float(0.75, "Target 1 = ATR x", step=0.05, group=grp4)
+t2Mult       = input.float(1.5,  "Target 2 = ATR x", step=0.05, group=grp4)
+t3Mult       = input.float(2.5,  "Target 3 = ATR x", step=0.05, group=grp4)
+slMult       = input.float(0.75, "Stop-Loss = ATR x", step=0.05, group=grp4)
+minBarsBetween = input.int(10, "Min bars between new signals", group=grp4)
+
+grp5 = "LIVE Option Premium (optional)"
+useLivePremium = input.bool(false, "Enable live option premium (set symbols below, then check this)", group=grp5)
+callSymbol   = input.symbol("NSE:NIFTY", "Call (CE) option symbol - search e.g. NSE:NIFTY...CE", group=grp5)
+putSymbol    = input.symbol("NSE:NIFTY", "Put (PE) option symbol - search e.g. NSE:NIFTY...PE", group=grp5)
+premT1Pct    = input.float(20, "Premium Target 1 (%)", group=grp5)
+premT2Pct    = input.float(40, "Premium Target 2 (%)", group=grp5)
+premT3Pct    = input.float(75, "Premium Target 3 (%)", group=grp5)
+premSlPct    = input.float(25, "Premium Stop-Loss (%)", group=grp5)
+
+grp6 = "Alerts"
+showLabels   = input.bool(true, "Show signal labels on chart", group=grp6)
+showLevels   = input.bool(true, "Show target/SL lines", group=grp6)
+
+// ---------------------------- INSTRUMENT AUTO-DETECT --------------------------
+// Reads whatever symbol the chart is currently on (syminfo.ticker) so the
+// same script works unmodified across Nifty / BankNifty / Sensex charts.
+isBankNifty = str.contains(syminfo.ticker, "BANKNIFTY")
+isNifty     = not isBankNifty and str.contains(syminfo.ticker, "NIFTY")
+isSensex    = str.contains(syminfo.ticker, "SENSEX") or str.contains(syminfo.ticker, "BSESN")
+
+indexName = isBankNifty ? "BANK NIFTY" : isNifty ? "NIFTY 50" : isSensex ? "SENSEX" : syminfo.description
+autoStrikeStep = isBankNifty ? 100 : isNifty ? 50 : isSensex ? 100 : 50
+strikeStep = strikeStepOverride > 0 ? strikeStepOverride : autoStrikeStep
+
+// ---------------------------- INDICATORS ------------------------------------
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+rsiVal  = ta.rsi(close, rsiLen)
+atrVal  = ta.atr(atrLen)
+
+[stLine, stDir] = ta.supertrend(stMult, stAtrPeriod)
+stBullish = stDir < 0
+stBearish = stDir > 0
+
+vwapVal = ta.vwap(hlc3)
+
+atmStrike = int(math.round(close / strikeStep) * strikeStep)
+
+// Live option premiums (na unless "Enable live option premium" is checked)
+callLtp = useLivePremium ? request.security(callSymbol, timeframe.period, close, ignore_invalid_symbol=true) : na
+putLtp  = useLivePremium ? request.security(putSymbol,  timeframe.period, close, ignore_invalid_symbol=true) : na
+
+// ---------------------------- SCORING ---------------------------------------
+trendScore = (close > emaSlow and emaFast > emaSlow) ? 1 : (close < emaSlow and emaFast < emaSlow) ? -1 : 0
+stScore    = stBullish ? 1 : stBearish ? -1 : 0
+rsiScore   = (rsiVal > rsiBullMin and rsiVal < rsiOverbought) ? 1 : (rsiVal < rsiBearMax and rsiVal > rsiOversold) ? -1 : 0
+vwapScore  = useVwap ? (close > vwapVal ? 1 : close < vwapVal ? -1 : 0) : 0
+
+totalScore = trendScore + stScore + rsiScore + vwapScore
+
+bullishSetup = totalScore >= 3
+bearishSetup = totalScore <= -3
+
+// ---------------------------- SIGNAL DEBOUNCE --------------------------------
+var int lastSignalBar = na
+canSignal = na(lastSignalBar) or (bar_index - lastSignalBar >= minBarsBetween)
+
+longSignal  = bullishSetup and canSignal and not bullishSetup[1]
+shortSignal = bearishSetup and canSignal and not bearishSetup[1]
+
+if longSignal or shortSignal
+    lastSignalBar := bar_index
+
+// ---------------------------- INDEX-LEVEL TARGETS (3 tiers) -------------------
+var float entryPrice = na
+var float t1 = na
+var float t2 = na
+var float t3 = na
+var float slPrice = na
+var string sideLabel = na
+var int   signalStrike = na
+var float entryPremium = na   // live LTP captured at signal time
+var float premT1 = na
+var float premT2 = na
+var float premT3 = na
+var float premSl = na
+
+if longSignal
+    entryPrice := close
+    t1 := close + atrVal * t1Mult
+    t2 := close + atrVal * t2Mult
+    t3 := close + atrVal * t3Mult
+    slPrice := close - atrVal * slMult
+    sideLabel := "BUY CE (Call)"
+    signalStrike := atmStrike
+    entryPremium := not na(callLtp) ? callLtp : na
+    premT1 := not na(entryPremium) ? entryPremium * (1 + premT1Pct / 100) : na
+    premT2 := not na(entryPremium) ? entryPremium * (1 + premT2Pct / 100) : na
+    premT3 := not na(entryPremium) ? entryPremium * (1 + premT3Pct / 100) : na
+    premSl  := not na(entryPremium) ? entryPremium * (1 - premSlPct / 100) : na
+
+if shortSignal
+    entryPrice := close
+    t1 := close - atrVal * t1Mult
+    t2 := close - atrVal * t2Mult
+    t3 := close - atrVal * t3Mult
+    slPrice := close + atrVal * slMult
+    sideLabel := "BUY PE (Put)"
+    signalStrike := atmStrike
+    entryPremium := not na(putLtp) ? putLtp : na
+    premT1 := not na(entryPremium) ? entryPremium * (1 + premT1Pct / 100) : na
+    premT2 := not na(entryPremium) ? entryPremium * (1 + premT2Pct / 100) : na
+    premT3 := not na(entryPremium) ? entryPremium * (1 + premT3Pct / 100) : na
+    premSl  := not na(entryPremium) ? entryPremium * (1 - premSlPct / 100) : na
+
+// ---------------------------- PLOTTING ---------------------------------------
+plot(emaFast, "EMA Fast", color=color.new(color.blue, 0), linewidth=1)
+plot(emaSlow, "EMA Slow", color=color.new(color.orange, 0), linewidth=1)
+plot(useVwap ? vwapVal : na, "VWAP", color=color.new(color.purple, 0), linewidth=1)
+plot(stLine, "Supertrend", color=stBullish ? color.new(color.green, 0) : color.new(color.red, 0), linewidth=2)
+
+plotshape(longSignal, title="CE Signal", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.small)
+plotshape(shortSignal, title="PE Signal", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small)
+
+if (longSignal or shortSignal) and showLabels
+    optSymbolUsed = longSignal ? callSymbol : putSymbol
+    signalTimeStr = str.format_time(time, "HH:mm")
+
+    // Clean "signal box" style (real live premium only — no live symbol set
+    // means no premium box is shown, since these numbers would otherwise be
+    // fabricated rather than genuinely live).
+    txt = not na(entryPremium) ?
+      "[" + indexName + "]  Buy " + optSymbolUsed + " @ " + str.tostring(entryPremium, format.mintick) +
+      "\nT1: " + str.tostring(premT1, format.mintick) + "  |  T2: " + str.tostring(premT2, format.mintick) +
+      "\nT3: " + str.tostring(premT3, format.mintick) +
+      "\nSL: " + str.tostring(premSl, format.mintick) +
+      "\nTime: " + signalTimeStr +
+      "\n\n(Index ref — Entry: " + str.tostring(entryPrice, format.mintick) +
+      " | T1: " + str.tostring(t1, format.mintick) + " T2: " + str.tostring(t2, format.mintick) + " T3: " + str.tostring(t3, format.mintick) +
+      " | SL: " + str.tostring(slPrice, format.mintick) + " | Score: " + str.tostring(totalScore) + ")"
+      :
+      "[" + indexName + "]  " + sideLabel + "  |  Suggested Strike: " + str.tostring(signalStrike) +
+      "\n(No live option symbol set — showing INDEX levels only, not real premium." +
+      "\nSet a Call/Put symbol in Settings for genuine live premium targets.)" +
+      "\nEntry (index): " + str.tostring(entryPrice, format.mintick) +
+      "\nT1: " + str.tostring(t1, format.mintick) + "  T2: " + str.tostring(t2, format.mintick) + "  T3: " + str.tostring(t3, format.mintick) +
+      "\nSL: " + str.tostring(slPrice, format.mintick) +
+      "\nTime: " + signalTimeStr +
+      "\nScore: " + str.tostring(totalScore)
+
+    label.new(bar_index, longSignal ? low : high, txt,
+      style = longSignal ? label.style_label_up : label.style_label_down,
+      color = not na(entryPremium) ? color.new(color.orange, 10) : (longSignal ? color.new(color.green, 20) : color.new(color.red, 20)),
+      textcolor = color.white, size = size.small)
+
+if showLevels and (longSignal or shortSignal)
+    line.new(bar_index, t1, bar_index + 20, t1, color=color.new(color.green, 40), style=line.style_dotted, width=1)
+    line.new(bar_index, t2, bar_index + 20, t2, color=color.new(color.green, 20), style=line.style_dashed, width=1)
+    line.new(bar_index, t3, bar_index + 20, t3, color=color.new(color.green, 0), style=line.style_solid, width=1)
+    line.new(bar_index, slPrice, bar_index + 20, slPrice, color=color.new(color.red, 0), style=line.style_dashed, width=1)
+
+// ---------------------------- DASHBOARD TABLE ---------------------------------
+var table dash = table.new(position.top_right, 2, 11, border_width=1)
+if barstate.islast
+    table.cell(dash, 0, 0, indexName, bgcolor=color.new(color.blue, 20), text_color=color.white, text_size=size.normal)
+    table.cell(dash, 1, 0, syminfo.tickerid, bgcolor=color.new(color.blue, 20), text_color=color.white)
+    table.cell(dash, 0, 1, "Spot / ATM Strike")
+    table.cell(dash, 1, 1, str.tostring(close, format.mintick) + " / " + str.tostring(atmStrike))
+    table.cell(dash, 0, 2, "Trend (EMA)")
+    table.cell(dash, 1, 2, trendScore > 0 ? "Bullish" : trendScore < 0 ? "Bearish" : "Neutral", text_color = trendScore > 0 ? color.green : trendScore < 0 ? color.red : color.gray)
+    table.cell(dash, 0, 3, "Supertrend")
+    table.cell(dash, 1, 3, stScore > 0 ? "Bullish" : "Bearish", text_color = stScore > 0 ? color.green : color.red)
+    table.cell(dash, 0, 4, "RSI (" + str.tostring(rsiLen) + ")")
+    table.cell(dash, 1, 4, str.tostring(rsiVal, "#.##") + " " + (rsiScore > 0 ? "Bullish" : rsiScore < 0 ? "Bearish" : "Neutral"), text_color = rsiScore > 0 ? color.green : rsiScore < 0 ? color.red : color.gray)
+    table.cell(dash, 0, 5, "VWAP")
+    table.cell(dash, 1, 5, useVwap ? (vwapScore > 0 ? "Bullish" : vwapScore < 0 ? "Bearish" : "Neutral") : "Off", text_color = vwapScore > 0 ? color.green : vwapScore < 0 ? color.red : color.gray)
+    table.cell(dash, 0, 6, "TOTAL SCORE")
+    table.cell(dash, 1, 6, str.tostring(totalScore) + "/4", bgcolor = totalScore >= 3 ? color.new(color.green, 60) : totalScore <= -3 ? color.new(color.red, 60) : color.new(color.gray, 70))
+    table.cell(dash, 0, 7, "Call LTP (live)")
+    table.cell(dash, 1, 7, not na(callLtp) ? str.tostring(callLtp, format.mintick) : "n/a - set symbol")
+    table.cell(dash, 0, 8, "Put LTP (live)")
+    table.cell(dash, 1, 8, not na(putLtp) ? str.tostring(putLtp, format.mintick) : "n/a - set symbol")
+    table.cell(dash, 0, 9, "Last Signal")
+    table.cell(dash, 1, 9, na(sideLabel) ? "None yet" : sideLabel + " @ " + str.tostring(signalStrike))
+    table.cell(dash, 0, 10, "Timeframe")
+    table.cell(dash, 1, 10, timeframe.period)
+
+// ---------------------------- ALERTS -------------------------------------------
+alertcondition(longSignal, title="CE Buy Signal", message="{{ticker}}: BUY CE — Entry {{close}}")
+alertcondition(shortSignal, title="PE Buy Signal", message="{{ticker}}: BUY PE — Entry {{close}}")
+
+// ============================================================================
+// The indicator auto-detects which index you're on (Nifty/BankNifty/Sensex)
+// from the chart's symbol — just add it to any of the three charts and the
+// dashboard header + strike rounding (50 for Nifty, 100 for BankNifty/
+// Sensex) adjust automatically. Override the strike step manually in
+// Settings -> Instrument if auto-detect ever picks the wrong value (e.g. on
+// a non-standard symbol/broker feed).
+//
+// HOW TO USE THE LIVE OPTION PREMIUM FIELDS (optional but recommended):
+//   1. In TradingView's search bar, find the actual CE/PE contract you'd
+//      trade for today's ATM strike (shown in the dashboard as "Spot / ATM
+//      Strike") — search the index, filter to Options, pick the nearest
+//      weekly expiry and that strike.
+//   2. Note its exact symbol (shown in the chart tab, e.g. something like
+//      NSE:NIFTY2581424000CE — the exact format depends on TradingView's
+//      current listing).
+//   3. Open this indicator's Settings -> "LIVE Option Premium" group ->
+//      paste that symbol into "Call (CE) option symbol". Do the same for
+//      Put. You'll need real-time NSE F&O data entitlement on TradingView
+//      for this to update live (delayed otherwise).
+//   4. Because the strike/expiry you want changes over time (new expiry
+//      each week, ATM strike moves with spot), you'll need to update these
+//      symbols periodically — this indicator does NOT auto-select them.
+//   5. Once set, the dashboard and signal labels show the live premium and
+//      3 premium-based targets (+20%/+40%/+75% by default, editable) plus
+//      a premium stop-loss (-25% by default) — a common way option buyers
+//      scale out (e.g. book 1/3 qty at each target) rather than betting the
+//      whole position on one level.
+//
+// DISCLAIMER: This indicator combines trend (EMA/Supertrend), momentum (RSI)
+// and VWAP into a simple weighted score. It is a decision-support tool, not a
+// guaranteed prediction. Options carry high risk of rapid capital loss due to
+// theta decay and volatility (especially near expiry). Always:
+//   1) Paper-trade / backtest this on your instrument & timeframe first.
+//   2) Size positions so a stop-loss hit costs you only 1-2% of capital.
+//   3) Index-level T1/T2/T3/SL are index price levels, not option premium —
+//      use the LIVE premium fields above for actual option-level planning.
+//   4) This is not SEBI-registered investment advice.
+// ============================================================================

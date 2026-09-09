@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kite Connect Setup — Visual Guide</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#1b1f27; --sub:#5b6270;
+    --line:#e3e6ea; --accent:#2563eb; --accent-soft:#eaf0ff;
+    --green:#1a7f37; --amber:#b45309; --term-bg:#161a22; --term-ink:#d7e0ee;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:40px 20px 80px; background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+  }
+  .wrap{max-width:820px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 6px;}
+  .lede{color:var(--sub); font-size:15px; margin:0 0 8px;}
+  .note{
+    background:var(--accent-soft); border:1px solid #cddcff; border-radius:10px;
+    padding:12px 16px; font-size:14px; color:#1e3a8a; margin:18px 0 34px;
+  }
+  .part{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:26px 28px 30px; margin-bottom:28px; box-shadow:0 1px 2px rgba(20,20,40,.04);
+  }
+  .part-head{display:flex; align-items:center; gap:12px; margin-bottom:4px;}
+  .badge{
+    width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:none;
+  }
+  .part-head h2{font-size:19px;margin:0;}
+  .freq{
+    font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; margin-left:auto;
+  }
+  .freq.once{background:#e8f5ea;color:var(--green);}
+  .freq.daily{background:#fff3e0;color:var(--amber);}
+  .step{margin:20px 0 22px;}
+  .step-label{font-size:14px; font-weight:600; margin-bottom:8px; color:var(--ink);}
+  .step-desc{font-size:13.5px; color:var(--sub); margin:4px 0 10px; line-height:1.5;}
+
+  /* ---- Browser mockup ---- */
+  .browser{
+    border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    box-shadow:0 2px 10px rgba(20,20,40,.06);
+  }
+  .browser-bar{
+    background:#eef0f3; padding:8px 10px; display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid var(--line);
+  }
+  .dot{width:10px;height:10px;border-radius:50%;}
+  .dot.r{background:#ff5f57;} .dot.y{background:#febc2e;} .dot.g{background:#28c840;}
+  .addr{
+    flex:1; background:#fff; border:1px solid var(--line); border-radius:6px;
+    padding:5px 10px; font-size:12.5px; color:#444; font-family:ui-monospace,Menlo,Consolas,monospace;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .addr .hl{background:#fff2a8; color:#7a5900; border-radius:3px; padding:0 2px; font-weight:700;}
+  .page{padding:22px 24px; background:#fbfbfc;}
+  .page h3{margin:0 0 14px; font-size:15px; color:#111;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12px; color:var(--sub); margin-bottom:4px;}
+  .field .box{
+    border:1px solid #d4d8de; background:#fff; border-radius:6px; padding:8px 10px;
+    font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace; color:#222;
+  }
+  .btn{
+    display:inline-block; background:var(--accent); color:#fff; font-size:13px; font-weight:600;
+    padding:8px 16px; border-radius:6px; margin-top:4px;
+  }
+  .kv{
+    display:flex; gap:10px; align-items:center; background:#fff; border:1px solid var(--line);
+    border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:12.5px;
+  }
+  .kv .k{color:var(--sub); width:88px; flex:none;}
+  .kv .v{font-family:ui-monospace,Menlo,Consolas,monospace; color:#111;}
+  .kv .copy{margin-left:auto; font-size:11px; color:var(--accent); font-weight:600;}
+
+  /* ---- Terminal mockup ---- */
+  .terminal{
+    background:var(--term-bg); border-radius:10px; overflow:hidden;
+    box-shadow:0 2px 10px rgba(20,20,40,.15);
+  }
+  .term-bar{padding:8px 10px; display:flex; gap:6px; background:#20242e;}
+  .term-body{
+    padding:16px 18px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.8px;
+    color:var(--term-ink); line-height:1.75; white-space:pre-wrap; word-break:break-all;
+  }
+  .term-body .prompt{color:#7ee787;}
+  .term-body .cmt{color:#8b95a7;}
+  .term-body .out{color:#c9d1d9;}
+  .term-body .hl{background:#3a2f10; color:#ffd76a; border-radius:3px; padding:0 3px;}
+
+  /* ---- Arrow / callout ---- */
+  .callout{
+    display:flex; align-items:flex-start; gap:8px; margin-top:10px; font-size:12.5px;
+    color:#7a5900; background:#fff8e1; border:1px solid #ffe4a3; border-radius:8px; padding:8px 12px;
+  }
+  .callout b{color:#8a5a00;}
+
+  /* ---- App window mockup ---- */
+  .appwin{
+    border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;
+    box-shadow:0 2px 10px rgba(20,20,40,.08);
+  }
+  .appwin .title{
+    background:#eef0f3; padding:8px 12px; font-size:12.5px; font-weight:600; color:#333;
+    display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line);
+  }
+  .appwin .row{
+    display:flex; gap:14px; align-items:center; padding:14px 16px 6px; flex-wrap:wrap;
+  }
+  .appwin .field2{display:flex; flex-direction:column; gap:3px;}
+  .appwin .field2 label{font-size:10.5px; color:var(--sub);}
+  .dd{
+    border:1px solid #cfd4db; border-radius:6px; padding:6px 10px; font-size:12.5px; background:#fff;
+    position:relative;
+  }
+  .dd.circled{
+    outline:3px solid #ff8a3d; outline-offset:3px; border-color:#ff8a3d; font-weight:700; color:#c2410c;
+  }
+  .arrow-note{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#c2410c; font-weight:700;
+    margin-left:8px;
+  }
+  .btn2{border:1px solid #cfd4db; background:#f6f7f9; border-radius:6px; padding:6px 14px; font-size:12.5px; font-weight:600;}
+  .appbody{
+    margin:12px 16px 16px; background:#12141b; border-radius:6px; padding:14px 16px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; color:#dfe3ea; font-size:11.5px; line-height:1.6;
+  }
+  .appbody .g{color:#4ade80;}
+  .foot{text-align:center; color:var(--sub); font-size:12.5px; margin-top:30px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Setting up Kite (live) mode — visual walkthrough</h1>
+  <p class="lede">Mock-ups of each screen so you know exactly what to look for. Your real screens will look slightly different, but the fields and buttons will be in the same places.</p>
+  <div class="note">You don't have to do any of this — the tool already works in "free" mode. Only follow this if you want fully live, exchange-grade data (and real Sensex option-chain data).</div>
+
+  <!-- PART 1 -->
+  <div class="part">
+    <div class="part-head">
+      <div class="badge">1</div>
+      <h2>Get your API key &amp; secret</h2>
+      <span class="freq once">Do this ONCE, ever</span>
+    </div>
+
+    <div class="step">
+      <div class="step-label">1a. Go to developers.kite.trade and create an app</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <div class="addr">https://developers.kite.trade/apps/new</div>
+        </div>
+        <div class="page">
+          <h3>Create new app</h3>
+          <div class="field">
+            <label>App name</label>
+            <div class="box">My Trading Signal Tool</div>
+          </div>
+          <div class="field">
+            <label>App type</label>
+            <div class="box">Connect</div>
+          </div>
+          <div class="field">
+            <label>Redirect URL</label>
+            <div class="box">https://127.0.0.1</div>
+          </div>
+          <div class="btn">Create</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">1b. Copy your API key and secret — save them somewhere safe</div>
+      <div class="kv"><div class="k">API key</div><div class="v">a1b2c3d4e5f6g7h8</div><div class="copy">COPY</div></div>
+      <div class="kv"><div class="k">API secret</div><div class="v">••••••••••••••••</div><div class="copy">COPY</div></div>
+      <div class="callout"><b>Keep note of this:</b>&nbsp;you'll paste these two values into the terminal every morning in Part 2, so save them in Notes or similar.</div>
+    </div>
+  </div>
+
+  <!-- PART 2 -->
+  <div class="part">
+    <div class="part-head">
+      <div class="badge">2</div>
+      <h2>Get today's access token</h2>
+      <span class="freq daily">Repeat EVERY trading day</span>
+    </div>
+
+    <div class="step">
+      <div class="step-label">2a. In Terminal, type these commands (using your own key/secret)</div>
+      <div class="terminal">
+        <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <div class="term-body"><span class="prompt">$</span> export KITE_API_KEY=a1b2c3d4e5f6g7h8
+<span class="prompt">$</span> export KITE_API_SECRET=your_secret_here
+<span class="prompt">$</span> python3 kite_login_helper.py
+<span class="out"><span class="cmt"># it prints a login link:</span>
+Open this URL to login: https://kite.zerodha.com/connect/login?api_key=...</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">2b. Click that link, log in with your normal Zerodha password + OTP</div>
+      <div class="step-desc">After you log in, the page will redirect and look like it failed to load — that's expected. What matters is what's in the address bar.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <div class="addr">https://127.0.0.1/?request_token=<span class="hl">8Xy9Lm2Pq3Rt</span>&amp;action=login&amp;status=success</div>
+        </div>
+        <div class="page">
+          <h3 style="color:var(--sub); font-weight:400;">This site can't be reached — <i>(this is normal, ignore it)</i></h3>
+        </div>
+      </div>
+      <div class="callout"><b>Copy only the highlighted part</b>&nbsp;— the jumble of letters between <code>request_token=</code> and the next <code>&amp;</code> sign.</div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">2c. Paste it back into Terminal — it gives you today's access token</div>
+      <div class="terminal">
+        <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <div class="term-body"><span class="out">Paste the request_token here: </span><span class="hl">8Xy9Lm2Pq3Rt</span>
+<span class="out">
+Your access token for today:</span>
+<span class="hl">fJ82ndKq91LposP7xTz3</span>
+<span class="out cmt"># copy this whole token — you'll use it in the next step</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PART 3 -->
+  <div class="part">
+    <div class="part-head">
+      <div class="badge">3</div>
+      <h2>Start the app in Kite mode</h2>
+      <span class="freq daily">Repeat EVERY trading day</span>
+    </div>
+
+    <div class="step">
+      <div class="step-label">3a. Still in Terminal, type this (using today's token from step 2c)</div>
+      <div class="terminal">
+        <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <div class="term-body"><span class="prompt">$</span> export KITE_ACCESS_TOKEN=fJ82ndKq91LposP7xTz3
+<span class="prompt">$</span> python3 gui.py</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-label">3b. In the window that opens, change Mode to "kite"</div>
+      <div class="appwin">
+        <div class="title">🪟 Nifty / BankNifty / Sensex — Live Signal</div>
+        <div class="row">
+          <div class="field2"><label>Index</label><div class="dd">NIFTY ▾</div></div>
+          <div class="field2"><label>Mode</label><div class="dd circled">kite ▾</div></div>
+          <div class="arrow-note">← change this from "free" to "kite"</div>
+        </div>
+        <div class="row">
+          <div class="field2"><label>Refresh (s)</label><div class="dd">60</div></div>
+          <div class="btn2">Start</div>
+          <div class="btn2" style="opacity:.5;">Stop</div>
+        </div>
+        <div class="appbody">NIFTY: <span class="g">BULLISH — BUY CE</span>
+Suggested strike: 24800 CE
+Live LTP: 142.30   T1: 170.7   T2: 199.2   T3: 249.0   SL: 106.7
+Last updated 10:42:15 (Kite real-time)</div>
+      </div>
+      <div class="callout"><b>That's it</b> — click Start, and it now pulls real exchange data instead of the free NSE/Yahoo scraping.</div>
+    </div>
+  </div>
+
+  <div class="foot">Educational tool only — not SEBI-registered investment advice. Save this page/screenshot it for your morning routine.</div>
+</div>
+</body>
+</html>

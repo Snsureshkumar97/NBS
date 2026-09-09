@@ -1,0 +1,8 @@
+pandas>=2.0
+numpy>=1.24
+requests>=2.28
+kiteconnect>=5.0     # only needed for --mode kite (Zerodha Kite Connect)
+tzdata               # timezone database — needed on some Windows Python installs
+                      # so the tool can correctly convert to India time (IST)
+                      # regardless of your computer's own timezone. Harmless
+                      # no-op on Mac/Linux, which already have this built in.
