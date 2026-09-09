@@ -20,8 +20,14 @@ trades.csv
 
 # Built things, regenerable from source
 Nifty Signals.app/
-dist/
 build/
+
+# dist/ is NOT ignored. It is the exported public site, and Vercel serves it
+# straight from the repo with no build step — which means it has to be here.
+# Regenerate it with:  python3 export_site.py
+# and commit the result, or the deployed pages will describe an older rule set
+# than the one config.py is actually running.
 
 # The pre-git safety copy. Git is the history now.
 .backup-*/
+.vercel

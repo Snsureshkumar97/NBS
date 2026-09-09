@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+<meta name="description" content="The full rule set behind NBS Signal Tool: EMA stacking, the ADX gate, MACD/RSI/VWAP votes, the option chain, ATR-derived targets and the reward-to-risk gate.">
+<title>How it works — NBS Signal Tool</title>
+<style>
+/* Kite's palette. The people using this site already have kite.zerodha.com
+   open in another tab, and a second trading screen that looks like a different
+   universe is a small tax paid on every glance between them. Blue #387ed1,
+   #4caf50 up, #ff5722 down, hairline greys, 3px corners, no gradients. */
+:root{
+  --bg:#ffffff; --surface:#fbfbfb; --raised:#f5f5f5; --sunken:#fcfcfc;
+  --bd:#e9e9e9; --bd-soft:#f0f0f0;
+  --ink:#3c3c3c; --ink-2:#6c6c6c; --ink-3:#9b9b9b;
+  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#387ed1;
+  --r:3px; --r-sm:3px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+/* Left-aligned, not centred: the page heading above it sits at the
+   wrapper's left edge, and a centred column under a left-aligned title
+   reads as an accidental indent rather than as a measure. */
+.narrow{max-width:760px;margin:0}
+
+/* ---------- header ---------- */
+header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.88);
+  backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--bd)}
+.hd{max-width:1060px;margin:0 auto;padding:11px 22px;display:flex;
+  align-items:center;gap:18px;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.2px;
+  color:var(--ink);font-size:15.5px;flex:none}
+.brand:hover{text-decoration:none}
+.brand small{display:block;font-weight:500;font-size:10.5px;color:var(--ink-3);
+  letter-spacing:.4px;text-transform:uppercase}
+nav{display:flex;gap:20px;align-items:center;font-size:14px}
+nav a{color:var(--ink-2);font-weight:500;white-space:nowrap}
+nav a:hover{color:var(--ink);text-decoration:none}
+nav a.on{color:var(--ink);font-weight:650}
+.btn{display:inline-block;background:var(--accent);color:#fff;font-weight:700;
+  padding:9px 17px;border-radius:10px;font-size:14.5px;border:0;cursor:pointer;
+  font-family:inherit}
+.btn:hover{text-decoration:none;filter:brightness(1.08)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--bd);box-shadow:none}
+@media(max-width:1000px){nav .hide{display:none}}
+
+/* Below 1000px the header links are hidden to keep the bar from wrapping, so
+   they reappear here as a strip that scrolls sideways. A hamburger would need
+   state and JavaScript to hide six links that fit perfectly well in a row you
+   can push with your thumb. */
+.subnav{display:none}
+@media(max-width:1000px){
+  .subnav{display:block;position:sticky;top:56px;z-index:29;background:#fff;
+    border-bottom:1px solid var(--bd-soft);overflow-x:auto;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .subnav::-webkit-scrollbar{display:none}
+  .subnav ul{display:flex;gap:20px;list-style:none;margin:0;
+    padding:11px 22px;white-space:nowrap;font-size:14px}
+  .subnav a{color:var(--ink-2);font-weight:500}
+  .subnav a.on{color:var(--accent);font-weight:700}
+}
+
+/* ---------- page head ---------- */
+.phead{padding:60px 0 34px;border-bottom:1px solid var(--bd-soft);margin-bottom:52px}
+.phead h1{font-size:clamp(30px,4.6vw,44px);line-height:1.12;margin:0 0 14px;
+  letter-spacing:-.6px;font-weight:800}
+.phead p{color:var(--ink-2);font-size:17px;max-width:660px;margin:0}
+
+/* ---------- hero ---------- */
+.hero{padding:74px 0 8px;text-align:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--surface);
+  border:1px solid var(--bd);border-radius:999px;padding:6px 14px;font-size:12.5px;
+  font-weight:600;color:var(--ink-2);margin-bottom:26px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--up);flex:none}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.08;margin:0 0 20px;
+  letter-spacing:-.8px;font-weight:800}
+h1 .thin{color:var(--ink-3);font-weight:500;letter-spacing:-.6px;
+  display:block;font-size:clamp(15px,2.4vw,20px);margin-top:14px}
+.lede{font-size:clamp(16px,2.1vw,19px);color:var(--ink-2);max-width:660px;
+  margin:0 auto 30px}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.shotwrap{margin:52px 0 0;border:1px solid var(--bd);border-radius:var(--r);
+  overflow:hidden;background:var(--sunken);
+  box-shadow:none}
+
+/* ---------- sections ---------- */
+section{padding:70px 0;border-top:1px solid var(--bd-soft)}
+section.first{border-top:0;padding-top:0}
+.kicker{font-size:11.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;
+  color:var(--accent);margin:0 0 12px}
+h2{font-size:clamp(24px,3.4vw,32px);line-height:1.2;margin:0 0 16px;
+  letter-spacing:-.4px;font-weight:750}
+h3{font-size:17px;margin:0 0 7px;font-weight:700}
+h4{font-size:15px;margin:26px 0 8px;font-weight:700}
+.sub{color:var(--ink-2);max-width:680px;margin:0 0 36px;font-size:16.5px}
+p{margin:0 0 15px}
+.mut{color:var(--ink-3)}
+.prose p{color:var(--ink-2);font-size:16px}
+.prose b{color:var(--ink)}
+.prose ul{color:var(--ink-2);padding-left:22px;margin:0 0 16px}
+.prose li{margin-bottom:8px}
+
+/* ---------- cards ---------- */
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:840px){.g3,.g2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
+  padding:22px 22px 24px}
+.card p{color:var(--ink-2);font-size:14.5px;margin:0}
+.card .idx{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.6px;
+  text-transform:uppercase;margin-bottom:10px}
+
+/* ---------- steps ---------- */
+ol.steps{list-style:none;counter-reset:s;margin:0;padding:0;display:grid;gap:14px}
+ol.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--bd);
+  border-radius:var(--r);padding:20px 22px 20px 68px;position:relative}
+ol.steps li::before{content:counter(s);position:absolute;left:22px;top:19px;
+  width:30px;height:30px;border-radius:50%;background:#fff;
+  border:1px solid var(--bd);color:var(--accent);font-weight:700;font-size:14px;
+  display:flex;align-items:center;justify-content:center}
+ol.steps p{color:var(--ink-2);font-size:14.5px;margin:0}
+ol.steps p + p{margin-top:9px}
+
+/* ---------- tables ---------- */
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px;margin:0 0 8px}
+.tbl th{text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--ink-3);font-weight:700;padding:0 14px 9px 0;border-bottom:1px solid var(--bd)}
+.tbl td{padding:13px 14px 13px 0;border-bottom:1px solid var(--bd-soft);
+  color:var(--ink-2);vertical-align:top}
+.tbl td:first-child{color:var(--ink);font-weight:650;white-space:nowrap}
+.tbl code{background:var(--raised);border-radius:5px;padding:2px 6px;font-size:13px}
+
+/* ---------- figures ---------- */
+figure{margin:0 0 44px}
+figure:last-child{margin-bottom:0}
+figure img{border:1px solid var(--bd);border-radius:var(--r);background:var(--sunken);
+  box-shadow:none}
+figcaption{color:var(--ink-2);font-size:14.5px;margin-top:14px;max-width:760px}
+figcaption b{color:var(--ink);display:block;margin-bottom:3px}
+
+/* ---------- callouts ---------- */
+.callout{border-radius:var(--r);padding:26px 28px 22px;margin:0}
+.callout h2,.callout h3{margin-top:0}
+.callout p:last-child{margin-bottom:0}
+.warm{background:#fffaf0;border:1px solid #f3e2c0;color:#5f5340}
+.warm .kicker{color:#b07d15}
+.warm h2,.warm h3{color:#8a6410}
+.warm b{color:#6f4f08}
+.warm a{color:#8a6410;text-decoration:underline}
+.cool{background:var(--surface);border:1px solid var(--bd);color:var(--ink-2)}
+.figs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0 20px}
+@media(max-width:760px){.figs{grid-template-columns:repeat(2,1fr)}}
+.fig{background:#fff;border:1px solid #f0e3c8;border-radius:var(--r-sm);
+  padding:16px 16px 14px}
+.fig .n{font-size:25px;font-weight:700;letter-spacing:-.6px;color:#8a6410;line-height:1.1}
+.fig .l{font-size:12px;color:#7d7060;margin-top:5px;line-height:1.45}
+
+/* ---------- lists with marks ---------- */
+ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:11px}
+ul.plain li{display:flex;gap:12px;align-items:flex-start;color:var(--ink-2);font-size:15px}
+ul.plain .x,ul.plain .t{flex:none;width:20px;height:20px;border-radius:50%;
+  font-size:12px;display:flex;align-items:center;justify-content:center;
+  margin-top:2px;font-weight:700}
+ul.plain .x{background:#fff2ee;border:1px solid #ffc7b4;color:#d84315}
+ul.plain .t{background:#f1f8f2;border:1px solid #b5dcb7;color:#3d8b40}
+
+/* ---------- faq ---------- */
+details{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-sm);
+  padding:16px 20px;margin-bottom:10px}
+details[open]{background:#fff}
+summary{cursor:pointer;font-weight:650;font-size:15.5px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";float:right;color:var(--ink-3);font-weight:400;font-size:19px;
+  line-height:1}
+details[open] summary::after{content:"\2212"}
+details p{color:var(--ink-2);font-size:14.5px;margin:12px 0 0}
+
+/* ---------- next / prev ---------- */
+.next{display:flex;gap:14px;flex-wrap:wrap;margin-top:56px;padding-top:28px;
+  border-top:1px solid var(--bd-soft)}
+.next a{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-sm);
+  padding:14px 18px;flex:1 1 220px;color:var(--ink)}
+.next a:hover{text-decoration:none;border-color:var(--accent)}
+.next b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--ink-3);font-weight:700;margin-bottom:3px}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--bd-soft);padding:48px 0 60px;color:var(--ink-3);
+  font-size:13.5px;margin-top:70px;background:var(--sunken)}
+footer .legal{background:#fffaf0;border:1px solid #f3e2c0;border-radius:var(--r-sm);
+  padding:18px 20px;margin-bottom:32px;line-height:1.7;color:#5f5340;font-size:13px}
+footer .legal b{color:#8a6410}
+.fcols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:26px;margin-bottom:30px}
+@media(max-width:760px){.fcols{grid-template-columns:1fr 1fr}}
+.fcols h5{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--ink-3);
+  margin:0 0 12px;font-weight:700}
+.fcols ul{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.fcols a{color:var(--ink-2)}
+.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding-top:22px;border-top:1px solid var(--bd)}
+
+/* ---------- forms (login / connect) ---------- */
+.mid{max-width:520px;margin:0 auto;padding:56px 0 20px}
+.panel{background:#fff;border:1px solid var(--bd);border-radius:var(--r);
+  padding:26px 26px 28px;box-shadow:none}
+.panel h1{font-size:22px;letter-spacing:-.4px;margin:0 0 6px}
+.panel .sub{font-size:14.5px;margin:0 0 20px}
+label.f{display:block;font-size:12px;color:var(--ink-2);font-weight:700;
+  margin:14px 0 6px;letter-spacing:.2px}
+input[type=email],input[type=password],input[type=text]{width:100%;background:#fff;
+  color:var(--ink);border:1px solid var(--bd);border-radius:9px;padding:11px 12px;
+  font-size:15px;font-family:inherit}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+button.wide{width:100%;margin-top:20px}
+.err{background:#fff2ee;border:1px solid #ffc7b4;color:#d84315;border-radius:var(--r-sm);
+  padding:11px 13px;font-size:13.5px;margin-bottom:16px}
+.ok{background:#f1f8f2;border:1px solid #b5dcb7;color:#3d8b40;border-radius:var(--r-sm);
+  padding:11px 13px;font-size:13.5px;margin-bottom:16px}
+.warnbox{background:#fffaf0;border:1px solid #f3e2c0;color:#5f5340;border-radius:var(--r-sm);
+  padding:11px 13px;font-size:13.5px;margin-bottom:16px}
+.warnbox b{color:#8a6410}
+.hint{color:var(--ink-3);font-size:12.5px;margin-top:8px}
+.alt{text-align:center;margin-top:16px;font-size:13.5px;color:var(--ink-3)}
+.state{display:inline-flex;align-items:center;gap:8px;border-radius:999px;
+  padding:6px 13px;font-size:12.5px;font-weight:700;border:1px solid var(--bd);
+  background:var(--surface);color:var(--ink-2)}
+.state .d{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ink-3)}
+.state.on{background:#f1f8f2;border-color:#b5dcb7;color:#3d8b40}
+.state.on .d{background:var(--up)}
+.state.off{background:#fffaf0;border-color:#f3e2c0;color:#8a6410}
+.state.off .d{background:var(--warn)}
+.rows{margin:18px 0 0;border-top:1px solid var(--bd-soft)}
+.row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;
+  border-bottom:1px solid var(--bd-soft);font-size:14px}
+.row b{font-weight:600;color:var(--ink-2)}
+.row span{color:var(--ink);text-align:right}
+form.inline{display:inline}
+button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:pointer;
+  padding:0;text-decoration:underline;font-family:inherit}
+</style>
+</head><body>
+
+<header><div class="hd">
+ <a class="brand" href="/"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#f5f5f5" stroke="#e9e9e9"/><path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#387ed1" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg><div>NBS Signal Tool<small>Nifty · Bank Nifty · Sensex</small></div></a>
+ <nav><a class="hide on" href="/how-it-works">How it works</a><a class="hide" href="/screen">The screen</a><a class="hide" href="/results">Results</a><a class="hide" href="/security">Security</a><a class="hide" href="/access">Access</a><a class="hide" href="/faq">FAQ</a><a class="btn" href="/login">Log in</a></nav>
+</div></header>
+<div class="subnav"><ul><li><a class="on" href="/how-it-works">How it works</a></li><li><a class="" href="/screen">The screen</a></li><li><a class="" href="/results">Results</a></li><li><a class="" href="/security">Security</a></li><li><a class="" href="/access">Access</a></li><li><a class="" href="/faq">FAQ</a></li><li><a class="" href="/login">Log in</a></li></ul></div>
+
+<div class="wrap"><div class="phead"><h1>How it works</h1><p>No model, nothing learned, nothing fitted after the fact. A fixed sequence of checks with a gate at the end — which is the only reason it can always tell you why it said what it said.</p></div></div>
+<div class="wrap"><div class="narrow prose">
+
+ <section class="first">
+  <h2>1. The candles</h2>
+  <p>15-minute bars for the index, pulled under your own Zerodha session. Two
+   things happen to them before any indicator sees them.</p>
+  <p>The <b>pre-open auction bar is dropped</b>. It is priced on almost no
+   volume, and because it is the first bar of the day it stays the newest
+   completed bar for the whole of 09:15 to 09:30 — which is exactly when the
+   worst signals were firing. An EMA or an ATR fed that bar is measuring an
+   auction rather than a market.</p>
+  <p>Bars with no usable timestamp are left alone. Dropping data because the
+   index arrived as an unexpected type would be a worse failure than the one
+   being fixed.</p>
+ </section>
+
+ <section>
+  <h2>2. Trend, and the gate in front of it</h2>
+  <p>Direction comes from two exponential moving averages that have to be
+   stacked the same way — price above both, and the fast one above the slow one
+   for a long, the mirror for a short. One of the two agreeing is not a
+   trend.</p>
+  <table class="tbl">
+   <tr><th>Setting</th><th>Value</th><th>What it is for</th></tr>
+   <tr><td>Fast EMA</td><td><code>20</code></td>
+    <td>the near-term average price</td></tr>
+   <tr><td>Slow EMA</td><td><code>50</code></td>
+    <td>the one the fast average has to be on the right side of</td></tr>
+   <tr><td>ADX length</td><td><code>14</code></td>
+    <td>how many bars the strength reading covers</td></tr>
+   <tr><td>ADX floor</td><td><code>20</code></td>
+    <td>below this the signal is blocked outright, not merely marked
+     low-confidence</td></tr>
+  </table>
+  <p>The ADX floor is a <b>gate, not a weight</b>. A direction with no strength
+   behind it is how a range chops you, so a weak reading stops the signal
+   instead of quietly lowering a number that still lets it through.</p>
+ </section>
+
+ <section>
+  <h2>3. Momentum, as votes</h2>
+  <p>Three readings vote, and all three are shown individually — including the
+   ones that disagreed with the answer. A single blended score would hide
+   exactly the situation you most want to see, which is two inputs agreeing
+   strongly and one shouting the other way.</p>
+  <table class="tbl">
+   <tr><th>Input</th><th>Settings</th><th>The question it answers</th></tr>
+   <tr><td>MACD</td>
+    <td><code>12/26/9</code></td>
+    <td>is force still being <em>added</em>, or is the move merely still
+     present?</td></tr>
+   <tr><td>RSI</td><td><code>14</code>, bull above
+    <code>50</code>, bear below
+    <code>50</code></td>
+    <td>where in its band price sits — with
+     <code>75</code> and
+     <code>25</code> as the extremes where a bounce is
+     due</td></tr>
+   <tr><td>VWAP</td><td>session</td>
+    <td>who has actually had the day, buyers or sellers</td></tr>
+  </table>
+ </section>
+
+ <section>
+  <h2>4. The option chain</h2>
+  <p>Everything above is a view on the <em>index</em>. The chain is what turns
+   it into an instrument: put-call ratio for the balance of positioning, and
+   where open interest actually sits for the strike worth looking at. Without
+   this step the output would be a direction with nothing to trade.</p>
+  <p>When live chain data is available the tool also tracks the real premium
+   (LTP) of that strike and gives it its own three premium-based targets, so
+   the number you watch is the one you would actually pay.</p>
+ </section>
+
+ <section>
+  <h2>5. Targets, stop, and the reward-to-risk gate</h2>
+  <p>Nothing here is a round number of points. Targets and the stop are
+   multiples of ATR, so they widen on Bank Nifty and tighten on a quiet Nifty
+   without anything being re-tuned per index.</p>
+  <table class="tbl">
+   <tr><th>Level</th><th>Derived from</th><th></th></tr>
+   <tr><td>T1 / T2 / T3</td>
+    <td><code>[0.75, 1.5, 2.5]</code> &times; ATR</td>
+    <td>three tiers, not one, because partial exits are how most people
+     actually use a signal</td></tr>
+   <tr><td>Stop</td>
+    <td>clamped to <code>0.5</code>&ndash;<code>2.0</code> &times; ATR</td>
+    <td>a floor so it is not inside the noise, a ceiling so one trade cannot
+     be arbitrarily expensive</td></tr>
+   <tr><td>The gate</td>
+    <td>reach &divide; risk must clear <code>0.6</code></td>
+    <td>below it the setup is marked <b>not worth it</b> and never becomes a
+     ticket</td></tr>
+  </table>
+  <p>ATR length is <code>14</code>. Reach is estimated
+   before anything is issued, which is the point — a gate applied afterwards
+   would be a report, not a brake.</p>
+ </section>
+
+ <section>
+  <h2>6. A signal is not a ticket</h2>
+  <p>The screen can show a direction at full confidence and still issue
+   nothing, and it names the rule that is holding it rather than asserting a
+   generic reason. Five things sit in the gap.</p>
+  <table class="tbl">
+   <tr><th>Badge</th><th>What is actually happening</th></tr>
+   <tr><td>CONFIRMING</td><td>the direction has to hold for
+    <code>120</code> seconds
+    (<code>4</code> ticks) before anything is
+    issued</td></tr>
+   <tr><td>COOLDOWN</td><td>the gap since the last ticket has not elapsed —
+    currently <code>0</code>
+    minutes</td></tr>
+   <tr><td>POSITION OPEN</td><td>a ticket is already running on this index and
+    is left alone</td></tr>
+   <tr><td>ALREADY TAKEN</td><td>this index was ticketed in this direction
+    today and re-entry is off</td></tr>
+   <tr><td>DAY LIMIT</td><td>the daily brake — at most
+    <code>4</code> trades, at most
+    <code>5</code> lots</td></tr>
+  </table>
+  <p>This distinction is worth the space. The screen used to print "a ticket is
+   issued when the direction changes" whichever rule was holding, and that
+   sentence is true for exactly one of those five rows — the least common one.
+   A 100%-confidence signal waiting out a cooldown read as though the tool
+   disagreed with a screen full of agreement.</p>
+ </section>
+
+ <section>
+  <h2>7. Once a ticket exists</h2>
+  <p><b>The levels are frozen at entry.</b> Targets and the stop are computed
+   once, from the ATR at that moment, and never recomputed while the trade is
+   open. A stop that drifts with a moving average is a stop you cannot plan
+   around and cannot honestly measure afterwards.</p>
+  <p>Auto re-arm has its own floor of
+   <code>60</code> seconds. It is not a churn
+   brake and is not meant to be tuned — it exists because a ticket whose stop
+   is already breached would otherwise close and re-arm on the next evaluation,
+   several times a second, until the chain refreshed.</p>
+ </section>
+
+ <section>
+  <div class="callout warm">
+   <h3>Reading this page is not the same as it working</h3>
+   <p>Every rule above is defensible on its own terms, and the whole of it was
+    still measured negative after costs across three years. Coherent and
+    profitable are different properties.
+    <a href="/results">The measurement &rarr;</a></p>
+  </div>
+ </section>
+
+ <div class="next"><a href="/screen"><b>Next</b>The screen, part by part</a><a href="/results"><b>Then</b>What it measured</a></div>
+</div></div>
+
+<footer><div class="wrap">
+ <div class="legal">
+  <b>Not investment advice.</b> NBS Signal Tool is a decision-support screen that
+  applies a fixed, published rule set to index data. It is not the output of a
+  SEBI-registered Research Analyst or Investment Adviser, no recommendation is
+  being made to any person, and no order is ever placed by this software.
+  Trading index options can lose you your entire capital. The rule set was
+  measured across three years of history and returned a negative expectancy
+  after costs — <a href="/results">the figures are here</a>. You are
+  responsible for anything you do with what you see.
+ </div>
+ <div class="fcols">
+  <div>
+   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#f5f5f5" stroke="#e9e9e9"/><path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#387ed1" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg><b style="color:var(--ink);font-size:15px">NBS Signal Tool</b></div>
+   <p style="margin:0;max-width:320px">A rule-based second opinion on Nifty,
+    Bank Nifty and Sensex index options. It shows its working, it says WAIT most
+    of the time, and it places no orders.</p>
+  </div>
+  <div><h5>The tool</h5><ul><li><a href="/how-it-works">How it works</a></li><li><a href="/screen">The screen</a></li><li><a href="/results">Results</a></li><li><a href="/security">Security</a></li><li><a href="/access">Access</a></li><li><a href="/faq">FAQ</a></li></ul></div>
+  <div><h5>Account</h5><ul>
+   <li><a href="/login">Log in</a></li>
+   <li><a href="/access">How access works</a></li>
+   <li><a href="/disclaimer">Disclaimer</a></li>
+  </ul></div>
+ </div>
+ <div class="foot">
+  <div>NBS Signal Tool · Nifty · Bank Nifty · Sensex</div>
+  <div>No orders are ever placed by this software.</div>
+ </div>
+</div></footer>
+
+</body></html>

@@ -1,0 +1,12 @@
+User-agent: *
+Disallow: /app
+Disallow: /admin
+Disallow: /api/
+Disallow: /connect
+Disallow: /chart/
+Disallow: /login
+Disallow: /signup
+Disallow: /logout
+Disallow: /kite/
+Allow: /
+Sitemap: https://nbstradingtool.vercel.app/sitemap.xml
