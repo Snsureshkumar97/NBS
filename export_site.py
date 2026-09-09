@@ -44,6 +44,7 @@ import os
 import shutil
 
 import nbs_site
+from nbs_site import BRAND, _esc, shell
 
 PAGES = {
     "/":             "index.html",
@@ -63,13 +64,43 @@ APP_PATHS = ("/login", "/app", "/connect", "/logout", "/signup", "/admin")
 
 
 def _rewrite(html, app_url):
-    """Point the app links at the app, and leave the content links alone."""
+    """Point the app links at the app, and leave the content links alone.
+
+    With no app address yet they are left pointing at /login on this domain,
+    where a placeholder page explains the situation — see `_placeholder`. A
+    dead link to somebody else's domain would be worse than either.
+    """
     if not app_url:
         return html
     app_url = app_url.rstrip("/")
     for path in APP_PATHS:
         html = html.replace(f'href="{path}"', f'href="{app_url}{path}"')
     return html
+
+
+def _placeholder():
+    """Stands in for /login until the tool has an address of its own.
+
+    Exporting with no --app-url used to leave every Log in button pointing at
+    /login on the marketing domain, where nothing served it — so the one
+    action the site asks a visitor to take returned a 404. This says what is
+    actually going on instead.
+    """
+    body = """<div class="wrap"><div class="mid">
+ <div class="panel">
+  <h1>The tool is not hosted here</h1>
+  <p class="sub">These pages are the public half of """ + _esc(BRAND) + """.</p>
+  <div class="warnbox"><b>This address serves the description, not the
+   application.</b> The tool needs a server that stays running — it holds a
+   live connection to Zerodha, keeps ticket state between polls and writes to
+   disk, none of which a static site or a serverless function can do.</div>
+  <p style="font-size:14.5px;color:var(--ink-2)">Once it has an address, this
+   page is replaced by a real login and every button on the site points at it.
+   If you were given an account, ask whoever runs it where to sign in.</p>
+  <a class="btn wide" href="/" style="text-align:center">Back to the site</a>
+ </div>
+</div></div>"""
+    return shell("Log in", body, active="", noindex=True)
 
 
 def export(out_dir, app_url, base_url):
@@ -83,6 +114,11 @@ def export(out_dir, app_url, base_url):
         with open(os.path.join(out_dir, filename), "w", encoding="utf-8") as f:
             f.write(html)
         print(f"  {filename}")
+
+    if not app_url:
+        with open(os.path.join(out_dir, "login.html"), "w", encoding="utf-8") as f:
+            f.write(_placeholder())
+        print("  login.html (placeholder — no --app-url given)")
 
     for slug in nbs_site.SHOTS:
         src = nbs_site.shot_path(slug)
@@ -142,9 +178,10 @@ def main():
 
     print("\nDone.")
     if not args.app_url:
-        print("\n  NOTE: no --app-url was given, so every Log in link still points")
-        print("  at /login on the static site, where there is nothing to serve it.")
-        print("  Re-run with --app-url once the tool has an address.")
+        print("\n  NOTE: no --app-url was given. Log in links point at /login on")
+        print("  this site, which now serves a page explaining that the tool is")
+        print("  hosted elsewhere. Re-export with --app-url once it has an")
+        print("  address, and the links point straight at it.")
     print("\n  Deploy:  npx vercel deploy --prod " + args.out)
     print("  The tool itself needs a host that stays running — see the")
     print("  docstring at the top of this file for why Vercel cannot be it.")
