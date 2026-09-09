@@ -2628,12 +2628,18 @@ def main():
         # wins over WEB_PUBLIC_URL: the public address is https on 443 while
         # the process is handed something like 10000 to bind to, so reading the
         # port off the public URL would bind to the wrong one.
-        env_port = os.environ.get("PORT", "").strip()
+        env_port = (os.environ.get("PORT") or os.environ.get("WEB_PORT") or "").strip()
         if env_port.isdigit():
             port = int(env_port)
         else:
             try:
                 parsed = urllib.parse.urlparse(config.WEB_PUBLIC_URL or "")
+                # Only when the public URL names a port explicitly. Behind a
+                # tunnel or a proxy the public address is https on 443 while
+                # the process binds something else entirely, and inferring 443
+                # from the scheme would bind the wrong port — or, as happened
+                # here, fall through to 8080 while the tunnel forwarded 5055.
+                # Set WEB_PORT for that case.
                 port = parsed.port or 8080
             except Exception:
                 port = 8080
