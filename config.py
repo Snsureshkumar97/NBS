@@ -365,6 +365,29 @@ MAX_TRADES_PER_DAY = 4
 # Signals are still shown during this window — only entry is held.
 NO_NEW_TRADES_BEFORE = (9, 20)
 
+# ---------------------------------------------------------------------------
+# THE TRADING SESSION
+# ---------------------------------------------------------------------------
+# Defined here, once, because it used to be defined twice — main.py and
+# signal_engine.py each carried their own copy, and when NSE moved the close
+# only one of them would have been found and fixed. The other decides how much
+# trading time is left today, which feeds reachability and therefore the
+# reward-to-risk gate, so a stale copy there is not cosmetic.
+#
+# 15:40, not 15:30: NSE extended EQUITY DERIVATIVES to 15:40 on 3 August 2026,
+# so derivatives traders can react to the Closing Auction Session (15:15-15:35)
+# that now sets the cash market's closing price. The cash market still ends at
+# 15:30. This tool trades index options, so 15:40 is the number that applies.
+MARKET_OPEN_TIME = (9, 15)
+MARKET_CLOSE_TIME = (15, 40)
+
+
+def session_hours():
+    """Length of the trading day in hours, derived rather than written down."""
+    o = MARKET_OPEN_TIME[0] * 60 + MARKET_OPEN_TIME[1]
+    c = MARKET_CLOSE_TIME[0] * 60 + MARKET_CLOSE_TIME[1]
+    return (c - o) / 60.0
+
 # Bars stamped before the open belong to the PRE-OPEN auction (09:00-09:15),
 # where indicative prices swing wildly on tiny volume. Feeding them to an EMA
 # or an ATR produces a reading of an auction, not of a market. Dropped before

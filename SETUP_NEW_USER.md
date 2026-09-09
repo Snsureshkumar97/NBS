@@ -127,7 +127,7 @@ Common ones:
 | Login opens, then times out after 90s | Redirect URL in the Kite app isn't exactly `http://127.0.0.1:5055/` |
 | "Port 5055 is already in use" | Something else has the port. `check_setup.py` suggests a free one — set `KITE_REDIRECT_PORT` in `~/.trading-tool/.env` **and** change the Redirect URL in the Kite app to match. Both, or it breaks. |
 | It keeps asking for the API key | A blank `KITE_API_KEY` is exported in his shell profile and shadows the saved one. `check_setup.py` flags this explicitly. |
-| "market closed" | Correct outside 9:15–15:30 IST. Not an error. |
+| "market closed" | Correct outside 9:15–15:40 IST. Not an error. |
 
 ---
 

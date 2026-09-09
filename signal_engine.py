@@ -18,9 +18,12 @@ import config
 import indicators as ind
 
 # NSE/BSE session, used to work out how much trading time is left today.
-MARKET_OPEN_H, MARKET_OPEN_M = 9, 15
-MARKET_CLOSE_H, MARKET_CLOSE_M = 15, 30
-SESSION_HOURS = 6.25
+# Read from config rather than repeated here: this copy said 15:30 for five
+# weeks after NSE moved the derivatives close to 15:40, which quietly shortened
+# every reachability estimate by ten minutes.
+MARKET_OPEN_H, MARKET_OPEN_M = config.MARKET_OPEN_TIME
+MARKET_CLOSE_H, MARKET_CLOSE_M = config.MARKET_CLOSE_TIME
+SESSION_HOURS = config.session_hours()
 
 
 def round_to_step(value: float, step: int) -> int:

@@ -29,8 +29,10 @@ from signal_engine import (
     build_recommendation,
 )
 
-MARKET_OPEN_TIME = (9, 15)   # 09:15 IST
-MARKET_CLOSE_TIME = (15, 30)  # 15:30 IST
+# The session lives in config.py — see the note there on why 15:40 and not
+# 15:30. Re-exported under the old names so nothing that imports them breaks.
+MARKET_OPEN_TIME = config.MARKET_OPEN_TIME
+MARKET_CLOSE_TIME = config.MARKET_CLOSE_TIME
 SESSION_REFRESH_EVERY = 20    # re-warm the NSE session every N live-mode cycles
 MAX_FETCH_RETRIES = 2         # retries within a single cycle before giving up on that cycle
 
@@ -118,7 +120,7 @@ signal:
 
 def is_market_open(now: dt.datetime) -> bool:
     """`now` must be IST (use now_ist()) — comparing any other timezone's
-    wall-clock time against 9:15-15:30 here would give wrong results."""
+    wall-clock time against the session here would give wrong results."""
     if now.weekday() >= 5:  # Sat/Sun
         return False
     if is_nse_holiday(now.date()):
@@ -488,7 +490,7 @@ def main():
                          help="Override default history window.")
     parser.add_argument("--live", action="store_true",
                          help="Keep running, re-checking every --refresh seconds "
-                              "(only during market hours 9:15-15:30 IST).")
+                              "(only during market hours 9:15-15:40 IST).")
     parser.add_argument("--refresh", type=int, default=60, help="Seconds between refreshes in --live mode.")
     parser.add_argument("--expiry", type=str, default=None,
                          help="Specific expiry date string (as shown by --list-expiries). "

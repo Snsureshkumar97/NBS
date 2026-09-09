@@ -2018,9 +2018,9 @@ class SignalApp:
                     self.status_label.config(text=item[1].strip().replace("\n", "  "))
                     # Write the day's report once, the moment the session
                     # ends — the whole point is that you don't have to be
-                    # awake at 15:30 IST to capture it.
+                    # awake at the closing bell to capture it.
                     # Square up anything still open. Nothing used to close a
-                    # position at 15:30, so it stayed OPEN forever: trades.csv
+                    # position at the bell, so it stayed OPEN forever: trades.csv
                     # kept an OPEN row with no CLOSE, the day's last trade —
                     # including a full stop-out — was invisible to the P&L and
                     # missing from the summary written moments later.

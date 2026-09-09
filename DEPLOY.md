@@ -52,7 +52,7 @@ Yes — something has to keep running. The website is a program; close it and th
 site is gone. The only question is *what* keeps it running.
 
 **But first, the useful bit:** you almost certainly don't need 24/7. The market
-is open **09:15–15:30 IST**, which is **11:45pm–6:00am US Eastern**. Outside
+is open **09:15–15:40 IST**, which is **11:45pm–6:10am US Eastern**. Outside
 those hours the site has nothing new to show. A schedule that runs it overnight
 and stops in the morning is less to go wrong than something that never stops.
 

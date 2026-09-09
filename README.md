@@ -277,7 +277,7 @@ This keeps running continuously while you trade, and is built to stay
 reliable over a multi-hour session:
 
 - **Market hours aware, using real India time — not your computer's own
-  timezone**: only fetches/refreshes Mon-Fri 09:15-15:30 **IST**. This is
+  timezone**: only fetches/refreshes Mon-Fri 09:15-15:40 **IST**. This is
   computed by explicitly converting to Asia/Kolkata (via `now_ist()` in
   `main.py`), so it works correctly even if you're running this from the US,
   UK, or anywhere else — it does NOT just read your machine's local clock.
@@ -544,7 +544,8 @@ current ADX. So you can see whether it's nearly there or nowhere close.
 
 Before changing anything, check the obvious ones:
 
-- **Is the market actually open?** NSE trades 09:15–15:30 **IST**. If you're
+- **Is the market actually open?** NSE trades index derivatives 09:15–15:40 **IST**
+  (extended from 15:30 on 3 August 2026). If you're
   outside India that may be the middle of your night — from US Eastern, for
   example, that's roughly 11:45pm to 6:00am. The tool shows a
   `MARKET IS CLOSED` banner when it's shut, and cannot produce signals then.
@@ -794,7 +795,7 @@ for analysis.
 same folder — trades, win/loss, T1/T2/T3 hit rates, net P&L, broken down by
 index. It also generates **automatically the moment the market closes**, so
 an overnight run leaves something to read in the morning without you being
-awake at 15:30 IST to capture it.
+awake at 15:40 IST to capture it.
 
 This matters more than it sounds: the SESSION strip in the window is memory
 only and dies when you close it. If you're outside India, the market runs
