@@ -924,7 +924,10 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   -webkit-font-smoothing:antialiased}
-.wrap{max-width:1120px;margin:0 auto;padding:0 20px 64px}
+/* Wider than the reading pages on purpose. This is a dashboard: the chart,
+   the ladder and the map all want room, and a 1120px column on a 27in monitor
+   wastes half of it. */
+.wrap{max-width:1320px;margin:0 auto;padding:0 20px 64px}
 
 /* ---------- header ---------- */
 header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
@@ -948,7 +951,15 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
 .notice{border-radius:var(--r);padding:14px 16px;margin:16px 0 0;font-size:13px;
   line-height:1.65;display:flex;gap:11px;align-items:flex-start}
 .notice svg{flex:none;margin-top:2px}
-.notice.risk{background:#2a1610;border:1px solid #5c2a18;color:#e0b0a0}
+.notice.risk{background:#2a1610;border:1px solid #5c2a18;color:#e0b0a0;
+  display:block;padding:11px 15px}
+.notice.risk summary{cursor:pointer;list-style:none;font-size:13px;
+  line-height:1.6}
+.notice.risk summary::-webkit-details-marker{display:none}
+.notice.risk .more{color:#ff8a65;font-weight:650;white-space:nowrap}
+.notice.risk[open] .more{display:none}
+.notice.risk #honest{font-size:13px;line-height:1.65;margin-top:9px;
+  padding-top:9px;border-top:1px solid #5c2a18}
 .notice.risk b{color:#ff8a65}
 .notice.stale{background:#1c1710;border:1px solid #3a2f18;color:#d8c9a8}
 .notice.stale b{color:#f0bf55}
@@ -1100,17 +1111,19 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
 
 /* ---------- the welcome bar ---------- */
 .welcome{display:flex;align-items:flex-end;justify-content:space-between;
-  gap:18px;flex-wrap:wrap;margin-top:20px}
+  gap:18px;flex-wrap:wrap;margin-top:16px;margin-bottom:2px}
 .welcome .eyebrow{margin:0 0 6px}
-.welcome h1{font-size:clamp(26px,4vw,38px);line-height:1.1;margin:0;
-  letter-spacing:-.7px;font-weight:700}
+.welcome h1{font-size:clamp(21px,2.6vw,28px);line-height:1.15;margin:0;
+  letter-spacing:-.5px;font-weight:700}
 .welcome .who{color:var(--accent)}
-.welcome .said{color:var(--ink-2);font-size:14.5px;margin:7px 0 0}
+.welcome .said{color:var(--ink-2);font-size:13.5px;margin:5px 0 0}
 .welcome .acts{display:flex;gap:8px;flex-wrap:wrap;flex:none}
 
-.top3{display:grid;grid-template-columns:1.15fr 1.35fr .8fr;gap:14px;margin-top:14px}
+.top3{display:grid;grid-template-columns:1.15fr 1.35fr .8fr;gap:14px;
+  margin-top:14px}
+.top3 .card{padding:16px 18px 18px}
 @media(max-width:900px){.top3{grid-template-columns:1fr}}
-.spark{width:100%;height:76px;display:block;margin-top:8px}
+.spark{width:100%;height:64px;display:block;margin-top:8px}
 .sparkrange{display:flex;justify-content:space-between;font-size:11px;
   color:var(--ink-3);font-variant-numeric:tabular-nums;margin-top:2px}
 .daymove{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
@@ -1276,15 +1289,17 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   </div>
  </div>
 
- <div class="notice risk">
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-   <circle cx="8" cy="8" r="7" stroke="#ff8a65" stroke-width="1.5"/>
-   <path d="M8 4.6v4.2M8 11.2v.6" stroke="#ff8a65" stroke-width="1.7" stroke-linecap="round"/>
-  </svg>
-  <div><b>Read before acting on anything here.</b> This is the output of a mechanical
-   rule set — not advice, and not from a SEBI-registered research analyst or investment
-   adviser. No orders are placed for you. <span id="honest"></span></div>
- </div>
+ <!-- One line by default, the whole thing on demand. It is not dismissible
+      and there is no "don't show again": the point of it is that it is always
+      there. But six lines of it above the fold on every single load taught
+      people to scroll past the top of the page, which is worse for the
+      warning than making it compact. -->
+ <details class="notice risk" id="riskbox">
+  <summary><b>Not advice.</b> A mechanical rule set, not a SEBI-registered
+   analyst. No orders are placed for you. <span class="more">What was
+   measured &rsaquo;</span></summary>
+  <div id="honest"></div>
+ </details>
 
  <div class="notice stale" id="connect" style="display:none">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -1320,27 +1335,6 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
  </div>
  <div class="feedline" id="sfeed"></div>
 
- <div class="top3">
-  <div class="card">
-   <p class="eyebrow">Market trend</p>
-   <div class="hero"><div class="v" id="trend"
-        style="font-size:23px;letter-spacing:-.5px">—</div></div>
-   <div class="sub" id="trendsub" style="margin-top:5px"></div>
-  </div>
-  <div class="card">
-   <p class="eyebrow">Day move</p>
-   <div class="daymove">
-    <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
-   </div>
-   <canvas class="spark" id="spark"></canvas>
-   <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
-  </div>
-  <div class="card">
-   <p class="eyebrow">Confidence</p>
-   <div class="ring" id="ring"></div>
-  </div>
- </div>
-
  <div class="card" style="margin-top:14px">
   <div class="thead">
    <p class="eyebrow" id="teyebrow">Signal</p>
@@ -1370,6 +1364,27 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   <div class="lnote" id="lnote"></div>
   <div class="gauges" id="gauges"></div>
   <div class="gnote" id="gnote"></div>
+ </div>
+
+ <div class="top3">
+  <div class="card">
+   <p class="eyebrow">Market trend</p>
+   <div class="hero"><div class="v" id="trend"
+        style="font-size:23px;letter-spacing:-.5px">—</div></div>
+   <div class="sub" id="trendsub" style="margin-top:5px"></div>
+  </div>
+  <div class="card">
+   <p class="eyebrow">Day move</p>
+   <div class="daymove">
+    <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
+   </div>
+   <canvas class="spark" id="spark"></canvas>
+   <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
+  </div>
+  <div class="card">
+   <p class="eyebrow">Confidence</p>
+   <div class="ring" id="ring"></div>
+  </div>
  </div>
 
  <div class="grid">
@@ -2377,7 +2392,12 @@ function heat(pct){
   // Toward white at zero, so "barely moved" reads as barely coloured.
   const mix = (a, b, t) => Math.round(a + (b - a) * t);
   const [r0,g0,b0] = [30,30,36];
-  const [r1,g1,b1] = p >= 0 ? [15,143,98] : [217,45,32];
+  // The SAME up/down the rest of the screen uses — var(--up) #4caf50 and
+  // var(--down) #ff5722 — as literals, because a canvas-free gradient cannot
+  // read a CSS variable. They were left as the old light-theme pair, so a
+  // falling stock in the map was a different red from a falling number six
+  // inches above it. If the theme's up/down ever change, change these too.
+  const [r1,g1,b1] = p >= 0 ? [76,175,80] : [255,87,34];
   const t = Math.abs(p);
   return `rgb(${mix(r0,r1,t)},${mix(g0,g1,t)},${mix(b0,b1,t)})`;
 }
@@ -2576,9 +2596,11 @@ async function priceTick(){
   }
 }
 let LIVE = null, LASTHIT = null;
-$("honest").textContent="A three-year backtest of this rule set on 15-minute candles "+
-  "measured roughly break-even before costs and negative after them. It is published "+
-  "so it can be checked, not because it is known to work.";
+$("honest").innerHTML="A three-year backtest of this rule set on 15-minute candles "+
+  "measured roughly break-even before costs and negative after them, and its targets "+
+  "are reached about a third of the time. It is published so it can be checked, not "+
+  "because it is known to work. "+
+  '<a href="/results" style="color:inherit;text-decoration:underline">The figures.</a>';
 tick(); setInterval(tick,3000);
 priceTick(); setInterval(priceTick,1000);
 markets_(); setInterval(markets_,60000);
