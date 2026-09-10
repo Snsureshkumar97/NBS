@@ -46,7 +46,9 @@ ABOUT THE SCREENSHOTS
     the only edit made to any of them.
 """
 
+import hashlib
 import os
+import struct
 
 import accounts
 import config
@@ -83,13 +85,68 @@ SHOTS = {
 }
 
 
-def shot_path(slug):
-    """Absolute path of a whitelisted screenshot, or None."""
+def shot_path(name):
+    """Absolute path of a whitelisted screenshot, or None.
+
+    Accepts a bare slug or the hashed form the pages actually link to
+    ("board.4f2a91c8"), so the router does not need to know about the hash.
+    """
+    slug = SHOTS.get(name) and name or name.split(".")[0]
     entry = SHOTS.get(slug)
     if not entry:
         return None
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), entry[0])
     return path if os.path.isfile(path) else None
+
+
+_SHOT_META = {}
+
+
+def _shot_meta(slug):
+    """(hash8, width, height) for a screenshot, remembered per file version."""
+    path = shot_path(slug)
+    if not path:
+        return None
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    key = (path, st.st_mtime_ns, st.st_size)
+    hit = _SHOT_META.get(slug)
+    if hit and hit[0] == key:
+        return hit[1]
+    try:
+        with open(path, "rb") as f:
+            blob = f.read()
+    except OSError:
+        return None
+    h = hashlib.sha256(blob).hexdigest()[:8]
+    # PNG: 8-byte signature, then the IHDR chunk, whose width and height are
+    # the two big-endian uint32s at offset 16. Read rather than hard-coded, so
+    # a re-shot image at a different size cannot leave the page reserving the
+    # wrong box and shifting everything under it as it loads.
+    w = ht = None
+    if blob[:8] == b"\x89PNG\r\n\x1a\n" and len(blob) >= 24:
+        w, ht = struct.unpack(">II", blob[16:24])
+    meta = (h, w, ht)
+    _SHOT_META[slug] = (key, meta)
+    return meta
+
+
+def shot_url(slug):
+    """The URL a page should link a screenshot at.
+
+    The filename carries a hash of the bytes. Screenshots are served
+    `immutable` for a day, which is only true if a URL's content never
+    changes - and replacing board.png in place broke exactly that promise:
+    the file on the server was the new one while every browser that had
+    already seen the old one went on showing it, with nothing to revalidate
+    against. A new image is now simply a new URL.
+    """
+    meta = _shot_meta(slug)
+    if not meta:
+        return f"/shot/{slug}.png"
+    return f"/shot/{slug}.{meta[0]}.png"
 
 
 def _esc(s):
@@ -717,7 +774,11 @@ def _figure(slug):
     if not entry or not shot_path(slug):
         return ""
     _, head, caption = entry
-    return (f'<figure class="reveal"><img src="/shot/{slug}.png" alt="{_esc(head)}" loading="lazy">'
+    meta = _shot_meta(slug)
+    dims = (f' width="{meta[1]}" height="{meta[2]}"'
+            if meta and meta[1] and meta[2] else "")
+    return (f'<figure class="reveal"><img src="{shot_url(slug)}" alt="{_esc(head)}"'
+            f'{dims} loading="lazy">'
             f'<figcaption><b>{_esc(head)}</b>{_esc(caption)}</figcaption></figure>')
 
 
@@ -780,8 +841,10 @@ def home_page(user=None, record=None):
   <div class="cta">{cta}
    <a class="btn ghost" href="/how-it-works">See how it decides</a></div>
   {hero_svg()}
-  <div class="shotwrap reveal"><img src="/shot/board.png"
-   alt="The {_esc(BRAND)} signal board" width="1570" height="1030"></div>
+  <div class="shotwrap reveal"><img src="{shot_url("board")}"
+   alt="The {_esc(BRAND)} signal board"
+   width="{_shot_meta("board")[1] if _shot_meta("board") else 2000}"
+   height="{_shot_meta("board")[2] if _shot_meta("board") else 1000}"></div>
  </div>
 
  <section class="first" style="padding-top:70px">

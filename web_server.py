@@ -479,9 +479,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "image/png")
         self.send_header("Content-Length", str(len(body)))
-        # These change only when the app is re-shot, so let a visitor's browser
-        # keep them rather than re-fetching a megabyte of PNG on every page.
-        self.send_header("Cache-Control", "public, max-age=86400")
+        # A hashed name addresses one exact set of bytes, so it can be held
+        # forever. A bare slug is a moving target and gets a short life -
+        # promising immutable for a URL whose content can change is what left
+        # replaced screenshots invisible in browsers that had seen the old ones.
+        hashed = "." in slug
+        self.send_header("Cache-Control",
+                         "public, max-age=31536000, immutable" if hashed
+                         else "public, max-age=300")
         self.end_headers()
         try:
             self.wfile.write(body)

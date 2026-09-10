@@ -120,10 +120,16 @@ def export(out_dir, app_url, base_url):
             f.write(_placeholder())
         print("  login.html (placeholder — no --app-url given)")
 
+    # Named by content hash, matching what shot_url() puts in the HTML. The
+    # /shot/ rule in vercel.json serves these immutable for a day, which is
+    # only safe while a URL's bytes never change - replacing a shot in place
+    # under that header leaves every browser that saw the old one stuck with
+    # it, which is exactly what happened to board.png and chart.png.
     for slug in nbs_site.SHOTS:
         src = nbs_site.shot_path(slug)
         if src:
-            shutil.copyfile(src, os.path.join(out_dir, "shot", f"{slug}.png"))
+            name = nbs_site.shot_url(slug).rsplit("/", 1)[-1]
+            shutil.copyfile(src, os.path.join(out_dir, "shot", name))
     print(f"  shot/ ({len(os.listdir(os.path.join(out_dir, 'shot')))} images)")
 
     with open(os.path.join(out_dir, "favicon.svg"), "w", encoding="utf-8") as f:
