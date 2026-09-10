@@ -72,7 +72,64 @@ CACHE_DIR = os.path.join(os.path.expanduser("~"), "trading-tool-logs", "history"
 # DATA
 # ===========================================================================
 def _cache_path(index_key, years):
-    return os.path.join(CACHE_DIR, f"{index_key}_15m_{years}y.csv")
+    # Normalised, because argparse only applies type=float to a value actually
+    # typed on the command line: the default stays int 3 while "--years 3"
+    # arrives as 3.0. Those produced two different filenames for the same three
+    # years, so asking for it explicitly re-downloaded and cached a second copy
+    # of a 7MB file the tool already had.
+    y = float(years)
+    tag = str(int(y)) if y == int(y) else str(y)
+    return os.path.join(CACHE_DIR, f"{index_key}_15m_{tag}y.csv")
+
+
+def _fetch_deribit(index_key, years):
+    """Page Deribit's chart endpoint backwards.
+
+    It caps a response at about 5,000 bars whatever window you ask for - a
+    single call covers roughly seven weeks of 15-minute candles - so three
+    years has to be walked in chunks. Measured available back to at least
+    early 2021.
+    """
+    import requests
+    meta = config.INSTRUMENTS[index_key]
+    inst = meta["deribit_instrument"]
+    span = 45 * 86400                       # comfortably inside the 5k cap
+    end = int(time.time())
+    floor = end - int(years * 365.25 * 86400)
+    frames, chunks = [], 0
+    while end > floor:
+        start = max(end - span, floor)
+        try:
+            r = requests.get(
+                "https://www.deribit.com/api/v2/public/get_tradingview_chart_data",
+                params={"instrument_name": inst, "resolution": "15",
+                        "start_timestamp": start * 1000,
+                        "end_timestamp": end * 1000}, timeout=45).json()
+            res = r.get("result") or {}
+            ticks = res.get("ticks") or []
+            if ticks:
+                frames.append(pd.DataFrame({
+                    "date": pd.to_datetime(ticks, unit="ms", utc=True),
+                    "open": res["open"], "high": res["high"],
+                    "low": res["low"], "close": res["close"],
+                    "volume": res["volume"]}))
+            chunks += 1
+            print(f"  {index_key}: chunk {chunks} "
+                  f"({dt.datetime.utcfromtimestamp(start):%Y-%m-%d} to "
+                  f"{dt.datetime.utcfromtimestamp(end):%Y-%m-%d}) -> {len(ticks):,}")
+        except Exception as exc:
+            print(f"  {index_key}: chunk failed — {exc}")
+        end = start
+        time.sleep(0.35)
+    if not frames:
+        raise RuntimeError(f"No Deribit history returned for {index_key}")
+    df = pd.concat(frames, ignore_index=True)
+    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_convert("Asia/Kolkata")
+    df = (df.drop_duplicates(subset="date").sort_values("date")
+            .set_index("date"))
+    df.columns = [c.capitalize() for c in df.columns]
+    df.index.name = "Date"
+    return df
 
 
 def fetch_history(index_key, years=3, use_cache=True):
@@ -87,6 +144,12 @@ def fetch_history(index_key, years=3, use_cache=True):
         df = pd.read_csv(path, index_col=0, parse_dates=True)
         print(f"  {index_key}: {len(df):,} candles from cache "
               f"({df.index[0].date()} to {df.index[-1].date()})")
+        return df
+
+    if config.market_for(index_key)["market_provider"] == "deribit":
+        df = _fetch_deribit(index_key, years)
+        df.to_csv(path)
+        print(f"  {index_key}: {len(df):,} candles cached -> {path}")
         return df
 
     from data_providers import KiteDataProvider
@@ -229,7 +292,20 @@ def verify_precompute(df, pre, samples=25):
 # ===========================================================================
 # THE WALK
 # ===========================================================================
-def run(index_key, df, hold_bars=26, square_off=True, min_gap_bars=4):
+def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4):
+    """hold_bars and square_off default to the instrument's own market.
+
+    26 bars is one Indian session and squaring off at the close is what you do
+    to avoid holding an index option overnight. Neither means anything on a
+    market that never closes: 24 hours is 96 bars there, and there is no bell
+    to flatten into. Left at the index defaults, a crypto backtest would have
+    exited every trade after six and a half hours for no reason at all.
+    """
+    always = config.market_for(index_key)["always_open"]
+    if hold_bars is None:
+        hold_bars = 96 if always else 26
+    if square_off is None:
+        square_off = not always
     """Replay history bar by bar through the real engine."""
     pre = precompute(df)
     step = config.INSTRUMENTS[index_key]["strike_step"]
@@ -262,7 +338,8 @@ def run(index_key, df, hold_bars=26, square_off=True, min_gap_bars=4):
 
         reach = se.compute_reachability(
             tech["last_close"], no_chain, df, now, adx=tech["adx"],
-            range_stats=(float(typical), float(pre["used_today"].iloc[i])))
+            range_stats=(float(typical), float(pre["used_today"].iloc[i])),
+            index_key=index_key)
         rec = se.build_recommendation(index_key, tech, no_chain, step, reach=reach)
 
         if rec["bias"] == "NEUTRAL":
@@ -499,7 +576,9 @@ def main():
     ap.add_argument("--years", type=float, default=3)
     ap.add_argument("--index", default=None, help="NIFTY / BANKNIFTY / SENSEX")
     ap.add_argument("--no-cache", action="store_true")
-    ap.add_argument("--hold-bars", type=int, default=26, help="max bars to hold (26 = one session)")
+    ap.add_argument("--hold-bars", type=int, default=None,
+                    help="max bars to hold (default: 26 on an index = one "
+                         "session, 96 on crypto = 24h)")
     ap.add_argument("--no-square-off", action="store_true", help="allow holding overnight")
     ap.add_argument("--compare", action="store_true",
                     help="run with the fixes off as well, and print both")
@@ -539,7 +618,8 @@ def main():
     def pass_(label, collect=False):
         rows = []
         for k, df in dfs.items():
-            res = run(k, df, hold_bars=args.hold_bars, square_off=not args.no_square_off)
+            res = run(k, df, hold_bars=args.hold_bars,
+                      square_off=(False if args.no_square_off else None))
             s = summarize(res)
             print_summary(s, label)
             rows.append(s)
