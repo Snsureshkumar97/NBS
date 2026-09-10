@@ -967,6 +967,17 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
   border:1px solid var(--bd);border-radius:999px;padding:5px 12px;
   font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
 .beat{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
+/* The feed's own state, kept apart from the market's. They answer different
+   questions - the market can be open while the feed is dead - and sharing one
+   pill meant two timers overwriting each other four times a second, which read
+   as a flicker between the clock and the word "live". */
+.feedtag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-3);background:var(--sunken);border:1px solid var(--bd-soft);
+  border-radius:3px;padding:1px 5px;flex:none}
+.feedtag.on{color:var(--up);background:rgba(76,175,80,.12);
+  border-color:rgba(76,175,80,.35)}
+.feedtag.off{color:var(--warn);background:rgba(246,165,0,.12);
+  border-color:rgba(246,165,0,.35)}
 .beat.live{background:var(--up);box-shadow:0 0 0 0 rgba(76,175,80,.55);
   animation:beat 2.4s infinite}
 @keyframes beat{0%{box-shadow:0 0 0 0 rgba(76,175,80,.45)}
@@ -1291,7 +1302,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   </a>
   <div class="row" style="display:flex;gap:8px;align-items:center">
     <span class="pill"><span class="beat" id="beat"></span><span id="mkt">connecting</span></span>
-    <span class="pill" id="upd">—</span>
+    <span class="pill"><span class="feedtag" id="feed">&mdash;</span><span id="upd">&mdash;</span></span>
     <a class="pill" id="kite" href="/connect" style="text-decoration:none">Zerodha</a>
     <a class="pill" id="signout" href="/logout" style="display:none;text-decoration:none">Sign out</a>
   </div>
@@ -2563,8 +2574,11 @@ async function tick(){
 async function priceTick(){
   if(document.hidden) return;              // a background tab is not watching
   let t;
+  // A failed poll is itself news. Returning quietly left the tag reading
+  // "Live" over prices that had stopped arriving the moment the server or the
+  // network went away - the exact claim the tag exists to avoid making.
   try{ t = await (await fetch("/api/tick",{cache:"no-store"})).json(); }
-  catch(e){ return; }
+  catch(e){ feedTag(false, null); return; }
   LIVE = t;
   if(!LAST || !LAST.indices) return;
 
@@ -2615,13 +2629,11 @@ async function priceTick(){
     }
     chartDraw();
   }
-  // Only ever set this forward. It used to write "live" and never take it
-  // back, so a feed that died left the word sitting over a frozen price until
-  // the next full poll happened to overwrite it.
-  $("upd").textContent = t.live ? "live"
-    : (t.age != null ? "no tick for " + Math.round(t.age) + "s"
-                     : (LAST && LAST.updated ? LAST.updated + " IST" : "\u2014"));
-  $("beat").className = "beat" + (t.live ? " live" : "");
+  // One writer per element. This used to set #upd and #beat, both of which
+  // render() also sets from the market's state - so every 250ms poll and every
+  // 3s render overwrote each other and the corner flickered between the clock
+  // and the word "live". The feed gets its own tag and nothing else touches it.
+  feedTag(t.live, t.age);
 
   if(changed) render(LAST);
 
@@ -2636,6 +2648,33 @@ async function priceTick(){
   }
 }
 let LIVE = null, LASTHIT = null;
+// Written on every poll, so it only touches the DOM when something actually
+// changed - otherwise this is four needless mutations a second.
+let FEEDSTATE = null;
+function feedTag(live, age){
+  const el = $("feed");
+  if(!el) return;
+  // Silence is only a fault while the market is trading. After the close the
+  // ticks stop because there is nothing to send, and "Stalled" in amber next
+  // to "Market closed" reads as a broken tool rather than an ended day. The
+  // auction counts as trading here: options are still printing.
+  const trading = !!(LAST && LAST.market_open);
+  const label = live ? "Live" : (age != null && trading ? "Stalled" : "Idle");
+  const cls = "feedtag" + (live ? " on" : (age != null && trading ? " off" : ""));
+  // The age only enters the signature while stalled, where it is the whole
+  // point of the tooltip; when live it would rewrite this four times a second.
+  const sig = label + "|" + cls + "|" + (live || age == null ? "" : Math.round(age));
+  if(sig === FEEDSTATE) return;
+  FEEDSTATE = sig;
+  el.textContent = label;
+  el.className = cls;
+  el.title = live ? "Prices are streaming from Zerodha's tick socket."
+    : (age == null ? "No tick socket yet."
+       : !trading ? "The session is over, so there is nothing left to stream. "
+                    + "These are the closing numbers."
+       : "No tick for " + Math.round(age) + "s \u2014 the socket is open but "
+         + "nothing is arriving. The numbers on screen are the last ones sent.");
+}
 $("honest").innerHTML="A three-year backtest of this rule set on 15-minute candles "+
   "measured roughly break-even before costs and negative after them, and its targets "+
   "are reached about a third of the time. It is published so it can be checked, not "+
