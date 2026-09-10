@@ -721,12 +721,23 @@ class Feed:
             df = self.base_df.get(name)
         if df is None or df.empty:
             return None
-        st, tok = self.streamer, self.tokens.get(name)
-        if st is None or st is _NO_STREAM or not tok:
-            return df
-        bar = st.forming_bar(tok)
-        if not bar:
-            return df
+        st = self.streamer
+        if st is _NO_STREAM:
+            # Same idea, different venue. Without this the crypto indicators
+            # only moved when the candles were refetched, which on a market
+            # that never closes is the one place you would notice.
+            ds = self.dstream
+            bar = (ds.forming_bar(config.INSTRUMENTS[name]["deribit_index"])
+                   if ds else None)
+            if not bar:
+                return df
+        else:
+            tok = self.tokens.get(name)
+            if st is None or not tok:
+                return df
+            bar = st.forming_bar(tok)
+            if not bar:
+                return df
         try:
             ts = pd.Timestamp(bar["start"], unit="s", tz="UTC").tz_convert(
                 df.index.tz or "Asia/Kolkata")
@@ -806,7 +817,18 @@ class Feed:
         """The in-progress candle per index, so the chart's last bar can move
         instead of waiting for the next fetch."""
         st = self.streamer
-        if st is None or st is _NO_STREAM:
+        if st is _NO_STREAM:
+            ds = self.dstream
+            if ds is None:
+                return {}
+            out = {}
+            for name in self.instruments():
+                bar = ds.forming_bar(config.INSTRUMENTS[name]["deribit_index"])
+                if bar:
+                    out[name] = {"t": int(bar["start"]), "o": bar["o"],
+                                 "h": bar["h"], "l": bar["l"], "c": bar["c"]}
+            return out
+        if st is None:
             return {}
         out = {}
         for name, tok in list(self.tokens.items()):
@@ -985,8 +1007,9 @@ class Feed:
             return {"spots": spots, "ltp": sug, "premium": {},
                     "live": bool(age is not None and age < 15.0),
                     "age": round(age, 1) if age is not None else None,
-                    "bar": {}, "stream_error": None, "stage": self.stage,
-                    "polled": True}
+                    "bar": self.forming(),
+                    "stream_error": self.stream_error, "stage": self.stage,
+                    "streamed": True}
         if st is not None:
             for name, tok in list(self.tokens.items()):
                 px = st.price(tok)

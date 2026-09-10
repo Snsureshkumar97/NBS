@@ -754,6 +754,7 @@ class DeribitStreamer:
         self._lock = threading.Lock()
         self._index = {}          # "btc_usd" -> price
         self._mark = {}           # instrument -> mark in coin
+        self._bars = {}           # "btc_usd" -> the 15-minute bar being built
         self._subs = set()
         self._pending = []
         self._stop = threading.Event()
@@ -820,8 +821,21 @@ class DeribitStreamer:
                 if chan.startswith("deribit_price_index."):
                     name, px = data.get("index_name"), data.get("price")
                     if name and px is not None:
+                        px = float(px)
+                        # IST is offset from UTC by exactly 22 whole 900-second
+                        # blocks, so bucketing on plain epoch time lands on the
+                        # same boundaries the candles use.
+                        bucket = int(time.time() // 900) * 900
                         with self._lock:
-                            self._index[name] = float(px)
+                            self._index[name] = px
+                            bar = self._bars.get(name)
+                            if bar is None or bar["start"] != bucket:
+                                self._bars[name] = {"start": bucket, "o": px,
+                                                    "h": px, "l": px, "c": px}
+                            else:
+                                bar["h"] = max(bar["h"], px)
+                                bar["l"] = min(bar["l"], px)
+                                bar["c"] = px
                         self.last_tick_at = time.time()
                 elif chan.startswith("ticker."):
                     inst, mk = data.get("instrument_name"), data.get("mark_price")
@@ -853,6 +867,17 @@ class DeribitStreamer:
             mk = self._mark.get(instrument)
             idx = self._index.get(index_name)
         return None if mk is None or idx is None else mk * idx
+
+    def forming_bar(self, index_name):
+        """The candle being built from live ticks, or None.
+
+        Appending this to the completed candles is what lets the chart's right
+        edge move before the bar closes, and what lets EMA, MACD, RSI, VWAP and
+        ADX be recomputed on a price that has not finished happening yet.
+        """
+        with self._lock:
+            bar = self._bars.get(index_name)
+            return dict(bar) if bar else None
 
     def age_seconds(self):
         return None if self.last_tick_at is None else time.time() - self.last_tick_at

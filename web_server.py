@@ -1498,7 +1498,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
    <button class="lbtn on" id="lb-index" type="button">Index points</button>
    <button class="lbtn" id="lb-premium" type="button">Option premium (LTP)</button>
    <div class="lots" id="lotswrap" style="margin-left:auto">
-    <label for="lots">Lots</label>
+    <label for="lots" id="lotslabel">Lots</label>
     <select id="lots"></select>
    </div>
   </div>
@@ -1663,7 +1663,21 @@ let LMODE = "auto";
 let LOTS = 1;
 let LOTS_SYNCED = false;
 
+// A Deribit contract IS one coin, so "5 lots of 1" is a unit that does not
+// exist; index options are genuinely sold in lots of 75 or 30. Set here rather
+// than inside the no-ticket branch, because ladder() returns early once a
+// ticket is open - which is exactly when you are most likely to be reading it.
+function unitLabel(r){
+  const perLot = (r.lot_size || 1) > 1;
+  const ll = $("lotslabel");
+  if(ll) ll.textContent = perLot ? "Lots" : "Contracts";
+  const w = $("lotswrap");
+  if(w) w.title = perLot ? (r.lot_size + " per lot")
+                         : ("one contract is one " + String(CUR||"").toUpperCase());
+}
+
 function ladder(r, tk){
+  unitLabel(r);
   // A ticket outranks the live reading. Once one is issued its levels are
   // frozen, and showing the recalculated ones beside an open position would
   // be showing numbers that trade is not being measured against.
@@ -1760,7 +1774,6 @@ function ladder(r, tk){
     for(let i=1;i<=maxL;i++) sel.add(new Option(String(i), String(i)));
   }
   sel.value = String(Math.min(LOTS, maxL));
-  if(r.lot_size) $("lotswrap").title = r.lot_size + " per lot";
 
   // The note carries the caveat rather than a tooltip, because the premium
   // numbers are a delta approximation and saying so quietly would be worse
