@@ -164,6 +164,21 @@ def list_users():
         key=lambda u: u["created"] or "")
 
 
+def always_on_users():
+    """Emails that asked the tool to run the whole session unattended.
+
+    Read on a timer by the feed supervisor, so it is deliberately cheap and
+    deliberately quiet: a disabled account is skipped here rather than being
+    started and then rejected somewhere further in, because a feed that exists
+    for a disabled user is a feed calling Zerodha under a token that account
+    should no longer be using.
+    """
+    with _lock:
+        data = _load()
+    return sorted(e for e, u in data["users"].items()
+                  if u.get("always_on") and not u.get("disabled"))
+
+
 def create_user(email, password, now=None):
     """Returns (ok, message)."""
     email = (email or "").strip().lower()

@@ -35,12 +35,14 @@ A FEED IS NOT A SUBSCRIPTION
     desktop app makes.
 """
 
+import datetime as dt
 import threading
 import time
 import traceback
 
 import pandas as pd
 
+import accounts
 import config
 import explain
 import market_map
@@ -73,8 +75,64 @@ _stopping = threading.Event()
 _settings = {"mode": "kite", "interval": 30, "expiry": None}
 
 
+# How often the supervisor checks whether an always-on user needs a feed, and
+# how far before the bell it starts one. The lead is so the first REST history
+# fetch and the option chain are already in when the session opens, rather than
+# the first minute of the day being spent loading.
+RESIDENT_POLL_SECONDS = 20
+RESIDENT_LEAD_MINUTES = 5
+
+_resident = None
+
+
+def _resident_window(now):
+    """True when an always-on feed should be running.
+
+    Asking is_market_open about a moment five minutes from now gets the lead
+    and the weekend and holiday rules in one go, rather than reimplementing
+    the calendar here and letting the two drift.
+    """
+    return (is_market_open(now)
+            or is_market_open(now + dt.timedelta(minutes=RESIDENT_LEAD_MINUTES)))
+
+
+def _resident_loop():
+    """Hold a feed open through the session for users who asked for it.
+
+    Feeds are reaped IDLE_SECONDS after the last browser poll, which means the
+    tool only ever ran while somebody had the page open: close the tab at 09:16
+    and nothing was analysed or logged for the rest of the day. This touches
+    those users' feeds on a timer so they stay alive from just before the open
+    until the close, and then stops touching them - the existing reaper takes
+    them down a few minutes later with no special path to get wrong.
+
+    Two gates, both deliberate. Outside the session nothing is started at all,
+    so this is not a thread quietly calling Zerodha overnight. And a user with
+    no token is skipped rather than started, because Zerodha clears tokens
+    every morning and a feed without one is a loop logging failures until
+    somebody signs in.
+    """
+    while not _stopping.wait(RESIDENT_POLL_SECONDS):
+        try:
+            if _settings["mode"] != "kite":
+                continue
+            if not _resident_window(now_ist()):
+                continue
+            for email in accounts.always_on_users():
+                if not user_kite.token_for(email):
+                    continue
+                for_user(email)
+        except Exception:
+            pass
+
+
 def configure(mode, interval, expiry=None):
+    global _resident
     _settings.update(mode=mode, interval=interval, expiry=expiry)
+    if _resident is None or not _resident.is_alive():
+        _resident = threading.Thread(target=_resident_loop, daemon=True,
+                                     name="resident")
+        _resident.start()
 
 
 def _key_for(email):

@@ -287,6 +287,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_connect(form)
             if path == "/api/ticket":
                 return self._do_ticket(form)
+            if path == "/api/alwayson":
+                return self._do_always_on(form)
             return self._send(nbs_site.result_page(
                 "Not found", "There is no page at that address.", ok=False,
                 back="/", back_label="Go to the home page"), code=404)
@@ -503,6 +505,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         payload = {
             "market_open": snap["market_open"],
             "closing_auction": snap.get("closing_auction", False),
+            "always_on": bool((accounts.get_user(user) or {}).get("always_on"))
+                         if user else False,
             "updated": snap["updated"],
             "mode": _state["mode"],
             "user": user,
@@ -612,6 +616,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            auto_rearm=as_bool("auto_rearm"),
                            limits=as_bool("limits"))
         return self._send(json.dumps({"ok": True, "session": book.session()}),
+                          "application/json")
+
+    def _do_always_on(self, form):
+        """Turn unattended running on or off for this account.
+
+        Stored on the account rather than in the session, because the whole
+        point is that it outlives the browser: the supervisor in feeds.py reads
+        it on a timer and holds the feed open from just before the open until
+        the close, whether or not anyone has the page up.
+        """
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        want = form.get("on")
+        on = want not in ("0", "false", "False", "", None)
+        ok, msg = accounts.update_user(user, {"always_on": True} if on
+                                       else {"always_on": None})
+        if on and feeds._resident_window(now_ist()):
+            # Start it now rather than waiting up to twenty seconds for the
+            # supervisor, so switching it on during the session does something
+            # visible immediately. Outside the session the flag is simply
+            # saved: spinning a feed up at ten at night to reap it four minutes
+            # later fetches a day of candles nobody asked for.
+            feeds.for_user(user)
+        return self._send(json.dumps({"ok": bool(ok), "always_on": on,
+                                      "error": None if ok else msg}),
                           "application/json")
 
     def _candles(self, user, key):
@@ -976,6 +1006,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
    questions - the market can be open while the feed is dead - and sharing one
    pill meant two timers overwriting each other four times a second, which read
    as a flicker between the clock and the word "live". */
+.lbtn.ao{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600}
+.lbtn.ao.on{color:var(--up);border-color:rgba(76,175,80,.4);
+  background:rgba(76,175,80,.12)}
 .feedtag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);background:var(--sunken);border:1px solid var(--bd-soft);
   border-radius:3px;padding:1px 5px;flex:none}
@@ -1810,7 +1843,31 @@ function sessionStrip(sess, order){
   if(sess.wins != null) bits.push(`<span>${sess.wins} ran to target</span>`);
   if(sess.stops != null) bits.push(`<span>${sess.stops} stopped out</span>`);
   if(!sess.limits) bits.push(`<span>daily limits off</span>`);
+  // Unattended running. It belongs on this line because it is the same kind of
+  // fact as the ones beside it - how the tool is set to behave today - and
+  // because this is the line you read when you wonder why nothing was logged.
+  const ao = LAST && LAST.always_on;
+  bits.push(`<span><button class="lbtn ao${ao?" on":""}" id="aotog" type="button"`
+    + ` title="${ao
+        ? "The tool runs from 09:10 to 15:40 whether or not this page is open."
+        : "The tool only runs while this page is open. Nothing is analysed or "
+          + "logged after you close the tab."}">`
+    + `${ao ? "runs all session" : "runs only while open"}</button></span>`);
   $("sfeed").innerHTML = bits.join("");
+  const tog = $("aotog");
+  if(tog) tog.onclick = async () => {
+    tog.disabled = true;
+    try{
+      const r = await fetch("/api/alwayson", {
+        method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:"on=" + (LAST && LAST.always_on ? "0" : "1")});
+      const j = await r.json();
+      if(LAST) LAST.always_on = !!j.always_on;
+      render(LAST);
+      tick();
+    }catch(e){ tog.disabled = false; }
+  };
 }
 
 // ----------------------------------------------------------- confidence
