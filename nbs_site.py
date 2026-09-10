@@ -37,11 +37,13 @@ WHY THE MEASURED RESULT IS NOT BURIED
     money enters this picture in any form.
 
 ABOUT THE SCREENSHOTS
-    They are the real thing — PNGs rendered straight from the app's own canvas
-    by the shot_*.py scripts, the same code path that draws the window on a
-    Mac. Nothing here is a mockup of a screen that does not exist. Some of them
-    say DEMO or PREVIEW because they were taken from demo and market-closed
-    sessions.
+    They are the real thing — the browser tool itself, captured at 2x from a
+    live session against a real Zerodha feed. Nothing here is a mockup of a
+    screen that does not exist, and nothing has been retouched. They were taken
+    after the close, so the header says the market is shut and the session
+    total is zero; the signal, the levels and the indicator readings are the
+    genuine ones from that day. The account name is replaced with "trader" —
+    the only edit made to any of them.
 """
 
 import os
@@ -66,18 +68,18 @@ NAV = [
 # from the app folder" are one path-traversal bug apart, and the app folder is
 # where .env used to live.
 SHOTS = {
-    "board":   ("gui_light.png",      "The signal board",
-                "One ticket, its entry, its three targets and its stop — with the levels frozen at entry so they cannot drift while the trade is open. The dial on the right is confidence, and every input that fed it is listed underneath, including the ones that abstained."),
-    "chart":   ("closed_chart.png",   "The chart tab",
-                "Candles, both EMAs, VWAP, and the same T1/T2/T3 and stop drawn where they actually sit. Underneath, in sentences, the reason the rule set reached that call — the EMA stack, the MACD histogram, where RSI sits in its band."),
-    "targets": ("gui_portfolio.png",  "Targets as cards",
-                "Each target shows how far price has travelled toward it rather than just whether it was hit. T1 reached at 11:44:09; T2 is 38% of the way; the stop is 0% of the way, which is the number you actually want to watch."),
-    "waiting": ("gui_day_done.png",   "A quiet day, which is most days",
-                "Range-bound, ADX 10.7, momentum fading, nothing issued. The direction is shown as a PREVIEW rather than a ticket, because a view and a tradeable setup are different things. The session log below carries what already closed."),
-    "dark":    ("gui_dark.png",       "The dark theme",
-                "The same board at night. Both themes are painted by the app itself rather than by the operating system, so it looks identical on a Mac, on Windows and on Linux — and can be rendered to a PNG with no display at all, which is how the layout is checked."),
-    "wide":    ("gui_fullscreen.png", "Full width",
-                "The layout solves for the space it is given instead of scaling a fixed design, so a wider window gets roomier cards rather than a stretched copy of the small one."),
+    "board":   ("web_board.png",  "The signal board",
+                "Bank Nifty, a Buy CE on the 56500 call. CONFIRMING means the direction still has to hold for two minutes before a ticket is issued \u2014 sixty-one seconds to go here. The ladder is switched to option premium, so T1/T2/T3 and the stop are quoted in what the contract actually costs and in rupees per lot, and the row under it says plainly that the conversion ignores time decay. Seven inputs are scored underneath, Room to Run among them."),
+    "chart":   ("web_chart.png",  "The chart",
+                "Fifteen-minute candles with both EMAs and VWAP, and the same T1, T2, T3 and stop drawn as lines where they actually sit rather than quoted in a table somewhere else. Drag it to scroll back through earlier sessions; the right-hand candle is built from the live tick stream, so it moves before it closes."),
+    "trend":   ("web_trend.png",  "Trend, day move and confidence",
+                "Three readings the tool will not let you skip past. The trend box says STALLED \u2014 GOING NOWHERE with the ADX and how far price has travelled in fourteen bars. The dial reports 75% and still labels it Low, because three of four inputs agreeing is not a strong hand \u2014 the number and the word are both shown so one cannot flatter the other."),
+    "map":     ("web_map.png",    "The market map",
+                "Every index constituent sized by its weight and coloured by its move today, so you can see whether an index is being carried by two heavyweights or genuinely moving as a whole. Breadth is counted underneath \u2014 how many up, how many down, and how many are actually streaming right now."),
+    "why":     ("web_why.png",    "Why \u2014 every input, in full",
+                "The reasoning, in sentences, for every input including the ones that abstained. Each says what it measured, what the threshold was and which way it voted. PCR abstains here and says so. Nothing that fed the verdict is left off this list, and nothing on it is a number without an explanation."),
+    "full":    ("web_full.png",   "The whole screen",
+                "One page, one scroll: the three indices, the session total, the signal and its ladder, trend and confidence, the chart, today's range, the market map, the record, and the reasoning. There is no second tab and nothing is hidden behind a menu."),
 }
 
 
@@ -1094,10 +1096,10 @@ def screen_page(user=None, record=None):
   </div>
   {_figure("board")}
   {_figure("chart")}
-  {_figure("targets")}
-  {_figure("waiting")}
-  {_figure("dark")}
-  {_figure("wide")}
+  {_figure("trend")}
+  {_figure("map")}
+  {_figure("why")}
+  {_figure("full")}
  </section>
 
  <section>
