@@ -497,6 +497,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
         payload = {
             "market_open": snap["market_open"],
+            "closing_auction": snap.get("closing_auction", False),
             "updated": snap["updated"],
             "mode": _state["mode"],
             "user": user,
@@ -2290,8 +2291,18 @@ function render(s){
   markets(s);
   greet(s);
 
-  $("beat").className = "beat" + (s.market_open && !s.stale ? " live" : "");
-  $("mkt").textContent = s.stale ? "feed down" : (s.market_open?"Market open":"Market closed");
+  // The closing auction is its own state, not a shade of "open". Saying
+  // "Market open" over an index that has held one value since 15:15 is the
+  // one reading that sends you looking for a bug in the tool.
+  const cas = !!s.closing_auction && !s.stale;
+  $("beat").className = "beat" + (s.market_open && !s.stale && !cas ? " live" : "");
+  $("mkt").textContent = s.stale ? "feed down"
+    : (cas ? "Closing auction" : (s.market_open?"Market open":"Market closed"));
+  $("mkt").title = cas
+    ? "From 15:15 every constituent is in NSE's closing auction, so the index "
+      + "holds one value until the closing prices publish around 15:35. "
+      + "Options trade until 15:40, so an open ticket is still tracked."
+    : "";
   $("upd").textContent = s.updated ? s.updated+" IST" : "—";
   const so = $("signout");
   if(s.user){ so.style.display="inline-flex"; so.title = s.user; }

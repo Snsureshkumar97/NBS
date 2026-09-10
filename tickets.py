@@ -230,6 +230,22 @@ class TicketBook:
                     "see where things ended, but nothing is issued outside "
                     "09:15-15:40.")
 
+        # The closing auction. The market is open and the premium is still
+        # moving, so every check below would pass - but from 15:15 the index
+        # is a held value, and with it RSI, MACD, ADX, VWAP and the trend.
+        # Issuing here means acting on a signal whose inputs stopped updating
+        # twenty minutes ago while quoting a price that did not. Anything
+        # already open is untouched: it is tracked on its own premium, which
+        # is live, and it can still be closed until 15:40.
+        if config.in_closing_auction(now):
+            return ("auction", "CLOSING AUCTION",
+                    "From 15:15 every Nifty constituent is in NSE's closing "
+                    "auction, so the index holds one value until the closing "
+                    "prices publish around 15:35 - and every reading taken "
+                    "from it is frozen with it. Options trade on until 15:40, "
+                    "so anything already open is still tracked and can still "
+                    "be closed. No new entry is issued on a stopped index.")
+
         cut = _cfg("NO_NEW_TRADES_BEFORE", None)
         if cut and (now.hour, now.minute) < (cut[0], cut[1]):
             return ("early", "MARKET OPENING",

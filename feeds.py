@@ -795,6 +795,9 @@ class Feed:
         with self.lock:
             return {
                 "market_open": self.state["market_open"],
+                # Computed here rather than stored, so it is right the moment
+                # it is read instead of at the last analysis pass.
+                "closing_auction": config.in_closing_auction(now_ist()),
                 "updated": self.state["updated"],
                 "feed": self.state["feed"],
                 "error": self.state["error"],

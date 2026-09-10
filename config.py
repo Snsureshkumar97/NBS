@@ -381,6 +381,35 @@ NO_NEW_TRADES_BEFORE = (9, 20)
 MARKET_OPEN_TIME = (9, 15)
 MARKET_CLOSE_TIME = (15, 40)
 
+# When the index stops being a live price.
+#
+# NSE's Closing Auction Session, in force since 3 August 2026, pulls every
+# F&O-eligible stock out of continuous trading at 15:15. All fifty Nifty
+# constituents are in the auction from that moment, so no trade prints and
+# the index simply stops: it holds one value to the paise until the auction
+# matches and the closing prices publish around 15:35.
+#
+# The options carry on trading until 15:40, and this is the trap. For those
+# twenty-five minutes the premium moves while the index behind it is a
+# photograph, so every reading taken from the index - RSI, MACD, ADX, VWAP,
+# trend, the market map - is frozen too, and nothing about the screen says so.
+# A signal computed then is built on a dead input and priced on a live one.
+CAS_START_TIME = (15, 15)
+
+
+def in_closing_auction(now):
+    """True when the index has stopped updating but options still trade.
+
+    `now` must be IST. Says nothing about whether the market is open - it is,
+    and an open position still needs managing. It says the index is no longer
+    a live price, which is a different question with a different answer.
+    """
+    if now.weekday() >= 5:
+        return False
+    cas = (CAS_START_TIME[0], CAS_START_TIME[1])
+    close = (MARKET_CLOSE_TIME[0], MARKET_CLOSE_TIME[1])
+    return cas <= (now.hour, now.minute) <= close
+
 
 def session_hours():
     """Length of the trading day in hours, derived rather than written down."""
