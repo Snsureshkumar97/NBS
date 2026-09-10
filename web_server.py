@@ -1424,26 +1424,39 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
  </div>
 
  <div class="grid">
-  <div class="card">
-   <p class="eyebrow">Price · 15-minute candles</p>
-   <div class="chartwrap">
-    <div class="chartbar">
-     <div class="chartlegend" id="cvlegend"></div>
-     <div class="chartctl">
-      <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
-      <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
-      <button class="lbtn" id="cvreset" type="button">Reset</button>
+  <!-- Left column. The track record sits under the chart rather than at the
+       bottom of the right-hand stack: the chart is a fixed 430px while the
+       range and the map together run past 600, so the left column used to
+       simply stop and leave the rest of its height empty. Down here the card
+       is also twice as wide, which lets .rec's auto-fit put all five tiles in
+       one row instead of four and an orphan. -->
+  <div>
+   <div class="card">
+    <p class="eyebrow">Price &middot; 15-minute candles</p>
+    <div class="chartwrap">
+     <div class="chartbar">
+      <div class="chartlegend" id="cvlegend"></div>
+      <div class="chartctl">
+       <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
+       <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
+       <button class="lbtn" id="cvreset" type="button">Reset</button>
+      </div>
      </div>
+     <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
+      earlier candles, scroll to zoom."></canvas>
     </div>
-    <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
-     earlier candles, scroll to zoom."></canvas>
+    <div class="legend">
+     <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
+     <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
+     <span><i class="key dash"></i>VWAP</span>
+     <span><i class="chip" style="background:var(--up)"></i>Up candle</span>
+     <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
+    </div>
    </div>
-   <div class="legend">
-    <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
-    <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
-    <span><i class="key dash"></i>VWAP</span>
-    <span><i class="chip" style="background:var(--up)"></i>Up candle</span>
-    <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
+   <div class="card" id="reccard">
+    <p class="eyebrow">Track record &middot; wins and losses</p>
+    <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
+      No completed trades recorded yet.</p></div>
    </div>
   </div>
 
@@ -1453,17 +1466,12 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
    </div>
    <div class="card">
-    <p class="eyebrow">Market map &middot; <span id="mapidx">—</span> constituents</p>
+    <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
     <div class="mapwrap" id="mapwrap"></div>
     <div class="mapbar">
-     <span id="mapbreadth">loading…</span>
+     <span id="mapbreadth">loading&hellip;</span>
      <div class="maplegend"><span>&minus;2%</span><i class="sw"></i><span>+2%</span></div>
     </div>
-   </div>
-   <div class="card">
-    <p class="eyebrow">Track record · wins and losses</p>
-    <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
-      No completed trades recorded yet.</p></div>
    </div>
   </div>
  </div>

@@ -756,15 +756,20 @@ class Feed:
                 age = st.age_seconds()
             except Exception:
                 age = None
-        # "Live" has to mean live. A socket can stay open and stop delivering,
-        # and reporting connected as live put a green pulse and the word next
-        # to a price that had not moved in minutes - the one state where being
-        # wrong is worse than showing nothing. During the session the indices
-        # tick continuously, so silence this long means the feed, not the
-        # market; outside it the page already says the market is closed.
+        # "Live" has to mean live, and it takes all three of these.
+        #
+        # A socket can stay open and stop delivering, so connected alone is not
+        # enough - hence the age. But Zerodha also keeps pushing tick packets
+        # long after the bell with last_price unchanged: measured at 16:00,
+        # twenty minutes past the close, age was still 0.1s while every index
+        # sat on its closing value. Packets arriving is not the same as prices
+        # moving, and without the session check the badge read LIVE in green
+        # over numbers that were done for the day - the precise claim it exists
+        # to prevent. The auction still counts as open: options trade to 15:40.
         out = {"spots": spots,
                "live": bool(st is not None and st.connected
-                            and age is not None and age < 15.0),
+                            and age is not None and age < 15.0
+                            and is_market_open(now_ist())),
                "age": round(age, 1) if age is not None else None,
                "premium": {}, "ltp": sug, "bar": self.forming(),
                "stream_error": self.stream_error, "stage": self.stage}
