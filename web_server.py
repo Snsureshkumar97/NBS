@@ -1689,7 +1689,7 @@ function ladder(r, tk){
       let rs = "";
       if(per && v!=null && base!=null){
         const amt=(v-base)*per;
-        rs = (amt>=0?"+":"−")+"₹"+Math.abs(Math.round(amt)).toLocaleString("en-IN");
+        rs = money(amt);
       }
       return `<div class="rung${done?" done":""}"><div class="k">${k}${
           done?` <span class="tick">✓ ${esc(when||"")}</span>`:""}</div>
@@ -1740,7 +1740,7 @@ function ladder(r, tk){
     let rs = "";
     if(per && v!=null && base!=null){
       const amt = (v - base) * per;
-      rs = (amt>=0?"+":"−") + "₹" + Math.abs(Math.round(amt)).toLocaleString("en-IN");
+      rs = money(amt);
     }
     return `<div class="rung"><div class="k">${k}</div>
       <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c}"></i></div>
@@ -1864,7 +1864,7 @@ function ticketBox(r, state){
       + cell("Spot", num(r.spot,0))
       + cell(`${tk.lots} lot${tk.lots!==1?"s":""}`,
              pnl==null ? "—"
-               : (pnl>=0?"+":"−")+"₹"+Math.abs(Math.round(pnl)).toLocaleString("en-IN"),
+               : money(pnl),
              pc);
   } else st.style.display = "none";
 
@@ -1881,8 +1881,8 @@ function sessionStrip(sess, order){
   if(!sess || !sess.per_index){ $("session").style.display="none";
                                 $("sfeed").textContent=""; return; }
   const per = sess.per_index, keys = (order||[]).filter(k => per[k] != null);
-  const money = v => (v>=0?"+":"−") + "₹"
-                   + Math.abs(Math.round(v)).toLocaleString("en-IN");
+  // money() is global now, so the session strip, the ladder and the record
+  // cannot disagree about the currency.
   // Always shown, even at zero. The desktop keeps its session strip on screen
   // all day saying "nothing yet", and a total that appears only once you are
   // up or down is a total you cannot trust to be complete.
@@ -2443,6 +2443,7 @@ function render(s){
   // The closing auction is its own state, not a shade of "open". Saying
   // "Market open" over an index that has held one value since 15:15 is the
   // one reading that sends you looking for a bug in the tool.
+  CCY = s.currency || "INR";
   const cas = !!s.closing_auction && !s.stale;
   $("beat").className = "beat" + (s.market_open && !s.stale && !cas ? " live" : "");
   $("mkt").textContent = s.stale ? "feed down"
@@ -2565,7 +2566,7 @@ function render(s){
         ${tile("Reached T1", rec.t1+"%","")}
         ${tile("Reached T2", rec.t2+"%","")}
         ${tile("Stopped out", rec.sl+"%","")}
-        ${rec.net!=null?tile("Net","₹"+Math.abs(rec.net).toLocaleString("en-IN"),
+        ${rec.net!=null?tile("Net",money(rec.net,false),
             rec.wins+" wins / "+rec.losses+" losses",
             rec.net>=0?"var(--up)":"var(--down)"):""}
        </div>`
@@ -2798,6 +2799,18 @@ async function priceTick(){
   }
 }
 let LIVE = null, LASTHIT = null;
+// The screen counts one currency and must never guess which. Crypto premiums
+// are dollars per contract; index premiums are rupees per lot. Printing one
+// behind the other's sign is a wrong number that looks like a right one, and
+// nothing on the page would give it away.
+let CCY = "INR";
+function ccySym(){ return CCY === "USD" ? "$" : "\u20b9"; }
+function ccyLocale(){ return CCY === "USD" ? "en-US" : "en-IN"; }
+function money(v, signed){
+  const n = Math.abs(Math.round(v)).toLocaleString(ccyLocale());
+  const sign = signed === false ? "" : (v >= 0 ? "+" : "\u2212");
+  return sign + ccySym() + n;
+}
 // Written on every poll, so it only touches the DOM when something actually
 // changed - otherwise this is four needless mutations a second.
 let FEEDSTATE = null;
