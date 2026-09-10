@@ -209,6 +209,11 @@ class TicketBook:
             return vals
         return c[1]
 
+    def _ref_key(self):
+        """Any instrument in this book's market — they share a session."""
+        keys = config.instruments_in(self.market)
+        return keys[0] if keys else None
+
     def entry_block(self):
         """Why no new ticket may be issued right now — or None if one may.
 
@@ -226,7 +231,13 @@ class TicketBook:
         # market that shut at 15:40, against a premium that had not moved since
         # the bell. Every gate below assumed something upstream had already
         # established the market was open. Nothing had.
-        if not is_market_open(now):
+        # Ask about THIS book's market. Both of these took no instrument, so
+        # both answered for an NSE index - and a crypto ticket was therefore
+        # blocked with MARKET CLOSED all night, every night, on a market that
+        # never closes. The confirm streak would run its 120 seconds and then
+        # hit a gate belonging to a different exchange.
+        ref = self._ref_key()
+        if not is_market_open(now, ref):
             return ("closed", "MARKET CLOSED",
                     "The session is over. The analysis keeps running so you can "
                     "see where things ended, but nothing is issued outside "
@@ -239,7 +250,7 @@ class TicketBook:
         # twenty minutes ago while quoting a price that did not. Anything
         # already open is untouched: it is tracked on its own premium, which
         # is live, and it can still be closed until 15:40.
-        if config.in_closing_auction(now):
+        if config.in_closing_auction(now, ref):
             return ("auction", "CLOSING AUCTION",
                     "From 15:15 every Nifty constituent is in NSE's closing "
                     "auction, so the index holds one value until the closing "
@@ -248,7 +259,12 @@ class TicketBook:
                     "so anything already open is still tracked and can still "
                     "be closed. No new entry is issued on a stopped index.")
 
+        # Waiting for the opening auction to settle only means something on a
+        # market that has one. Applied to crypto it read "MARKET OPENING" every
+        # night until 09:20 IST, which is neither an opening nor a reason.
         cut = _cfg("NO_NEW_TRADES_BEFORE", None)
+        if config.market_for(ref)["always_open"]:
+            cut = None
         if cut and (now.hour, now.minute) < (cut[0], cut[1]):
             return ("early", "MARKET OPENING",
                     f"No entries before {cut[0]:02d}:{cut[1]:02d} IST — the opening "

@@ -58,6 +58,10 @@ from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
 # the page reloading, short enough that a closed tab stops calling Zerodha.
 IDLE_SECONDS = 240
 
+# Stands in for a tick socket on a venue that has none, so the loops can
+# tell "no stream yet" (None) apart from "this market never has one".
+_NO_STREAM = object()
+
 # In free mode nobody has a token and the data is genuinely identical for
 # everyone, so every user maps to this one shared feed.
 SHARED = "*free*"
@@ -288,6 +292,8 @@ class Feed:
         self._eq_tried = False
         self._idx_tried = 0.0     # when the index tokens were last looked up
         self._crypto = None       # built on demand, only if crypto is enabled
+        self._crypto_at = 0.0     # when the crypto price poll last ran
+        self._crypto_seen = 0.0   # when it last actually got a price
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
         self.stream_error = None  # why the tick socket is not up, if it is not
@@ -478,6 +484,21 @@ class Feed:
         """
         if self.streamer is not None or _settings["mode"] != "kite":
             return
+        if config.MARKETS[self.market]["market_provider"] != "kite":
+            # Not a Zerodha market. Opening a KiteStreamer here subscribed the
+            # three NSE indices to a crypto feed, so /api/tick answered a crypto
+            # screen with NIFTY, BANKNIFTY and SENSEX and nothing at all for
+            # BTC. Crypto gets its own price loop below instead.
+            # Mark the venue BEFORE the thread starts. The loop's first act is
+            # to read self.streamer, and setting it afterwards meant the thread
+            # saw None, returned immediately, and the price was whatever the
+            # single call below had fetched - frozen, with the age climbing.
+            self.streamer = _NO_STREAM
+            self._crypto_prices()
+            self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
+                                           name=f"ticks:{self.key}")
+            self.ticker.start()
+            return
         token = user_kite.token_for(self.email)
         if not token:
             self.stream_error = "no Zerodha token on this account"
@@ -501,6 +522,22 @@ class Feed:
         self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
                                        name=f"ticks:{self.key}")
         self.ticker.start()
+
+    def _crypto_prices(self):
+        """Refresh this market's spot prices from the venue's index."""
+        prov = self._provider_for(self.instruments()[0], None) if self.instruments() else None
+        if prov is None:
+            return
+        self._crypto_at = time.time()
+        for name in self.instruments():
+            try:
+                px = prov.spot(name)
+            except Exception:
+                continue
+            if px is not None:
+                with self.lock:
+                    self.spots[name] = float(px)
+                self._crypto_seen = time.time()
 
     def _subscribe_indices(self):
         """Resolve the three index tokens and put them on the feed, retrying
@@ -632,7 +669,7 @@ class Feed:
         if df is None or df.empty:
             return None
         st, tok = self.streamer, self.tokens.get(name)
-        if st is None or not tok:
+        if st is None or st is _NO_STREAM or not tok:
             return df
         bar = st.forming_bar(tok)
         if not bar:
@@ -716,7 +753,7 @@ class Feed:
         """The in-progress candle per index, so the chart's last bar can move
         instead of waiting for the next fetch."""
         st = self.streamer
-        if st is None:
+        if st is None or st is _NO_STREAM:
             return {}
         out = {}
         for name, tok in list(self.tokens.items()):
@@ -808,6 +845,22 @@ class Feed:
             st = self.streamer
             if st is None:
                 return
+            if st is _NO_STREAM:
+                # No push socket for this venue, so the price is polled. Deribit
+                # publishes an index over REST and answers in tens of
+                # milliseconds; once a second is smooth enough to watch and
+                # gentle enough not to get rate-limited, which four times a
+                # second would not be.
+                try:
+                    if time.time() - self._crypto_at > 1.0:
+                        self._crypto_prices()
+                    if time.time() - self._last_live > 1.0:
+                        self._last_live = time.time()
+                        self._live_analysis()
+                except Exception:
+                    pass
+                time.sleep(0.25)
+                continue
             try:
                 self._subscribe_indices()
                 self._subscribe_constituents()
@@ -870,6 +923,16 @@ class Feed:
         with self.lock:
             spots = dict(self.spots)
             sug = dict(self.sug_px)
+        if st is _NO_STREAM:
+            # Polled, not pushed. "Live" still has to mean live, so it is
+            # measured the same way - how long since a price actually arrived -
+            # just against the poll instead of a socket.
+            age = (time.time() - self._crypto_seen) if self._crypto_seen else None
+            return {"spots": spots, "ltp": sug, "premium": {},
+                    "live": bool(age is not None and age < 15.0),
+                    "age": round(age, 1) if age is not None else None,
+                    "bar": {}, "stream_error": None, "stage": self.stage,
+                    "polled": True}
         if st is not None:
             for name, tok in list(self.tokens.items()):
                 px = st.price(tok)

@@ -581,7 +581,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         Prices change several times a second, so they get their own endpoint
         that touches no network and can be asked for at that rate.
         """
-        feed = feeds.for_user(user, self._current_market())
+        market = self._current_market()
+        feed = feeds.for_user(user, market)
         payload = feed.ticks()
         payload["tickets"] = {
             k: (feed.tickets.public(k) or {}).get("ticket")
