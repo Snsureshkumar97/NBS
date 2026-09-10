@@ -6,7 +6,7 @@
 <script>document.documentElement.className+=" js"</script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-<meta name="description" content="Every screen in NBS Signal Tool, rendered from the app's own canvas: the signal board, the chart tab, targets, the quiet days, and both themes.">
+<meta name="description" content="Every part of the NBS Signal Tool screen, captured from a live session: the signal board, the chart, the market map and the reasoning.">
 <title>The screen — NBS Signal Tool</title>
 <style>
 /* Black. Kite's semantics kept — #4caf50 up, #ff5722 down, a blue accent,
@@ -341,17 +341,14 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
 </div></header>
 <div class="subnav"><ul><li><a class="" href="/how-it-works">How it works</a></li><li><a class="on" href="/screen">The screen</a></li><li><a class="" href="/results">Results</a></li><li><a class="" href="/security">Security</a></li><li><a class="" href="/access">Access</a></li><li><a class="" href="/kite">Connect Zerodha</a></li><li><a class="" href="/faq">FAQ</a></li><li><a class="" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></li></ul></div>
 
-<div class="wrap"><div class="phead"><h1>The screen</h1><p>Every image below is a PNG rendered straight from the app's own canvas — the same code path that draws the window on a Mac. Nothing here is a mockup of a screen that does not exist.</p></div></div>
+<div class="wrap"><div class="phead"><h1>The screen</h1><p>Every image below is the browser tool itself, captured at 2x from a live session against a real Zerodha feed. Nothing here is a mockup and nothing is retouched — the account name is masked, and that is the only edit.</p></div></div>
 <div class="wrap">
  <section class="first">
   <div class="narrow prose" style="margin-bottom:44px">
-   <p>The whole window is painted on one canvas. There is not a single native
-    button, tab or checkbox in the main view, and that is deliberate: the
-    operating system's own widgets look different on macOS, Windows and Linux
-    and cannot do gradients or rounded corners, so the layout would have
-    drifted apart on each machine. Painting it means one appearance
-    everywhere — and it means the screen can be rendered to a PNG with no
-    display attached, which is how the layout is checked.</p>
+   <p>They were taken after the close, so the header reads Market closed and
+    the day's total is zero. The signal, the levels and every indicator reading
+    are the real ones from that session; nothing was put into a demo mode to be
+    photographed.</p>
   </div>
   <figure class="reveal"><img src="/shot/board.52fa4477.png" alt="The signal board" width="2000" height="1000" loading="lazy"><figcaption><b>The signal board</b>Bank Nifty, a Buy CE on the 56500 call. CONFIRMING means the direction still has to hold for two minutes before a ticket is issued — sixty-one seconds to go here. The ladder is switched to option premium, so T1/T2/T3 and the stop are quoted in what the contract actually costs and in rupees per lot, and the row under it says plainly that the conversion ignores time decay. Seven inputs are scored underneath, Room to Run among them.</figcaption></figure>
   <figure class="reveal"><img src="/shot/chart.b1d1ac7e.png" alt="The chart" width="2000" height="1000" loading="lazy"><figcaption><b>The chart</b>Fifteen-minute candles with both EMAs and VWAP, and the same T1, T2, T3 and stop drawn as lines where they actually sit rather than quoted in a table somewhere else. Drag it to scroll back through earlier sessions; the right-hand candle is built from the live tick stream, so it moves before it closes.</figcaption></figure>
@@ -363,30 +360,26 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
 
  <section>
   <div class="narrow prose">
-   <h2>The left rail</h2>
-   <p>Five icons, each a page rather than a dialog. The Market Map used to open
-    in its own window; it is a page now, which gives it the whole area instead
-    of a third of it.</p>
-   <table class="tbl">
-    <tr><th>Icon</th><th>Page</th></tr>
-    <tr><td>Pulse</td><td>the signal board — the Signal and Chart tabs</td></tr>
-    <tr><td>Grid</td><td>Market Map, the sector heat map, full width</td></tr>
-    <tr><td>Bars</td><td>Your trades — the summary of everything closed</td></tr>
-    <tr><td>Bell</td><td>a switch, not a destination: popup alerts on or off</td></tr>
-    <tr><td>Gear</td><td>Settings — token state, where credentials live, which
-     files get written</td></tr>
-   </table>
-   <p>The icons are spaced by solving for the room between the logo and the
-    theme toggle rather than by a fixed pitch, so the rail stays clear of the
-    bottom controls at every window size the app allows.</p>
+   <h2>Everything on one page</h2>
+   <p>There is no navigation inside the tool — no side rail, no tabs, no
+    settings screen to go and find. The three indices, the signal and its
+    ladder, the trend and confidence boxes, the chart, today's range, the
+    market map, the record and the full reasoning are all on one page, in that
+    order, and you reach any of them by scrolling.</p>
+   <p>The few things that are switches rather than places — index points
+    against option premium, the lot count, whether the tool keeps running when
+    the page is shut — sit beside what they affect instead of behind a menu.</p>
 
    <h2 style="margin-top:44px">Reading the signal board</h2>
    <table class="tbl">
     <tr><th>Part</th><th>What it is telling you</th></tr>
     <tr><td>Signal ticket</td><td>the call itself — BUY CE, BUY PE, or nothing.
      <code>OPEN</code> means it is live and tracked; <code>PREVIEW</code> means
-     a direction exists but no ticket was issued; <code>DEMO</code> means the
-     figures are not live data.</td></tr>
+       a direction exists but no ticket was issued. When something is holding
+       the entry, the badge says which: <code>CONFIRMING</code>,
+       <code>COOLDOWN</code>, <code>POSITION OPEN</code>, <code>DAY LIMIT</code>,
+       <code>MARKET OPENING</code>, <code>CLOSING AUCTION</code> or
+       <code>MARKET CLOSED</code>.</td></tr>
     <tr><td>Entry / Now</td><td>the premium at issue, and the premium now. The
      rupee figure beside them is that difference across your chosen lots.</td></tr>
     <tr><td>Reward : risk</td><td>the ratio computed at entry from ATR. Below

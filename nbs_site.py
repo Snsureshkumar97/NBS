@@ -813,6 +813,22 @@ def _figure(slug):
 # ===========================================================================
 # HOME
 # ===========================================================================
+def _hhmm(pair):
+    return f"{pair[0]:02d}:{pair[1]:02d}"
+
+
+def _session_open():
+    return _hhmm(config.MARKET_OPEN_TIME)
+
+
+def _session_close():
+    return _hhmm(config.MARKET_CLOSE_TIME)
+
+
+def _cas_start():
+    return _hhmm(config.CAS_START_TIME)
+
+
 def _cfg(name, fallback=""):
     """Render a live config value.
 
@@ -927,8 +943,8 @@ def home_page(user=None, record=None):
  <section>
   <p class="kicker">The screen</p>
   <h2>It shows its working</h2>
-  <p class="sub">Every image on this site is rendered straight from the app's
-   own canvas, not drawn as a mockup.</p>
+   <p class="sub">Every image on this site is the tool itself, captured
+    from a live session. None of it is a mockup.</p>
   {_figure("chart")}
   <p><a href="/screen">Every screen in the app &rarr;</a></p>
  </section>
@@ -1148,6 +1164,32 @@ def how_page(user=None, record=None):
  </section>
 
  <section>
+  <h2>When it runs</h2>
+  <p>All times IST, read from the same config the server runs on.</p>
+  <table class="tbl">
+   <tr><th>From</th><th>Until</th><th>What happens</th></tr>
+   <tr><td><code>{_session_open()}</code></td><td><code>{_cas_start()}</code></td>
+    <td>the full session &mdash; analysing, and issuing tickets</td></tr>
+   <tr><td><code>{_cas_start()}</code></td><td><code>{_session_close()}</code></td>
+    <td>still analysing, but <b>no new entry</b></td></tr>
+   <tr><td><code>{_session_close()}</code></td><td>next morning</td>
+    <td>nothing issued; the screen holds the closing numbers</td></tr>
+  </table>
+  <p>That middle row is NSE's closing auction, in force since 3 August
+   2026. From <code>{_cas_start()}</code> every F&amp;O-eligible stock leaves
+   continuous trading, so all of an index's constituents are in the auction
+   at once, nothing prints, and <b>the index stops moving</b> until the
+   closing prices publish around 15:35. Options carry on trading until
+   <code>{_session_close()}</code>.</p>
+  <p>Every reading on this page &mdash; the EMAs, MACD, RSI, VWAP, ADX, the
+   trend box, the market map &mdash; is computed from the index. While the
+   index is a held value they are held with it, so anything issued in that
+   window would be built on a stopped input and priced on a live one.
+   Nothing new is issued there. A ticket already open is still tracked on
+   its own premium, which is genuinely live, and can still be closed.</p>
+ </section>
+
+ <section>
   <div class="callout warm reveal">
    <h3>Reading this page is not the same as it working</h3>
    <p>Every rule above is defensible on its own terms, and the whole of it was
@@ -1171,19 +1213,17 @@ def how_page(user=None, record=None):
 # ===========================================================================
 def screen_page(user=None, record=None):
     body = _phead("The screen",
-        "Every image below is a PNG rendered straight from the app's own "
-        "canvas — the same code path that draws the window on a Mac. Nothing "
-        "here is a mockup of a screen that does not exist.") + f"""
+        "Every image below is the browser tool itself, captured at 2x from a "
+        "live session against a real Zerodha feed. Nothing here is a mockup "
+        "and nothing is retouched — the account name is masked, and that is "
+        "the only edit.") + f"""
 <div class="wrap">
  <section class="first">
   <div class="narrow prose" style="margin-bottom:44px">
-   <p>The whole window is painted on one canvas. There is not a single native
-    button, tab or checkbox in the main view, and that is deliberate: the
-    operating system's own widgets look different on macOS, Windows and Linux
-    and cannot do gradients or rounded corners, so the layout would have
-    drifted apart on each machine. Painting it means one appearance
-    everywhere — and it means the screen can be rendered to a PNG with no
-    display attached, which is how the layout is checked.</p>
+   <p>They were taken after the close, so the header reads Market closed and
+    the day's total is zero. The signal, the levels and every indicator reading
+    are the real ones from that session; nothing was put into a demo mode to be
+    photographed.</p>
   </div>
   {_figure("board")}
   {_figure("chart")}
@@ -1195,30 +1235,26 @@ def screen_page(user=None, record=None):
 
  <section>
   <div class="narrow prose">
-   <h2>The left rail</h2>
-   <p>Five icons, each a page rather than a dialog. The Market Map used to open
-    in its own window; it is a page now, which gives it the whole area instead
-    of a third of it.</p>
-   <table class="tbl">
-    <tr><th>Icon</th><th>Page</th></tr>
-    <tr><td>Pulse</td><td>the signal board — the Signal and Chart tabs</td></tr>
-    <tr><td>Grid</td><td>Market Map, the sector heat map, full width</td></tr>
-    <tr><td>Bars</td><td>Your trades — the summary of everything closed</td></tr>
-    <tr><td>Bell</td><td>a switch, not a destination: popup alerts on or off</td></tr>
-    <tr><td>Gear</td><td>Settings — token state, where credentials live, which
-     files get written</td></tr>
-   </table>
-   <p>The icons are spaced by solving for the room between the logo and the
-    theme toggle rather than by a fixed pitch, so the rail stays clear of the
-    bottom controls at every window size the app allows.</p>
+   <h2>Everything on one page</h2>
+   <p>There is no navigation inside the tool — no side rail, no tabs, no
+    settings screen to go and find. The three indices, the signal and its
+    ladder, the trend and confidence boxes, the chart, today's range, the
+    market map, the record and the full reasoning are all on one page, in that
+    order, and you reach any of them by scrolling.</p>
+   <p>The few things that are switches rather than places — index points
+    against option premium, the lot count, whether the tool keeps running when
+    the page is shut — sit beside what they affect instead of behind a menu.</p>
 
    <h2 style="margin-top:44px">Reading the signal board</h2>
    <table class="tbl">
     <tr><th>Part</th><th>What it is telling you</th></tr>
     <tr><td>Signal ticket</td><td>the call itself — BUY CE, BUY PE, or nothing.
      <code>OPEN</code> means it is live and tracked; <code>PREVIEW</code> means
-     a direction exists but no ticket was issued; <code>DEMO</code> means the
-     figures are not live data.</td></tr>
+       a direction exists but no ticket was issued. When something is holding
+       the entry, the badge says which: <code>CONFIRMING</code>,
+       <code>COOLDOWN</code>, <code>POSITION OPEN</code>, <code>DAY LIMIT</code>,
+       <code>MARKET OPENING</code>, <code>CLOSING AUCTION</code> or
+       <code>MARKET CLOSED</code>.</td></tr>
     <tr><td>Entry / Now</td><td>the premium at issue, and the premium now. The
      rupee figure beside them is that difference across your chosen lots.</td></tr>
     <tr><td>Reward : risk</td><td>the ratio computed at entry from ATR. Below
@@ -1243,9 +1279,10 @@ def screen_page(user=None, record=None):
         ("/how-it-works", "Back", "How it works"))}
 </div>"""
     return shell("The screen", body, user=user, active="/screen",
-                 description=("Every screen in NBS Signal Tool, rendered from the "
-                              "app's own canvas: the signal board, the chart tab, "
-                              "targets, the quiet days, and both themes."))
+                   description=("Every part of the NBS Signal Tool screen, "
+                                "captured from a live session: the signal "
+                                "board, the chart, the market map and the "
+                                "reasoning."))
 
 
 # ===========================================================================
@@ -1791,7 +1828,11 @@ FAQ = [
     ("Why do I have to connect Zerodha every morning?",
      "Zerodha's rule, not this tool's. They clear every Kite access token each "
      "morning around 07:30 IST regardless of when it was issued. Connect once "
-     "after that and the feed stays up for the rest of the session."),
+       "after that and the tool has what it needs for the rest of the day. It "
+       "runs while you have the page open, and with \u201cruns all session\u201d "
+       "switched on it keeps running from 09:10 to the close whether the page "
+       "is open or not \u2014 but never without a token, so the morning "
+       "reconnect is the one step nobody can do for you."),
     ("Why my own Zerodha account, and not the site owner's?",
      "Because your broker relationship is yours. Serving everyone from one "
      "session would make one person's rate limit everybody's ceiling, would put "

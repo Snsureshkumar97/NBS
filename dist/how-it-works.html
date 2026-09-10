@@ -561,6 +561,32 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
  </section>
 
  <section>
+  <h2>When it runs</h2>
+  <p>All times IST, read from the same config the server runs on.</p>
+  <table class="tbl">
+   <tr><th>From</th><th>Until</th><th>What happens</th></tr>
+   <tr><td><code>09:15</code></td><td><code>15:15</code></td>
+    <td>the full session &mdash; analysing, and issuing tickets</td></tr>
+   <tr><td><code>15:15</code></td><td><code>15:40</code></td>
+    <td>still analysing, but <b>no new entry</b></td></tr>
+   <tr><td><code>15:40</code></td><td>next morning</td>
+    <td>nothing issued; the screen holds the closing numbers</td></tr>
+  </table>
+  <p>That middle row is NSE's closing auction, in force since 3 August
+   2026. From <code>15:15</code> every F&amp;O-eligible stock leaves
+   continuous trading, so all of an index's constituents are in the auction
+   at once, nothing prints, and <b>the index stops moving</b> until the
+   closing prices publish around 15:35. Options carry on trading until
+   <code>15:40</code>.</p>
+  <p>Every reading on this page &mdash; the EMAs, MACD, RSI, VWAP, ADX, the
+   trend box, the market map &mdash; is computed from the index. While the
+   index is a held value they are held with it, so anything issued in that
+   window would be built on a stopped input and priced on a live one.
+   Nothing new is issued there. A ticket already open is still tracked on
+   its own premium, which is genuinely live, and can still be closed.</p>
+ </section>
+
+ <section>
   <div class="callout warm reveal">
    <h3>Reading this page is not the same as it working</h3>
    <p>Every rule above is defensible on its own terms, and the whole of it was
