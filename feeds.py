@@ -49,8 +49,9 @@ import market_map
 import signal_engine
 import tickets
 import user_kite
-from data_providers import (DeribitDataProvider, FreeDataProvider,
-                            KiteDataProvider, KiteStreamer)
+from data_providers import (DeribitDataProvider, DeribitStreamer,
+                            FreeDataProvider, KiteDataProvider,
+                            KiteStreamer)
 from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
 
 # A feed with nobody watching it is switched off after this long. Generous
@@ -292,6 +293,7 @@ class Feed:
         self._eq_tried = False
         self._idx_tried = 0.0     # when the index tokens were last looked up
         self._crypto = None       # built on demand, only if crypto is enabled
+        self.dstream = None       # Deribit socket, for crypto feeds
         self._crypto_at = 0.0     # when the crypto price poll last ran
         self._crypto_seen = 0.0   # when it last actually got a price
         self.ticker = None        # the fast loop that reads it
@@ -494,7 +496,7 @@ class Feed:
             # saw None, returned immediately, and the price was whatever the
             # single call below had fetched - frozen, with the age climbing.
             self.streamer = _NO_STREAM
-            self._crypto_prices()
+            self._start_crypto_stream()
             self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
                                            name=f"ticks:{self.key}")
             self.ticker.start()
@@ -523,21 +525,72 @@ class Feed:
                                        name=f"ticks:{self.key}")
         self.ticker.start()
 
+    def _start_crypto_stream(self):
+        """Open Deribit's socket and take the index for every instrument.
+
+        Replaces a once-a-second REST poll. The index alone was smooth enough
+        to watch, but the premium only moved when the analysis ran - and the
+        premium is the number a buyer actually pays.
+        """
+        if self.dstream is not None:
+            return
+        st = DeribitStreamer()
+        if not st.start():
+            self.stream_error = f"deribit socket: {st.last_error}"
+            return
+        self.dstream = st
+        self.stream_error = None
+        st.subscribe([f"deribit_price_index.{config.INSTRUMENTS[n]['deribit_index']}"
+                      for n in self.instruments()])
+
+    def _crypto_suggested(self, name):
+        """Stream the premium of the strike currently being suggested.
+
+        The crypto twin of _subscribe_suggested: most of the day there is no
+        ticket, only a suggestion, and that is exactly when someone is deciding
+        whether to take it.
+        """
+        st = self.dstream
+        if st is None:
+            return
+        with self.lock:
+            entry = self.state["indices"].get(name)
+            pub = (entry or {}).get("public") or {}
+        strike, opt = pub.get("strike"), pub.get("option_type")
+        if not strike or not opt:
+            return
+        have = self.sug_tokens.get(name)
+        if have and have[0] == strike and have[1] == opt:
+            return                            # already streaming this one
+        try:
+            inst = self._provider_for(name, None).option_instrument(name, strike, opt)
+        except Exception:
+            inst = None
+        if not inst:
+            return
+        self.sug_tokens[name] = (strike, opt, inst)
+        st.subscribe([f"ticker.{inst}.100ms"])
+
     def _crypto_prices(self):
-        """Refresh this market's spot prices from the venue's index."""
-        prov = self._provider_for(self.instruments()[0], None) if self.instruments() else None
-        if prov is None:
+        """Read the socket's memory into this feed's price maps."""
+        st = self.dstream
+        if st is None:
             return
         self._crypto_at = time.time()
         for name in self.instruments():
-            try:
-                px = prov.spot(name)
-            except Exception:
-                continue
+            meta = config.INSTRUMENTS[name]
+            px = st.index_price(meta["deribit_index"])
             if px is not None:
                 with self.lock:
                     self.spots[name] = float(px)
                 self._crypto_seen = time.time()
+            self._crypto_suggested(name)
+            ent = self.sug_tokens.get(name)
+            if ent:
+                mk = st.mark_usd(ent[2], meta["deribit_index"])
+                if mk is not None:
+                    with self.lock:
+                        self.sug_px[name] = float(mk)
 
     def _subscribe_indices(self):
         """Resolve the three index tokens and put them on the feed, retrying
@@ -852,8 +905,9 @@ class Feed:
                 # gentle enough not to get rate-limited, which four times a
                 # second would not be.
                 try:
-                    if time.time() - self._crypto_at > 1.0:
-                        self._crypto_prices()
+                    # Reading the socket's dict is a memory read, so this runs
+                    # at the loop rate rather than on a timer of its own.
+                    self._crypto_prices()
                     if time.time() - self._last_live > 1.0:
                         self._last_live = time.time()
                         self._live_analysis()
@@ -974,9 +1028,18 @@ class Feed:
 
     def stop_stream(self):
         st, self.streamer = self.streamer, None
-        if st is not None:
+        if st is not None and st is not _NO_STREAM:
             try:
                 st.stop()
+            except Exception:
+                pass
+        # The crypto socket is a separate object and was being left open when a
+        # feed was reaped - a reaped-and-restarted feed would have leaked one
+        # connection to Deribit per cycle.
+        ds, self.dstream = self.dstream, None
+        if ds is not None:
+            try:
+                ds.stop()
             except Exception:
                 pass
 

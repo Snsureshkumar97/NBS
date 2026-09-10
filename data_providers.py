@@ -31,6 +31,12 @@ Both expose the same interface:
       Returns None if unavailable (e.g. SENSEX in free mode, or fetch failed).
 """
 
+import base64
+import json
+import os
+import socket
+import ssl
+import struct
 import re
 import time
 import threading
@@ -547,6 +553,25 @@ class DeribitDataProvider:
         seen = {r["expiry"] for r in rows}
         return sorted(seen, key=_deribit_expiry_date)
 
+    def option_instrument(self, index_key: str, strike, option_type: str,
+                          expiry: str = None):
+        """Deribit's name for one contract, e.g. BTC-11SEP26-77000-P.
+
+        The engine says CE and PE; Deribit says C and P. Nearest expiry unless
+        one is named, matching how the chain picks its own default.
+        """
+        meta = INSTRUMENTS[index_key]
+        rows = self._chain_rows(index_key)
+        if not rows:
+            return None
+        tag = expiry or min((r["expiry"] for r in rows), key=_deribit_expiry_date)
+        kind = "C" if str(option_type).upper().startswith("C") else "P"
+        want = int(strike)
+        if not any(r["expiry"] == tag and r["strike"] == want and r["kind"] == kind
+                   for r in rows):
+            return None
+        return f"{meta['deribit_currency']}-{tag}-{want}-{kind}"
+
     def get_option_chain(self, index_key: str, expiry: str = None):
         """The same shape the NSE and Kite providers return, so the engine does
         not learn that a second kind of chain exists."""
@@ -603,6 +628,244 @@ def _deribit_expiry_date(tag: str):
     if not m:
         return dt.date.max
     return dt.date(2000 + int(m.group(3)), _DERIBIT_MONTHS[m.group(2)], int(m.group(1)))
+
+
+# =============================================================================
+# LIVE STREAMING (Deribit WebSocket)
+# =============================================================================
+class _WSClient:
+    """A minimal RFC6455 client, because the alternatives both cost more.
+
+    autobahn and twisted are installed - kiteconnect brings them - but twisted
+    has one global reactor per process and KiteTicker already runs it. Sharing
+    it would couple the crypto feed's liveness to the Zerodha ticker's
+    lifecycle, which is a subtle failure waiting to happen. This owns nothing
+    but its own socket and thread.
+
+    Text frames, continuations and ping/pong are handled; extensions and
+    compression are not negotiated, so they cannot arrive.
+    """
+
+    def __init__(self, host, path, port=443):
+        self.host, self.path, self.port = host, path, port
+        self.sock = None
+        self._buf = b""
+
+    def connect(self, timeout=15):
+        raw = socket.create_connection((self.host, self.port), timeout=timeout)
+        # This Python has no system CA bundle wired in - plain
+        # create_default_context() fails to verify. requests works because it
+        # ships certifi, so use the same store rather than turning verification
+        # off, which is the tempting and wrong fix.
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            ctx = ssl.create_default_context()
+        self.sock = ctx.wrap_socket(raw, server_hostname=self.host)
+        self.sock.settimeout(timeout)
+        key = base64.b64encode(os.urandom(16)).decode()
+        self.sock.sendall(
+            (f"GET {self.path} HTTP/1.1\r\nHost: {self.host}\r\n"
+             "Upgrade: websocket\r\nConnection: Upgrade\r\n"
+             f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"
+             ).encode())
+        hdr = b""
+        while b"\r\n\r\n" not in hdr:
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise ConnectionError("closed during handshake")
+            hdr += chunk
+        head, _, rest = hdr.partition(b"\r\n\r\n")
+        if b"101" not in head.split(b"\r\n")[0]:
+            raise ConnectionError(head.split(b"\r\n")[0].decode(errors="replace"))
+        self._buf = rest
+        return True
+
+    def send(self, text):
+        payload = text.encode()
+        n = len(payload)
+        if n < 126:
+            head = struct.pack("!BB", 0x81, 0x80 | n)
+        elif n < 65536:
+            head = struct.pack("!BBH", 0x81, 0x80 | 126, n)
+        else:
+            head = struct.pack("!BBQ", 0x81, 0x80 | 127, n)
+        mask = os.urandom(4)
+        self.sock.sendall(head + mask
+                          + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
+
+    def _read(self, n):
+        while len(self._buf) < n:
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise ConnectionError("closed")
+            self._buf += chunk
+        out, self._buf = self._buf[:n], self._buf[n:]
+        return out
+
+    def recv(self):
+        parts = []
+        while True:
+            b1, b2 = self._read(2)
+            fin, op, ln = b1 & 0x80, b1 & 0x0F, b2 & 0x7F
+            if ln == 126:
+                ln = struct.unpack("!H", self._read(2))[0]
+            elif ln == 127:
+                ln = struct.unpack("!Q", self._read(8))[0]
+            data = self._read(ln) if ln else b""
+            if op == 0x9:                                   # ping -> pong
+                m = os.urandom(4)
+                self.sock.sendall(
+                    struct.pack("!BB", 0x8A, 0x80 | len(data)) + m
+                    + bytes(c ^ m[i % 4] for i, c in enumerate(data)))
+                continue
+            if op == 0x8:
+                raise ConnectionError("server closed")
+            if op == 0xA:
+                continue
+            parts.append(data)
+            if fin:
+                return b"".join(parts).decode("utf-8", "replace")
+
+    def close(self):
+        try:
+            self.sock.close()
+        except Exception:
+            pass
+
+
+class DeribitStreamer:
+    """Live index prices and option marks, pushed rather than polled.
+
+    Polling the REST index once a second was smooth enough to watch, but the
+    premium - the number a buyer actually pays - only moved when the analysis
+    ran. This carries both at the rate Deribit publishes them.
+
+    Marks arrive quoted in the coin. They are converted here using the index
+    from the same socket, so the premium and the spot it is derived from can
+    never be a second apart.
+    """
+
+    HOST, PATH = "www.deribit.com", "/ws/api/v2"
+
+    def __init__(self):
+        self._ws = None
+        self._lock = threading.Lock()
+        self._index = {}          # "btc_usd" -> price
+        self._mark = {}           # instrument -> mark in coin
+        self._subs = set()
+        self._pending = []
+        self._stop = threading.Event()
+        self.connected = False
+        self.last_error = None
+        self.last_tick_at = None
+        self._id = 0
+
+    # ------------------------------------------------------------------
+    def start(self):
+        try:
+            self._open()
+        except Exception as exc:
+            self.last_error = f"connect failed: {exc}"
+            return False
+        threading.Thread(target=self._run, daemon=True,
+                         name="deribit-ws").start()
+        return True
+
+    def _open(self):
+        ws = _WSClient(self.HOST, self.PATH)
+        ws.connect()
+        self._ws = ws
+        self.connected = True
+        with self._lock:
+            chans = sorted(self._subs)
+        if chans:
+            self._send_subscribe(chans)
+
+    def _send_subscribe(self, channels):
+        self._id += 1
+        self._ws.send(json.dumps({"jsonrpc": "2.0", "id": self._id,
+                                  "method": "public/subscribe",
+                                  "params": {"channels": list(channels)}}))
+
+    def subscribe(self, channels):
+        """Add channels. Safe before the socket is up: they are replayed on
+        connect, which is also what makes a reconnect self-healing."""
+        fresh = []
+        with self._lock:
+            for c in channels:
+                if c not in self._subs:
+                    self._subs.add(c)
+                    fresh.append(c)
+        if fresh and self.connected and self._ws is not None:
+            try:
+                self._send_subscribe(fresh)
+            except Exception as exc:
+                self.last_error = f"subscribe failed: {exc}"
+
+    # ------------------------------------------------------------------
+    def _run(self):
+        backoff = 1.0
+        while not self._stop.is_set():
+            try:
+                if self._ws is None:
+                    self._open()
+                msg = json.loads(self._ws.recv())
+                backoff = 1.0
+                if msg.get("method") != "subscription":
+                    continue
+                params = msg.get("params") or {}
+                chan, data = params.get("channel", ""), params.get("data") or {}
+                if chan.startswith("deribit_price_index."):
+                    name, px = data.get("index_name"), data.get("price")
+                    if name and px is not None:
+                        with self._lock:
+                            self._index[name] = float(px)
+                        self.last_tick_at = time.time()
+                elif chan.startswith("ticker."):
+                    inst, mk = data.get("instrument_name"), data.get("mark_price")
+                    if inst and mk is not None:
+                        with self._lock:
+                            self._mark[inst] = float(mk)
+                        self.last_tick_at = time.time()
+            except Exception as exc:
+                self.last_error = str(exc)
+                self.connected = False
+                try:
+                    if self._ws:
+                        self._ws.close()
+                except Exception:
+                    pass
+                self._ws = None
+                if self._stop.wait(backoff):
+                    return
+                backoff = min(backoff * 2, 30.0)
+
+    # ------------------------------------------------------------------
+    def index_price(self, index_name):
+        with self._lock:
+            return self._index.get(index_name)
+
+    def mark_usd(self, instrument, index_name):
+        """An option's mark in the quote currency, or None."""
+        with self._lock:
+            mk = self._mark.get(instrument)
+            idx = self._index.get(index_name)
+        return None if mk is None or idx is None else mk * idx
+
+    def age_seconds(self):
+        return None if self.last_tick_at is None else time.time() - self.last_tick_at
+
+    def stop(self):
+        self._stop.set()
+        self.connected = False
+        try:
+            if self._ws:
+                self._ws.close()
+        except Exception:
+            pass
+        self._ws = None
 
 
 # =============================================================================
