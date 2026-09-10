@@ -130,16 +130,38 @@ def _admin_ok(qs):
     return hmac.compare_digest(given, key)
 
 
-def track_record():
-    """Every closed trade this tool has ever logged, summarised without
-    flattering. A signal site that shows only its current call and never its
-    history is asking to be believed rather than checked."""
+def track_record(user=None):
+    """One account's closed trades, summarised without flattering.
+
+    Per user, because the trades are. This read the shared desktop log while
+    tickets were being written to per-account files, so the card showed a
+    stale history belonging to nobody on the site — one trade from the
+    desktop app while the account it was displayed to had thirty-eight.
+
+    `user` of None means no record rather than everybody's. The public pages
+    call it that way on purpose: aggregating strangers' trades into a public
+    "track record" would mix different people's lot sizes and discipline into
+    a number that describes none of them, and would publish their activity
+    besides. The public pages state the fixed backtest instead, which is a
+    measurement rather than a scoreboard.
+    """
+    if not user:
+        return {"n": 0}
     try:
-        rows = [r for r in trade_log._read_rows() if r.get("event") == "CLOSE"]
+        path = trade_log.user_log_path(user)
+        rows = [r for r in trade_log._read_rows(path) if r.get("event") == "CLOSE"]
     except Exception:
         rows = []
+
+    # Tickets the tool never saw the end of — it was restarted or stopped while
+    # they were open — are counted but kept OUT of the hit rates. They have no
+    # outcome, and folding them in would report "T1 reached 8.8%" for a set
+    # that is mostly trades nobody watched. A hit rate has to be over trades
+    # that actually finished, or it is not a hit rate.
+    abandoned = [r for r in rows if "the tool stopped" in (r.get("status") or "")]
+    rows = [r for r in rows if r not in abandoned]
     if not rows:
-        return {"n": 0}
+        return {"n": 0, "abandoned": len(abandoned)}
     def f(v):
         try:
             return float(v)
@@ -150,6 +172,7 @@ def track_record():
     hit = lambda k: sum(1 for r in rows if str(r.get(k, "")).lower() == "true")
     return {
         "n": len(rows),
+        "abandoned": len(abandoned),
         "t1": round(100 * hit("t1_hit") / len(rows), 1),
         "t2": round(100 * hit("t2_hit") / len(rows), 1),
         "t3": round(100 * hit("t3_hit") / len(rows), 1),
@@ -358,7 +381,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self._callback(qs)
             page = nbs_site.PAGES.get(path)
             if page:
-                return self._send(page(user=user, record=track_record()))
+                # No record on the public pages — see track_record().
+                return self._send(page(user=user, record=None))
 
             if path.startswith("/shot/") and path.endswith(".png"):
                 return self._shot(path[len("/shot/"):-len(".png")])
@@ -486,7 +510,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "tickets": snap.get("tickets") or {},
             "session": snap.get("session") or {},
             "events": snap.get("events") or [],
-            "record": track_record(),
+            "record": track_record(user),
             "order": list(config.INSTRUMENTS.keys()),
         }
         return self._send(json.dumps(payload), "application/json")

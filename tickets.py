@@ -45,7 +45,7 @@ import config
 import explain
 import signal_engine
 import trade_log
-from main import now_ist
+from main import is_market_open, now_ist
 
 TARGET_KEYS = ("T1", "T2", "T3")
 
@@ -111,6 +111,64 @@ class TicketBook:
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
 
+        self._reconcile()
+
+    # =====================================================================
+    def _reconcile(self):
+        """Close out tickets left OPEN by a process that is no longer running.
+
+        The book lives in memory. A restart used to lose every open ticket
+        while its OPEN row stayed in the CSV forever, so the log filled with
+        opens that never closed — thirty-four of them against four closes —
+        and the same signal was re-ticketed on every restart because the new
+        book had no idea one was already running.
+
+        There is no honest exit price for a trade nobody was watching, so
+        these are closed with no P&L and a status that says exactly what
+        happened. A missing number is better than an invented one, and a row
+        that says "the process died" is better than a row that pretends the
+        trade is still live.
+        """
+        if not self.path:
+            return
+        try:
+            rows = trade_log._read_rows(self.path)
+        except Exception:
+            return
+        seen = {}
+        for r in rows:
+            tid = r.get("trade_id") or ""
+            if not tid:
+                continue
+            seen.setdefault(tid, {"open": None, "closed": False})
+            if (r.get("event") or "").upper() == "OPEN":
+                seen[tid]["open"] = r
+            elif (r.get("event") or "").upper() == "CLOSE":
+                seen[tid]["closed"] = True
+
+        orphans = [v["open"] for v in seen.values() if v["open"] and not v["closed"]]
+        for row in orphans:
+            try:
+                trade_log._append({
+                    "trade_id": row.get("trade_id", ""),
+                    "date": now_ist().strftime("%Y-%m-%d"),
+                    "time_ist": now_ist().strftime("%H:%M:%S"),
+                    "index": row.get("index"), "strike": row.get("strike"),
+                    "option_type": row.get("option_type"),
+                    "entry": row.get("entry"), "exit": None, "pnl": None,
+                    "lot_size": row.get("lot_size"), "lots": row.get("lots"),
+                    "tracked_on": row.get("tracked_on"),
+                    "entry_spot": row.get("entry_spot"),
+                    "event": "CLOSE", "t1_hit": False, "t2_hit": False,
+                    "t3_hit": False, "sl_hit": False,
+                    "status": "CLOSED — the tool stopped while this was open, "
+                              "so there is no exit price for it",
+                }, self.path)
+            except Exception:
+                pass
+        if orphans:
+            self._day_cache = None
+
     # =====================================================================
     # settings
     # =====================================================================
@@ -160,6 +218,18 @@ class TicketBook:
         Returns (code, short, long) or None.
         """
         now = now_ist()
+
+        # The session itself. This was missing, and the analysis loop keeps
+        # running after the close — so tickets were being issued at 20:30 on a
+        # market that shut at 15:40, against a premium that had not moved since
+        # the bell. Every gate below assumed something upstream had already
+        # established the market was open. Nothing had.
+        if not is_market_open(now):
+            return ("closed", "MARKET CLOSED",
+                    "The session is over. The analysis keeps running so you can "
+                    "see where things ended, but nothing is issued outside "
+                    "09:15-15:40.")
+
         cut = _cfg("NO_NEW_TRADES_BEFORE", None)
         if cut and (now.hour, now.minute) < (cut[0], cut[1]):
             return ("early", "MARKET OPENING",
