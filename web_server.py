@@ -130,7 +130,12 @@ def _admin_ok(qs):
     return hmac.compare_digest(given, key)
 
 
-def track_record(user=None):
+def _available_markets():
+    """Markets this server actually has instruments for, in display order."""
+    return [m for m in config.MARKETS if config.instruments_in(m)]
+
+
+def track_record(user=None, market=None):
     """One account's closed trades, summarised without flattering.
 
     Per user, because the trades are. This read the shared desktop log while
@@ -148,7 +153,7 @@ def track_record(user=None):
     if not user:
         return {"n": 0}
     try:
-        path = trade_log.user_log_path(user)
+        path = trade_log.user_log_path(user, market)
         rows = [r for r in trade_log._read_rows(path) if r.get("event") == "CLOSE"]
     except Exception:
         rows = []
@@ -250,6 +255,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _current_user(self):
         return accounts.session_user(self._cookie(self.SESSION_COOKIE))
 
+    def _current_market(self):
+        """The market this login chose at the door, or None if it has not.
+
+        None is not a default to paper over: the tool cannot show a sensible
+        screen without knowing which market it is in, so callers send the user
+        to the chooser instead of guessing.
+        """
+        return accounts.session_market(self._cookie(self.SESSION_COOKIE))
+
     def _client_ip(self):
         fwd = self.headers.get("X-Forwarded-For", "")
         return (fwd.split(",")[0].strip() if fwd else self.client_address[0])
@@ -289,6 +303,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_ticket(form)
             if path == "/api/alwayson":
                 return self._do_always_on(form)
+            if path == "/market":
+                return self._do_market(form)
             return self._send(nbs_site.result_page(
                 "Not found", "There is no page at that address.", ok=False,
                 back="/", back_label="Go to the home page"), code=404)
@@ -302,9 +318,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(nbs_site.login_page(error=err,
                                                   email=form.get("email", "")))
         self._set_session(token)
-        # Straight to the tool rather than the home page. Somebody who just
-        # typed a password was not looking for the marketing copy.
-        return self._redirect("/app")
+        # To the chooser rather than the tool. The two markets are separate all
+        # the way down - separate feed, ticket book, totals and trade log - so
+        # which one you are in has to be settled before there is a screen to
+        # show. With crypto switched off there is only one answer and the
+        # chooser records it and moves on without asking.
+        markets = _available_markets()
+        if len(markets) == 1:
+            accounts.set_session_market(token, markets[0])
+            return self._redirect("/app")
+        return self._redirect("/market")
 
     def _do_signup(self, form):
         if not config.WEB_ALLOW_SIGNUP:
@@ -416,7 +439,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
             # ---- the tool itself ------------------------------------------
             if path == "/app":
+                # A market has to be settled before there is a screen to draw:
+                # it decides the instruments, the feed, the ticket book and the
+                # currency everything is quoted in. A session that predates the
+                # chooser has none, so it is asked once and carries on.
+                if not self._current_market():
+                    markets = _available_markets()
+                    if len(markets) == 1:
+                        accounts.set_session_market(
+                            self._cookie(self.SESSION_COOKIE), markets[0])
+                    else:
+                        return self._redirect("/market")
                 return self._send(PAGE)
+            if path == "/market":
+                return self._market_page()
             if path == "/api/state":
                 return self._api_state(user)
             if path == "/api/tick":
@@ -498,7 +534,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # ---------------------------------------------------------------- state
     def _api_state(self, user):
         """This user's own feed, started by the act of asking for it."""
-        feed = feeds.for_user(user)
+        market = self._current_market()
+        feed = feeds.for_user(user, market)
         snap = feed.snapshot()
         kite = user_kite.summary(user) if _state["mode"] != "free" else {
             "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
@@ -507,6 +544,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "closing_auction": snap.get("closing_auction", False),
             "always_on": bool((accounts.get_user(user) or {}).get("always_on"))
                          if user else False,
+            "market": market,
+            "market_label": (config.MARKETS.get(market) or {}).get("label", ""),
+            # The page must not guess this. Rendering a dollar premium behind a
+            # rupee sign is a wrong number that looks like a right one.
+            "currency": "USD" if market == "crypto" else "INR",
+            "markets": _available_markets(),
             "updated": snap["updated"],
             "mode": _state["mode"],
             "user": user,
@@ -520,8 +563,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "tickets": snap.get("tickets") or {},
             "session": snap.get("session") or {},
             "events": snap.get("events") or [],
-            "record": track_record(user),
-            "order": config.active_instruments(),
+            "record": track_record(user, market),
+            # Only this market's instruments. Returning all of them put NIFTY
+            # cards on a crypto screen with no data behind them, because the
+            # feed - correctly - was not analysing them.
+            "order": config.instruments_in(market) if market
+                     else config.active_instruments(),
         }
         return self._send(json.dumps(payload), "application/json")
 
@@ -534,11 +581,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         Prices change several times a second, so they get their own endpoint
         that touches no network and can be asked for at that rate.
         """
-        feed = feeds.for_user(user)
+        feed = feeds.for_user(user, self._current_market())
         payload = feed.ticks()
         payload["tickets"] = {
             k: (feed.tickets.public(k) or {}).get("ticket")
-            for k in config.active_instruments()
+            for k in (config.instruments_in(market) if market
+                      else config.active_instruments())
         }
         return self._send(json.dumps(payload), "application/json")
 
@@ -557,14 +605,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 v = default
             return max(lo, min(hi, v))
 
-        feed = feeds.for_user(user)
+        feed = feeds.for_user(user, self._current_market())
         payload = feed.heat_map(key, width=num("w", 900, 240, 2000),
                                      height=num("h", 460, 160, 1200))
         payload["index"] = key
         return self._send(json.dumps(payload), "application/json")
 
     def _chart(self, user, key, qs):
-        feed = feeds.for_user(user)
+        feed = feeds.for_user(user, self._current_market())
         df, rec = feed.candles(key)
         # The browser reports how wide the chart will actually be, so it can be
         # drawn at that size instead of scaled — and squashed — to fit
@@ -597,7 +645,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         user = self._current_user()
         if not user:
             return self._redirect("/login")
-        feed = feeds.for_user(user)
+        feed = feeds.for_user(user, self._current_market())
         book = feed.tickets
 
         def as_bool(name):
@@ -617,6 +665,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            limits=as_bool("limits"))
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
+
+    def _market_page(self, error=None):
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        return self._send(nbs_site.market_page(
+            user=user, markets=_available_markets(), error=error))
+
+    def _do_market(self, form):
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        want = (form.get("market") or "").strip()
+        if want not in _available_markets():
+            return self._market_page(error="That is not a market this server runs.")
+        accounts.set_session_market(self._cookie(self.SESSION_COOKIE), want)
+        return self._redirect("/app")
 
     def _do_always_on(self, form):
         """Turn unattended running on or off for this account.
@@ -639,7 +704,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # visible immediately. Outside the session the flag is simply
             # saved: spinning a feed up at ten at night to reap it four minutes
             # later fetches a day of candles nobody asked for.
-            feeds.for_user(user)
+            feeds.for_user(user, self._current_market())
         return self._send(json.dumps({"ok": bool(ok), "always_on": on,
                                       "error": None if ok else msg}),
                           "application/json")
@@ -654,7 +719,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """
         import indicators as ind
 
-        feed = feeds.for_user(user)
+        feed = feeds.for_user(user, self._current_market())
         df, rec = feed.candles(key)
         if df is None or len(df) < 2:
             return self._send(json.dumps({"candles": [], "index": key}),
@@ -1341,6 +1406,8 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   <div class="row" style="display:flex;gap:8px;align-items:center">
     <span class="pill"><span class="beat" id="beat"></span><span id="mkt">connecting</span></span>
     <span class="pill"><span class="feedtag" id="feed">&mdash;</span><span id="upd">&mdash;</span></span>
+    <a class="pill" id="mktsw" href="/market" style="text-decoration:none;display:none"
+       title="Switch market">&mdash;</a>
     <a class="pill" id="kite" href="/connect" style="text-decoration:none">Zerodha</a>
     <a class="pill" id="signout" href="/logout" style="display:none;text-decoration:none">Sign out</a>
   </div>
@@ -2385,6 +2452,18 @@ function render(s){
       + "Options trade until 15:40, so an open ticket is still tracked."
     : "";
   $("upd").textContent = s.updated ? s.updated+" IST" : "—";
+  // Which market this session is in. Shown always, not only when there is a
+  // choice: on a screen where every number is a currency, "which market am I
+  // looking at" should never be something you infer from the ticker names.
+  const sw = $("mktsw");
+  if(sw){
+    if(s.market_label){
+      sw.textContent = s.market_label;
+      sw.style.display = "inline-flex";
+      sw.title = (s.markets && s.markets.length > 1)
+        ? "Switch market" : "This server runs one market";
+    } else sw.style.display = "none";
+  }
   const so = $("signout");
   if(s.user){ so.style.display="inline-flex"; so.title = s.user; }
   else so.style.display="none";

@@ -318,6 +318,19 @@ figcaption b{color:var(--ink);display:block;margin-bottom:3px}
    redirect URL, the two environment variable names. A proportional font makes
    a trailing space or a missing slash invisible, and both of those break the
    connection in a way whose error message says nothing useful. */
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:16px;margin-top:8px}
+.mcard{margin:0}
+.mcard button{width:100%;text-align:left;cursor:pointer;font:inherit;
+  background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
+  padding:22px 24px;color:var(--ink);display:flex;flex-direction:column;gap:7px;
+  transition:border-color .15s ease,background .15s ease}
+.mcard button:hover{border-color:var(--accent);background:var(--raised)}
+.mcard b{font-size:19px;letter-spacing:-.3px}
+.msub{color:var(--ink-2);font-size:13.5px}
+.mdet{color:var(--ink-3);font-size:12.5px;line-height:1.6}
+.mkeys{color:var(--ink-3);font-size:11px;letter-spacing:.4px;
+  text-transform:uppercase;margin-top:4px}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size:.92em;background:var(--sunken);border:1px solid var(--bd-soft);
   border-radius:4px;padding:2px 7px;color:var(--ink);
@@ -2071,6 +2084,57 @@ def signup_page(error=None, email=""):
  </div>
 </div></div>"""
     return shell("Create an account", body, active="", noindex=True)
+
+
+def market_page(user=None, markets=None, error=None):
+    """The door. Which market is this session working in?
+
+    Asked once, at login, rather than offered as a switch inside the tool,
+    because the choice is not a filter over one screen - it selects a different
+    feed, a different ticket book, a different day's totals and a different
+    trade log. Nifty is quoted in rupees and BTC in dollars, so a screen that
+    could show both at once would be adding two currencies together somewhere.
+    """
+    markets = markets or ["nse_index"]
+    cards = []
+    for m in markets:
+        prof = config.MARKETS.get(m, {})
+        keys = config.instruments_in(m)
+        if m == "crypto":
+            head, sub = "Crypto", "BTC and ETH, priced in US dollars"
+            detail = ("Runs around the clock &mdash; no open, no close, no "
+                      "weekend. Candles, spot and the option chain all come "
+                      "from Deribit.")
+        else:
+            head, sub = "Indian indices", "Nifty, Bank Nifty and Sensex, in rupees"
+            detail = (f"{_esc(_session_open())} to {_esc(_session_close())} IST, "
+                      "weekdays, minus exchange holidays. Read under your own "
+                      "Zerodha session.")
+        cards.append(f"""
+   <form method="post" action="/market" class="mcard">
+    <input type="hidden" name="market" value="{_esc(m)}">
+    <button type="submit">
+     <b>{head}</b>
+     <span class="msub">{sub}</span>
+     <span class="mdet">{detail}</span>
+     <span class="mkeys">{" &middot; ".join(_esc(k) for k in keys)}</span>
+    </button>
+   </form>""")
+    err = (f'<div class="notice stale" style="margin-bottom:18px">{_esc(error)}</div>'
+           if error else "")
+    body = _phead("Which market?",
+                  "The two are kept apart all the way down. You can change it "
+                  "from the header at any time.") + f"""
+<div class="wrap"><div class="narrow">
+ {err}
+ <div class="mgrid">{"".join(cards)}</div>
+ <p class="mut" style="font-size:13.5px;margin-top:26px">Separate feeds,
+  separate tickets, separate day totals and separate records &mdash; nothing
+  from one is counted into the other.</p>
+</div></div>
+"""
+    return shell("Which market?", body, user=user, noindex=True,
+                 description="Choose which market this session works in.")
 
 
 def connect_page(user, state, detail, user_id="", since="", app_ok=True,

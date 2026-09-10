@@ -147,8 +147,17 @@ def configure(mode, interval, expiry=None):
         _resident.start()
 
 
-def _key_for(email):
-    return SHARED if _settings["mode"] == "free" else (email or "").strip().lower()
+def _key_for(email, market=None):
+    """Feeds are per user AND per market.
+
+    Two markets in one feed would share a ticket book, a session total and a
+    daily limit across instruments quoted in different currencies. Keying them
+    apart means the separation costs nothing to maintain: there is no shared
+    state to keep straight because there is no shared feed.
+    """
+    market = market or config.DEFAULT_MARKET
+    base = SHARED if _settings["mode"] == "free" else (email or "").strip().lower()
+    return base if market == config.DEFAULT_MARKET else f"{base}#{market}"
 
 
 # ---------------------------------------------------------------------------
@@ -216,9 +225,10 @@ def _public(rec, name=None):
 class Feed:
     """One user's rolling analysis of all three indices."""
 
-    def __init__(self, key, email):
+    def __init__(self, key, email, market=None):
         self.key = key
         self.email = email
+        self.market = market or config.DEFAULT_MARKET
         self.lock = threading.RLock()
         self.wake = threading.Event()
         self.last_touch = time.time()
@@ -229,7 +239,8 @@ class Feed:
         # rather than one per server: the daily limits, the session total and
         # the history are all personal, and sharing them would mean one
         # person's fourth ticket capping everybody else's day.
-        self.tickets = tickets.TicketBook(email if key != SHARED else None)
+        self.tickets = tickets.TicketBook(
+            email if key != SHARED else None, market=self.market)
         self.events = []          # what just happened, newest first
         self.bell_closed = False  # whether today's tickets were squared up
 
@@ -270,6 +281,10 @@ class Feed:
             self.thread = threading.Thread(target=self._run, daemon=True,
                                            name=f"feed:{self.key}")
             self.thread.start()
+
+    def instruments(self):
+        """Only this feed's market. A crypto feed must never reach for NIFTY."""
+        return config.instruments_in(self.market)
 
     def _idle(self):
         return time.time() - self.last_touch > IDLE_SECONDS
@@ -327,7 +342,7 @@ class Feed:
                 self._start_stream()
                 self.stage = "market-check"
                 open_now = is_market_open(now_ist())
-                for name in config.active_instruments():
+                for name in self.instruments():
                     if _stopping.is_set() or self._idle():
                         break
                     try:
@@ -407,7 +422,7 @@ class Feed:
         """
         if time.time() - self.hist_at < HISTORY_TTL:
             return
-        for name in config.active_instruments():
+        for name in self.instruments():
             if _stopping.is_set() or self._idle():
                 return
             try:
@@ -623,7 +638,7 @@ class Feed:
         change faster than the poll that gets it. What is recomputed is
         everything derived from price, which is the part that moves.
         """
-        for name in config.active_instruments():
+        for name in self.instruments():
             df = self._df_with_live_bar(name)
             if df is None or len(df) < 60:
                 continue
@@ -774,7 +789,7 @@ class Feed:
                     if px is not None:
                         with self.lock:
                             self.spots[name] = px
-                for name in list(config.active_instruments()):
+                for name in list(self.instruments()):
                     self._subscribe_suggested(name)
                     sug = self.sug_tokens.get(name)
                     if sug:
@@ -921,17 +936,18 @@ class Feed:
 
 
 # ---------------------------------------------------------------------------
-def for_user(email, start=True):
-    """This user's feed, started if it isn't running. None if `start` is off
-    and there is nothing running — used by callers that want to read without
-    bringing a feed to life, such as the operator page."""
-    key = _key_for(email)
+def for_user(email, market=None, start=True):
+    """This user's feed for one market, started if it isn't running. None if
+    `start` is off and there is nothing running — used by callers that want to
+    read without bringing a feed to life, such as the operator page."""
+    market = market or config.DEFAULT_MARKET
+    key = _key_for(email, market)
     with _lock:
         feed = _feeds.get(key)
         if feed is None:
             if not start:
                 return None
-            feed = _feeds[key] = Feed(key, email)
+            feed = _feeds[key] = Feed(key, email, market)
     if start:
         feed.touch()
     return feed

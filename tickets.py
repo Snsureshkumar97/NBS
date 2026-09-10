@@ -95,11 +95,13 @@ class TicketBook:
     that wants the shared desktop log.
     """
 
-    def __init__(self, owner=None):
+    def __init__(self, owner=None, market=None):
         self.owner = owner
-        self.path = trade_log.user_log_path(owner) if owner else None
+        self.market = market or config.DEFAULT_MARKET
+        self.path = trade_log.user_log_path(owner, self.market) if owner else None
         self.lock = threading.RLock()
-        self.books = {name: IndexBook(name) for name in config.active_instruments()}
+        self.books = {name: IndexBook(name)
+                      for name in config.instruments_in(self.market)}
         self.closed = []               # this session's closed tickets, newest first
         self.session_net = 0.0
         self._day_cache = None

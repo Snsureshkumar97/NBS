@@ -76,7 +76,7 @@ def _log_path():
     return os.path.join(log_dir(), CSV_NAME)
 
 
-def user_log_path(email):
+def user_log_path(email, market=None):
     """A private trades.csv for one website account.
 
     The desktop app is one person at one machine, so it has always written to
@@ -88,7 +88,14 @@ def user_log_path(email):
     list of the site's users.
     """
     import hashlib
-    key = hashlib.sha256((email or "").strip().lower().encode("utf-8")).hexdigest()[:16]
+    # The market is part of the identity. Rupee tickets on Nifty and dollar
+    # tickets on BTC in one file would produce a net P&L that adds two
+    # currencies together, and a hit rate mixing two different markets - both
+    # numbers describing nothing. Separate files, separate records.
+    ident = (email or "").strip().lower()
+    if market and market != "nse_index":
+        ident = f"{ident}#{market}"
+    key = hashlib.sha256(ident.encode("utf-8")).hexdigest()[:16]
     d = os.path.join(log_dir(), "users", key)
     try:
         os.makedirs(d, exist_ok=True)

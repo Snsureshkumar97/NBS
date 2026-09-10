@@ -308,6 +308,37 @@ def session_user(token):
         return s["email"]
 
 
+def session_market(token):
+    """Which market this login chose, or None if it has not chosen yet.
+
+    Kept on the session rather than in a cookie so the answer cannot be edited
+    by the browser, and so it dies with the login: signing in again asks again,
+    which is the point of asking at the door.
+    """
+    if not token:
+        return None
+    with _lock:
+        s = _load()["sessions"].get(_token_key(token))
+    if not s or s.get("expires", 0) <= time.time():
+        return None
+    return s.get("market")
+
+
+def set_session_market(token, market):
+    """Record the market this login is working in. Returns True if it stuck."""
+    if not token or not market:
+        return False
+    with _lock:
+        data = _load()
+        key = _token_key(token)
+        s = data["sessions"].get(key)
+        if not s or s.get("expires", 0) <= time.time():
+            return False
+        s["market"] = market
+        _save(data)
+    return True
+
+
 def logout(token):
     if not token:
         return
