@@ -2604,7 +2604,12 @@ async function priceTick(){
     }
     chartDraw();
   }
-  if(t.live) $("upd").textContent = "live";
+  // Only ever set this forward. It used to write "live" and never take it
+  // back, so a feed that died left the word sitting over a frozen price until
+  // the next full poll happened to overwrite it.
+  $("upd").textContent = t.live ? "live"
+    : (t.age != null ? "no tick for " + Math.round(t.age) + "s"
+                     : (LAST && LAST.updated ? LAST.updated + " IST" : "\u2014"));
   $("beat").className = "beat" + (t.live ? " live" : "");
 
   if(changed) render(LAST);
@@ -2626,7 +2631,10 @@ $("honest").innerHTML="A three-year backtest of this rule set on 15-minute candl
   "because it is known to work. "+
   '<a href="/results" style="color:inherit;text-decoration:underline">The figures.</a>';
 tick(); setInterval(tick,3000);
-priceTick(); setInterval(priceTick,1000);
+// Prices, four times a second. The server reads them straight out of the
+// tick socket and answers in ~20ms, so the poll interval was the only
+// thing left standing between the exchange and the screen.
+priceTick(); setInterval(priceTick,250);
 markets_(); setInterval(markets_,60000);
 addEventListener("resize",()=>{clearTimeout(window._rz);
   window._rz=setTimeout(()=>render(LAST),260)});

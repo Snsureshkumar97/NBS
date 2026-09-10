@@ -178,6 +178,7 @@ class Feed:
         self._last_live = 0.0     # when the live recompute last ran
         self.eq_tokens = {}       # tradingsymbol -> token, for the heat map
         self._eq_tried = False
+        self._idx_tried = 0.0     # when the index tokens were last looked up
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
         self.stream_error = None  # why the tick socket is not up, if it is not
@@ -361,37 +362,63 @@ class Feed:
         except Exception as exc:
             self.stream_error = f"ticker failed: {exc}"
             return
-        try:
-            provider = KiteDataProvider(config.KITE_API_KEY, token)
-        except Exception as exc:
-            # Assigning self.streamer BEFORE this used to strand the feed: the
-            # guard at the top then saw a streamer, never retried, and no
-            # ticker thread had been started. Silent and permanent.
-            self.stream_error = f"provider failed: {exc}"
-            try:
-                st.stop()
-            except Exception:
-                pass
-            return
+        # There was a REST provider built here purely to prove the token, and
+        # a failure tore the socket back down. Now that the token lookup
+        # retries on its own that check does more harm than good: it would
+        # throw away a socket that had already connected - proof enough that
+        # the token is good - over something the next pass would have fixed.
         self.streamer = st
         self.stream_error = None
+        self._subscribe_indices()
+        self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
+                                       name=f"ticks:{self.key}")
+        self.ticker.start()
+
+    def _subscribe_indices(self):
+        """Resolve the three index tokens and put them on the feed, retrying
+        until every one of them is known.
+
+        This used to happen once, inline in _start_stream. Resolving a token
+        means downloading Zerodha's entire instrument dump, and on the morning
+        that call failed - a timeout, a rate limit, one slow response - the map
+        stayed empty for the whole life of the process with nothing anywhere to
+        try it again. The failure was silent and its blast radius was most of
+        the tool: no streamed spot, no forming candle, and every indicator left
+        recomputing on closed fifteen-minute bars. That is the whole of "the
+        numbers aren't live", out of one unretried lookup.
+        """
+        st = self.streamer
+        if st is None:
+            return
+        missing = [n for n in config.INSTRUMENTS if not self.tokens.get(n)]
+        if not missing:
+            return                     # the ordinary case, and it costs nothing
+        # The dump is heavy, so a failure waits instead of retrying at tick rate.
+        if time.time() - self._idx_tried < 30.0:
+            return
+        self._idx_tried = time.time()
+        token = user_kite.token_for(self.email)
+        if not token:
+            return
+        try:
+            provider = KiteDataProvider(config.KITE_API_KEY, token)
+        except Exception:
+            return
         toks = []
-        for name in config.INSTRUMENTS:
+        for name in missing:
             try:
                 t = provider.index_token(name)
             except Exception:
                 t = None
             if t:
-                self.tokens[name] = t
+                with self.lock:
+                    self.tokens[name] = t
                 toks.append(t)
         if toks:
             try:
                 st.subscribe(toks, quote=True)
             except Exception:
                 pass
-        self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
-                                       name=f"ticks:{self.key}")
-        self.ticker.start()
 
     def _subscribe_ticket(self, name):
         """Add an open ticket's own contract to the feed.
@@ -653,6 +680,7 @@ class Feed:
             if st is None:
                 return
             try:
+                self._subscribe_indices()
                 self._subscribe_constituents()
                 for name, tok in list(self.tokens.items()):
                     px = st.price(tok)
@@ -693,24 +721,54 @@ class Feed:
                     self._live_analysis()
             except Exception:
                 pass
-            time.sleep(0.5)
+            # A target reached is stamped at the moment this loop sees the
+            # price, so this interval is also the worst-case error on every
+            # "T1 hit at 11:44:09" written into the log.
+            time.sleep(0.25)
 
     def ticks(self):
-        """The newest streamed prices, for the page's fast poll."""
+        """The newest streamed prices, for the page's fast poll.
+
+        Read straight out of the socket rather than out of the copies the
+        half-second loop leaves behind. Those copies were up to half a second
+        old before the page had even asked for them, and the page then held
+        them for its own poll interval on top - so a price could be a second
+        and a half behind the exchange while every layer looked healthy. The
+        socket's own dict is filled on the library's thread as ticks land, and
+        reading it is a dict lookup, so there is nothing to pay for freshness.
+        """
         st = self.streamer
         with self.lock:
             spots = dict(self.spots)
-        with self.lock:
             sug = dict(self.sug_px)
-        out = {"spots": spots, "live": bool(st is not None and st.connected),
-               "age": None, "premium": {}, "ltp": sug, "bar": self.forming(),
-               "stream_error": self.stream_error, "stage": self.stage}
+        if st is not None:
+            for name, tok in list(self.tokens.items()):
+                px = st.price(tok)
+                if px is not None:
+                    spots[name] = px
+            for name, ent in list(self.sug_tokens.items()):
+                px = st.price(ent[2])
+                if px is not None:
+                    sug[name] = px
+        age = None
         if st is not None:
             try:
                 age = st.age_seconds()
-                out["age"] = round(age, 1) if age is not None else None
             except Exception:
-                pass
+                age = None
+        # "Live" has to mean live. A socket can stay open and stop delivering,
+        # and reporting connected as live put a green pulse and the word next
+        # to a price that had not moved in minutes - the one state where being
+        # wrong is worse than showing nothing. During the session the indices
+        # tick continuously, so silence this long means the feed, not the
+        # market; outside it the page already says the market is closed.
+        out = {"spots": spots,
+               "live": bool(st is not None and st.connected
+                            and age is not None and age < 15.0),
+               "age": round(age, 1) if age is not None else None,
+               "premium": {}, "ltp": sug, "bar": self.forming(),
+               "stream_error": self.stream_error, "stage": self.stage}
+        if st is not None:
             for name, tok in list(self.opt_tokens.items()):
                 px = st.price(tok)
                 if px is not None:

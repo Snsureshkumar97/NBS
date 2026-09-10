@@ -593,7 +593,14 @@ class KiteStreamer:
             self._subscribed.update(tokens)
             if quote:
                 self._quote_tokens.update(tokens)
-        if fresh and self._kws is not None and self.connected:
+        # Always try the wire, rather than only when self.connected is already
+        # True. connect(threaded=True) returns before the socket is open, so a
+        # caller subscribing in that window used to be skipped here and left
+        # entirely to on_connect's replay - and if on_connect had just read
+        # _subscribed while it was still empty, nothing subscribed the tokens
+        # at all, silently and for good. Failing here is safe: the tokens stay
+        # in _subscribed and the next on_connect replays them.
+        if fresh and self._kws is not None:
             try:
                 self._kws.subscribe(fresh)
                 mode = self._kws.MODE_QUOTE if quote else self._kws.MODE_LTP
