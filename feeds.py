@@ -180,6 +180,8 @@ class Feed:
         self._eq_tried = False
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
+        self.stream_error = None  # why the tick socket is not up, if it is not
+        self.stage = "starting"   # where the analysis loop currently is
         self.state = {
             "indices": {},
             "market_open": False,
@@ -235,12 +237,15 @@ class Feed:
                 # `now` is required and must be IST — passing nothing raised a
                 # TypeError that the outer handler swallowed, so the loop used
                 # to fail silently on every pass and the page never updated.
+                self.stage = "stream"
                 self._start_stream()
+                self.stage = "market-check"
                 open_now = is_market_open(now_ist())
                 for name in config.INSTRUMENTS:
                     if _stopping.is_set() or self._idle():
                         break
                     try:
+                        self.stage = f"analyse:{name}"
                         rec, notes = fetch_recommendation(
                             provider, name, "15m", None, quiet=True,
                             expiry=_settings["expiry"])
@@ -289,7 +294,9 @@ class Feed:
                     self.bell_closed = True
                 elif open_now:
                     self.bell_closed = False
+                self.stage = "history"
                 self._refresh_history(provider)
+                self.stage = "idle"
             except Exception:
                 self._set(error=traceback.format_exc(limit=2), feed="unknown")
                 provider = None
@@ -344,18 +351,30 @@ class Feed:
             return
         token = user_kite.token_for(self.email)
         if not token:
+            self.stream_error = "no Zerodha token on this account"
             return
         try:
             st = KiteStreamer(config.KITE_API_KEY, token)
             if not st.start():
+                self.stream_error = f"ticker would not start: {st.last_error}"
                 return
-        except Exception:
+        except Exception as exc:
+            self.stream_error = f"ticker failed: {exc}"
             return
-        self.streamer = st
         try:
             provider = KiteDataProvider(config.KITE_API_KEY, token)
-        except Exception:
+        except Exception as exc:
+            # Assigning self.streamer BEFORE this used to strand the feed: the
+            # guard at the top then saw a streamer, never retried, and no
+            # ticker thread had been started. Silent and permanent.
+            self.stream_error = f"provider failed: {exc}"
+            try:
+                st.stop()
+            except Exception:
+                pass
             return
+        self.streamer = st
+        self.stream_error = None
         toks = []
         for name in config.INSTRUMENTS:
             try:
@@ -684,7 +703,8 @@ class Feed:
         with self.lock:
             sug = dict(self.sug_px)
         out = {"spots": spots, "live": bool(st is not None and st.connected),
-               "age": None, "premium": {}, "ltp": sug, "bar": self.forming()}
+               "age": None, "premium": {}, "ltp": sug, "bar": self.forming(),
+               "stream_error": self.stream_error, "stage": self.stage}
         if st is not None:
             try:
                 age = st.age_seconds()
