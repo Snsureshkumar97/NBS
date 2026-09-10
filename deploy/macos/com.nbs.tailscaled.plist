@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.nbs.tailscaled</string>
+  <!-- Userspace networking: no root, no system extension. The funnel that
+       publishes the tool is saved inside the state file, so bringing this
+       daemon up restores https://nbs-signal-tool.tail7b2558.ts.net on its own. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/tailscaled</string>
+    <string>--tun=userspace-networking</string>
+    <!-- statedir, not state. Pointing at the state FILE leaves tailscaled
+         with no var root, and without one it cannot reach its HTTPS certs:
+         the funnel answers the TCP connect and then fails every TLS
+         handshake with "no TailscaleVarRoot", which looks exactly like the
+         site being down. statedir gives it ~/.tailscale-nbs/certs. -->
+    <string>--statedir=/Users/sureshkumar/.tailscale-nbs</string>
+    <string>--socket=/Users/sureshkumar/.tailscale-nbs/tailscaled.sock</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/sureshkumar/Library/Logs/nbs-tailscaled.log</string>
+  <key>StandardErrorPath</key><string>/Users/sureshkumar/Library/Logs/nbs-tailscaled.log</string>
+</dict>
+</plist>
