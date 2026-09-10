@@ -86,15 +86,18 @@ RESIDENT_LEAD_MINUTES = 5
 _resident = None
 
 
-def _resident_window(now):
-    """True when an always-on feed should be running.
+def _resident_window(now, market=None):
+    """True when an always-on feed should be running, for one market.
 
     Asking is_market_open about a moment five minutes from now gets the lead
     and the weekend and holiday rules in one go, rather than reimplementing
-    the calendar here and letting the two drift.
+    the calendar here and letting the two drift. Any instrument in the market
+    will do - they all share the profile that answers this.
     """
-    return (is_market_open(now)
-            or is_market_open(now + dt.timedelta(minutes=RESIDENT_LEAD_MINUTES)))
+    keys = config.instruments_in(market) if market else None
+    k = keys[0] if keys else None
+    return (is_market_open(now, k)
+            or is_market_open(now + dt.timedelta(minutes=RESIDENT_LEAD_MINUTES), k))
 
 
 def _resident_loop():
@@ -117,25 +120,49 @@ def _resident_loop():
         try:
             if _settings["mode"] != "kite":
                 continue
-            if not _resident_window(now_ist()):
+            users = accounts.always_on_users()
+            if not users:
                 continue
-            for email in accounts.always_on_users():
-                if not user_kite.token_for(email):
+            # Per market, because their windows do not coincide. Keyed only on
+            # the Indian session, an always-on crypto feed never started at
+            # all - and had it started, it would have run 09:10 to 15:40 on a
+            # market that has neither an open nor a close.
+            for market in config.MARKETS:
+                if not config.instruments_in(market):
                     continue
+                if not _resident_window(now_ist(), market):
+                    continue
+                _resident_market(market, users)
                 # Say so the first time, and only the first time. Without a
                 # line in the log there is no way to tell "the supervisor
                 # started the feed and the rules issued nothing" from "the
                 # supervisor never ran" - and those two look identical from
                 # the outside, which is exactly the question you ask when you
                 # come back to an empty ticket log.
-                with _lock:
-                    fresh = _key_for(email) not in _feeds
-                for_user(email)
-                if fresh:
-                    print(f"[resident] {now_ist():%Y-%m-%d %H:%M:%S} feed "
-                          f"started for {email} (nobody watching)", flush=True)
         except Exception:
             pass
+
+
+def _resident_market(market, users):
+    """Keep one market's feeds alive for the users who asked for it."""
+    # Crypto needs no broker token; Zerodha does, and a feed without one is a
+    # loop logging failures until somebody signs in.
+    needs_token = config.MARKETS[market]["market_provider"] == "kite"
+    for email in users:
+        if needs_token and not user_kite.token_for(email):
+            continue
+        try:
+            with _lock:
+                fresh = _key_for(email, market) not in _feeds
+            for_user(email, market)
+            if fresh:
+                # Say so the first time, and only the first time. Without this
+                # line there is no telling "the supervisor ran and the rules
+                # issued nothing" from "the supervisor never ran".
+                print(f"[resident] {now_ist():%Y-%m-%d %H:%M:%S} feed started "
+                      f"for {email} [{market}] (nobody watching)", flush=True)
+        except Exception:
+            continue
 
 
 def configure(mode, interval, expiry=None):

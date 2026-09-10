@@ -10,6 +10,13 @@
     <string>web_server.py</string>
   </array>
   <key>WorkingDirectory</key><string>/Users/sureshkumar/CLAUDE WORKSPACE/trading-tool 4</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- Crypto is opt-in. With this unset the server runs the three Indian
+         indices only and the market chooser never appears, because there is
+         nothing to choose between. -->
+    <key>ENABLE_CRYPTO</key><string>1</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>/Users/sureshkumar/Library/Logs/nbs-signal-tool.log</string>
