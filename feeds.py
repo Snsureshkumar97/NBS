@@ -49,7 +49,8 @@ import market_map
 import signal_engine
 import tickets
 import user_kite
-from data_providers import FreeDataProvider, KiteDataProvider, KiteStreamer
+from data_providers import (DeribitDataProvider, FreeDataProvider,
+                            KiteDataProvider, KiteStreamer)
 from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
 
 # A feed with nobody watching it is switched off after this long. Generous
@@ -248,6 +249,7 @@ class Feed:
         self.eq_tokens = {}       # tradingsymbol -> token, for the heat map
         self._eq_tried = False
         self._idx_tried = 0.0     # when the index tokens were last looked up
+        self._crypto = None       # built on demand, only if crypto is enabled
         self.ticker = None        # the fast loop that reads it
         self.spots = {}           # index name -> newest streamed spot
         self.stream_error = None  # why the tick socket is not up, if it is not
@@ -277,6 +279,20 @@ class Feed:
             self.state.update(fields)
 
     # -- the loop -----------------------------------------------------------
+    def _provider_for(self, name, kite_provider):
+        """The right venue for one instrument.
+
+        Crypto does not come from Zerodha and never will, so the feed holds one
+        provider per market rather than one per user. Handing BTC to the Kite
+        provider fails on every pass with an error about an instrument token
+        that was never going to exist.
+        """
+        if config.market_for(name)["market_provider"] == "deribit":
+            if self._crypto is None:
+                self._crypto = DeribitDataProvider()
+            return self._crypto
+        return kite_provider
+
     def _provider(self):
         """Build this user's provider, or explain why we can't.
 
@@ -311,13 +327,14 @@ class Feed:
                 self._start_stream()
                 self.stage = "market-check"
                 open_now = is_market_open(now_ist())
-                for name in config.INSTRUMENTS:
+                for name in config.active_instruments():
                     if _stopping.is_set() or self._idle():
                         break
                     try:
                         self.stage = f"analyse:{name}"
                         rec, notes = fetch_recommendation(
-                            provider, name, "15m", None, quiet=True,
+                            self._provider_for(name, provider),
+                            name, "15m", None, quiet=True,
                             expiry=_settings["expiry"])
                         # The ticket engine sees every fresh reading — it is
                         # what decides whether this one becomes a ticket, and
@@ -390,16 +407,16 @@ class Feed:
         """
         if time.time() - self.hist_at < HISTORY_TTL:
             return
-        for name in config.INSTRUMENTS:
+        for name in config.active_instruments():
             if _stopping.is_set() or self._idle():
                 return
             try:
-                df = provider.get_ohlc(name, interval="15m",
-                                       lookback_days=HISTORY_DAYS)
+                df = self._provider_for(name, provider).get_ohlc(
+                    name, interval="15m", lookback_days=HISTORY_DAYS)
                 # Dropped for the same reason the signal drops them: the
                 # pre-open auction bar is priced on almost no volume, and a
                 # chart that shows it puts a spike on every single morning.
-                df = drop_preopen(df)
+                df = drop_preopen(df, index_key=name)
                 if df is not None and len(df) > 1:
                     with self.lock:
                         self.hist[name] = df
@@ -459,7 +476,7 @@ class Feed:
         st = self.streamer
         if st is None:
             return
-        missing = [n for n in config.INSTRUMENTS if not self.tokens.get(n)]
+        missing = [n for n in config.instruments_in('nse_index') if not self.tokens.get(n)]
         if not missing:
             return                     # the ordinary case, and it costs nothing
         # The dump is heavy, so a failure waits instead of retrying at tick rate.
@@ -606,7 +623,7 @@ class Feed:
         change faster than the poll that gets it. What is recomputed is
         everything derived from price, which is the part that moves.
         """
-        for name in config.INSTRUMENTS:
+        for name in config.active_instruments():
             df = self._df_with_live_bar(name)
             if df is None or len(df) < 60:
                 continue
@@ -622,7 +639,8 @@ class Feed:
                     # ADX is already in tech — passing it stops reachability
                     # recomputing it once per index per second.
                     reach = signal_engine.compute_reachability(
-                        spot, oi, df, now_ist(), adx=tech.get("adx"))
+                        spot, oi, df, now_ist(), adx=tech.get("adx"),
+                        index_key=name)
                 except Exception:
                     reach = None
                 rec = signal_engine.build_recommendation(name, tech, oi, step,
@@ -756,7 +774,7 @@ class Feed:
                     if px is not None:
                         with self.lock:
                             self.spots[name] = px
-                for name in list(config.INSTRUMENTS):
+                for name in list(config.active_instruments()):
                     self._subscribe_suggested(name)
                     sug = self.sug_tokens.get(name)
                     if sug:

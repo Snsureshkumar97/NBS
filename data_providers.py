@@ -31,6 +31,7 @@ Both expose the same interface:
       Returns None if unavailable (e.g. SENSEX in free mode, or fetch failed).
 """
 
+import re
 import time
 import threading
 import datetime as dt
@@ -439,6 +440,169 @@ class KiteDataProvider:
             "top_call_oi_strike": top_call["strike"],
             "top_put_oi_strike": top_put["strike"],
         }
+
+
+# =============================================================================
+# CRYPTO (Deribit)
+# =============================================================================
+class DeribitDataProvider:
+    """BTC and ETH, from one venue.
+
+    Deribit is used for all three things the engine needs rather than stitching
+    together a candle source and a chain source: the perpetual gives OHLC with
+    real volume, a published index gives spot, and it carries the only BTC/ETH
+    option chain with enough open interest to compute a put/call ratio from.
+
+    Binance would be the obvious source for candles and is geo-blocked from
+    here, which is worth knowing before someone "simplifies" this back to it.
+
+    No key and no account: every endpoint used is public.
+    """
+
+    BASE = "https://www.deribit.com/api/v2/public"
+
+    # Deribit takes chart resolution in minutes as a bare string.
+    RESOLUTION = {"1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
+                  "1h": "60", "2h": "120", "1d": "1D"}
+
+    def __init__(self, timeout: int = 15):
+        self.timeout = timeout
+        self._chain_cache = {}
+
+    # ------------------------------------------------------------------
+    def _get(self, path, **params):
+        r = requests.get(f"{self.BASE}/{path}", params=params, timeout=self.timeout)
+        r.raise_for_status()
+        body = r.json()
+        if "error" in body:
+            raise RuntimeError(f"deribit {path}: {body['error']}")
+        return body["result"]
+
+    def refresh_session(self):
+        return None
+
+    # ------------------------------------------------------------------
+    def get_ohlc(self, index_key: str, interval: str = "15m",
+                 lookback_days: Optional[int] = None) -> pd.DataFrame:
+        meta = INSTRUMENTS[index_key]
+        if interval not in self.RESOLUTION:
+            raise ValueError(f"unknown interval {interval!r}; expected one of "
+                             f"{sorted(self.RESOLUTION)}")
+        days = lookback_days or 5
+        end = int(time.time() * 1000)
+        start = end - days * 86400 * 1000
+        r = self._get("get_tradingview_chart_data",
+                      instrument_name=meta["deribit_instrument"],
+                      start_timestamp=start, end_timestamp=end,
+                      resolution=self.RESOLUTION[interval])
+        if r.get("status") != "ok" or not r.get("ticks"):
+            raise RuntimeError(f"deribit returned no candles for {index_key}")
+        idx = pd.to_datetime(r["ticks"], unit="ms", utc=True).tz_convert("Asia/Kolkata")
+        df = pd.DataFrame({"Open": r["open"], "High": r["high"],
+                           "Low": r["low"], "Close": r["close"],
+                           "Volume": r["volume"]}, index=idx)
+        # Indices carry no volume and the engine's VWAP treats zero as unknown.
+        # A perpetual has genuine traded volume, so VWAP here is the real thing
+        # rather than a price average standing in for one.
+        df.index.name = "Date"
+        return df
+
+    def spot(self, index_key: str):
+        meta = INSTRUMENTS[index_key]
+        return self._get("get_index_price",
+                         index_name=meta["deribit_index"])["index_price"]
+
+    def index_token(self, index_key: str):
+        """No numeric instrument tokens here; the streamer keys on the name."""
+        return INSTRUMENTS[index_key].get("deribit_instrument")
+
+    def equity_tokens(self, symbols):
+        return {}                      # no constituents: there is no heat map
+
+    # ------------------------------------------------------------------
+    def _chain_rows(self, index_key: str):
+        meta = INSTRUMENTS[index_key]
+        ccy = meta["deribit_currency"]
+        hit = self._chain_cache.get(ccy)
+        if hit and time.time() - hit[0] < 30:
+            return hit[1]
+        rows = self._get("get_book_summary_by_currency", currency=ccy, kind="option")
+        parsed = []
+        for x in rows:
+            m = _DERIBIT_OPT.match(x.get("instrument_name", ""))
+            if not m:
+                continue
+            parsed.append({
+                "expiry": m.group(2), "strike": int(m.group(3)),
+                "kind": m.group(4),
+                "oi": float(x.get("open_interest") or 0),
+                # mark_price is quoted in the coin, not in dollars.
+                "mark_coin": x.get("mark_price"),
+            })
+        self._chain_cache[ccy] = (time.time(), parsed)
+        return parsed
+
+    def get_expiry_dates(self, index_key: str) -> list:
+        rows = self._chain_rows(index_key)
+        seen = {r["expiry"] for r in rows}
+        return sorted(seen, key=_deribit_expiry_date)
+
+    def get_option_chain(self, index_key: str, expiry: str = None):
+        """The same shape the NSE and Kite providers return, so the engine does
+        not learn that a second kind of chain exists."""
+        try:
+            rows = self._chain_rows(index_key)
+            spot = self.spot(index_key)
+        except Exception:
+            return None
+        if not rows:
+            return None
+        target = expiry or min((r["expiry"] for r in rows), key=_deribit_expiry_date)
+        by_strike = {}
+        for r in rows:
+            if r["expiry"] != target:
+                continue
+            e = by_strike.setdefault(r["strike"], {
+                "strike": r["strike"], "call_oi": 0, "put_oi": 0,
+                "call_ltp": None, "put_ltp": None})
+            # Deribit prices an option in coin; the engine works in the quote
+            # currency, the same units as the strike and the spot.
+            ltp = (r["mark_coin"] * spot) if r["mark_coin"] is not None else None
+            if r["kind"] == "C":
+                e["call_oi"] = r["oi"]
+                e["call_ltp"] = ltp
+            else:
+                e["put_oi"] = r["oi"]
+                e["put_ltp"] = ltp
+        strikes = sorted(by_strike.values(), key=lambda x: x["strike"])
+        if not strikes:
+            return None
+        tot_c = sum(x["call_oi"] for x in strikes)
+        tot_p = sum(x["put_oi"] for x in strikes)
+        return {
+            "expiry": str(_deribit_expiry_date(target)),
+            "spot": spot,
+            "strikes": strikes,
+            "pcr": round(tot_p / tot_c, 3) if tot_c else None,
+            "max_pain": _compute_max_pain(strikes),
+            "top_call_oi_strike": max(strikes, key=lambda x: x["call_oi"])["strike"],
+            "top_put_oi_strike": max(strikes, key=lambda x: x["put_oi"])["strike"],
+        }
+
+
+_DERIBIT_OPT = re.compile(r"^([A-Z]+)-(\d{1,2}[A-Z]{3}\d{2})-(\d+)-([CP])$")
+_DERIBIT_MONTHS = {m: i + 1 for i, m in enumerate(
+    ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+     "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"])}
+
+
+def _deribit_expiry_date(tag: str):
+    """"25SEP26" -> date(2026, 9, 25). Sorting the raw tag would put 12SEP
+    before 5OCT and pick the wrong nearest expiry."""
+    m = re.match(r"^(\d{1,2})([A-Z]{3})(\d{2})$", tag)
+    if not m:
+        return dt.date.max
+    return dt.date(2000 + int(m.group(3)), _DERIBIT_MONTHS[m.group(2)], int(m.group(1)))
 
 
 # =============================================================================

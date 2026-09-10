@@ -521,7 +521,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "session": snap.get("session") or {},
             "events": snap.get("events") or [],
             "record": track_record(user),
-            "order": list(config.INSTRUMENTS.keys()),
+            "order": config.active_instruments(),
         }
         return self._send(json.dumps(payload), "application/json")
 
@@ -538,7 +538,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         payload = feed.ticks()
         payload["tickets"] = {
             k: (feed.tickets.public(k) or {}).get("ticket")
-            for k in config.INSTRUMENTS
+            for k in config.active_instruments()
         }
         return self._send(json.dumps(payload), "application/json")
 

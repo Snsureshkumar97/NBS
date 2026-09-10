@@ -118,15 +118,26 @@ signal:
 """
 
 
-def is_market_open(now: dt.datetime) -> bool:
+def is_market_open(now: dt.datetime, index_key: str = None) -> bool:
     """`now` must be IST (use now_ist()) — comparing any other timezone's
-    wall-clock time against the session here would give wrong results."""
-    if now.weekday() >= 5:  # Sat/Sun
+    wall-clock time against the session here would give wrong results.
+
+    `index_key` names the instrument whose market is being asked about. Omitted,
+    it answers for an NSE index, which is what every caller written before there
+    was more than one kind of market means by the question.
+    """
+    m = config.market_for(index_key)
+    if m["always_open"]:
+        # Nothing to check. A 24/7 market has no weekend, no holiday list and
+        # no open or close to compare against, and running the checks below
+        # would answer "shut" every Saturday for a market that is not.
+        return True
+    if not m["weekends"] and now.weekday() >= 5:  # Sat/Sun
         return False
-    if is_nse_holiday(now.date()):
+    if m["holidays"] and is_nse_holiday(now.date()):
         return False
-    open_t = now.replace(hour=MARKET_OPEN_TIME[0], minute=MARKET_OPEN_TIME[1], second=0, microsecond=0)
-    close_t = now.replace(hour=MARKET_CLOSE_TIME[0], minute=MARKET_CLOSE_TIME[1], second=0, microsecond=0)
+    open_t = now.replace(hour=m["open"][0], minute=m["open"][1], second=0, microsecond=0)
+    close_t = now.replace(hour=m["close"][0], minute=m["close"][1], second=0, microsecond=0)
     return open_t <= now <= close_t
     # NOTE: weekends AND the known NSE holidays in NSE_HOLIDAYS_BY_YEAR are
     # both handled. If that dict hasn't been updated for the current year,
@@ -212,7 +223,7 @@ def get_provider(mode: str):
         raise ValueError(f"Unknown mode: {mode}")
 
 
-def drop_preopen(df, notes=None):
+def drop_preopen(df, notes=None, index_key=None):
     """Remove bars stamped before the 09:15 open.
 
     Those belong to the pre-open auction, where indicative prices swing on
@@ -225,6 +236,12 @@ def drop_preopen(df, notes=None):
     index is an unexpected type would be worse than the problem being fixed.
     """
     if df is None or not getattr(config, "DROP_PREOPEN_CANDLES", True):
+        return df
+    # A 24/7 market has no pre-open auction, so there is nothing here to
+    # protect against - and applying the rule anyway silently deleted every
+    # bar before 09:15 IST. Measured on BTC: 186 of 481 bars, 39% of the
+    # history, thrown away for belonging to an auction that does not exist.
+    if config.market_for(index_key)["always_open"]:
         return df
     try:
         idx = df.index
@@ -270,7 +287,7 @@ def fetch_recommendation(provider, index_key: str, interval: str, lookback_days,
     if df is None:
         raise RuntimeError(f"Could not fetch price data after {MAX_FETCH_RETRIES + 1} attempts: {last_err}")
 
-    df = drop_preopen(df, notes)
+    df = drop_preopen(df, notes, index_key)
 
     if len(df) < max(config.EMA_SLOW, config.ATR_LENGTH, config.MACD_SLOW, config.ADX_LENGTH,
                       config.SWING_LOOKBACK) + 5:
@@ -297,7 +314,7 @@ def fetch_recommendation(provider, index_key: str, interval: str, lookback_days,
     # remaining range — this is what targets get built from.
     try:
         reach = compute_reachability(tech["last_close"], oi, df, now_ist(),
-                                      adx=tech.get("adx"))
+                                      adx=tech.get("adx"), index_key=index_key)
     except Exception as e:
         reach = None
         notes.append(f"(Reachability check unavailable, using risk-multiple targets: {e})")

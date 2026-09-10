@@ -116,6 +116,7 @@ INSTRUMENTS = {
         "nse_symbol": "NIFTY",          # used for NSE option-chain-indices API
         "kite_exchange": "NSE",
         "kite_tradingsymbol": "NIFTY 50",
+        "market": "nse_index",
         "strike_step": 50,
         "lot_size": 75,                 # verify current lot size on Zerodha before trading
         "has_free_option_chain": True,
@@ -125,6 +126,7 @@ INSTRUMENTS = {
         "nse_symbol": "BANKNIFTY",
         "kite_exchange": "NSE",
         "kite_tradingsymbol": "NIFTY BANK",
+        "market": "nse_index",
         "strike_step": 100,
         "lot_size": 30,                  # verify current lot size on Zerodha before trading
         "has_free_option_chain": True,
@@ -134,8 +136,48 @@ INSTRUMENTS = {
         "nse_symbol": None,              # no free public BSE option-chain API
         "kite_exchange": "BSE",
         "kite_tradingsymbol": "SENSEX",
+        "market": "nse_index",
         "strike_step": 100,
         "lot_size": 20,                   # verify current lot size on Zerodha before trading
+        "has_free_option_chain": False,
+    },
+    # ---- crypto -----------------------------------------------------------
+    # Priced and charted off Deribit, which carries the perpetual for candles,
+    # a published index for spot, and the only BTC/ETH option chain with enough
+    # open interest to compute a PCR from. Binance would have been the obvious
+    # source for candles and is geo-blocked from here, which is why this is one
+    # venue rather than two.
+    #
+    # lot_size is 1 because a Deribit option contract IS one coin, so "lots" and
+    # "contracts" are the same number - unlike an index, where a lot is 75.
+    "BTC": {
+        "yahoo_ticker": "BTC-USD",
+        "nse_symbol": None,
+        "kite_exchange": None,
+        "kite_tradingsymbol": None,
+        "market": "crypto",
+        "provider": "deribit",
+        "deribit_instrument": "BTC-PERPETUAL",
+        "deribit_index": "btc_usd",
+        "deribit_currency": "BTC",
+        "quote_ccy": "USD",
+        "strike_step": 1000,
+        "lot_size": 1,
+        "has_free_option_chain": False,
+    },
+    "ETH": {
+        "yahoo_ticker": "ETH-USD",
+        "nse_symbol": None,
+        "kite_exchange": None,
+        "kite_tradingsymbol": None,
+        "market": "crypto",
+        "provider": "deribit",
+        "deribit_instrument": "ETH-PERPETUAL",
+        "deribit_index": "eth_usd",
+        "deribit_currency": "ETH",
+        "quote_ccy": "USD",
+        "strike_step": 50,
+        "lot_size": 1,
         "has_free_option_chain": False,
     },
 }
@@ -397,24 +439,113 @@ MARKET_CLOSE_TIME = (15, 40)
 CAS_START_TIME = (15, 15)
 
 
-def in_closing_auction(now):
+# ---------------------------------------------------------------------------
+# Market profiles
+#
+# Everything above describes one market: an NSE index, 09:15 to 15:40, shut at
+# weekends and on a published holiday list, with a closing auction near the end.
+# All of that was global, which was fine while every instrument was an NSE
+# index and wrong the moment one is not. A market is a property of the
+# instrument now, and the session rules are looked up per instrument rather
+# than assumed.
+# ---------------------------------------------------------------------------
+MARKETS = {
+    "nse_index": {
+        "label": "NSE / BSE index",
+        "market_provider": "kite",
+        "always_open": False,
+        "weekends": False,
+        "holidays": True,          # consult the NSE calendar in main.py
+        "open": MARKET_OPEN_TIME,
+        "close": MARKET_CLOSE_TIME,
+        "cas": CAS_START_TIME,
+    },
+    "crypto": {
+        # No open, no close, no weekend, no holiday and no closing auction.
+        # Every session rule below simply does not apply, which is the whole
+        # reason a market had to stop being a global.
+        "label": "crypto, 24/7",
+        "market_provider": "deribit",
+        "always_open": True,
+        "weekends": True,
+        "holidays": False,
+        "open": None,
+        "close": None,
+        "cas": None,
+    },
+}
+
+DEFAULT_MARKET = "nse_index"
+
+
+# Crypto is off unless asked for. It is a different venue, a different
+# currency and a different session, and an operator who wants three Indian
+# indices should not silently acquire two more instruments and a dependency on
+# a foreign exchange's uptime because the code gained the ability.
+ENABLE_CRYPTO = os.environ.get("ENABLE_CRYPTO", "").lower() in ("1", "true", "yes", "on")
+
+
+def instruments_in(market):
+    """The instrument keys trading in one market, in declaration order."""
+    return [k for k, v in INSTRUMENTS.items()
+            if v.get("market", DEFAULT_MARKET) == market
+            and (market != "crypto" or ENABLE_CRYPTO)]
+
+
+def active_instruments():
+    """Every instrument the server should actually run, grouped market first.
+
+    Kept separate rather than merged: the two markets quote in different
+    currencies, keep different hours and come from different venues, so a
+    single flat list is the wrong shape for almost every caller.
+    """
+    out = []
+    for m in MARKETS:
+        out.extend(instruments_in(m))
+    return out
+
+
+def market_for(index_key=None):
+    """The market profile an instrument trades in.
+
+    Defaults to the NSE index profile, so every existing caller that does not
+    name an instrument keeps the behaviour it had.
+    """
+    if not index_key:
+        return MARKETS[DEFAULT_MARKET]
+    meta = INSTRUMENTS.get(index_key) or {}
+    return MARKETS.get(meta.get("market", DEFAULT_MARKET), MARKETS[DEFAULT_MARKET])
+
+
+def in_closing_auction(now, index_key=None):
     """True when the index has stopped updating but options still trade.
 
     `now` must be IST. Says nothing about whether the market is open - it is,
     and an open position still needs managing. It says the index is no longer
     a live price, which is a different question with a different answer.
     """
+    m = market_for(index_key)
+    if m["always_open"] or not m["cas"]:
+        return False
     if now.weekday() >= 5:
         return False
-    cas = (CAS_START_TIME[0], CAS_START_TIME[1])
-    close = (MARKET_CLOSE_TIME[0], MARKET_CLOSE_TIME[1])
+    cas = (m["cas"][0], m["cas"][1])
+    close = (m["close"][0], m["close"][1])
     return cas <= (now.hour, now.minute) <= close
 
 
-def session_hours():
-    """Length of the trading day in hours, derived rather than written down."""
-    o = MARKET_OPEN_TIME[0] * 60 + MARKET_OPEN_TIME[1]
-    c = MARKET_CLOSE_TIME[0] * 60 + MARKET_CLOSE_TIME[1]
+def session_hours(index_key=None):
+    """Length of the trading day in hours, derived rather than written down.
+
+    A 24/7 market has no trading day, so it answers 24 - which is what the
+    expected-move scaling needs: "how much of the move is left before expiry"
+    has to count every hour, not six and a half of them.
+    """
+    m = market_for(index_key)
+    if m["always_open"]:
+        return 24.0
+    o = m["open"][0] * 60 + m["open"][1]
+    c = m["close"][0] * 60 + m["close"][1]
     return (c - o) / 60.0
 
 # Bars stamped before the open belong to the PRE-OPEN auction (09:00-09:15),

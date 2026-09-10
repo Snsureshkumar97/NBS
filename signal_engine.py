@@ -299,25 +299,43 @@ def _parse_expiry(value) -> "dt.date":
     return None
 
 
-def _trading_hours_until(expiry_date, now: dt.datetime) -> tuple:
+def _trading_hours_until(expiry_date, now: dt.datetime, index_key=None) -> tuple:
     """(hours left in TODAY's session, total trading hours until expiry).
 
     Used to scale the option market's expected move — which is quoted for
     the whole period up to expiry — down to just the time actually left.
     Weekends are skipped; exchange holidays are not (a small overestimate,
-    which errs toward being conservative about reachability)."""
+    which errs toward being conservative about reachability).
+
+    A 24/7 market takes the branch below instead: there is no open, no close
+    and no weekend to skip, so the answer is simply the wall-clock hours to
+    expiry. Running the session arithmetic on one understates the time left by
+    roughly four to one, which makes every target look far more reachable than
+    it is — the reachability gate would pass almost anything.
+    """
+    sess = config.session_hours(index_key)
+    if config.market_for(index_key)["always_open"]:
+        if expiry_date is None:
+            return sess, sess
+        # Deribit settles at 08:00 UTC, which is 13:30 IST.
+        end = dt.datetime.combine(expiry_date, dt.time(13, 30))
+        if now.tzinfo is not None:
+            end = end.replace(tzinfo=now.tzinfo)
+        total = max((end - now).total_seconds() / 3600.0, 0.25)
+        return min(total, sess), total
+
     open_t = now.replace(hour=MARKET_OPEN_H, minute=MARKET_OPEN_M, second=0, microsecond=0)
     close_t = now.replace(hour=MARKET_CLOSE_H, minute=MARKET_CLOSE_M, second=0, microsecond=0)
 
     if now <= open_t:
-        hours_left_today = SESSION_HOURS
+        hours_left_today = sess
     elif now >= close_t:
         hours_left_today = 0.0
     else:
         hours_left_today = (close_t - now).total_seconds() / 3600.0
 
     if expiry_date is None:
-        return hours_left_today, max(hours_left_today, SESSION_HOURS)
+        return hours_left_today, max(hours_left_today, sess)
 
     # Whole trading days strictly AFTER today, up to and including expiry day.
     extra_days = 0
@@ -327,7 +345,7 @@ def _trading_hours_until(expiry_date, now: dt.datetime) -> tuple:
             extra_days += 1
         d += dt.timedelta(days=1)
 
-    total = hours_left_today + extra_days * SESSION_HOURS
+    total = hours_left_today + extra_days * sess
     return hours_left_today, max(total, 0.25)
 
 
@@ -374,7 +392,8 @@ def _daily_range_stats(df: pd.DataFrame) -> tuple:
 
 
 def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.datetime,
-                          adx: float = None, range_stats: tuple = None) -> dict:
+                          adx: float = None, range_stats: tuple = None,
+                         index_key: str = None) -> dict:
     """How far can this index REALISTICALLY travel from here, in each
     direction, before the session ends?
 
@@ -400,7 +419,7 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     }
 
     expiry_date = _parse_expiry(oi.get("expiry")) if oi else None
-    hours_left, hours_to_expiry = _trading_hours_until(expiry_date, now)
+    hours_left, hours_to_expiry = _trading_hours_until(expiry_date, now, index_key)
     out["hours_left_today"] = round(hours_left, 2)
     out["expiry"] = str(oi.get("expiry")) if oi else None
 

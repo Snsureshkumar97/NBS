@@ -99,7 +99,7 @@ class TicketBook:
         self.owner = owner
         self.path = trade_log.user_log_path(owner) if owner else None
         self.lock = threading.RLock()
-        self.books = {name: IndexBook(name) for name in config.INSTRUMENTS}
+        self.books = {name: IndexBook(name) for name in config.active_instruments()}
         self.closed = []               # this session's closed tickets, newest first
         self.session_net = 0.0
         self._day_cache = None
