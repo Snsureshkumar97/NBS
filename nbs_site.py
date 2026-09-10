@@ -1543,10 +1543,44 @@ def kite_page(user=None, record=None):
   <p class="kicker">Part one &mdash; the owner, once</p>
   <h2>Creating the Kite Connect app</h2>
   <p>Kite Connect is the API side of Zerodha and is billed separately from a
-   trading account. What this tool reads is index candles and the option chain,
-   which is the historical-data permission. Pricing and permissions are between
-   you and Zerodha and they change, so check their current terms rather than
-   taking a figure from this page.</p>
+   trading account.</p>
+
+  <h3>The free plan is the wrong one</h3>
+  <p>Zerodha offers two, and the split is unlucky for a tool like this one:</p>
+  <table class="tbl">
+   <tr><th>Plan</th><th>Includes</th><th>This tool</th></tr>
+   <tr><td><b>Personal</b><br><span class="mut">free</span></td>
+    <td>orders, GTT, alerts, margins, portfolio</td>
+    <td>uses none of it &mdash; no order is ever placed</td></tr>
+   <tr><td><b>Connect</b><br><span class="mut">&#8377;500 / month</span></td>
+    <td>live streaming quotes and historical candles</td>
+    <td>uses only this</td></tr>
+  </table>
+  <p>So the free plan gives you everything this tool never touches, and the one
+   thing it needs &mdash; price data &mdash; is the paid side. On the free plan
+   the tool signs in perfectly and then shows no candles, which reads like a
+   broken connection rather than a missing subscription.</p>
+  <p>Historical data used to be a second charge on top of that. It is bundled
+   now, so one Connect subscription covers both the streaming and the
+   candles.</p>
+  <p class="mut" style="font-size:14px">Figures checked September 2026 against
+   <span class="mono">zerodha.com/products/api</span>. They have moved twice in
+   two years &mdash; &#8377;2,000 plus &#8377;2,000 for data, then &#8377;2,000
+   bundled, now &#8377;500 &mdash; so read them there rather than here.</p>
+
+  <div class="callout warm reveal">
+   <h3 style="margin-top:0">Before you let anyone else connect</h3>
+   <p>Kite Connect is issued for <b>personal use, one Zerodha account</b>, by
+    default. Letting other people connect their own Zerodha accounts through
+    your app is multi-user access, and Zerodha grants that on request rather
+    than automatically &mdash; you write to
+    <span class="mono">kiteconnect@zerodha.com</span>, and for anything offered
+    to other clients they will talk to you about compliance and, depending on
+    what you are running, a SEBI audit.</p>
+   <p>Running it for yourself needs none of that. Running it for a group is a
+    conversation with Zerodha first rather than afterwards. It is their rule
+    and a SEBI one, and it is not something this software can grant you.</p>
+  </div>
 
   <ol class="steps reveal">
    <li><h3>Create an app</h3>
@@ -1702,9 +1736,10 @@ def access_page(user=None, record=None):
     everything except these public pages</td></tr>
    <tr><td>A Zerodha account</td><td>the candles and the option chain are read
     under your own session</td></tr>
-   <tr><td>Kite Connect access</td><td>the API side of Zerodha, which they
-    charge for separately — the historical-candle permission is what this tool
-    reads</td></tr>
+   <tr><td>Kite Connect access</td><td>the API side of Zerodha, billed apart
+    from the trading account. The free personal plan carries no market data, so
+    the paid one is the plan that works here —
+    <a href="/kite">what it costs, and who is allowed to use it</a></td></tr>
    <tr><td>A browser</td><td>that is all; there is nothing to install to use
     the website</td></tr>
   </table>
