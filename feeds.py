@@ -121,7 +121,18 @@ def _resident_loop():
             for email in accounts.always_on_users():
                 if not user_kite.token_for(email):
                     continue
+                # Say so the first time, and only the first time. Without a
+                # line in the log there is no way to tell "the supervisor
+                # started the feed and the rules issued nothing" from "the
+                # supervisor never ran" - and those two look identical from
+                # the outside, which is exactly the question you ask when you
+                # come back to an empty ticket log.
+                with _lock:
+                    fresh = _key_for(email) not in _feeds
                 for_user(email)
+                if fresh:
+                    print(f"[resident] {now_ist():%Y-%m-%d %H:%M:%S} feed "
+                          f"started for {email} (nobody watching)", flush=True)
         except Exception:
             pass
 

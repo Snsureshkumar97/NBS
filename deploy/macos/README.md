@@ -40,6 +40,24 @@ launchctl kickstart -k gui/$(id -u)/com.nbs.signaltool
 tail -f ~/Library/Logs/nbs-signal-tool.log
 ```
 
+## Did it run this morning?
+
+`com.nbs.morningcheck` fires at 22:30 local, waits on the IST clock until
+09:14, then samples once a minute until 09:35 and writes:
+
+```
+~/Library/Logs/nbs-morning-check-YYYY-MM-DD.log
+```
+
+It reports whether the supervisor brought a feed up with nobody watching,
+whether a Zerodha token was there, and every ticket issued. It deliberately
+never calls `/api/state`: that endpoint starts a feed as a side effect, so
+asking it "is a feed running?" would make the answer yes.
+
+An empty ticket list is not a failure. Most mornings the rules issue nothing,
+and the report separates "the feed ran and said no" from "the feed never
+started".
+
 ## The two things launchd cannot fix
 
 **Sleep.** A sleeping Mac is an offline server. `pmset -g custom` currently

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.nbs.morningcheck</string>
+  <!-- Fires at 22:30 local, which is 08:00 IST on US daylight time and 09:00
+       IST on standard time - both comfortably before the open. The script then
+       waits on the IST clock itself, so the twice-yearly daylight shift moves
+       the wait rather than the measurement. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/sureshkumar/CLAUDE WORKSPACE/trading-tool 4/deploy/macos/morning-check.py</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>22</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>/Users/sureshkumar/Library/Logs/nbs-morning-check.log</string>
+  <key>StandardErrorPath</key><string>/Users/sureshkumar/Library/Logs/nbs-morning-check.log</string>
+</dict>
+</plist>
