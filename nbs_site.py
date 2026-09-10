@@ -62,6 +62,7 @@ NAV = [
     ("/results",      "Results"),
     ("/security",     "Security"),
     ("/access",       "Access"),
+    ("/kite",         "Connect Zerodha"),
     ("/faq",          "FAQ"),
 ]
 
@@ -80,6 +81,10 @@ SHOTS = {
                 "Every index constituent sized by its weight and coloured by its move today, so you can see whether an index is being carried by two heavyweights or genuinely moving as a whole. Breadth is counted underneath \u2014 how many up, how many down, and how many are actually streaming right now."),
     "why":     ("web_why.png",    "Why \u2014 every input, in full",
                 "The reasoning, in sentences, for every input including the ones that abstained. Each says what it measured, what the threshold was and which way it voted. PCR abstains here and says so. Nothing that fed the verdict is left off this list, and nothing on it is a number without an explanation."),
+    "connect": ("web_connect.png", "The connection page",
+                "What you land on after connecting, and what you check when something looks stale. It names the Zerodha user the token belongs to and when it was issued, and it says in as many words that no order is ever placed and that the token is cleared every morning."),
+    "login":   ("web_login.png",  "Signing in",
+                "The door. Accounts are made by the owner rather than by signing up, so there is no registration form here and no email reset - a forgotten password is reset by hand."),
     "full":    ("web_full.png",   "The whole screen",
                 "One page, one scroll: the three indices, the session total, the signal and its ladder, trend and confidence, the chart, today's range, the market map, the record, and the reasoning. There is no second tab and nothing is hidden behind a menu."),
 }
@@ -308,6 +313,15 @@ figure img{border:1px solid var(--bd);border-radius:var(--r);background:var(--su
   box-shadow:none}
 figcaption{color:var(--ink-2);font-size:14.5px;margin-top:14px;max-width:760px}
 figcaption b{color:var(--ink);display:block;margin-bottom:3px}
+
+/* For the things on the Zerodha page that have to be copied exactly - the
+   redirect URL, the two environment variable names. A proportional font makes
+   a trailing space or a missing slash invisible, and both of those break the
+   connection in a way whose error message says nothing useful. */
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.92em;background:var(--sunken);border:1px solid var(--bd-soft);
+  border-radius:4px;padding:2px 7px;color:var(--ink);
+  overflow-wrap:anywhere}
 
 /* ---------- callouts ---------- */
 .callout{border-radius:var(--r);padding:26px 28px 22px;margin:0}
@@ -1452,6 +1466,193 @@ def security_page(user=None, record=None):
 # ===========================================================================
 # ACCESS
 # ===========================================================================
+def kite_form_svg(callback):
+    """The Kite Connect app form, drawn as a diagram rather than photographed.
+
+    A screenshot would be better and there is not going to be one: reaching
+    that form means signing in to somebody's live broker account, and this
+    guide is not worth doing that for. So it is drawn - deliberately in this
+    site's own palette and labelled a diagram, because a drawing dressed up as
+    a screenshot of a page it is not would be worse than either.
+
+    The field names are the ones on the form. The value that actually matters
+    is the redirect URL, which is rendered from this server's own config, so
+    the page cannot drift from the address the callback is really served at.
+    """
+    shown = _esc(callback or "https://your-server/kite/callback")
+    return f"""
+<figure class="diagram reveal">
+ <svg viewBox="0 0 720 300" role="img"
+      aria-label="Diagram of the Kite Connect create-app form: app name, redirect
+      URL, postback URL and description, with the redirect URL highlighted.">
+  <rect x="8" y="8" width="704" height="284" rx="6"
+        fill="var(--sunken)" stroke="var(--bd)"/>
+  <text x="30" y="42" fill="var(--ink-2)" font-size="12"
+        font-weight="700" letter-spacing="1.2">CREATE NEW APP &mdash; DIAGRAM, NOT A SCREENSHOT</text>
+
+  <text x="30" y="80" fill="var(--ink-3)" font-size="12">Type</text>
+  <rect x="30" y="88" width="300" height="30" rx="4"
+        fill="var(--raised)" stroke="var(--bd)"/>
+  <text x="42" y="108" fill="var(--ink)" font-size="13">Connect</text>
+
+  <text x="30" y="140" fill="var(--ink-3)" font-size="12">App name</text>
+  <rect x="30" y="148" width="300" height="30" rx="4"
+        fill="var(--raised)" stroke="var(--bd)"/>
+  <text x="42" y="168" fill="var(--ink)" font-size="13">anything you like</text>
+
+  <text x="30" y="200" fill="var(--ink-3)" font-size="12">Redirect URL &mdash; the one that has to match</text>
+  <rect x="30" y="208" width="660" height="32" rx="4"
+        fill="rgba(77,148,232,.10)" stroke="var(--accent)"/>
+  <text x="42" y="229" fill="var(--ink)" font-size="12.5"
+        font-family="ui-monospace,SFMono-Regular,Menlo,monospace">{shown}</text>
+
+  <text x="30" y="266" fill="var(--ink-3)" font-size="12">Postback URL</text>
+  <rect x="150" y="252" width="180" height="26" rx="4"
+        fill="var(--raised)" stroke="var(--bd-soft)"/>
+  <text x="162" y="270" fill="var(--ink-3)" font-size="12.5">leave it empty</text>
+ </svg>
+ <figcaption><b>The form, as a diagram</b>Only the redirect URL has to be exact.
+  Zerodha allows one per app, and if it does not match this server character for
+  character the login returns you to the wrong place and the connection
+  fails.</figcaption>
+</figure>
+"""
+
+
+def kite_page(user=None, record=None):
+    cta = ('<a class="btn" href="/connect">Your Zerodha connection</a>' if user
+           else '<a class="btn" href="/login">Log in</a>')
+    callback = config.web_callback_url()
+    cb = _esc(callback or "https://your-server/kite/callback")
+    body = _phead("Connecting Zerodha",
+        "Two different jobs that are easy to confuse: the owner sets up one "
+        "Kite Connect app, once. Everyone else connects their own Zerodha "
+        "account to it, every trading day.") + f"""
+<div class="wrap"><div class="narrow prose">
+
+ <section class="first">
+  <div class="callout warm reveal">
+   <h3 style="margin-top:0">Which half do you need?</h3>
+   <p>If you were given an account here and want to start seeing signals, you
+    want <a href="#connecting">part two</a>. Part one is done once, by whoever
+    runs the server, and is already done on this one.</p>
+  </div>
+ </section>
+
+ <section>
+  <p class="kicker">Part one &mdash; the owner, once</p>
+  <h2>Creating the Kite Connect app</h2>
+  <p>Kite Connect is the API side of Zerodha and is billed separately from a
+   trading account. What this tool reads is index candles and the option chain,
+   which is the historical-data permission. Pricing and permissions are between
+   you and Zerodha and they change, so check their current terms rather than
+   taking a figure from this page.</p>
+
+  <ol class="steps reveal">
+   <li><h3>Create an app</h3>
+    <p>At <span class="mono">developers.kite.trade/apps</span>, create a new
+     app of type <b>Connect</b>. The name is yours to choose.</p></li>
+   <li><h3>Set the redirect URL, exactly</h3>
+    <p>This is the only field that has to be right to the character:</p>
+    <p><span class="mono">{cb}</span></p>
+    <p>Zerodha allows <b>one</b> redirect URL per app. It is where their login
+     sends the browser back to, so if it does not match this server the
+     connection fails at the last step with no useful message. Leave the
+     postback URL empty &mdash; nothing here listens for one.</p></li>
+   <li><h3>Copy the API key and secret into the server</h3>
+    <p>They go in the server's environment as
+     <span class="mono">KITE_API_KEY</span> and
+     <span class="mono">KITE_API_SECRET</span>, and the server is restarted so
+     it reads them. They belong to the app, not to any one person &mdash;
+     every user connects their own Zerodha account through this same app.</p>
+    <p>The secret is what lets a request token be exchanged for a session. It
+     stays on the server; it is never rendered into a page.</p></li>
+  </ol>
+  {kite_form_svg(callback)}
+ </section>
+
+ <section id="connecting">
+  <p class="kicker">Part two &mdash; you, each trading day</p>
+  <h2>Connecting your account</h2>
+  <ol class="steps reveal">
+   <li><h3>Log in here</h3>
+    <p>With the email and password the owner gave you. There is no sign-up
+     form and no email reset. <a href="/access">How access works.</a></p></li>
+   <li><h3>Press Connect Zerodha</h3>
+    <p>In the header, or from the notice the tool shows when it has no token.
+     It sends you to Zerodha's own login page.</p></li>
+   <li><h3>Log in to Zerodha and approve</h3>
+    <p>Your Zerodha password and 2FA are typed on Zerodha's page, not on this
+     one. This site never sees them. Zerodha then sends your browser back to
+     the redirect URL above with a one-time request token, which the server
+     exchanges for a session using the app secret.</p></li>
+   <li><h3>You land back here, connected</h3>
+    <p>The connection page names the Zerodha user the session belongs to and
+     when it was issued. From then on the candles and the option chain are read
+     under your own Kite session.</p></li>
+  </ol>
+  {_figure("login")}
+  {_figure("connect")}
+ </section>
+
+ <section>
+  <h2>Why this is a daily step</h2>
+  <p>Zerodha clears every access token each morning at around 07:30 IST,
+   whenever it was issued. That is their rule, not a choice made here, and no
+   amount of uptime on this server avoids it: reconnecting needs your password
+   and your second factor, which only you have.</p>
+  <p>So the honest shape of a trading day is: the server has been running all
+   night, and you still press Connect Zerodha once before the open. Until you
+   do, the tool loads and shows you nothing live &mdash; and if you have asked
+   it to <b>run all session</b>, it deliberately does not start either, because
+   a feed with no token is a loop logging failures.</p>
+ </section>
+
+ <section>
+  <h2>What the connection allows</h2>
+  <table class="tbl">
+   <tr><th>It can</th><th>It cannot</th></tr>
+   <tr><td>read index candles</td><td>place an order</td></tr>
+   <tr><td>read the option chain</td><td>modify or cancel an order</td></tr>
+   <tr><td>stream live prices</td><td>move funds</td></tr>
+   <tr><td>read your Zerodha user id and name, to show you which account is
+    connected</td><td>see your Zerodha password &mdash; you type it on
+    Zerodha's page</td></tr>
+  </table>
+  <p>The token is stored on the server only, is never rendered into a page or
+   written to a log, and is deleted with your account. You can disconnect at
+   any time from the connection page, or revoke the app from Zerodha's side.
+   <a href="/security">What is stored, in full.</a></p>
+ </section>
+
+ <section>
+  <h2>When it will not connect</h2>
+  <table class="tbl">
+   <tr><th>What you see</th><th>Usually</th></tr>
+   <tr><td>Zerodha returns you to a page that will not load</td><td>the
+    redirect URL on the app does not match this server</td></tr>
+   <tr><td>&ldquo;The site owner needs to set KITE_API_KEY&rdquo;</td><td>the
+    server has no app credentials yet &mdash; part one is not done</td></tr>
+   <tr><td>Connected yesterday, nothing today</td><td>the daily 07:30 IST
+    clear-out; press Connect Zerodha again</td></tr>
+   <tr><td>Connects, then says the feed is down</td><td>the Kite Connect
+    subscription or the historical-data permission has lapsed</td></tr>
+  </table>
+ </section>
+
+ <div class="cta">{cta}
+  <a class="btn ghost" href="/security">What is stored</a></div>
+
+ {_next(("/access", "Access", "How accounts are created"),
+        ("/security", "Security", "What is kept, and where"))}
+
+</div></div>
+"""
+    return shell("Connecting Zerodha", body, user=user, active="/kite",
+                 description="How to set up a Kite Connect app and connect a "
+                             "Zerodha account to the NBS Signal Tool.")
+
+
 def access_page(user=None, record=None):
     cta = ('<a class="btn" href="/app">Open the tool</a>' if user
            else '<a class="btn" href="/login">Log in</a>')
@@ -1885,6 +2086,7 @@ PAGES = {
     "/results":      results_page,
     "/security":     security_page,
     "/access":       access_page,
+    "/kite":         kite_page,
     "/faq":          faq_page,
     "/disclaimer":   disclaimer_page,
 }

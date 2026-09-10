@@ -160,6 +160,15 @@ figure img{border:1px solid var(--bd);border-radius:var(--r);background:var(--su
 figcaption{color:var(--ink-2);font-size:14.5px;margin-top:14px;max-width:760px}
 figcaption b{color:var(--ink);display:block;margin-bottom:3px}
 
+/* For the things on the Zerodha page that have to be copied exactly - the
+   redirect URL, the two environment variable names. A proportional font makes
+   a trailing space or a missing slash invisible, and both of those break the
+   connection in a way whose error message says nothing useful. */
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.92em;background:var(--sunken);border:1px solid var(--bd-soft);
+  border-radius:4px;padding:2px 7px;color:var(--ink);
+  overflow-wrap:anywhere}
+
 /* ---------- callouts ---------- */
 .callout{border-radius:var(--r);padding:26px 28px 22px;margin:0}
 .callout h2,.callout h3{margin-top:0}
@@ -328,9 +337,9 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
 
 <header><div class="hd">
  <a class="brand" href="/"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg><div>NBS Signal Tool<small>Nifty · Bank Nifty · Sensex</small></div></a>
- <nav><a class="hide" href="/how-it-works">How it works</a><a class="hide" href="/screen">The screen</a><a class="hide" href="/results">Results</a><a class="hide" href="/security">Security</a><a class="hide" href="/access">Access</a><a class="hide" href="/faq">FAQ</a><a class="btn" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></nav>
+ <nav><a class="hide" href="/how-it-works">How it works</a><a class="hide" href="/screen">The screen</a><a class="hide" href="/results">Results</a><a class="hide" href="/security">Security</a><a class="hide" href="/access">Access</a><a class="hide" href="/kite">Connect Zerodha</a><a class="hide" href="/faq">FAQ</a><a class="btn" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></nav>
 </div></header>
-<div class="subnav"><ul><li><a class="" href="/how-it-works">How it works</a></li><li><a class="" href="/screen">The screen</a></li><li><a class="" href="/results">Results</a></li><li><a class="" href="/security">Security</a></li><li><a class="" href="/access">Access</a></li><li><a class="" href="/faq">FAQ</a></li><li><a class="" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></li></ul></div>
+<div class="subnav"><ul><li><a class="" href="/how-it-works">How it works</a></li><li><a class="" href="/screen">The screen</a></li><li><a class="" href="/results">Results</a></li><li><a class="" href="/security">Security</a></li><li><a class="" href="/access">Access</a></li><li><a class="" href="/kite">Connect Zerodha</a></li><li><a class="" href="/faq">FAQ</a></li><li><a class="" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></li></ul></div>
 
 
 <div class="wrap">
@@ -588,7 +597,7 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
     Bank Nifty and Sensex index options. It shows its working, it says WAIT most
     of the time, and it places no orders.</p>
   </div>
-  <div><h5>The tool</h5><ul><li><a href="/how-it-works">How it works</a></li><li><a href="/screen">The screen</a></li><li><a href="/results">Results</a></li><li><a href="/security">Security</a></li><li><a href="/access">Access</a></li><li><a href="/faq">FAQ</a></li></ul></div>
+  <div><h5>The tool</h5><ul><li><a href="/how-it-works">How it works</a></li><li><a href="/screen">The screen</a></li><li><a href="/results">Results</a></li><li><a href="/security">Security</a></li><li><a href="/access">Access</a></li><li><a href="/kite">Connect Zerodha</a></li><li><a href="/faq">FAQ</a></li></ul></div>
   <div><h5>Account</h5><ul>
    <li><a href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></li>
    <li><a href="/access">How access works</a></li>

@@ -53,6 +53,7 @@ PAGES = {
     "/results":      "results.html",
     "/security":     "security.html",
     "/access":       "access.html",
+    "/kite":         "kite.html",
     "/faq":          "faq.html",
     "/disclaimer":   "disclaimer.html",
 }

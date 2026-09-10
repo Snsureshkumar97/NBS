@@ -6,8 +6,8 @@
 <script>document.documentElement.className+=" js"</script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-<meta name="description" content="Every screen in NBS Signal Tool, rendered from the app's own canvas: the signal board, the chart tab, targets, the quiet days, and both themes.">
-<title>The screen — NBS Signal Tool</title>
+<meta name="description" content="How to set up a Kite Connect app and connect a Zerodha account to the NBS Signal Tool.">
+<title>Connecting Zerodha — NBS Signal Tool</title>
 <style>
 /* Black. Kite's semantics kept — #4caf50 up, #ff5722 down, a blue accent,
    hairline borders, 3px corners, no gradients — but inverted onto near-black,
@@ -337,78 +337,166 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
 
 <header><div class="hd">
  <a class="brand" href="/"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg><div>NBS Signal Tool<small>Nifty · Bank Nifty · Sensex</small></div></a>
- <nav><a class="hide" href="/how-it-works">How it works</a><a class="hide on" href="/screen">The screen</a><a class="hide" href="/results">Results</a><a class="hide" href="/security">Security</a><a class="hide" href="/access">Access</a><a class="hide" href="/kite">Connect Zerodha</a><a class="hide" href="/faq">FAQ</a><a class="btn" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></nav>
+ <nav><a class="hide" href="/how-it-works">How it works</a><a class="hide" href="/screen">The screen</a><a class="hide" href="/results">Results</a><a class="hide" href="/security">Security</a><a class="hide" href="/access">Access</a><a class="hide on" href="/kite">Connect Zerodha</a><a class="hide" href="/faq">FAQ</a><a class="btn" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></nav>
 </div></header>
-<div class="subnav"><ul><li><a class="" href="/how-it-works">How it works</a></li><li><a class="on" href="/screen">The screen</a></li><li><a class="" href="/results">Results</a></li><li><a class="" href="/security">Security</a></li><li><a class="" href="/access">Access</a></li><li><a class="" href="/kite">Connect Zerodha</a></li><li><a class="" href="/faq">FAQ</a></li><li><a class="" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></li></ul></div>
+<div class="subnav"><ul><li><a class="" href="/how-it-works">How it works</a></li><li><a class="" href="/screen">The screen</a></li><li><a class="" href="/results">Results</a></li><li><a class="" href="/security">Security</a></li><li><a class="" href="/access">Access</a></li><li><a class="on" href="/kite">Connect Zerodha</a></li><li><a class="" href="/faq">FAQ</a></li><li><a class="" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a></li></ul></div>
 
-<div class="wrap"><div class="phead"><h1>The screen</h1><p>Every image below is a PNG rendered straight from the app's own canvas — the same code path that draws the window on a Mac. Nothing here is a mockup of a screen that does not exist.</p></div></div>
-<div class="wrap">
+<div class="wrap"><div class="phead"><h1>Connecting Zerodha</h1><p>Two different jobs that are easy to confuse: the owner sets up one Kite Connect app, once. Everyone else connects their own Zerodha account to it, every trading day.</p></div></div>
+<div class="wrap"><div class="narrow prose">
+
  <section class="first">
-  <div class="narrow prose" style="margin-bottom:44px">
-   <p>The whole window is painted on one canvas. There is not a single native
-    button, tab or checkbox in the main view, and that is deliberate: the
-    operating system's own widgets look different on macOS, Windows and Linux
-    and cannot do gradients or rounded corners, so the layout would have
-    drifted apart on each machine. Painting it means one appearance
-    everywhere — and it means the screen can be rendered to a PNG with no
-    display attached, which is how the layout is checked.</p>
+  <div class="callout warm reveal">
+   <h3 style="margin-top:0">Which half do you need?</h3>
+   <p>If you were given an account here and want to start seeing signals, you
+    want <a href="#connecting">part two</a>. Part one is done once, by whoever
+    runs the server, and is already done on this one.</p>
   </div>
-  <figure class="reveal"><img src="/shot/board.52fa4477.png" alt="The signal board" width="2000" height="1000" loading="lazy"><figcaption><b>The signal board</b>Bank Nifty, a Buy CE on the 56500 call. CONFIRMING means the direction still has to hold for two minutes before a ticket is issued — sixty-one seconds to go here. The ladder is switched to option premium, so T1/T2/T3 and the stop are quoted in what the contract actually costs and in rupees per lot, and the row under it says plainly that the conversion ignores time decay. Seven inputs are scored underneath, Room to Run among them.</figcaption></figure>
-  <figure class="reveal"><img src="/shot/chart.b1d1ac7e.png" alt="The chart" width="2000" height="1000" loading="lazy"><figcaption><b>The chart</b>Fifteen-minute candles with both EMAs and VWAP, and the same T1, T2, T3 and stop drawn as lines where they actually sit rather than quoted in a table somewhere else. Drag it to scroll back through earlier sessions; the right-hand candle is built from the live tick stream, so it moves before it closes.</figcaption></figure>
-  <figure class="reveal"><img src="/shot/trend.af0aeaf7.png" alt="Trend, day move and confidence" width="2000" height="428" loading="lazy"><figcaption><b>Trend, day move and confidence</b>Three readings the tool will not let you skip past. The trend box says STALLED — GOING NOWHERE with the ADX and how far price has travelled in fourteen bars. The dial reports 75% and still labels it Low, because three of four inputs agreeing is not a strong hand — the number and the word are both shown so one cannot flatter the other.</figcaption></figure>
-  <figure class="reveal"><img src="/shot/map.9d4712ec.png" alt="The market map" width="2000" height="900" loading="lazy"><figcaption><b>The market map</b>Every index constituent sized by its weight and coloured by its move today, so you can see whether an index is being carried by two heavyweights or genuinely moving as a whole. Breadth is counted underneath — how many up, how many down, and how many are actually streaming right now.</figcaption></figure>
-  <figure class="reveal"><img src="/shot/why.9477cf5b.png" alt="Why — every input, in full" width="2000" height="857" loading="lazy"><figcaption><b>Why — every input, in full</b>The reasoning, in sentences, for every input including the ones that abstained. Each says what it measured, what the threshold was and which way it voted. PCR abstains here and says so. Nothing that fed the verdict is left off this list, and nothing on it is a number without an explanation.</figcaption></figure>
-  <figure class="reveal"><img src="/shot/full.38135754.png" alt="The whole screen" width="1150" height="2424" loading="lazy"><figcaption><b>The whole screen</b>One page, one scroll: the three indices, the session total, the signal and its ladder, trend and confidence, the chart, today's range, the market map, the record, and the reasoning. There is no second tab and nothing is hidden behind a menu.</figcaption></figure>
  </section>
 
  <section>
-  <div class="narrow prose">
-   <h2>The left rail</h2>
-   <p>Five icons, each a page rather than a dialog. The Market Map used to open
-    in its own window; it is a page now, which gives it the whole area instead
-    of a third of it.</p>
-   <table class="tbl">
-    <tr><th>Icon</th><th>Page</th></tr>
-    <tr><td>Pulse</td><td>the signal board — the Signal and Chart tabs</td></tr>
-    <tr><td>Grid</td><td>Market Map, the sector heat map, full width</td></tr>
-    <tr><td>Bars</td><td>Your trades — the summary of everything closed</td></tr>
-    <tr><td>Bell</td><td>a switch, not a destination: popup alerts on or off</td></tr>
-    <tr><td>Gear</td><td>Settings — token state, where credentials live, which
-     files get written</td></tr>
-   </table>
-   <p>The icons are spaced by solving for the room between the logo and the
-    theme toggle rather than by a fixed pitch, so the rail stays clear of the
-    bottom controls at every window size the app allows.</p>
+  <p class="kicker">Part one &mdash; the owner, once</p>
+  <h2>Creating the Kite Connect app</h2>
+  <p>Kite Connect is the API side of Zerodha and is billed separately from a
+   trading account. What this tool reads is index candles and the option chain,
+   which is the historical-data permission. Pricing and permissions are between
+   you and Zerodha and they change, so check their current terms rather than
+   taking a figure from this page.</p>
 
-   <h2 style="margin-top:44px">Reading the signal board</h2>
-   <table class="tbl">
-    <tr><th>Part</th><th>What it is telling you</th></tr>
-    <tr><td>Signal ticket</td><td>the call itself — BUY CE, BUY PE, or nothing.
-     <code>OPEN</code> means it is live and tracked; <code>PREVIEW</code> means
-     a direction exists but no ticket was issued; <code>DEMO</code> means the
-     figures are not live data.</td></tr>
-    <tr><td>Entry / Now</td><td>the premium at issue, and the premium now. The
-     rupee figure beside them is that difference across your chosen lots.</td></tr>
-    <tr><td>Reward : risk</td><td>the ratio computed at entry from ATR. Below
-     the floor it never became a ticket at all.</td></tr>
-    <tr><td>T1 / T2 / T3</td><td>the three targets, each with how far price has
-     travelled toward it — a check mark and a timestamp once reached.</td></tr>
-    <tr><td>Stop</td><td>with the same progress bar, which is the one you
-     actually want to be watching.</td></tr>
-    <tr><td>Confidence</td><td>the dial, with every input that fed it listed
-     underneath. A dash means that input abstained and was ignored rather than
-     counted as neutral.</td></tr>
-    <tr><td>Market trend</td><td>the plain-English label — RANGE-BOUND /
-     CHOPPY, MODERATE DOWNTREND — with the ADX reading and how far price has
-     actually displaced in ATR terms.</td></tr>
-    <tr><td>Session</td><td>everything closed today, in order, with the running
-     total split into booked and open.</td></tr>
-   </table>
-  </div>
+  <ol class="steps reveal">
+   <li><h3>Create an app</h3>
+    <p>At <span class="mono">developers.kite.trade/apps</span>, create a new
+     app of type <b>Connect</b>. The name is yours to choose.</p></li>
+   <li><h3>Set the redirect URL, exactly</h3>
+    <p>This is the only field that has to be right to the character:</p>
+    <p><span class="mono">https://nbs-signal-tool.tail7b2558.ts.net/kite/callback</span></p>
+    <p>Zerodha allows <b>one</b> redirect URL per app. It is where their login
+     sends the browser back to, so if it does not match this server the
+     connection fails at the last step with no useful message. Leave the
+     postback URL empty &mdash; nothing here listens for one.</p></li>
+   <li><h3>Copy the API key and secret into the server</h3>
+    <p>They go in the server's environment as
+     <span class="mono">KITE_API_KEY</span> and
+     <span class="mono">KITE_API_SECRET</span>, and the server is restarted so
+     it reads them. They belong to the app, not to any one person &mdash;
+     every user connects their own Zerodha account through this same app.</p>
+    <p>The secret is what lets a request token be exchanged for a session. It
+     stays on the server; it is never rendered into a page.</p></li>
+  </ol>
+  
+<figure class="diagram reveal">
+ <svg viewBox="0 0 720 300" role="img"
+      aria-label="Diagram of the Kite Connect create-app form: app name, redirect
+      URL, postback URL and description, with the redirect URL highlighted.">
+  <rect x="8" y="8" width="704" height="284" rx="6"
+        fill="var(--sunken)" stroke="var(--bd)"/>
+  <text x="30" y="42" fill="var(--ink-2)" font-size="12"
+        font-weight="700" letter-spacing="1.2">CREATE NEW APP &mdash; DIAGRAM, NOT A SCREENSHOT</text>
+
+  <text x="30" y="80" fill="var(--ink-3)" font-size="12">Type</text>
+  <rect x="30" y="88" width="300" height="30" rx="4"
+        fill="var(--raised)" stroke="var(--bd)"/>
+  <text x="42" y="108" fill="var(--ink)" font-size="13">Connect</text>
+
+  <text x="30" y="140" fill="var(--ink-3)" font-size="12">App name</text>
+  <rect x="30" y="148" width="300" height="30" rx="4"
+        fill="var(--raised)" stroke="var(--bd)"/>
+  <text x="42" y="168" fill="var(--ink)" font-size="13">anything you like</text>
+
+  <text x="30" y="200" fill="var(--ink-3)" font-size="12">Redirect URL &mdash; the one that has to match</text>
+  <rect x="30" y="208" width="660" height="32" rx="4"
+        fill="rgba(77,148,232,.10)" stroke="var(--accent)"/>
+  <text x="42" y="229" fill="var(--ink)" font-size="12.5"
+        font-family="ui-monospace,SFMono-Regular,Menlo,monospace">https://nbs-signal-tool.tail7b2558.ts.net/kite/callback</text>
+
+  <text x="30" y="266" fill="var(--ink-3)" font-size="12">Postback URL</text>
+  <rect x="150" y="252" width="180" height="26" rx="4"
+        fill="var(--raised)" stroke="var(--bd-soft)"/>
+  <text x="162" y="270" fill="var(--ink-3)" font-size="12.5">leave it empty</text>
+ </svg>
+ <figcaption><b>The form, as a diagram</b>Only the redirect URL has to be exact.
+  Zerodha allows one per app, and if it does not match this server character for
+  character the login returns you to the wrong place and the connection
+  fails.</figcaption>
+</figure>
+
  </section>
 
- <div class="next"><a href="/results"><b>Next</b>What it measured</a><a href="/how-it-works"><b>Back</b>How it works</a></div>
-</div>
+ <section id="connecting">
+  <p class="kicker">Part two &mdash; you, each trading day</p>
+  <h2>Connecting your account</h2>
+  <ol class="steps reveal">
+   <li><h3>Log in here</h3>
+    <p>With the email and password the owner gave you. There is no sign-up
+     form and no email reset. <a href="/access">How access works.</a></p></li>
+   <li><h3>Press Connect Zerodha</h3>
+    <p>In the header, or from the notice the tool shows when it has no token.
+     It sends you to Zerodha's own login page.</p></li>
+   <li><h3>Log in to Zerodha and approve</h3>
+    <p>Your Zerodha password and 2FA are typed on Zerodha's page, not on this
+     one. This site never sees them. Zerodha then sends your browser back to
+     the redirect URL above with a one-time request token, which the server
+     exchanges for a session using the app secret.</p></li>
+   <li><h3>You land back here, connected</h3>
+    <p>The connection page names the Zerodha user the session belongs to and
+     when it was issued. From then on the candles and the option chain are read
+     under your own Kite session.</p></li>
+  </ol>
+  <figure class="reveal"><img src="/shot/login.f4c24064.png" alt="Signing in" width="1600" height="1013" loading="lazy"><figcaption><b>Signing in</b>The door. Accounts are made by the owner rather than by signing up, so there is no registration form here and no email reset - a forgotten password is reset by hand.</figcaption></figure>
+  <figure class="reveal"><img src="/shot/connect.fd4e7b9b.png" alt="The connection page" width="1600" height="1200" loading="lazy"><figcaption><b>The connection page</b>What you land on after connecting, and what you check when something looks stale. It names the Zerodha user the token belongs to and when it was issued, and it says in as many words that no order is ever placed and that the token is cleared every morning.</figcaption></figure>
+ </section>
+
+ <section>
+  <h2>Why this is a daily step</h2>
+  <p>Zerodha clears every access token each morning at around 07:30 IST,
+   whenever it was issued. That is their rule, not a choice made here, and no
+   amount of uptime on this server avoids it: reconnecting needs your password
+   and your second factor, which only you have.</p>
+  <p>So the honest shape of a trading day is: the server has been running all
+   night, and you still press Connect Zerodha once before the open. Until you
+   do, the tool loads and shows you nothing live &mdash; and if you have asked
+   it to <b>run all session</b>, it deliberately does not start either, because
+   a feed with no token is a loop logging failures.</p>
+ </section>
+
+ <section>
+  <h2>What the connection allows</h2>
+  <table class="tbl">
+   <tr><th>It can</th><th>It cannot</th></tr>
+   <tr><td>read index candles</td><td>place an order</td></tr>
+   <tr><td>read the option chain</td><td>modify or cancel an order</td></tr>
+   <tr><td>stream live prices</td><td>move funds</td></tr>
+   <tr><td>read your Zerodha user id and name, to show you which account is
+    connected</td><td>see your Zerodha password &mdash; you type it on
+    Zerodha's page</td></tr>
+  </table>
+  <p>The token is stored on the server only, is never rendered into a page or
+   written to a log, and is deleted with your account. You can disconnect at
+   any time from the connection page, or revoke the app from Zerodha's side.
+   <a href="/security">What is stored, in full.</a></p>
+ </section>
+
+ <section>
+  <h2>When it will not connect</h2>
+  <table class="tbl">
+   <tr><th>What you see</th><th>Usually</th></tr>
+   <tr><td>Zerodha returns you to a page that will not load</td><td>the
+    redirect URL on the app does not match this server</td></tr>
+   <tr><td>&ldquo;The site owner needs to set KITE_API_KEY&rdquo;</td><td>the
+    server has no app credentials yet &mdash; part one is not done</td></tr>
+   <tr><td>Connected yesterday, nothing today</td><td>the daily 07:30 IST
+    clear-out; press Connect Zerodha again</td></tr>
+   <tr><td>Connects, then says the feed is down</td><td>the Kite Connect
+    subscription or the historical-data permission has lapsed</td></tr>
+  </table>
+ </section>
+
+ <div class="cta"><a class="btn" href="https://nbs-signal-tool.tail7b2558.ts.net/login">Log in</a>
+  <a class="btn ghost" href="/security">What is stored</a></div>
+
+ <div class="next"><a href="/access"><b>Access</b>How accounts are created</a><a href="/security"><b>Security</b>What is kept, and where</a></div>
+
+</div></div>
+
 
 <footer><div class="wrap">
  <div class="legal">
