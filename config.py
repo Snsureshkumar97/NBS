@@ -165,21 +165,6 @@ INSTRUMENTS = {
         "lot_size": 1,
         "has_free_option_chain": False,
     },
-    "ETH": {
-        "yahoo_ticker": "ETH-USD",
-        "nse_symbol": None,
-        "kite_exchange": None,
-        "kite_tradingsymbol": None,
-        "market": "crypto",
-        "provider": "deribit",
-        "deribit_instrument": "ETH-PERPETUAL",
-        "deribit_index": "eth_usd",
-        "deribit_currency": "ETH",
-        "quote_ccy": "USD",
-        "strike_step": 50,
-        "lot_size": 1,
-        "has_free_option_chain": False,
-    },
 }
 
 # ---------------------------------------------------------------------------
