@@ -580,12 +580,66 @@ class Feed:
         self.sug_tokens[name] = (strike, opt, inst)
         st.subscribe([f"ticker.{inst}.100ms"])
 
+    def _crypto_ticket(self, name):
+        """Stream the contract an OPEN ticket is actually tracked on.
+
+        Its strike is frozen at entry and drifts away from whatever is being
+        suggested now, so the suggested-strike subscription is not enough - the
+        crypto twin of _subscribe_ticket.
+        """
+        st = self.dstream
+        if st is None or self.opt_tokens.get(name) is not None:
+            return
+        book = self.tickets.books.get(name)
+        trade = book.trade if book else None
+        if trade is None or trade["status"] != "OPEN" or not trade.get("use_premium"):
+            return
+        try:
+            inst = self._provider_for(name, None).option_instrument(
+                name, trade["strike"], trade["option_type"])
+        except Exception:
+            inst = None
+        if not inst:
+            return
+        self.opt_tokens[name] = inst
+        st.subscribe([f"ticker.{inst}.100ms"])
+
+    def _crypto_track(self):
+        """Price an open ticket and check its levels, on the tick.
+
+        This was missing entirely. A ticket's live price and its targets were
+        only ever touched by the analysis pass, so NOW crawled behind a premium
+        arriving several times a second - and, worse, a stop could be blown
+        through between passes and stamped with whatever price it had by the
+        time anyone looked.
+        """
+        st = self.dstream
+        if st is None:
+            return
+        for name in self.instruments():
+            self._crypto_ticket(name)
+            inst = self.opt_tokens.get(name)
+            if not inst:
+                continue
+            px = st.mark_usd(inst, config.INSTRUMENTS[name]["deribit_index"])
+            if px is None:
+                continue
+            self.tickets.live_price(name, px)
+            for ev in self.tickets.tick_price(name, px):
+                ev["at"] = now_ist().strftime("%H:%M:%S")
+                with self.lock:
+                    self.events.insert(0, ev)
+                    del self.events[30:]
+                if ev.get("kind") == "closed":
+                    self.opt_tokens.pop(name, None)
+
     def _crypto_prices(self):
         """Read the socket's memory into this feed's price maps."""
         st = self.dstream
         if st is None:
             return
         self._crypto_at = time.time()
+        self._crypto_track()
         for name in self.instruments():
             meta = config.INSTRUMENTS[name]
             px = st.index_price(meta["deribit_index"])
@@ -1013,7 +1067,14 @@ class Feed:
             # measured the same way - how long since a price actually arrived -
             # just against the poll instead of a socket.
             age = (time.time() - self._crypto_seen) if self._crypto_seen else None
-            return {"spots": spots, "ltp": sug, "premium": {},
+            prem = {}
+            if self.dstream is not None:
+                for nm, inst in list(self.opt_tokens.items()):
+                    v = self.dstream.mark_usd(
+                        inst, config.INSTRUMENTS[nm]["deribit_index"])
+                    if v is not None:
+                        prem[nm] = v
+            return {"spots": spots, "ltp": sug, "premium": prem,
                     "live": bool(age is not None and age < 15.0),
                     "age": round(age, 1) if age is not None else None,
                     "bar": self.forming(),
