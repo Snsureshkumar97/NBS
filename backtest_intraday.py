@@ -292,7 +292,7 @@ def verify_precompute(df, pre, samples=25):
 # ===========================================================================
 # THE WALK
 # ===========================================================================
-def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4):
+def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=None):
     """hold_bars and square_off default to the instrument's own market.
 
     26 bars is one Indian session and squaring off at the close is what you do
@@ -357,6 +357,13 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4):
         if t1 is None or stop is None:
             continue
         ce = rec["option_type"] == "CE"
+        # An optional extra filter, asked at the moment of entry with only what
+        # was known then. Applied inside the loop rather than to the finished
+        # trade list, so a blocked signal frees the gap for the next one exactly
+        # as it would live - filtering afterwards would quietly lose those.
+        if gate is not None and not gate(i, rec):
+            blocked["regime"] = blocked.get("regime", 0) + 1
+            continue
 
         hit = {"T1": False, "T2": False, "T3": False}
         sl_hit = False

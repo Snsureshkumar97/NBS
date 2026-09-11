@@ -860,6 +860,26 @@ def _session_close():
     return _hhmm(config.MARKET_CLOSE_TIME)
 
 
+def _first_rows():
+    """The morning, as the entry rules actually run it.
+
+    With the opening-range filter on, the first half hour forms the range and
+    nothing is issued; after it, a ticket needs a break of that range in its
+    own direction. Read from config so the page cannot promise 09:20 entries
+    that the server no longer takes.
+    """
+    o, c = _session_open(), _cas_start()
+    if getattr(config, "REGIME_OR_BREAK", False):
+        return (f'<tr><td><code>{o}</code></td><td><code>09:45</code></td>'
+                '<td>analysing while the opening range forms &mdash; no entries</td></tr>'
+                f'<tr><td><code>09:45</code></td><td><code>{c}</code></td>'
+                '<td>tickets, but only once price breaks the opening range in the '
+                'trade&rsquo;s direction &mdash; above its high for a CE, below its '
+                'low for a PE</td></tr>')
+    return (f'<tr><td><code>{o}</code></td><td><code>{c}</code></td>'
+            '<td>the full session &mdash; analysing, and issuing tickets</td></tr>')
+
+
 def _cas_start():
     return _hhmm(config.CAS_START_TIME)
 
@@ -1203,8 +1223,7 @@ def how_page(user=None, record=None):
   <p>All times IST, read from the same config the server runs on.</p>
   <table class="tbl">
    <tr><th>From</th><th>Until</th><th>What happens</th></tr>
-   <tr><td><code>{_session_open()}</code></td><td><code>{_cas_start()}</code></td>
-    <td>the full session &mdash; analysing, and issuing tickets</td></tr>
+   {_first_rows()}
    <tr><td><code>{_cas_start()}</code></td><td><code>{_session_close()}</code></td>
     <td>still analysing, but <b>no new entry</b></td></tr>
    <tr><td><code>{_session_close()}</code></td><td>next morning</td>

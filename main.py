@@ -320,6 +320,8 @@ def fetch_recommendation(provider, index_key: str, interval: str, lookback_days,
         notes.append(f"(Reachability check unavailable, using risk-multiple targets: {e})")
 
     rec = build_recommendation(index_key, tech, oi, meta["strike_step"], reach=reach)
+    from signal_engine import opening_range
+    rec["opening_range"] = opening_range(df)
     # Carry the candles along so the GUI's live loop can append the
     # in-progress bar to them and recompute indicators between fetches.
     rec["candles"] = df

@@ -120,6 +120,31 @@ def _ema_direction(df: pd.DataFrame) -> str:
     return "FLAT"
 
 
+def opening_range(df: pd.DataFrame) -> dict:
+    """The high and low of the session's first two 15-minute bars, 09:15-09:45.
+
+    ready only once the 09:30 bar is finished - i.e. a bar stamped 09:45 or
+    later exists - so its high and low are final. This is the same range, and
+    the same readiness, that regime_study.py tested: the one filter that held
+    up out of sample was "take a CE only above this high, a PE only below
+    this low".
+    """
+    out = {"ready": False, "high": None, "low": None}
+    try:
+        last_day = df.index[-1].date()
+        day = df[[d == last_day for d in df.index.date]]
+        mins = day.index.hour * 60 + day.index.minute
+        first2 = day[mins < 9 * 60 + 45]
+        if len(first2) < 2:
+            return out
+        out["high"] = float(first2["High"].max())
+        out["low"] = float(first2["Low"].min())
+        out["ready"] = bool((mins >= 9 * 60 + 45).any())
+    except Exception:
+        pass
+    return out
+
+
 def compute_market_trend(df: pd.DataFrame) -> dict:
     """Reads the overall market condition — direction, strength, momentum,
     and where price sits in today's range.

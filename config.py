@@ -846,6 +846,17 @@ REENTRY_COOLDOWN_MIN = 20
 # bad one. 1.0 means T3 sits at least as far away as the stop does.
 REENTRY_MIN_RR = 1.0
 
+# Opening-range confirmation, Indian indices only. A CE is taken only once price
+# is above the high of 09:15-09:45, a PE only below its low; nothing before the
+# range is complete. From regime_study.py, three years, priced as ATM options
+# after Zerodha's charges: it was the only filter tested that improved the
+# in-sample result under every cost and expiry assumption and did not collapse
+# on the held-out year (pooled, default assumptions: -164k -> +253k in-sample,
+# +20k -> +66k out-of-sample, per lot). It takes about 45% fewer trades; in the
+# most favourable assumptions the unfiltered rules make more, in the
+# unfavourable ones they lose far more. Robustness was preferred to upside.
+REGIME_OR_BREAK = True
+
 # Is MIN_MINUTES_BETWEEN_TICKETS counted per index, or across all three?
 # Moot while that setting is 0 — kept because it matters the moment it is not.
 #

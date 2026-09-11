@@ -481,6 +481,14 @@ class TicketBook:
             book.confirm_streak = 1
             return hold(*block)
 
+        # --- 6. the opening range has to be broken this way ----------------
+        # After the daily brake, so "market closed" and "closing auction" still
+        # speak first. The confirm streak is left alone: once price does break,
+        # the ticket goes at once rather than starting its 120 seconds again.
+        held = self._regime_hold(rec)
+        if held is not None:
+            return hold(*held)
+
         events = []
         if book.trade is not None and book.trade["status"] == "OPEN":
             px = self._price_for(book.trade, rec)
@@ -498,6 +506,36 @@ class TicketBook:
         stamps = [b.last_ticket_epoch() for b in self.books.values()]
         stamps = [s for s in stamps if s is not None]
         return max(stamps) if stamps else None
+
+    def _regime_hold(self, rec):
+        """Held until price has broken the opening range in the trade's
+        direction. Only for markets that have an opening; crypto has none."""
+        if not _cfg("REGIME_OR_BREAK", False):
+            return None
+        if config.market_for(rec.get("index"))["always_open"]:
+            return None
+        orng = rec.get("opening_range") or {}
+        if not orng.get("ready"):
+            return ("or_wait", "OPENING RANGE",
+                    "The first half hour, 09:15 to 09:45, sets the opening range. "
+                    "Entries wait until it is complete, then need a break of it "
+                    "in the trade's direction.")
+        spot, hi, lo = rec.get("spot"), orng.get("high"), orng.get("low")
+        if spot is None or hi is None or lo is None:
+            return None
+        if rec.get("option_type") == "CE" and spot <= hi:
+            return ("or_break", "WAITING FOR BREAK",
+                    f"A CE here is taken only above the opening-range high of "
+                    f"{hi:,.2f}. Price is {spot:,.2f}, {hi - spot:,.2f} below it. "
+                    f"Across three years this one condition was the difference "
+                    f"between losing and not.")
+        if rec.get("option_type") == "PE" and spot >= lo:
+            return ("or_break", "WAITING FOR BREAK",
+                    f"A PE here is taken only below the opening-range low of "
+                    f"{lo:,.2f}. Price is {spot:,.2f}, {spot - lo:,.2f} above it. "
+                    f"Across three years this one condition was the difference "
+                    f"between losing and not.")
+        return None
 
     def _same_direction_hold(self, book, rec, direction):
         """Why a second ticket in a direction already taken today is held, or

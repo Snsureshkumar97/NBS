@@ -254,6 +254,7 @@ def _public(rec, name=None):
         # has always carried this; the page only ever saw one number, so
         # "606 pts of room" never said which way or to where.
         "room": _room(rec),
+        "opening_range": rec.get("opening_range"),
         "reach_to_risk": rec.get("reach_to_risk"),
         "reach_reason": rec.get("reach_reason"),
         "not_worth_it": rec.get("not_worth_it"),
@@ -954,6 +955,7 @@ class Feed:
                 except Exception:
                     rec["trend"] = None
                 rec["candles"] = df
+                rec["opening_range"] = signal_engine.opening_range(df)
             except Exception:
                 continue
 
