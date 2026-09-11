@@ -834,8 +834,17 @@ WEB_ALLOW_SIGNUP = os.environ.get("WEB_ALLOW_SIGNUP", "0") not in ("0", "", "fal
 # negative expectancy is a faster loss, not a bigger opportunity. Turn it on to
 # see continuation entries you're currently blind to — not because more signals
 # is better.
-ALLOW_SAME_DIRECTION_REENTRY = False
+ALLOW_SAME_DIRECTION_REENTRY = True
 REENTRY_COOLDOWN_MIN = 20
+
+# A second ticket in a direction already taken today must have real room left.
+# The targets are placed INSIDE the room - T1/T2/T3 at 40/70/100% of it - so
+# "can it hit the targets" comes down to whether the room is big enough to be
+# worth the stop. A first entry needs room of 0.6x the risk; a re-entry needs
+# the room to be at least as far as the stop, because the move has already had
+# one leg and a second ticket on a tired trend is how a good morning becomes a
+# bad one. 1.0 means T3 sits at least as far away as the stop does.
+REENTRY_MIN_RR = 1.0
 
 # Is MIN_MINUTES_BETWEEN_TICKETS counted per index, or across all three?
 # Moot while that setting is 0 — kept because it matters the moment it is not.

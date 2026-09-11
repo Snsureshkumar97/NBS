@@ -109,7 +109,7 @@ class TicketBook:
         # What used to be checkboxes. Defaults come from config so the website
         # and the desktop start from the same place.
         self.lots = 1
-        self.reentry = False
+        self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
 
@@ -444,17 +444,10 @@ class TicketBook:
                         f"readings — {book.confirm_streak} so far.")
 
         # --- 2. same direction, already taken today ------------------------
-        if direction == book.last_bias_signature and not self._reentry_allowed(book):
-            if self.reentry:
-                mins = _cfg("REENTRY_COOLDOWN_MIN", 20)
-                return hold("reentry_cooldown", "COOLDOWN",
-                            f"This index was already ticketed {direction[1]} today. "
-                            f"Re-entry in the same direction needs {mins} minutes "
-                            f"between tickets.")
-            return hold("same_direction", "ALREADY TAKEN",
-                        f"This index was already ticketed {direction[1]} today, and "
-                        f"re-entry in the same direction is off — so the next "
-                        f"ticket here waits for the direction to change.")
+        if direction == book.last_bias_signature:
+            held = self._same_direction_hold(book, rec, direction)
+            if held:
+                return hold(*held)
 
         # --- 3. a floor under the gap between tickets ----------------------
         gap = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0)
@@ -505,6 +498,50 @@ class TicketBook:
         stamps = [b.last_ticket_epoch() for b in self.books.values()]
         stamps = [s for s in stamps if s is not None]
         return max(stamps) if stamps else None
+
+    def _same_direction_hold(self, book, rec, direction):
+        """Why a second ticket in a direction already taken today is held, or
+        None if it may go.
+
+        It may go when nothing is open, the cooldown has passed, and there is
+        genuinely room left to reach the targets - measured as room ahead
+        against risk to the stop, and held to a stricter bar than a first entry
+        because the move has already had one leg.
+        """
+        side = direction[1]
+        if not self.reentry:
+            return ("same_direction", "ALREADY TAKEN",
+                    f"This index was already ticketed {side} today, and re-entry "
+                    f"in the same direction is off - the next ticket here waits "
+                    f"for the direction to change.")
+        if book.trade is not None and book.trade["status"] == "OPEN":
+            return ("position_open", "POSITION OPEN",
+                    "A ticket is already running on this index. It is left alone "
+                    "to find its own target or stop.")
+        mins = _cfg("REENTRY_COOLDOWN_MIN", 20)
+        if book.last_ticket_at is not None:
+            gap = (now_ist() - book.last_ticket_at).total_seconds() / 60.0
+            if gap < mins:
+                return ("reentry_cooldown", "COOLDOWN",
+                        f"Already ticketed {side} today. A second ticket the same "
+                        f"way waits {mins} minutes after the last - about "
+                        f"{max(1, int(round(mins - gap)))} to go - so a stop-out "
+                        f"is not bought straight back.")
+        need = float(_cfg("REENTRY_MIN_RR", 1.0))
+        rr = rec.get("reach_to_risk")
+        room, risk = rec.get("reach_points"), rec.get("risk_points")
+        if rr is None or room is None:
+            return ("reentry_no_room", "ROOM CHECK",
+                    f"Already ticketed {side} today, and the room to run cannot be "
+                    f"measured right now, so a second ticket is not issued on a "
+                    f"guess.")
+        if rr < need:
+            return ("reentry_no_room", "NOT ENOUGH ROOM",
+                    f"Same direction again, but only {room:,.0f} pts of room against "
+                    f"{(risk or 0):,.0f} at risk ({rr:.2f}x). A second ticket this "
+                    f"way needs at least {need:.1f}x - room at least as far as the "
+                    f"stop - so the targets are really within reach.")
+        return None
 
     def _reentry_allowed(self, book):
         """A SECOND ticket in a direction already ticketed today.
