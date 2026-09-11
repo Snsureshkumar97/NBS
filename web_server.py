@@ -1577,14 +1577,19 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 .wrap > *:nth-child(4){animation-delay:.15s} .wrap > *:nth-child(5){animation-delay:.2s}
 .wrap > *:nth-child(6){animation-delay:.25s} .wrap > *:nth-child(7){animation-delay:.3s}
 .wrap > *:nth-child(n+8){animation-delay:.35s}
+/* The signal card enters like the rest, then starts its sway - both in one
+   list, or the entrance rule (which comes later) silently replaced it. */
+.wrap > .herocard{animation:fadeUp .6s cubic-bezier(.2,.8,.2,1) .2s both,
+                             mount 7s ease-in-out .8s infinite}
+.wrap > .herocard:hover,.wrap > .herocard:focus-within{animation-play-state:paused}
 
 @media (prefers-reduced-motion: reduce){
-  .herocard,.wrap > *{animation:none}
+  .herocard,.wrap > *,.wrap > .herocard{animation:none}
   .mkt,.top3 .card,.tiles .tile{transition:none}
 }
 @media (max-width:720px){
   .card,.mkt,.session{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-  .herocard{animation:none;padding:20px}
+  .herocard,.wrap > .herocard{animation:none;padding:20px}
   .herocard .hero .v{font-size:34px}
 }
 </style></head><body>
