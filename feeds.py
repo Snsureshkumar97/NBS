@@ -352,6 +352,15 @@ class Feed:
         """
         if _settings["mode"] == "free":
             return FreeDataProvider(), "ok", ""
+        if config.MARKETS[self.market]["market_provider"] != "kite":
+            # This market does not come from Zerodha, so a Zerodha token is not
+            # a precondition for it. Checking one anyway is why a crypto feed
+            # sat at feed="unknown" reporting "Insufficient permission for that
+            # call" and analysed nothing: it was waiting on a credential it
+            # never uses, for a venue that needs no credential at all.
+            if self._crypto is None:
+                self._crypto = DeribitDataProvider()
+            return self._crypto, "ok", ""
         state, detail = user_kite.status(self.email)
         if state != "ok":
             return None, state, detail
