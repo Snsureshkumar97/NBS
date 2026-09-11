@@ -112,8 +112,74 @@ class TicketBook:
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
+        # Account risk. Kept on disk beside the log, unlike the lots: the
+        # account size is a fact about the person, and asking for it again
+        # after every restart would mean the loss limit silently switched off
+        # each morning until somebody noticed.
+        self.capital = None
+        self.risk_pct = float(_cfg("RISK_PER_TRADE_PCT", 1.0))
+        self._booked_cache = None
+        self._load_settings()
 
         self._reconcile()
+
+    # =====================================================================
+    def _settings_path(self):
+        return (self.path + ".settings.json") if self.path else None
+
+    def _load_settings(self):
+        p = self._settings_path()
+        if not p:
+            return
+        try:
+            import json
+            with open(p) as fh:
+                s = json.load(fh)
+            cap = s.get("capital")
+            self.capital = float(cap) if cap else None
+            if s.get("risk_pct") in _cfg("RISK_PCT_CHOICES", (1.0,)):
+                self.risk_pct = float(s["risk_pct"])
+        except Exception:
+            pass
+
+    def _save_settings(self):
+        p = self._settings_path()
+        if not p:
+            return
+        try:
+            import json, os
+            tmp = p + ".tmp"
+            with open(tmp, "w") as fh:
+                json.dump({"capital": self.capital, "risk_pct": self.risk_pct}, fh)
+            os.replace(tmp, p)
+        except Exception:
+            pass
+
+    def loss_limit(self):
+        """Today's loss limit in money, or None when no capital is set."""
+        pct = self.loss_limit_pct()
+        if not self.capital or not pct:
+            return None
+        return round(self.capital * pct / 100.0, 2)
+
+    def loss_limit_pct(self):
+        """DAILY_LOSS_LIMIT_R full-risk losses, as a share of capital."""
+        return round(float(_cfg("DAILY_LOSS_LIMIT_R", 0)) * self.risk_pct, 2)
+
+    def booked_net_today(self):
+        """Closed P&L for today, from the log, cached for a few seconds."""
+        now = time.time()
+        c = self._booked_cache
+        if c is not None and now - c[0] <= 3.0:
+            return c[1]
+        try:
+            per, _ = trade_log.booked_today(now_ist().strftime("%Y-%m-%d"),
+                                            path=self.path)
+            val = round(sum(per.values()), 2) if per else 0.0
+        except Exception:
+            val = None
+        self._booked_cache = (now, val)
+        return val
 
     # =====================================================================
     def _reconcile(self):
@@ -174,8 +240,16 @@ class TicketBook:
     # =====================================================================
     # settings
     # =====================================================================
-    def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None):
+    def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
+                  capital=None, risk_pct=None):
         with self.lock:
+            if capital is not None:
+                # 0 or blank clears it, which also switches the loss limit off.
+                self.capital = float(capital) if capital and capital > 0 else None
+                self._save_settings()
+            if risk_pct is not None and risk_pct in _cfg("RISK_PCT_CHOICES", (1.0,)):
+                self.risk_pct = float(risk_pct)
+                self._save_settings()
             if lots is not None:
                 self.lots = max(1, min(int(lots), int(_cfg("MAX_LOTS", 5))))
             if reentry is not None:
@@ -270,6 +344,23 @@ class TicketBook:
                     f"No entries before {cut[0]:02d}:{cut[1]:02d} IST — the opening "
                     f"auction is still settling and the first candle barely "
                     f"exists. The signal is live; only the entry is held.")
+
+        # The daily loss limit. Ahead of the limits switch on purpose: those
+        # caps are about how much to trade, this is about how much a bad day
+        # may cost, and it is only live once the account size is known.
+        # Closed trades only - an open ticket's P&L is still moving, and a
+        # limit that trips on a dip and un-trips on the bounce is no limit.
+        limit = self.loss_limit()
+        if limit:
+            booked = self.booked_net_today()
+            if booked is not None and booked <= -limit:
+                pct = self.loss_limit_pct()
+                return ("loss_limit", "LOSS LIMIT",
+                        f"Today's closed trades are down {abs(booked):,.0f}, past "
+                        f"the daily loss limit of {limit:,.0f} ({pct:g}% of the "
+                        f"capital you entered). No new tickets today - the "
+                        f"signal is still shown. A losing day ends here rather "
+                        f"than being chased.")
         if not self.limits:
             return None
         issued, wins, stops = self.day_stats()
@@ -489,6 +580,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 7. worth taking: the final target pays at least the risk ------
+        held = self._reward_hold(book.name, rec)
+        if held is not None:
+            return hold(*held)
+
         events = []
         if book.trade is not None and book.trade["status"] == "OPEN":
             px = self._price_for(book.trade, rec)
@@ -535,6 +631,35 @@ class TicketBook:
                     f"{lo:,.2f}. Price is {spot:,.2f}, {spot - lo:,.2f} above it. "
                     f"Across three years this one condition was the difference "
                     f"between losing and not.")
+        return None
+
+    def _reward_hold(self, name, rec):
+        """Watch-only indices, then reward:risk to T3. Last of the gates, so
+        every rule about WHEN has spoken before this one says whether the
+        trade itself is worth having."""
+        if name in _cfg("WATCH_ONLY_INDICES", ()):
+            return ("watch_only", "WATCH ONLY",
+                    f"{name} is shown but not ticketed. Since its weekly expiry "
+                    f"ended in November 2024 the same rules have lost money on "
+                    f"it (-62k per lot over the held-out year, after costs), "
+                    f"while Nifty and Sensex made money. Remove it from "
+                    f"WATCH_ONLY_INDICES in config.py to trade it again.")
+        need = _cfg("MIN_REWARD_RISK_T3", 0)
+        if not need:
+            return None
+        spot, risk = rec.get("spot"), rec.get("risk_points")
+        tg = rec.get("index_targets") or [None, None, None]
+        t3 = tg[2] if len(tg) > 2 else None
+        if spot is None or not risk or t3 is None:
+            return None
+        rr = abs(t3 - spot) / risk
+        if rr < need:
+            return ("low_rr", "LOW REWARD",
+                    f"T3 is {abs(t3 - spot):,.0f} points away and the stop "
+                    f"{risk:,.0f} - {rr:.2f} to 1. A ticket closes on one or the "
+                    f"other, so this would risk more than it can make and need "
+                    f"to win well over half the time just to break even. Held "
+                    f"until the target is at least {need:g}x the risk.")
         return None
 
     def _same_direction_hold(self, book, rec, direction):
@@ -608,6 +733,11 @@ class TicketBook:
         Thirteen tickets in twelve seconds against a cap of four, measured.
         """
         if self.entry_block() is not None:
+            return False
+        # The trade-quality gates too. Re-arm skipped them, so a Bank Nifty
+        # ticket could re-open while the index was watch-only, and a 0.6:1
+        # trade could re-open straight after a stop on a 1:1 one.
+        if self._regime_hold(rec) is not None or self._reward_hold(book.name, rec) is not None:
             return False
         last = self._last_any()
         gap_s = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0) * 60
@@ -850,6 +980,11 @@ class TicketBook:
                 "limits": self.limits,
                 "recent": self.closed[:8],
                 "lots": self.lots,
+                "capital": self.capital,
+                "risk_pct": self.risk_pct,
+                "risk_choices": list(_cfg("RISK_PCT_CHOICES", (1.0,))),
+                "loss_limit": self.loss_limit(),
+                "loss_limit_pct": self.loss_limit_pct(),
                 "auto_rearm": self.auto_rearm,
                 "reentry": self.reentry,
             }

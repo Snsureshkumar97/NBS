@@ -880,6 +880,27 @@ def _first_rows():
             '<td>the full session &mdash; analysing, and issuing tickets</td></tr>')
 
 
+def _watch_only_text():
+    names = [n for n in getattr(config, "WATCH_ONLY_INDICES", ())]
+    if not names:
+        return "Nothing is watch-only at the moment."
+    return (_esc(", ".join(names)) + " is watch-only: since its weekly expiry "
+            "ended in November 2024 the same rules lost money on it over the "
+            "held-out year, after costs, while Nifty and Sensex made money")
+
+
+def _bn_card():
+    if "BANKNIFTY" in getattr(config, "WATCH_ONLY_INDICES", ()):
+        return ("<h3>Watched, not ticketed</h3>"
+                "<p>Same checks, shown and explained in full &mdash; but no "
+                "tickets. Its weekly expiry ended in November 2024, and on the "
+                "held-out year the rules lost money on it after costs.</p>")
+    return ("<h3>Same checks, wider range</h3>"
+            "<p>Bigger points per move, so targets and stop come out further "
+            "apart — they are derived from ATR, not from a fixed number of "
+            "points.</p>")
+
+
 def _cas_start():
     return _hhmm(config.CAS_START_TIME)
 
@@ -959,9 +980,7 @@ def home_page(user=None, record=None):
     <p>Trend from stacked EMAs, momentum from MACD and RSI, position from VWAP,
      and the strike taken from the nearest expiry's chain.</p></div>
    <div class="card reveal" data-d="1"><div class="idx">Bank Nifty</div>
-    <h3>Same checks, wider range</h3>
-    <p>Bigger points per move, so targets and stop come out further apart —
-     they are derived from ATR, not from a fixed number of points.</p></div>
+    {_bn_card()}</div>
    <div class="card reveal" data-d="2"><div class="idx">Sensex</div>
     <h3>Same checks again</h3>
     <p>Run identically, which is the only way the three results can be
@@ -1135,8 +1154,11 @@ def how_page(user=None, record=None):
      <code>{_cfg("RSI_OVERBOUGHT", 75)}</code> and
      <code>{_cfg("RSI_OVERSOLD", 25)}</code> as the extremes where a bounce is
      due</td></tr>
-   <tr><td>VWAP</td><td>session</td>
-    <td>who has actually had the day, buyers or sellers</td></tr>
+   <tr><td>VWAP</td><td>session, weighted by the index future&rsquo;s volume</td>
+    <td>who has actually had the day, buyers or sellers. An index prints no
+     volume of its own, so the weights come from the near-month future on
+     Zerodha &mdash; until September 2026 this row was quietly comparing each
+     candle with itself</td></tr>
   </table>
  </section>
 
@@ -1170,6 +1192,11 @@ def how_page(user=None, record=None):
     <td>reach &divide; risk must clear <code>{_cfg("MIN_REACH_TO_RISK", 0.6)}</code></td>
     <td>below it the setup is marked <b>not worth it</b> and never becomes a
      ticket</td></tr>
+   <tr><td>The ticket gate</td>
+    <td>T3 distance &divide; stop distance must reach <code>{_cfg("MIN_REWARD_RISK_T3", 1.0)}</code></td>
+    <td>a ticket closes on T3 or the stop, so this is its real reward against
+     its real risk. Below 1:1 a trade has to win well over half the time just
+     to stand still</td></tr>
   </table>
   <p>ATR length is <code>{_cfg("ATR_LENGTH", 14)}</code>. Reach is estimated
    before anything is issued, which is the point — a gate applied afterwards
@@ -1180,7 +1207,7 @@ def how_page(user=None, record=None):
   <h2>6. A signal is not a ticket</h2>
   <p>The screen can show a direction at full confidence and still issue
    nothing, and it names the rule that is holding it rather than asserting a
-   generic reason. Five things sit in the gap.</p>
+   generic reason. These are the things that sit in the gap.</p>
   <table class="tbl">
    <tr><th>Badge</th><th>What is actually happening</th></tr>
    <tr><td>CONFIRMING</td><td>the direction has to hold for
@@ -1197,10 +1224,23 @@ def how_page(user=None, record=None):
    <tr><td>DAY LIMIT</td><td>the daily brake — at most
     <code>{_cfg("MAX_TRADES_PER_DAY", 4)}</code> trades, at most
     <code>{_cfg("MAX_LOTS", 5)}</code> lots</td></tr>
+   <tr><td>LOW REWARD</td><td>T3 is closer than the stop &mdash; the trade
+    would risk more than it can make</td></tr>
+   <tr><td>WATCH ONLY</td><td>the index is shown and explained but not
+    ticketed. {_watch_only_text()}</td></tr>
+   <tr><td>LOSS LIMIT</td><td>once you enter your capital, today&rsquo;s closed
+    trades may lose at most <code>{_cfg("DAILY_LOSS_LIMIT_R", 3)}</code> times
+    the risk per trade you chose (<code>{_cfg("RISK_PER_TRADE_PCT", 1.0)}%</code>
+    by default); after that, no new tickets until tomorrow</td></tr>
   </table>
+  <p><b>Sizing.</b> Enter your trading capital on the signal card and every
+   signal and open ticket shows the money between entry and stop, what share of
+   the account that is, and how many lots fit inside the risk per trade you
+   picked. The lots are still yours to choose &mdash; nothing here places an
+   order &mdash; but the number is in front of you before you do.</p>
   <p>This distinction is worth the space. The screen used to print "a ticket is
    issued when the direction changes" whichever rule was holding, and that
-   sentence is true for exactly one of those five rows — the least common one.
+   sentence is true for exactly one of those rows — the least common one.
    A 100%-confidence signal waiting out a cooldown read as though the tool
    disagreed with a screen full of agreement.</p>
  </section>

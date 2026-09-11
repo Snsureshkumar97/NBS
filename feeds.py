@@ -248,6 +248,15 @@ def _public(rec, name=None):
         "lot_size": meta.get("lot_size"),
         "max_lots": getattr(config, "MAX_LOTS", 5),
         "expiry": (rec.get("option_chain") or {}).get("expiry"),
+        # The contract dies today. On an index option that changes the trade:
+        # the premium moves several times faster than the delta-0.5 ladder
+        # assumes, both ways. pro_study.py found most of the backtest's profit
+        # sits on these days - which is also where a constant-volatility model
+        # is weakest - so it is flagged rather than hidden or banned. Not on
+        # crypto, where Deribit lists a contract expiring every single day.
+        "expiry_today": (not config.market_for(name or rec.get("index"))["always_open"]
+                         and str((rec.get("option_chain") or {}).get("expiry") or "")[:10]
+                         == now_ist().strftime("%Y-%m-%d")),
         "risk_points": rec.get("risk_points"),
         "reach_points": rec.get("reach_points"),
         # Both sides, with the price each reaches and what limits it. The rec

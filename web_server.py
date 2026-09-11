@@ -661,9 +661,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 lots = int(form["lots"]) if "lots" in form else None
             except (TypeError, ValueError):
                 lots = None
+
+            def as_num(name):
+                if name not in form:
+                    return None
+                try:
+                    v = float(str(form[name]).replace(",", "").strip() or 0)
+                except (TypeError, ValueError):
+                    return None
+                return v if v == v and 0 <= v < 1e12 else None
+
             book.configure(lots=lots, reentry=as_bool("reentry"),
                            auto_rearm=as_bool("auto_rearm"),
-                           limits=as_bool("limits"))
+                           limits=as_bool("limits"),
+                           capital=as_num("capital"), risk_pct=as_num("risk_pct"))
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -1205,6 +1216,22 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .lnote{color:var(--ink-3);font-size:12px;margin-top:10px;line-height:1.6}
 .lnote b{color:var(--ink-2)}
 
+/* Account risk. The question a professional asks before any other - what
+   does this trade put at stake, as a share of the account - answered on the
+   card rather than left to mental arithmetic. */
+.risk{margin-top:12px;border:1px solid var(--bd);border-radius:12px;
+  background:var(--sunken);padding:10px 12px}
+.riskctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)}
+.riskctl input,.riskctl select{background:var(--raised);color:var(--ink);
+  border:1px solid var(--bd);border-radius:8px;padding:4px 8px;font:inherit;font-size:12px}
+.riskctl input{width:130px}
+.riskline{font-size:12px;color:var(--ink-3);line-height:1.6;margin-top:8px}
+.riskline:empty{display:none}
+.riskline b{color:var(--ink-2)}
+.riskline .ok{color:var(--up)} .riskline .warn{color:var(--warn)} .riskline .bad{color:var(--down)}
+.xday{display:inline-block;margin-top:8px;font-size:11.5px;font-weight:650;color:var(--warn);
+  border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:999px;padding:3px 10px}
+
 /* The lots selector. Nothing here places an order, so this only scales the
    rupee column — it is a "what would that be worth to me" dial, not a size. */
 .lots{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
@@ -1543,6 +1570,16 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   </div>
   <div class="ladder" id="ladder"></div>
   <div class="lnote" id="lnote"></div>
+  <div class="risk" id="risk">
+   <div class="riskctl">
+    <label for="capital">Capital</label>
+    <input id="capital" type="text" inputmode="numeric" autocomplete="off"
+           placeholder="enter to size trades">
+    <label for="riskpct">Risk / trade</label>
+    <select id="riskpct"></select>
+   </div>
+   <div class="riskline" id="riskline"></div>
+  </div>
   <div class="gauges" id="gauges"></div>
   <div class="room" id="room"></div>
   <div class="gnote" id="gnote"></div>
@@ -1838,6 +1875,96 @@ function ladder(r, tk){
   }
   $("lnote").innerHTML = note;
 }
+
+// -------------------------------------------------------------- risk
+// Money between entry and stop, for the signal on screen or the ticket that
+// is open, against the capital entered. The lots selector stays yours - this
+// tool places nothing - but the share of the account each choice puts at
+// stake is no longer something you have to work out in your head.
+let CAPFOCUS = false;
+function riskBox(r, tk, sess){
+  const box = $("risk"), line = $("riskline");
+  if(!box) return;
+  sess = sess || {};
+  const cap = sess.capital || null, rp = sess.risk_pct || 1;
+  const inp = $("capital"), sel = $("riskpct");
+  if(!CAPFOCUS) inp.value = cap ? Math.round(cap).toLocaleString(ccyLocale()) : "";
+  inp.placeholder = "e.g. " + (CCY === "USD" ? "10,000" : "2,00,000");
+  const ch = sess.risk_choices || [0.5,1,1.5,2];
+  if(sel.options.length !== ch.length){
+    sel.innerHTML = "";
+    ch.forEach(v => sel.add(new Option(v + "%", String(v))));
+  }
+  sel.value = String(rp);
+
+  const unit = (r.lot_size || 1) > 1 ? "lot" : "contract";
+  const parts = [];
+  let perLot = null, lots = LOTS, what = "this signal";
+  if(tk && tk.open){
+    if(tk.tracked_on === "premium" && tk.entry != null && tk.stop != null && tk.lot_size){
+      perLot = (tk.entry - tk.stop) * tk.lot_size;
+    }
+    lots = tk.lots || 1; what = "this ticket";
+  } else if(r.ltp != null && r.premium_stop != null && r.lot_size
+            && r.bias && r.bias !== "NEUTRAL"){
+    perLot = (r.ltp - r.premium_stop) * r.lot_size;
+  }
+  if(perLot != null && perLot > 0){
+    const total = perLot * lots;
+    let s = `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
+          + ` (${money(perLot,false)} per ${unit}, entry to stop)`;
+    if(cap){
+      const pct = total / cap * 100;
+      const cls = pct <= rp * 1.05 ? "ok" : pct <= rp * 2 ? "warn" : "bad";
+      s += ` = <b class="${cls}">${pct.toFixed(2)}% of capital</b>.`;
+      if(!(tk && tk.open)){
+        const fit = Math.floor(cap * rp / 100 / perLot);
+        s += fit >= 1
+          ? ` At ${rp}% risk the account carries <b>${fit} ${unit}${fit!==1?"s":""}</b>.`
+          : ` <span class="bad">One ${unit} is more than ${rp}% of the account</span>`
+            + ` (${money(cap*rp/100,false)}) - skip it, or know you are sizing up.`;
+      }
+    } else {
+      s += ". Enter your capital to see it as a share of the account.";
+    }
+    parts.push(s);
+  } else if(!(tk && tk.open)){
+    parts.push(cap ? "No live premium stop for this signal, so its risk in money cannot be worked out yet."
+                   : "");
+  }
+  if(cap && sess.loss_limit){
+    const booked = sess.booked || 0;
+    const left = sess.loss_limit + Math.min(booked, 0);
+    parts.push(`Daily loss limit <b>${money(sess.loss_limit,false)}</b> (${sess.loss_limit_pct}% of capital)`
+      + (booked < 0 ? ` - today's closed trades ${money(booked)}, `
+                    + (left > 0 ? `${money(left,false)} left before new tickets stop.`
+                                : `<span class="bad">limit reached, no new tickets today.</span>`)
+                    : " - no closed losses today."));
+  }
+  if(r.expiry_today){
+    parts.push(`<span class="xday">Expires today</span> This contract settles at 15:30. `
+      + "The premium moves several times faster than the ladder's 0.5-delta estimate, "
+      + "both ways - and in the backtest, most of the profit came from days like this, "
+      + "which is exactly where its option model is least trustworthy. Size for it.");
+  }
+  line.innerHTML = parts.filter(Boolean).join("<br>");
+}
+function postRisk(fields){
+  fetch("/api/ticket", {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams(fields)})
+    .then(x => x.json()).then(j => {
+      if(j && j.session && LAST){ LAST.session = Object.assign(LAST.session||{}, j.session); render(LAST); }
+    }).catch(()=>{});
+}
+$("capital").onfocus = () => { CAPFOCUS = true; };
+$("capital").onblur  = e => {
+  CAPFOCUS = false;
+  const v = String(e.target.value || "").replace(/[^0-9.]/g, "");
+  postRisk({capital: v || "0"});
+};
+$("capital").onkeydown = e => { if(e.key === "Enter") e.target.blur(); };
+$("riskpct").onchange = e => postRisk({risk_pct: e.target.value});
 
 $("lb-index").onclick   = () => { LMODE="index";   if(LAST) render(LAST); };
 $("lb-premium").onclick = () => { LMODE="premium"; if(LAST) render(LAST); };
@@ -2610,6 +2737,7 @@ function render(s){
   const tstate = (s.tickets||{})[CUR] || null;
   ticketBox(r, tstate);
   ladder(r, tstate && tstate.ticket);
+  riskBox(r, tstate && tstate.ticket, s.session);
   sessionStrip(s.session, s.order);
 
   $("trend").textContent = tr.label||"—";

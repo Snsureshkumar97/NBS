@@ -386,6 +386,58 @@ DAILY_TARGET_WINS = 2
 # 0 disables the limit.
 MAX_TRADES_PER_DAY = 4
 
+# ---------------------------------------------------------------------------
+# INTRADAY VOLUME PROFILE — what VWAP is weighted by on an index
+# ---------------------------------------------------------------------------
+# An index has no volume of its own, so the VWAP vote used to be computed on
+# nothing (see indicators.vwap). This is the average share of a session's
+# volume each 15-minute slot carries in the Nifty near-month future, 52 full
+# sessions from 1 Jul to 10 Sep 2026, via Zerodha's historical API; mean = 1.
+# Bank Nifty's and Sensex's futures show the same U-shape (correlation 0.98
+# and 0.91), so one profile serves all three. Live, the near-month future's
+# actual volume is attached to the index candles and this only fills the bar
+# that is still forming. Re-measure it once a year or so - the shape is
+# structural (heavy open, quiet lunch, closing pick-up) and moves slowly.
+INTRADAY_VOLUME_PROFILE = {
+    "09:15": 3.68, "09:30": 1.74, "09:45": 1.28, "10:00": 1.11, "10:15": 1.10,
+    "10:30": 0.94, "10:45": 0.74, "11:00": 0.86, "11:15": 0.68, "11:30": 0.67,
+    "11:45": 0.64, "12:00": 0.79, "12:15": 0.68, "12:30": 0.83, "12:45": 0.75,
+    "13:00": 0.65, "13:15": 0.57, "13:30": 0.69, "13:45": 0.69, "14:00": 0.65,
+    "14:15": 0.81, "14:30": 0.75, "14:45": 0.88, "15:00": 1.21, "15:15": 1.65,
+    "15:30": 0.97,
+}
+
+# ---------------------------------------------------------------------------
+# ACCOUNT RISK — sizing from the account, not from a lots dropdown
+# ---------------------------------------------------------------------------
+# The first thing a professional asks of any setup is "what does one trade
+# risk, as a share of the account?" The answer used to be nowhere on screen:
+# lots were picked from a dropdown, so the same signal risked 0.5% of one
+# account and 6% of another without either person being told.
+#
+# Enter your trading capital on the signal card and the tool shows, for every
+# signal and every open ticket, the money between entry and stop, what share
+# of the account that is, and how many lots fit inside RISK_PER_TRADE_PCT.
+# Nothing is enforced on the lots you pick - this tool never places an order -
+# but the number is in front of you before you do.
+#
+# The daily loss limit IS enforced on tickets: once today's closed trades have
+# lost DAILY_LOSS_LIMIT_R full-risk trades' worth of capital (3 x 1% = 3% at
+# the default), no new tickets that day. Only active
+# once a capital figure is entered, since a percentage of nothing is nothing.
+#
+# Why it is not tied to DAILY_LIMITS_ON: those caps shape how much you trade;
+# this one bounds how much a bad day can cost, and has no business being off
+# by default once you have told the tool how big the account is.
+#
+# pro_study.py tested a "stop after two losing trades" rule on real expiries:
+# it lifted the held-out year by about ₹62k per lot and cut its worst drawdown
+# by ₹27k, but cost ₹95k in-sample - so it is kept as a limit on the downside,
+# not sold as an edge. Expressed in R so it scales with the risk you choose.
+RISK_PER_TRADE_PCT = 1.0
+RISK_PCT_CHOICES = (0.5, 1.0, 1.5, 2.0)
+DAILY_LOSS_LIMIT_R = 3
+
 # No NEW tickets before this time, whatever the signal says. 09:15-09:20 is
 # the opening auction settling: spreads are wide, the first 15m candle barely
 # exists, and every indicator is reading a bar with almost nothing in it.
@@ -856,6 +908,39 @@ REENTRY_MIN_RR = 1.0
 # most favourable assumptions the unfiltered rules make more, in the
 # unfavourable ones they lose far more. Robustness was preferred to upside.
 REGIME_OR_BREAK = True
+
+# ---------------------------------------------------------------------------
+# REWARD TO THE FINAL TARGET — at least what the stop risks
+# ---------------------------------------------------------------------------
+# A ticket closes on T3 or the stop, so T3 is the reward and the stop is the
+# risk. On 11 Sep 2026 all three index tickets had T3 CLOSER than the stop -
+# Nifty's 23250 PE risked 44 of premium to make 29 - because the targets are
+# capped by how far the market can plausibly run while the stop sits behind
+# structure. A trade like that has to win well over half the time just to
+# stand still, and it is the first thing a risk manager strikes off.
+#
+# pro_study.py, pre-declared at 1.0 (not swept), real expiries, after costs,
+# per lot, on top of the opening-range rule:
+#                   profit factor     worst drawdown      total
+#   in-sample       1.14 -> 1.15      115k -> 106k        426k -> 402k
+#   held-out year   1.05 -> 1.10      179k -> 142k         98k -> 157k
+# Better per trade and shallower in both periods; the in-sample total is lower
+# only because 11% fewer trades are taken. 0 switches it off.
+MIN_REWARD_RISK_T3 = 1.0
+
+# ---------------------------------------------------------------------------
+# WATCH-ONLY INDICES — shown, explained, charted, never ticketed
+# ---------------------------------------------------------------------------
+# Bank Nifty lost its weekly expiry on 13 Nov 2024, and its results went with
+# it. Same rules, same costs, per lot (pro_study.py):
+#   weekly-expiry era            587 trades   +91k
+#   monthly-only, in-sample      404 trades   +24k
+#   monthly-only, held-out year  553 trades   -62k
+# The only index negative on the held-out year in every configuration tested.
+# The signal stays on screen so you can watch it, and so it is obvious the day
+# it starts working again; it just no longer issues tickets. Remove the name
+# from this tuple to trade it again.
+WATCH_ONLY_INDICES = ("BANKNIFTY",)
 
 # Is MIN_MINUTES_BETWEEN_TICKETS counted per index, or across all three?
 # Moot while that setting is 0 — kept because it matters the moment it is not.
