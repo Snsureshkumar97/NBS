@@ -23,17 +23,17 @@ import math
 import config
 import trade_log
 
-# The backtest this is measured against: pro_study.py, the rules live since
-# 11 Sep 2026 (opening-range break, T3 >= 1x stop, Bank Nifty watch-only),
-# real expiries, after Zerodha's costs, per lot, on the held-out year
-# (15 Aug 2025 - 14 Aug 2026). Index options only - there is no comparable
-# crypto backtest priced as options, so crypto shows its own record alone.
+# The backtest this is measured against: rule_review.py, the rules live since
+# 11 Sep 2026 (opening-range break, room to run >= 1x stop, exit at T2, Bank
+# Nifty watch-only), real expiries, after Zerodha's costs, per lot, on the
+# held-out year (15 Aug 2025 - 14 Aug 2026). Index options only - there is no
+# comparable crypto backtest priced as options, so crypto shows its own record.
 BENCHMARK = {
-    "all":    {"n": 1072, "win": 41.4, "avg": 160, "pf": 1.17},
-    "NIFTY":  {"n": 549,  "win": 40.6, "avg": 194, "pf": 1.19},
-    "SENSEX": {"n": 523,  "win": 42.3, "avg": 125, "pf": 1.15},
-    "expiry": {"n": 205,  "win": 34.6, "avg": 502, "pf": 1.56},
-    "other":  {"n": 867,  "win": 43.0, "avg": 80,  "pf": 1.08},
+    "all":    {"n": 1043, "win": 43.0, "avg": 223, "pf": 1.25},
+    "NIFTY":  {"n": 534,  "win": 42.1, "avg": 201, "pf": 1.21},
+    "SENSEX": {"n": 509,  "win": 44.0, "avg": 245, "pf": 1.31},
+    "expiry": {"n": 204,  "win": 37.3, "avg": 562, "pf": 1.66},
+    "other":  {"n": 839,  "win": 44.5, "avg": 140, "pf": 1.16},
 }
 MIN_SAMPLE = 30
 
@@ -264,7 +264,7 @@ def page(data):
     since = f" since {data['since']:%d %b %Y}" if data["since"] else ""
     label = config.MARKETS[data["market"]].get("label", data["market"])
     bench_note = ("" if crypto else
-                  "<p class='note'>Backtest = pro_study.py on the rules running now, the held-out "
+                  "<p class='note'>Backtest = rule_review.py on the rules running now, the held-out "
                   "year to 14 Aug 2026, real expiries, after Zerodha's costs, per lot. Its premiums "
                   "are modelled, so treat it as a guide; the daily option-price recorder is building "
                   "the real-price version. Expiry days are by the current exchange calendar - a "

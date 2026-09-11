@@ -1181,9 +1181,12 @@ def how_page(user=None, record=None):
   <table class="tbl">
    <tr><th>Level</th><th>Derived from</th><th></th></tr>
    <tr><td>T1 / T2 / T3</td>
-    <td><code>{_cfg("TARGET_ATR_MULTS", "[0.75, 1.5, 2.5]")}</code> &times; ATR</td>
-    <td>three tiers, not one, because partial exits are how most people
-     actually use a signal</td></tr>
+    <td><code>{_cfg("REACH_FRACTIONS", "[0.4, 0.7, 1.0]")}</code> of the room to run</td>
+    <td>the room is how far the market can plausibly travel today &mdash; the
+     option market&rsquo;s expected move, the open-interest walls and how much
+     of a normal day&rsquo;s range is left, whichever is tightest. A ticket
+     closes at <b>{_cfg("EXIT_AT_TARGET", "T2")}</b> or the stop; the other
+     tiers tick as the move develops</td></tr>
    <tr><td>Stop</td>
     <td>clamped to <code>{_cfg("MIN_RISK_ATR_MULT", 0.5)}</code>&ndash;<code>{_cfg("MAX_RISK_ATR_MULT", 2.0)}</code> &times; ATR</td>
     <td>a floor so it is not inside the noise, a ceiling so one trade cannot
@@ -1193,9 +1196,9 @@ def how_page(user=None, record=None):
     <td>below it the setup is marked <b>not worth it</b> and never becomes a
      ticket</td></tr>
    <tr><td>The ticket gate</td>
-    <td>T3 distance &divide; stop distance must reach <code>{_cfg("MIN_REWARD_RISK_T3", 1.0)}</code></td>
-    <td>a ticket closes on T3 or the stop, so this is its real reward against
-     its real risk. Below 1:1 a trade has to win well over half the time just
+    <td>room to run &divide; stop distance must reach <code>{_cfg("MIN_REWARD_RISK_T3", 1.0)}</code></td>
+    <td>if the market cannot even travel as far as the stop, the trade is not
+     worth its risk &mdash; it would have to win well over half the time just
      to stand still</td></tr>
   </table>
   <p>ATR length is <code>{_cfg("ATR_LENGTH", 14)}</code>. Reach is estimated
@@ -1224,8 +1227,8 @@ def how_page(user=None, record=None):
    <tr><td>DAY LIMIT</td><td>the daily brake — at most
     <code>{_cfg("MAX_TRADES_PER_DAY", 4)}</code> trades, at most
     <code>{_cfg("MAX_LOTS", 5)}</code> lots</td></tr>
-   <tr><td>LOW REWARD</td><td>T3 is closer than the stop &mdash; the trade
-    would risk more than it can make</td></tr>
+   <tr><td>LOW REWARD</td><td>the room to run is shorter than the distance to
+    the stop &mdash; not enough room for the trade to pay for its risk</td></tr>
    <tr><td>WIDE SPREAD</td><td>the contract&rsquo;s bid-ask spread is more than
     <code>{_cfg("MAX_SPREAD_PCT", 3.0)}%</code> of its price &mdash; buying at
     the offer and selling at the bid would give that up before the market
@@ -1965,10 +1968,12 @@ FAQ = [
      "config rather than retyped. Nothing about the strategy is hidden in a "
      "binary or behind a subscription."),
     ("Why are the targets three levels instead of one?",
-     "Because partial exits are how most people actually use a signal, and "
-     "because a single target hides the shape of the move. T1, T2 and T3 are "
-     "0.75, 1.5 and 2.5 times ATR — so they widen on Bank Nifty and tighten on "
-     "a quiet Nifty without anything being re-tuned."),
+     "Because a single number hides the shape of the move. T1, T2 and T3 are "
+     "40%, 70% and 100% of the room the market has to run today, so they widen "
+     "on a busy day and tighten on a quiet one without anything being re-tuned. "
+     "A ticket closes at T2: across three years T3 was reached by only 7% of "
+     "trades, and taking T2 made more in both the tested years and the "
+     "held-out one."),
     ("Do the levels move once a trade is open?",
      "No, and that is deliberate. They are frozen at entry from the ATR at that "
      "moment. A stop that drifts with a moving average is one you cannot plan "

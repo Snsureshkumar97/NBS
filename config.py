@@ -789,7 +789,22 @@ PREMIUM_SL_PCT = 25                   # % loss on premium
 # before the market answered, and the ones that DID resolve are the ones that
 # moved decisively — which flatters every row. Treat it as a direction to lean,
 # not a measurement.
-EXIT_AT_TARGET = "T3"
+#
+# rule_review.py measured it properly on 11 Sep 2026 - the rules as they run
+# now, Nifty + Sensex, three years, real expiries, after costs, per lot:
+#
+#     exit at   in-sample        held-out year
+#     T1        +136k  PF 1.11   +132k  PF 1.16
+#     T2        +339k  PF 1.24   +232k  PF 1.25   worst drawdown 57k / 90k
+#     T3        +330k  PF 1.23   +201k  PF 1.22   worst drawdown 75k / 85k
+#
+# T2 is at least as good in both periods, with a quarter less in-sample
+# drawdown; T1 gives too much away. Only 7% of trades ever reached T3 -
+# two-thirds were still running at the close - so the far target was mostly a
+# number the trade was measured against, not a price it got to. And the
+# premium ladder converts index levels at 0.5 delta with no time decay, which
+# overstates a far target more than a near one.
+EXIT_AT_TARGET = "T2"
 
 # ---------------------------------------------------------------------------
 # Kite Connect credentials (only needed if --mode kite)
@@ -934,8 +949,12 @@ REENTRY_MIN_RR = 1.0
 REGIME_OR_BREAK = True
 
 # ---------------------------------------------------------------------------
-# REWARD TO THE FINAL TARGET — at least what the stop risks
+# ROOM TO RUN — at least what the stop risks
 # ---------------------------------------------------------------------------
+# (T3 IS the room to run: the full distance the market can plausibly travel
+# today. Since trades exit at T2 - see EXIT_AT_TARGET - this is the "is there
+# genuinely room for this trade?" test rather than the trade's own payoff.
+# rule_review.py: measuring it on T2 instead cost 30% of the held-out year.)
 # A ticket closes on T3 or the stop, so T3 is the reward and the stop is the
 # risk. On 11 Sep 2026 all three index tickets had T3 CLOSER than the stop -
 # Nifty's 23250 PE risked 44 of premium to make 29 - because the targets are

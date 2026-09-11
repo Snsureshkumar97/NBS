@@ -73,6 +73,7 @@ class IndexBook:
         self.confirm_since = None
         self.last_bias_signature = None
         self.last_ticket_at = None     # datetime, per index
+        self.last_close_at = None      # datetime the last ticket here closed
         self.wait_reason = None        # (code, short, long)
         self.live = None               # newest streamed price for this index
 
@@ -124,6 +125,7 @@ class TicketBook:
         self._load_settings()
 
         self._reconcile()
+        self._restore_memory()
 
     # =====================================================================
     def _settings_path(self):
@@ -182,6 +184,50 @@ class TicketBook:
             val = None
         self._booked_cache = (now, val)
         return val
+
+    def _restore_memory(self):
+        """Rebuild, from the log, what each index remembers about its last
+        ticket: which way it went, when it opened, when it closed.
+
+        That memory drives the same-direction rules - the cooldown after an
+        exit and the room check - and it lived only in memory, so every
+        restart forgot the morning and the next same-way signal skipped both.
+        Only the recent past counts: today's session for an index, the last
+        24 hours for a market that never closes.
+        """
+        if not self.path:
+            return
+        try:
+            import datetime as _dt
+            rows = trade_log._read_rows(self.path)
+            now = now_ist()
+            always = config.MARKETS.get(self.market, {}).get("always_open", False)
+            for r in rows:
+                name = r.get("index")
+                book = self.books.get(name)
+                if book is None:
+                    continue
+                try:
+                    when = _dt.datetime.strptime(f"{r.get('date')} {r.get('time_ist')}",
+                                                 "%Y-%m-%d %H:%M:%S").replace(tzinfo=now.tzinfo)
+                except (TypeError, ValueError):
+                    continue
+                recent = ((now - when).total_seconds() < 86400) if always \
+                    else when.date() == now.date()
+                if not recent:
+                    continue
+                ev = (r.get("event") or "").upper()
+                if ev == "OPEN":
+                    opt = r.get("option_type")
+                    bias = {"CE": "BULLISH", "PE": "BEARISH"}.get(opt)
+                    if bias and (book.last_ticket_at is None or when >= book.last_ticket_at):
+                        book.last_ticket_at = when
+                        book.last_bias_signature = (bias, opt)
+                elif ev == "CLOSE":
+                    if book.last_close_at is None or when >= book.last_close_at:
+                        book.last_close_at = when
+        except Exception:
+            pass
 
     # =====================================================================
     def _reconcile(self):
@@ -533,6 +579,19 @@ class TicketBook:
             return hold("neutral", "NO SIGNAL",
                         "The indicators do not agree on a direction yet.")
 
+        # --- 0. the session and the daily brake ---------------------------
+        # First, so the badge names the real reason. It used to sit after the
+        # confirmation, and because a block restarts the confirmation, every
+        # other reading during the closing auction, after the bell and on a
+        # holiday read CONFIRMING instead of what was actually holding it.
+        # The restart itself is unchanged: when a block lifts, the direction
+        # still has to hold its full 120 seconds, never riding a stale streak.
+        block = self.entry_block()
+        if block is not None:
+            book.confirm_since = now
+            book.confirm_streak = 1
+            return hold(*block)
+
         # --- 1. the direction has to hold, measured in seconds -------------
         need_s = _cfg("SIGNAL_CONFIRM_SECONDS", 0)
         if need_s and (now - (book.confirm_since or now)) < need_s:
@@ -573,15 +632,9 @@ class TicketBook:
         # Checked here rather than earlier so the confirm streak and the
         # direction signature still advance; otherwise the first trade after
         # the block lifts would fire on a stale streak.
-        block = self.entry_block()
-        if block is not None:
-            # Deliberately NOT stamping last_bias_signature: doing so marked
-            # the direction "already ticketed", and with same-direction
-            # re-entry off the signal could then never be taken once the block
-            # lifted — a signal at 09:17 locked the index out for the day.
-            book.confirm_since = now
-            book.confirm_streak = 1
-            return hold(*block)
+        # (5. the daily brake now runs first, as step 0. It still does NOT
+        # stamp last_bias_signature: doing so marked the direction "already
+        # ticketed", and a signal at 09:17 locked the index out for the day.)
 
         # --- 6. the opening range has to be broken this way ----------------
         # After the daily brake, so "market closed" and "closing auction" still
@@ -671,11 +724,11 @@ class TicketBook:
         rr = abs(t3 - spot) / risk
         if rr < need:
             return ("low_rr", "LOW REWARD",
-                    f"T3 is {abs(t3 - spot):,.0f} points away and the stop "
-                    f"{risk:,.0f} - {rr:.2f} to 1. A ticket closes on one or the "
-                    f"other, so this would risk more than it can make and need "
-                    f"to win well over half the time just to break even. Held "
-                    f"until the target is at least {need:g}x the risk.")
+                    f"The market has about {abs(t3 - spot):,.0f} points of room "
+                    f"this way today and the stop is {risk:,.0f} away - "
+                    f"{rr:.2f} to 1. There is not enough room for the trade to "
+                    f"pay for the risk it takes. Held until the room is at "
+                    f"least {need:g}x the distance to the stop.")
         return None
 
     def _spread_hold(self, rec):
@@ -715,8 +768,13 @@ class TicketBook:
                     "A ticket is already running on this index. It is left alone "
                     "to find its own target or stop.")
         mins = _cfg("REENTRY_COOLDOWN_MIN", 20)
-        if book.last_ticket_at is not None:
-            gap = (now_ist() - book.last_ticket_at).total_seconds() / 60.0
+        # From the later of the last entry and the last exit. Counted from the
+        # entry alone, a trade stopped out 22 minutes in could be bought
+        # straight back - exactly what this pause exists to prevent.
+        ref = max([t for t in (book.last_ticket_at, book.last_close_at) if t is not None],
+                  default=None)
+        if ref is not None:
+            gap = (now_ist() - ref).total_seconds() / 60.0
             if gap < mins:
                 return ("reentry_cooldown", "COOLDOWN",
                         f"Already ticketed {side} today. A second ticket the same "
@@ -766,6 +824,17 @@ class TicketBook:
         Thirteen tickets in twelve seconds against a cap of four, measured.
         """
         if self.entry_block() is not None:
+            return False
+        # Re-arm is only ever a second ticket the SAME way, so it answers to
+        # the same-direction rules: the cooldown after the last exit and the
+        # room check. It skipped both, and re-bought a stop-out 60 seconds
+        # later. A signal that has turned the other way is not a re-arm at
+        # all - it goes through _consider and its full confirmation.
+        direction = ((rec.get("bias"), rec.get("option_type"))
+                     if rec.get("bias") not in (None, "NEUTRAL") else None)
+        if direction is None or direction != book.last_bias_signature:
+            return False
+        if self._same_direction_hold(book, rec, direction) is not None:
             return False
         # The trade-quality gates too. Re-arm skipped them, so a Bank Nifty
         # ticket could re-open while the index was watch-only, and a 0.6:1
@@ -855,6 +924,7 @@ class TicketBook:
         except Exception:
             pass
         self._day_cache = None
+        book.last_close_at = now_ist()
         row = {
             "index": trade["index"], "strike": trade["strike"],
             "option_type": trade["option_type"], "entry": entry,

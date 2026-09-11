@@ -539,9 +539,12 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
   <table class="tbl">
    <tr><th>Level</th><th>Derived from</th><th></th></tr>
    <tr><td>T1 / T2 / T3</td>
-    <td><code>[0.75, 1.5, 2.5]</code> &times; ATR</td>
-    <td>three tiers, not one, because partial exits are how most people
-     actually use a signal</td></tr>
+    <td><code>[0.4, 0.7, 1.0]</code> of the room to run</td>
+    <td>the room is how far the market can plausibly travel today &mdash; the
+     option market&rsquo;s expected move, the open-interest walls and how much
+     of a normal day&rsquo;s range is left, whichever is tightest. A ticket
+     closes at <b>T2</b> or the stop; the other
+     tiers tick as the move develops</td></tr>
    <tr><td>Stop</td>
     <td>clamped to <code>0.5</code>&ndash;<code>2.0</code> &times; ATR</td>
     <td>a floor so it is not inside the noise, a ceiling so one trade cannot
@@ -551,9 +554,9 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
     <td>below it the setup is marked <b>not worth it</b> and never becomes a
      ticket</td></tr>
    <tr><td>The ticket gate</td>
-    <td>T3 distance &divide; stop distance must reach <code>1.0</code></td>
-    <td>a ticket closes on T3 or the stop, so this is its real reward against
-     its real risk. Below 1:1 a trade has to win well over half the time just
+    <td>room to run &divide; stop distance must reach <code>1.0</code></td>
+    <td>if the market cannot even travel as far as the stop, the trade is not
+     worth its risk &mdash; it would have to win well over half the time just
      to stand still</td></tr>
   </table>
   <p>ATR length is <code>14</code>. Reach is estimated
@@ -582,8 +585,8 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
    <tr><td>DAY LIMIT</td><td>the daily brake — at most
     <code>4</code> trades, at most
     <code>5</code> lots</td></tr>
-   <tr><td>LOW REWARD</td><td>T3 is closer than the stop &mdash; the trade
-    would risk more than it can make</td></tr>
+   <tr><td>LOW REWARD</td><td>the room to run is shorter than the distance to
+    the stop &mdash; not enough room for the trade to pay for its risk</td></tr>
    <tr><td>WIDE SPREAD</td><td>the contract&rsquo;s bid-ask spread is more than
     <code>3.0%</code> of its price &mdash; buying at
     the offer and selling at the bid would give that up before the market
