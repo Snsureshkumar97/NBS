@@ -59,6 +59,12 @@ from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
 # the page reloading, short enough that a closed tab stops calling Zerodha.
 IDLE_SECONDS = 240
 
+# A tick socket that has delivered nothing for this long while its market is
+# trading is treated as dead and rebuilt. Indices tick several times a second
+# in session - and keep sending packets even through the closing auction -
+# so silence this long is a broken connection, never a quiet market.
+STALL_SECONDS = 45
+
 # Stands in for a tick socket on a venue that has none, so the loops can
 # tell "no stream yet" (None) apart from "this market never has one".
 _NO_STREAM = object()
@@ -292,6 +298,9 @@ class Feed:
         self.eq_tokens = {}       # tradingsymbol -> token, for the heat map
         self._eq_tried = False
         self._idx_tried = 0.0     # when the index tokens were last looked up
+        self._stream_born = 0.0   # when the current Zerodha socket was made
+        self._last_rebuild = 0.0  # when the watchdog last rebuilt it
+        self._rebuild_gap = STALL_SECONDS   # backoff between rebuilds
         self._crypto = None       # built on demand, only if crypto is enabled
         self.dstream = None       # Deribit socket, for crypto feeds
         self._crypto_at = 0.0     # when the crypto price poll last ran
@@ -528,6 +537,7 @@ class Feed:
         # throw away a socket that had already connected - proof enough that
         # the token is good - over something the next pass would have fixed.
         self.streamer = st
+        self._stream_born = time.time()
         self.stream_error = None
         self._subscribe_indices()
         self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
@@ -654,6 +664,76 @@ class Feed:
                 if mk is not None:
                     with self.lock:
                         self.sug_px[name] = float(mk)
+
+    def _kite_watchdog(self, st):
+        """Rebuild the Zerodha socket if it has gone silent during the session.
+
+        KiteTicker reconnects on its own, but not from everything. This morning
+        the Mac half-woke at 09:19 with its network not yet usable, the socket
+        failed its opening handshake, and no tick arrived for the next sixteen
+        minutes of a trading session while the page looked healthy - the
+        analysis kept refreshing every thirty seconds, so the numbers did change,
+        just never live. Silence during the session is now treated as a fault.
+        """
+        if st is None or st is _NO_STREAM:
+            return
+        now = time.time()
+        age = st.age_seconds()
+        if age is not None and age < STALL_SECONDS:
+            # Healthy again: forget the backoff and any stale complaint.
+            self._rebuild_gap = STALL_SECONDS
+            if self.stream_error and self.stream_error.startswith("tick socket"):
+                self.stream_error = None
+            return
+        if now - self._stream_born < STALL_SECONDS:
+            return                                # still connecting
+        keys = self.instruments()
+        if not keys or not is_market_open(now_ist(), keys[0]):
+            return                                # no ticks expected
+        if now - self._last_rebuild < self._rebuild_gap:
+            return
+        self._last_rebuild = now
+        self._rebuild_gap = min(self._rebuild_gap * 2, 300)
+        self._rebuild_kite_stream(st)
+
+    def _rebuild_kite_stream(self, old):
+        """Swap in a fresh socket carrying every token the old one had.
+
+        Resubscribing from the feed's own token maps rather than re-resolving
+        them keeps this to one connection and no instrument-dump downloads.
+        """
+        token = user_kite.token_for(self.email)
+        if not token:
+            self.stream_error = "tick socket silent and no Zerodha token to rebuild it"
+            return
+        try:
+            new = KiteStreamer(config.KITE_API_KEY, token)
+            if not new.start():
+                self.stream_error = f"tick socket rebuild failed: {new.last_error}"
+                return
+        except Exception as exc:
+            self.stream_error = f"tick socket rebuild failed: {exc}"
+            return
+        toks = (list(self.tokens.values()) + list(self.opt_tokens.values())
+                + [v[2] for v in self.sug_tokens.values()]
+                + list(self.eq_tokens.values()))
+        new.subscribe([t for t in toks if t], quote=True)
+        self.streamer = new
+        self._stream_born = time.time()
+        self.stream_error = (f"tick socket rebuilt at {now_ist():%H:%M:%S} "
+                             "after it went silent")
+        # Stop the old one retrying in the background, or Zerodha's limit of
+        # three connections per token fills up with zombies.
+        try:
+            old._kws.stop_retry()
+        except Exception:
+            pass
+        try:
+            old.stop()
+        except Exception:
+            pass
+        print(f"[stream] {now_ist():%Y-%m-%d %H:%M:%S} rebuilt the Zerodha tick "
+              f"socket for {self.email} ({len(toks)} tokens)", flush=True)
 
     def _subscribe_indices(self):
         """Resolve the three index tokens and put them on the feed, retrying
@@ -1001,6 +1081,8 @@ class Feed:
                 time.sleep(0.25)
                 continue
             try:
+                self._kite_watchdog(st)
+                st = self.streamer
                 self._subscribe_indices()
                 self._subscribe_constituents()
                 for name, tok in list(self.tokens.items()):
@@ -1078,7 +1160,11 @@ class Feed:
                     "live": bool(age is not None and age < 15.0),
                     "age": round(age, 1) if age is not None else None,
                     "bar": self.forming(),
-                    "stream_error": self.stream_error, "stage": self.stage,
+                    "stream_error": (self.stream_error or
+                                     (self.dstream.last_error
+                                      if self.dstream and not self.dstream.connected
+                                      else None)),
+                    "stage": self.stage,
                     "streamed": True}
         if st is not None:
             for name, tok in list(self.tokens.items()):

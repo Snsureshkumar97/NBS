@@ -765,11 +765,22 @@ class DeribitStreamer:
 
     # ------------------------------------------------------------------
     def start(self):
+        """Connect, and keep trying if that fails.
+
+        A failed first connect used to be final: start() returned False, no
+        reader thread was ever launched, and the feed sat with no crypto prices
+        for the rest of the process's life. That is exactly what happened when
+        the Mac half-woke before the open with its network not yet up - the
+        socket failed on a DNS lookup and nothing ever asked again. The reader
+        loop already reconnects with backoff and replays subscriptions on
+        connect, so it is started either way and simply begins by retrying.
+        """
         try:
             self._open()
         except Exception as exc:
-            self.last_error = f"connect failed: {exc}"
-            return False
+            self.last_error = f"connect failed, retrying: {exc}"
+            self._ws = None
+            self.connected = False
         threading.Thread(target=self._run, daemon=True,
                          name="deribit-ws").start()
         return True
