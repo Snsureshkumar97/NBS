@@ -1292,7 +1292,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .maplegend{display:flex;align-items:center;gap:6px;margin-left:auto}
 .maplegend span{font-size:10.5px}
 .maplegend .sw{width:52px;height:8px;border-radius:2px;
-  background:linear-gradient(90deg,#ff5722,#242429,#4caf50)}
+  background:linear-gradient(90deg,#ef5570,#242429,#2be08a)}
 
 /* ---------- the world markets strip ---------- */
 /* Two identical copies of the row slide left together; when the first has
@@ -1468,7 +1468,127 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   .brand small{display:none}
   .pill{padding:5px 10px;font-size:11.5px}
 }
+
+/* =====================================================================
+   THE 3D LAYER - nbs-signal-3d.html, applied to the live screen.
+   A particle field, two glows and a slowly turning candlestick chart made
+   of the selected index's REAL last candles, drawn on a canvas behind the
+   page; glass cards over it; a signal card that glows in the colour of the
+   signal and sways a degree or two; target bars with depth; cards that tilt
+   under the cursor. Pure canvas and CSS - no Three.js, because the page's
+   security policy loads nothing from outside, and a page holding a broker
+   session should keep it that way.
+   Numbers stay flat and still: the chart, the map and the inputs never tilt,
+   and the sway stops the moment the pointer is over the signal card.
+   ===================================================================== */
+:root{
+  --bg:#05060a; --surface:rgba(255,255,255,.035); --raised:rgba(255,255,255,.065);
+  --sunken:rgba(6,8,12,.62); --bd:rgba(255,255,255,.09); --bd-soft:rgba(255,255,255,.06);
+  --ink:#f0f2f6; --ink-2:#a3aabb; --ink-3:#6b7282;
+  --up:#2be08a; --down:#ef5570; --warn:#f2a33d;
+  --glow-up:rgba(43,224,138,.45); --glow-down:rgba(239,85,112,.40); --glow-warn:rgba(242,163,61,.35);
+  --r:16px; --r-sm:12px;
+}
+body{background:#05060a;
+  background-image:radial-gradient(900px 600px at 80% 10%, rgba(43,224,138,.08), transparent 60%),
+                   radial-gradient(800px 600px at 10% 90%, rgba(242,163,61,.06), transparent 60%);
+  background-attachment:fixed}
+body::before{display:none}
+#bg3d{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;display:block}
+.wrap,footer{position:relative;z-index:1}
+.wrap{perspective:1400px}
+header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
+.ticker{background:rgba(10,12,18,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--bd-soft)}
+
+/* glass */
+.card,.mkt,.session,.notice.stale{
+  /* Glass over a dark base: the scene shows through as colour and movement,
+     never as shapes behind a number you have to read. */
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),rgba(9,11,17,.72);
+  border:1px solid var(--bd);border-radius:16px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 20px 40px -25px rgba(0,0,0,.7)}
+.notice.risk{background:rgba(240,84,106,.08);border:1px solid rgba(240,84,106,.25);color:#f3a9b3;
+  border-radius:12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.notice.risk b,.notice.risk .more{color:#fff}
+.notice.risk #honest{border-top-color:rgba(240,84,106,.25)}
+.tile,.risk,.tstat{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px}
+.mapwrap{border-radius:12px}
+.lbtn.on{background:linear-gradient(180deg,#5aa2ee,#3a7fd0);border-color:#5aa2ee}
+
+/* index cards: tilt, and a glow in the colour of the signal they carry */
+.mkt{transform-style:preserve-3d;transition:transform .15s ease-out,box-shadow .3s ease,border-color .3s}
+.mkt:hover{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02)),rgba(9,11,17,.72)}
+.mkt.bull{border-color:rgba(43,224,138,.5);
+  box-shadow:0 0 0 1px rgba(43,224,138,.2),0 25px 60px -20px var(--glow-up)}
+.mkt.bear{border-color:rgba(239,85,112,.5);
+  box-shadow:0 0 0 1px rgba(239,85,112,.2),0 25px 60px -20px var(--glow-down)}
+.mkt[aria-selected="true"]{background:linear-gradient(180deg,rgba(77,148,232,.12),rgba(255,255,255,.02)),rgba(9,11,17,.72)}
+.mkt[aria-selected="true"]::before{background:linear-gradient(180deg,#5aa2ee,#2be08a);width:3px}
+.mkt .px{font-size:24px;font-weight:600}
+
+/* the signal card */
+.herocard{border-radius:20px;padding:26px 28px 28px;transform-style:preserve-3d;
+  animation:mount 7s ease-in-out infinite}
+.herocard:hover,.herocard:focus-within{animation-play-state:paused}
+@keyframes mount{
+  0%,100%{transform:perspective(1200px) rotateX(.8deg) rotateY(-.9deg)}
+  50%{transform:perspective(1200px) rotateX(-.6deg) rotateY(1deg)}}
+.herocard[data-bias="up"]{border-color:rgba(43,224,138,.32);
+  box-shadow:0 40px 100px -30px rgba(0,0,0,.75),0 0 90px -20px var(--glow-up)}
+.herocard[data-bias="down"]{border-color:rgba(239,85,112,.32);
+  box-shadow:0 40px 100px -30px rgba(0,0,0,.75),0 0 90px -20px var(--glow-down)}
+.herocard[data-bias="up"] #bias{text-shadow:0 0 40px var(--glow-up)}
+.herocard[data-bias="down"] #bias{text-shadow:0 0 40px var(--glow-down)}
+.herocard .hero .v{font-size:46px;letter-spacing:-.02em}
+
+.tag.up{background:rgba(43,224,138,.12);color:var(--up);border-color:rgba(43,224,138,.35)}
+.tag.down{background:rgba(239,85,112,.12);color:var(--down);border-color:rgba(239,85,112,.35)}
+.tag.warn{background:rgba(242,163,61,.14);color:#facc7a;border-color:rgba(242,163,61,.35)}
+.tag.flat{background:rgba(255,255,255,.05);color:var(--ink-2);border-color:var(--bd)}
+.badge.hold{background:rgba(242,163,61,.14);border-color:rgba(242,163,61,.35);color:#facc7a}
+.badge.open{background:rgba(43,224,138,.12);border-color:rgba(43,224,138,.4);color:var(--up)}
+.badge.prev{background:rgba(255,255,255,.05);border-color:var(--bd);color:var(--ink-2)}
+
+/* target bars with depth */
+.rung{padding:9px 0}
+.rung .bar{height:14px;border-radius:8px;background:linear-gradient(180deg,#0a0b0f,#16181f);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.6),inset 0 -1px 0 rgba(255,255,255,.03)}
+.rung .bar i{border-radius:8px 0 0 8px;transition:width 1.2s cubic-bezier(.2,.8,.2,1);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 45%,rgba(0,0,0,.35)) !important;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.35),inset 0 -3px 5px rgba(0,0,0,.35),0 0 16px -2px var(--c,transparent)}
+.rung .n{font-family:"SF Mono",Consolas,monospace;font-size:14px}
+.gauge .gt{height:8px;border-radius:5px;background:linear-gradient(180deg,#0a0b0f,#16181f);
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.55)}
+.gauge .gt i{border-radius:5px;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.3),rgba(0,0,0,.25)) !important}
+.ringarc{filter:drop-shadow(0 0 10px rgba(242,163,61,.55))}
+.ring svg{filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+
+/* the three boxes and the stat tiles tilt too */
+.top3 .card,.tiles .tile{transform-style:preserve-3d;transition:transform .15s ease-out}
+
+/* entrance */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px) rotateX(6deg)}
+  to{opacity:1;transform:none}}
+.wrap > *{animation:fadeUp .6s cubic-bezier(.2,.8,.2,1) both}
+.wrap > *:nth-child(2){animation-delay:.05s} .wrap > *:nth-child(3){animation-delay:.1s}
+.wrap > *:nth-child(4){animation-delay:.15s} .wrap > *:nth-child(5){animation-delay:.2s}
+.wrap > *:nth-child(6){animation-delay:.25s} .wrap > *:nth-child(7){animation-delay:.3s}
+.wrap > *:nth-child(n+8){animation-delay:.35s}
+
+@media (prefers-reduced-motion: reduce){
+  .herocard,.wrap > *{animation:none}
+  .mkt,.top3 .card,.tiles .tile{transition:none}
+}
+@media (max-width:720px){
+  .card,.mkt,.session{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  .herocard{animation:none;padding:20px}
+  .herocard .hero .v{font-size:34px}
+}
 </style></head><body>
+<canvas id="bg3d" aria-hidden="true"></canvas>
 
 <header><div class="hd">
   <a class="brand" href="/" style="color:inherit;text-decoration:none">
@@ -1555,7 +1675,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
  </div>
  <div class="feedline" id="sfeed"></div>
 
- <div class="card" style="margin-top:14px">
+ <div class="card herocard" id="sigcard" style="margin-top:14px">
   <div class="thead">
    <p class="eyebrow" id="teyebrow">Signal</p>
    <span class="badge prev" id="tbadge" style="display:none"></span>
@@ -1687,6 +1807,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 
 <script>
 let CUR=null, LAST=null;
+var SCENE_BIAS = "";      // the 3D background's glow colour; read by the scene script
 const $=id=>document.getElementById(id);
 const num=(v,d=2)=>v===null||v===undefined||isNaN(v)?"—":
   Number(v).toLocaleString("en-IN",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1711,6 +1832,8 @@ function markets(s){
              el.setAttribute("role","tab"); w.appendChild(el);
              el.addEventListener("click",()=>{CUR=k;render(LAST);}); }
     el.setAttribute("aria-selected", k===CUR?"true":"false");
+    el.classList.toggle("bull", !!(r && r.bias==="BULLISH"));
+    el.classList.toggle("bear", !!(r && r.bias==="BEARISH"));
     // The expiry on every card, all the time: the open ticket's own contract
     // when one is running on this index, otherwise the one being suggested.
     const tk = ((s.tickets||{})[k]||{}).ticket;
@@ -1804,7 +1927,7 @@ function ladder(r, tk){
       return `<div class="rung${done?" done":""}"><div class="k">${k}${
           done?` <span class="tick">✓ ${esc(when||"")}</span>`:""}</div>
         <div class="bar" title="${done?"reached":Math.round(pct)+"% of the way"}"
-          ><i style="width:${done?100:pct}%;background:${v==null?"transparent":c}"></i></div>
+          ><i style="width:${done?100:pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
         <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
         <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
     }).join("");
@@ -1853,7 +1976,7 @@ function ladder(r, tk){
       rs = money(amt);
     }
     return `<div class="rung"><div class="k">${k}</div>
-      <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c}"></i></div>
+      <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
       <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
       <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
   }).join("");
@@ -2779,6 +2902,9 @@ function render(s){
               : "Still loading this index. Each is fetched in turn, so this can take a few seconds after startup."); return; }
 
   const bull=r.bias==="BULLISH", bear=r.bias==="BEARISH";
+  // The signal card glows in the signal's colour, and so does the 3D scene.
+  { const sc = $("sigcard"); if(sc) sc.dataset.bias = bull ? "up" : bear ? "down" : ""; }
+  SCENE_BIAS = bull ? "up" : bear ? "down" : "";
   $("bias").textContent = bull?"Buy CE":bear?"Buy PE":"No trade";
   $("bias").style.color = bull?"var(--up)":bear?"var(--down)":"var(--ink-3)";
   if(r.confidence && r.confidence!=="N/A"){
@@ -2904,7 +3030,7 @@ function heat(pct){
   // read a CSS variable. They were left as the old light-theme pair, so a
   // falling stock in the map was a different red from a falling number six
   // inches above it. If the theme's up/down ever change, change these too.
-  const [r1,g1,b1] = p >= 0 ? [76,175,80] : [255,87,34];
+  const [r1,g1,b1] = p >= 0 ? [43,224,138] : [239,85,112];
   const t = Math.abs(p);
   return `rgb(${mix(r0,r1,t)},${mix(g0,g1,t)},${mix(b0,b1,t)})`;
 }
@@ -3177,6 +3303,175 @@ priceTick(); setInterval(priceTick,250);
 markets_(); setInterval(markets_,60000);
 addEventListener("resize",()=>{clearTimeout(window._rz);
   window._rz=setTimeout(()=>render(LAST),260)});
+</script>
+<script>
+// ------------------------------------------------------------ the 3D scene
+// nbs-signal-3d.html's background, drawn with a 2D canvas and a hand-rolled
+// perspective projection instead of Three.js - the page's security policy
+// loads no outside script, and this is a few hundred lines lighter besides.
+// Two drifting particle fields, a glow that takes the colour of the current
+// signal, an amber one opposite, and a slowly turning 3D candlestick chart
+// built from the selected index's own last candles. Capped at ~30 fps, paused
+// with the tab, drawn once and left still for anyone who prefers less motion.
+(function(){
+  const cv = document.getElementById("bg3d");
+  if(!cv || !cv.getContext) return;
+  const ctx = cv.getContext("2d");
+  const still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W = 0, H = 0;
+  function field(n, sx, sy, sz, oz){
+    const a = new Float32Array(n * 3);
+    for(let i = 0; i < n; i++){
+      a[i*3] = (Math.random() - .5) * sx; a[i*3+1] = (Math.random() - .5) * sy;
+      a[i*3+2] = (Math.random() - .5) * sz + oz;
+    }
+    return a;
+  }
+  const N = window.innerWidth < 720 ? 260 : 700;
+  const F1 = field(N, 1600, 1000, 800, -200), F2 = field(N, 1800, 1100, 900, -400);
+  const cam = {x: 0, y: 0, z: 420};
+  let mx = 0, my = 0;
+  window.addEventListener("mousemove", e => {
+    mx = e.clientX / (W || 1) - .5; my = e.clientY / (H || 1) - .5;
+  }, {passive: true});
+  const TAN = Math.tan(30 * Math.PI / 180);
+  function proj(x, y, z){
+    const d = cam.z - z;
+    if(d <= 1) return null;
+    const f = (H / 2) / TAN / d;
+    return [W / 2 + (x - cam.x) * f, H / 2 - (y - cam.y) * f, f];
+  }
+  function points(F, ry, rx, rgb, size, alpha){
+    const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
+    ctx.fillStyle = `rgba(${rgb},${alpha})`;
+    for(let i = 0; i < F.length; i += 3){
+      const x = F[i], y = F[i+1], z = F[i+2];
+      const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+      const y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
+      const p = proj(x1, y1, z2);
+      if(!p) continue;
+      if(p[0] < -4 || p[0] > W + 4 || p[1] < -4 || p[1] > H + 4) continue;
+      // Three.js's own point attenuation: size x (half the height / depth).
+      const r = Math.min(4, Math.max(.4, size * (H / 2) / (cam.z - z2)));
+      ctx.fillRect(p[0] - r / 2, p[1] - r / 2, r, r);
+    }
+  }
+  function glow(x, y, z, radius, rgb, a){
+    const p = proj(x, y, z);
+    if(!p) return;
+    const R = radius * p[2];
+    const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], R);
+    g.addColorStop(0, `rgba(${rgb},${.66 * a})`);
+    g.addColorStop(.4, `rgba(${rgb},${.26 * a})`);
+    g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(p[0] - R, p[1] - R, R * 2, R * 2);
+  }
+  // The candles: the selected index's last 14, or a gentle stand-in until the
+  // chart has loaded. Scaled to the same height whatever the index's price.
+  function candles(){
+    const d = (typeof CH !== "undefined" && CH.data && CH.data.candles) || [];
+    let bars = d.slice(-14).map(b => ({o: +b[1], h: +b[2], l: +b[3], c: +b[4]}))
+                .filter(b => isFinite(b.o) && isFinite(b.c) && isFinite(b.h) && isFinite(b.l));
+    if(bars.length < 6){
+      bars = []; let p = 100;
+      for(let i = 0; i < 14; i++){ const o = p; p += Math.sin(i * 1.7) * 3 - .6;
+        bars.push({o, c: p, h: Math.max(o, p) + 1.6, l: Math.min(o, p) - 1.6}); }
+    }
+    const hi = Math.max(...bars.map(b => b.h)), lo = Math.min(...bars.map(b => b.l));
+    const k = 200 / Math.max(hi - lo, 1e-9), mid = (hi + lo) / 2;
+    return bars.map(b => ({o: (b.o - mid) * k, c: (b.c - mid) * k,
+                           h: (b.h - mid) * k, l: (b.l - mid) * k}));
+  }
+  let UP = "#2be08a", DN = "#ef5570";
+  function candleChart(t){
+    const bars = candles();
+    const ry = -0.35 + Math.sin(t * .12) * .06, rx = -0.15;
+    const oy = -80 + Math.sin(t * .25) * 10, ox = 180, oz = -520;
+    const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
+    const T = (x, y, z) => {
+      const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+      const y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
+      return proj(x1 + ox, y1 + oy, z2 + oz);
+    };
+    bars.forEach((b, i) => {
+      const x = (i - bars.length / 2) * 42, top = Math.max(b.o, b.c), bot = Math.min(b.o, b.c);
+      const h = Math.max(top - bot, 1.2), w = 9, dp = 3;
+      const col = b.c >= b.o ? UP : DN;
+      const w1 = T(x, b.l, 0), w2 = T(x, b.h, 0);
+      if(w1 && w2){
+        ctx.globalAlpha = 1; ctx.strokeStyle = "rgba(139,147,163,.35)"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(w1[0], w1[1]); ctx.lineTo(w2[0], w2[1]); ctx.stroke();
+      }
+      const face = (pts, a) => {
+        const q = pts.map(p => T(p[0], p[1], p[2]));
+        if(q.some(p => !p)) return;
+        ctx.globalAlpha = a; ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]);
+        for(let j = 1; j < q.length; j++) ctx.lineTo(q[j][0], q[j][1]);
+        ctx.closePath(); ctx.fill();
+      };
+      face([[x+w, bot, -dp], [x+w, bot, dp], [x+w, bot+h, dp], [x+w, bot+h, -dp]], .2);
+      face([[x-w, bot+h, dp], [x+w, bot+h, dp], [x+w, bot+h, -dp], [x-w, bot+h, -dp]], .26);
+      face([[x-w, bot, dp], [x+w, bot, dp], [x+w, bot+h, dp], [x-w, bot+h, dp]], .38);
+    });
+    ctx.globalAlpha = 1;
+  }
+  let last = 0;
+  const t0 = performance.now();
+  function frame(now, once){
+    if(!once && now - last < 33){ requestAnimationFrame(frame); return; }
+    last = now;
+    const t = (now - t0) / 1000;
+    cam.x += (mx * 60 - cam.x) * .02; cam.y += (-my * 40 - cam.y) * .02;
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter";
+    const sig = SCENE_BIAS === "up" ? "43,224,138" : SCENE_BIAS === "down" ? "239,85,112" : "77,148,232";
+    glow(220, 120 + Math.sin(t * .4) * 25, -150, 350, sig, SCENE_BIAS ? .85 + Math.sin(t * .8) * .1 : .45);
+    glow(-260 + Math.cos(t * .3) * 30, -180, -250, 250, "242,163,61", .7);
+    points(F1, t * .015, t * .006, "43,224,138", 2.2, .55);
+    points(F2, -t * .01, 0, "242,163,61", 1.6, .3);
+    ctx.globalCompositeOperation = "source-over";
+    // On a phone the chart would sit behind the index cards themselves.
+    if(W >= 720) candleChart(t);
+    if(!once && !still) requestAnimationFrame(frame);
+  }
+  function size(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cs = getComputedStyle(document.documentElement);
+    UP = cs.getPropertyValue("--up").trim() || UP; DN = cs.getPropertyValue("--down").trim() || DN;
+    if(still) frame(performance.now(), true);
+  }
+  window.addEventListener("resize", size);
+  size();
+  if(!still) requestAnimationFrame(frame);
+  else setInterval(() => frame(performance.now(), true), 30000);   // candles still update
+})();
+
+// ------------------------------------------------------------ card tilt
+// Cards lean toward the cursor, a few degrees at most. Delegated from the
+// document because the tiles are rebuilt on every refresh. Not on touch, not
+// for reduced motion, and never on the chart, the map or anything with inputs.
+(function(){
+  if(window.matchMedia && (matchMedia("(prefers-reduced-motion: reduce)").matches
+     || matchMedia("(hover: none)").matches)) return;
+  const SEL = ".mkt, .top3 .card, .tiles .tile";
+  let cur = null;
+  function reset(el){ if(el) el.style.transform = ""; }
+  document.addEventListener("mousemove", e => {
+    const el = e.target.closest ? e.target.closest(SEL) : null;
+    if(el !== cur){ reset(cur); cur = el; }
+    if(!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
+    el.style.transform = `perspective(900px) rotateX(${(-py * 6).toFixed(2)}deg) `
+                       + `rotateY(${(px * 8).toFixed(2)}deg) translateZ(4px)`;
+  }, {passive: true});
+  document.addEventListener("mouseleave", () => { reset(cur); cur = null; });
+})();
 </script>
 </body></html>
 """
