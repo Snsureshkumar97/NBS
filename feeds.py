@@ -356,6 +356,13 @@ class Feed:
             self.thread = threading.Thread(target=self._run, daemon=True,
                                            name=f"feed:{self.key}")
             self.thread.start()
+        # And the tick loop, the same way. Belt and braces: whatever stops it,
+        # the next poll or supervisor pass brings the live prices back.
+        if (self.streamer is not None
+                and (self.ticker is None or not self.ticker.is_alive())):
+            self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
+                                           name=f"ticks:{self.key}")
+            self.ticker.start()
 
     def instruments(self):
         """Only this feed's market. A crypto feed must never reach for NIFTY."""
@@ -1135,7 +1142,14 @@ class Feed:
         own background thread and this only reads it, which is why it can run
         at this rate without costing anything.
         """
-        while not _stopping.is_set() and not self._idle():
+        # Runs until the feed is actually shut down (stop_stream sets streamer
+        # to None), NOT merely until it looks idle. It used to exit on _idle(),
+        # and when the Mac slept and woke the clock jumped past the idle limit
+        # for a moment: this loop quit, the main loop carried on once the
+        # supervisor touched it again, and nothing restarted this one. On
+        # 11 Sep the BTC price then sat frozen for over an hour while charts
+        # and signals kept updating from the slower analysis pass.
+        while not _stopping.is_set():
             st = self.streamer
             if st is None:
                 return
