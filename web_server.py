@@ -2694,6 +2694,10 @@ function render(s){
   if(!CUR || !(s.order||[]).includes(CUR)) CUR=(s.order||[])[0];
   markets(s);
   greet(s);
+  if(s.market === "crypto"){
+    const strip = document.querySelector(".ticker");
+    if(strip) strip.style.display = "none";
+  }
 
   // The closing auction is its own state, not a shade of "open". Saying
   // "Market open" over an index that has held one value since 15:15 is the
@@ -2943,6 +2947,14 @@ function renderTicker(rows){
 }
 
 async function markets_(){
+  // The strip is Indian indices, sectors and India VIX - context for the
+  // Indian screen and noise on the crypto one, so it is not shown or fetched there.
+  const strip = document.querySelector(".ticker");
+  if(LAST && LAST.market === "crypto"){
+    if(strip) strip.style.display = "none";
+    return;
+  }
+  if(strip) strip.style.display = "";
   try{
     const d = await (await fetch("/api/markets",{cache:"no-store"})).json();
     renderTicker(d.rows);
