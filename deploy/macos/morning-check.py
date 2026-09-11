@@ -58,8 +58,11 @@ def resident_lines(today):
     """[resident] lines the server logged today."""
     try:
         with open(SERVER_LOG, "r", errors="replace") as f:
+            # Indian only. Crypto is resident around the clock, so its start
+            # line appears on most days and would otherwise be read as "the
+            # Indian feed started by itself" - a pass for the wrong market.
             return [l.strip() for l in f
-                    if "[resident]" in l and today in l]
+                    if "[resident]" in l and today in l and "[nse_index]" in l]
     except OSError:
         return []
 
