@@ -561,6 +561,26 @@ def _find_strike_ltp(oi: dict, strike: int, option_type: str):
     return nearest.get(key)
 
 
+def _find_strike_quote(oi: dict, strike, option_type: str):
+    """Bid, ask and the spread as a share of the mid, for EXACTLY this strike.
+
+    No nearest-strike fallback, unlike the LTP: a neighbour's spread says
+    nothing about whether this contract can be bought cheaply.
+    """
+    if not option_type or not oi.get("available") or not oi.get("strikes"):
+        return None
+    side = "call" if option_type == "CE" else "put"
+    for s in oi["strikes"]:
+        if s["strike"] == strike:
+            bid, ask = s.get(side + "_bid"), s.get(side + "_ask")
+            if not bid or not ask or ask < bid:
+                return {"bid": bid, "ask": ask, "pct": None}
+            mid = (bid + ask) / 2.0
+            return {"bid": round(bid, 2), "ask": round(ask, 2),
+                    "pct": round((ask - bid) / mid * 100.0, 2)}
+    return None
+
+
 def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
                           reach: dict = None) -> dict:
     total = tech["total_score"] + oi["oi_score"]
@@ -845,6 +865,7 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         "index_targets": index_targets,          # [T1, T2, T3]
         "index_stop_loss": index_sl,
         "live_ltp": live_ltp,                     # real premium, if chain data was available
+        "spread": _find_strike_quote(oi, suggested_strike, option_type),  # bid/ask/pct of mid
         "premium_targets": premium_targets,        # [T1, T2, T3] — real $ price if live_ltp set, else approx point-move
         "premium_stop_loss": premium_sl,
         "premium_source": premium_source,          # "live" | "approx_move" | None

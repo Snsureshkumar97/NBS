@@ -108,7 +108,9 @@ class TicketBook:
 
         # What used to be checkboxes. Defaults come from config so the website
         # and the desktop start from the same place.
-        self.lots = 1
+        # The smallest size the market allows: one lot of an index option,
+        # 0.1 of a BTC contract.
+        self.lots = config.lot_choices(self.market)[0]
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
@@ -251,7 +253,10 @@ class TicketBook:
                 self.risk_pct = float(risk_pct)
                 self._save_settings()
             if lots is not None:
-                self.lots = max(1, min(int(lots), int(_cfg("MAX_LOTS", 5))))
+                choices = config.lot_choices(self.market)
+                # Snap to the nearest size the market offers, so a stale page
+                # asking for "3" on crypto or "0.3" on Nifty still gets a real one.
+                self.lots = min(choices, key=lambda c: abs(c - float(lots)))
             if reentry is not None:
                 self.reentry = bool(reentry)
             if auto_rearm is not None:
@@ -585,6 +590,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 8. and can be bought without handing the edge to the spread ---
+        held = self._spread_hold(rec)
+        if held is not None:
+            return hold(*held)
+
         events = []
         if book.trade is not None and book.trade["status"] == "OPEN":
             px = self._price_for(book.trade, rec)
@@ -662,6 +672,23 @@ class TicketBook:
                     f"until the target is at least {need:g}x the risk.")
         return None
 
+    def _spread_hold(self, rec):
+        """Held when the contract's bid-ask spread is wider than
+        MAX_SPREAD_PCT of its mid. Unknown spreads never block."""
+        cap = _cfg("MAX_SPREAD_PCT", 0)
+        sp = rec.get("spread") or {}
+        pct = sp.get("pct")
+        if not cap or pct is None or pct <= cap:
+            return None
+        return ("wide_spread", "WIDE SPREAD",
+                f"{rec.get('suggested_strike')} {rec.get('option_type')} is quoted "
+                f"{sp['bid']:,.2f} bid / {sp['ask']:,.2f} ask - a spread of "
+                f"{pct:.1f}% of the price. Buying at the offer and selling at "
+                f"the bid gives that up before the market moves at all, and "
+                f"no target here earns it back. Held until it is under "
+                f"{cap:g}%. If you trade it anyway, use a limit order near the "
+                f"middle, never a market order.")
+
     def _same_direction_hold(self, book, rec, direction):
         """Why a second ticket in a direction already taken today is held, or
         None if it may go.
@@ -737,7 +764,9 @@ class TicketBook:
         # The trade-quality gates too. Re-arm skipped them, so a Bank Nifty
         # ticket could re-open while the index was watch-only, and a 0.6:1
         # trade could re-open straight after a stop on a 1:1 one.
-        if self._regime_hold(rec) is not None or self._reward_hold(book.name, rec) is not None:
+        if (self._regime_hold(rec) is not None
+                or self._reward_hold(book.name, rec) is not None
+                or self._spread_hold(rec) is not None):
             return False
         last = self._last_any()
         gap_s = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0) * 60
@@ -980,6 +1009,7 @@ class TicketBook:
                 "limits": self.limits,
                 "recent": self.closed[:8],
                 "lots": self.lots,
+                "lot_choices": config.lot_choices(self.market),
                 "capital": self.capital,
                 "risk_pct": self.risk_pct,
                 "risk_choices": list(_cfg("RISK_PCT_CHOICES", (1.0,))),

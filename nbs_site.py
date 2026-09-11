@@ -1226,6 +1226,11 @@ def how_page(user=None, record=None):
     <code>{_cfg("MAX_LOTS", 5)}</code> lots</td></tr>
    <tr><td>LOW REWARD</td><td>T3 is closer than the stop &mdash; the trade
     would risk more than it can make</td></tr>
+   <tr><td>WIDE SPREAD</td><td>the contract&rsquo;s bid-ask spread is more than
+    <code>{_cfg("MAX_SPREAD_PCT", 3.0)}%</code> of its price &mdash; buying at
+    the offer and selling at the bid would give that up before the market
+    moved. Index options are typically 0.2&ndash;0.4%; near-dated BTC options
+    are often 8&ndash;18%</td></tr>
    <tr><td>WATCH ONLY</td><td>the index is shown and explained but not
     ticketed. {_watch_only_text()}</td></tr>
    <tr><td>LOSS LIMIT</td><td>once you enter your capital, today&rsquo;s closed
@@ -1237,7 +1242,14 @@ def how_page(user=None, record=None):
    signal and open ticket shows the money between entry and stop, what share of
    the account that is, and how many lots fit inside the risk per trade you
    picked. The lots are still yours to choose &mdash; nothing here places an
-   order &mdash; but the number is in front of you before you do.</p>
+   order &mdash; but the number is in front of you before you do. BTC sizes in
+   tenths of a contract, Deribit&rsquo;s minimum, so a small account is not
+   forced into a whole coin.</p>
+  <p><b>Review.</b> The Review page reads your own finished tickets back &mdash;
+   win rate, average per lot, profit factor, by index, by entry time, by
+   expiry day &mdash; beside the backtest&rsquo;s figure for each, with the
+   sample size and a range, so a fortnight of results is read as what it
+   is.</p>
   <p>This distinction is worth the space. The screen used to print "a ticket is
    issued when the direction changes" whichever rule was holding, and that
    sentence is true for exactly one of those rows — the least common one.

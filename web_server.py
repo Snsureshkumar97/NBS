@@ -453,6 +453,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(PAGE)
             if path == "/market":
                 return self._market_page()
+            if path == "/review":
+                # Your own record against the backtest, for the market this
+                # login is in. Read-only; built from the ticket log on disk.
+                market = self._current_market()
+                if not market:
+                    return self._redirect("/market")
+                import review_page
+                return self._send(review_page.page(review_page.build(user, market)))
             if path == "/api/state":
                 return self._api_state(user)
             if path == "/api/tick":
@@ -658,7 +666,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             book.clear(form.get("index") or "")
         else:
             try:
-                lots = int(form["lots"]) if "lots" in form else None
+                lots = float(form["lots"]) if "lots" in form else None
             except (TypeError, ValueError):
                 lots = None
 
@@ -1475,6 +1483,8 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
     <span class="pill"><span class="feedtag" id="feed">&mdash;</span><span id="upd">&mdash;</span></span>
     <a class="pill" id="mktsw" href="/market" style="text-decoration:none;display:none"
        title="Switch market">&mdash;</a>
+    <a class="pill" href="/review" style="text-decoration:none"
+       title="Your results so far, against the backtest">Review</a>
     <a class="pill" id="kite" href="/connect" style="text-decoration:none">Zerodha</a>
     <a class="pill" id="signout" href="/logout" style="display:none;text-decoration:none">Sign out</a>
   </div>
@@ -1841,16 +1851,22 @@ function ladder(r, tk){
 
   // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
   // list, so raising the cap in config raises it here too.
-  const maxL = r.max_lots || 5;
+  // Choices come from the server: whole lots for index options, 0.1 steps
+  // for BTC, whose smallest order on Deribit is a tenth of a contract.
+  const sess = (LAST && LAST.session) || {};
+  const choices = sess.lot_choices || [1,2,3,4,5];
   const sel = $("lots");
-  if(!LOTS_SYNCED && LAST && LAST.session && LAST.session.lots){
-    LOTS = LAST.session.lots; LOTS_SYNCED = true;
-  }
-  if(sel.options.length !== maxL){
+  if(!LOTS_SYNCED && sess.lots){ LOTS = sess.lots; LOTS_SYNCED = true; }
+  const sig = choices.join(",");
+  if(sel.dataset.sig !== sig){
     sel.innerHTML = "";
-    for(let i=1;i<=maxL;i++) sel.add(new Option(String(i), String(i)));
+    choices.forEach(v => sel.add(new Option(String(v), String(v))));
+    sel.dataset.sig = sig;
   }
-  sel.value = String(Math.min(LOTS, maxL));
+  if(!choices.includes(LOTS)){
+    LOTS = choices.reduce((a,b) => Math.abs(b-LOTS) < Math.abs(a-LOTS) ? b : a, choices[0]);
+  }
+  sel.value = String(LOTS);
 
   // The note carries the caveat rather than a tooltip, because the premium
   // numbers are a delta approximation and saying so quietly would be worse
@@ -1918,10 +1934,15 @@ function riskBox(r, tk, sess){
       const cls = pct <= rp * 1.05 ? "ok" : pct <= rp * 2 ? "warn" : "bad";
       s += ` = <b class="${cls}">${pct.toFixed(2)}% of capital</b>.`;
       if(!(tk && tk.open)){
-        const fit = Math.floor(cap * rp / 100 / perLot);
-        s += fit >= 1
+        // In the market's own step: whole lots, or tenths of a BTC contract.
+        const ch = sess.lot_choices || [1];
+        const step = ch[0] < 1 ? ch[0] : 1;
+        const raw = cap * rp / 100 / perLot;
+        const fit = Math.round(Math.floor(raw / step + 1e-9) * step * 100) / 100;
+        s += fit >= step
           ? ` At ${rp}% risk the account carries <b>${fit} ${unit}${fit!==1?"s":""}</b>.`
-          : ` <span class="bad">One ${unit} is more than ${rp}% of the account</span>`
+          : ` <span class="bad">${step < 1 ? "The smallest size ("+step+" "+unit+")" : "One "+unit}`
+            + ` is more than ${rp}% of the account</span>`
             + ` (${money(cap*rp/100,false)}) - skip it, or know you are sizing up.`;
       }
     } else {
@@ -1940,6 +1961,16 @@ function riskBox(r, tk, sess){
                     + (left > 0 ? `${money(left,false)} left before new tickets stop.`
                                 : `<span class="bad">limit reached, no new tickets today.</span>`)
                     : " - no closed losses today."));
+  }
+  const sp = r.spread;
+  if(sp && sp.pct != null && !(tk && tk.open) && r.bias && r.bias !== "NEUTRAL"){
+    const lim = r.max_spread || 0;
+    const cls = !lim ? "" : sp.pct <= lim / 3 ? "ok" : sp.pct <= lim ? "warn" : "bad";
+    parts.push(`Spread <b class="${cls}">${sp.pct.toFixed(2)}%</b> of the price`
+      + ` (${num(sp.bid,2)} bid / ${num(sp.ask,2)} ask)`
+      + (lim && sp.pct > lim ? ` - over the ${lim}% limit, so no ticket; a market order`
+           + ` would lose that much on entry and exit before the price moved.`
+         : " - use a limit order near the middle."));
   }
   if(r.expiry_today){
     parts.push(`<span class="xday">Expires today</span> This contract settles at 15:30. `
@@ -1969,7 +2000,7 @@ $("riskpct").onchange = e => postRisk({risk_pct: e.target.value});
 $("lb-index").onclick   = () => { LMODE="index";   if(LAST) render(LAST); };
 $("lb-premium").onclick = () => { LMODE="premium"; if(LAST) render(LAST); };
 $("lots").onchange = e => {
-  LOTS = parseInt(e.target.value,10)||1;
+  LOTS = parseFloat(e.target.value)||1;
   if(LAST) render(LAST);
   // Sent to the server too: the lots a ticket is issued for are frozen with
   // it, so the number has to be known there before the next one fires, not

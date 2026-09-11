@@ -236,6 +236,17 @@ class FreeDataProvider:
         }
 
 
+def _best_bid_ask(depth):
+    """(best bid, best ask) from a Kite depth block; None for an empty side.
+    Kite pads empty levels with price 0, which is no price at all."""
+    try:
+        bid = depth["buy"][0]["price"] or None
+        ask = depth["sell"][0]["price"] or None
+        return bid, ask
+    except Exception:
+        return None, None
+
+
 def _compute_max_pain(strikes: list) -> Optional[float]:
     """Classic max-pain calc: for each candidate expiry strike, total option
     writers' payout if index settles there; max pain = strike with min payout."""
@@ -477,14 +488,17 @@ class KiteDataProvider:
             q = quotes.get(key, {})
             oi = q.get("oi", 0) or 0
             ltp = q.get("last_price")
+            # Best bid and offer from the depth that the full quote already
+            # carries - the spread is what a market order pays on the way in
+            # and again on the way out, and it was being thrown away.
+            bid, ask = _best_bid_ask(q.get("depth"))
             strike = inst["strike"]
             entry = by_strike.setdefault(strike, {"strike": strike, "call_oi": 0, "put_oi": 0, "call_ltp": None, "put_ltp": None})
-            if inst["instrument_type"] == "CE":
-                entry["call_oi"] = oi
-                entry["call_ltp"] = ltp
-            else:
-                entry["put_oi"] = oi
-                entry["put_ltp"] = ltp
+            side = "call" if inst["instrument_type"] == "CE" else "put"
+            entry[side + "_oi"] = oi
+            entry[side + "_ltp"] = ltp
+            entry[side + "_bid"] = bid
+            entry[side + "_ask"] = ask
 
         strikes = sorted(by_strike.values(), key=lambda x: x["strike"])
         total_call_oi = sum(s["call_oi"] for s in strikes)
@@ -604,6 +618,8 @@ class DeribitDataProvider:
                 "oi": float(x.get("open_interest") or 0),
                 # mark_price is quoted in the coin, not in dollars.
                 "mark_coin": x.get("mark_price"),
+                "bid_coin": x.get("bid_price") or None,
+                "ask_coin": x.get("ask_price") or None,
             })
         self._chain_cache[ccy] = (time.time(), parsed)
         return parsed
@@ -653,12 +669,11 @@ class DeribitDataProvider:
             # Deribit prices an option in coin; the engine works in the quote
             # currency, the same units as the strike and the spot.
             ltp = (r["mark_coin"] * spot) if r["mark_coin"] is not None else None
-            if r["kind"] == "C":
-                e["call_oi"] = r["oi"]
-                e["call_ltp"] = ltp
-            else:
-                e["put_oi"] = r["oi"]
-                e["put_ltp"] = ltp
+            side = "call" if r["kind"] == "C" else "put"
+            e[side + "_oi"] = r["oi"]
+            e[side + "_ltp"] = ltp
+            e[side + "_bid"] = r["bid_coin"] * spot if r.get("bid_coin") else None
+            e[side + "_ask"] = r["ask_coin"] * spot if r.get("ask_coin") else None
         strikes = sorted(by_strike.values(), key=lambda x: x["strike"])
         if not strikes:
             return None

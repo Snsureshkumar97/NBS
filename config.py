@@ -163,6 +163,9 @@ INSTRUMENTS = {
         "quote_ccy": "USD",
         "strike_step": 1000,
         "lot_size": 1,
+        # Deribit's smallest order is 0.1 BTC. Sized in whole contracts, one
+        # ticket on a $2,000 account paid 46% of it in premium and risked 7%.
+        "qty_step": 0.1,
         "has_free_option_chain": False,
     },
 }
@@ -489,6 +492,7 @@ CAS_START_TIME = (15, 15)
 MARKETS = {
     "nse_index": {
         "label": "NSE / BSE index",
+        "currency": "INR",
         "market_provider": "kite",
         "always_open": False,
         "weekends": False,
@@ -502,6 +506,7 @@ MARKETS = {
         # Every session rule below simply does not apply, which is the whole
         # reason a market had to stop being a global.
         "label": "crypto, 24/7",
+        "currency": "USD",
         "market_provider": "deribit",
         "always_open": True,
         "weekends": True,
@@ -527,6 +532,25 @@ def instruments_in(market):
     return [k for k, v in INSTRUMENTS.items()
             if v.get("market", DEFAULT_MARKET) == market
             and (market != "crypto" or ENABLE_CRYPTO)]
+
+
+def lot_choices(market=None):
+    """The quantities the lots / contracts selector offers for one market.
+
+    Whole lots for index options. For a venue that trades fractions, the
+    fractions up to one contract, then whole contracts up to MAX_LOTS - so a
+    small account can size down to the exchange minimum and a large one is not
+    stuck clicking 0.1 fifty times.
+    """
+    steps = [v.get("qty_step", 1) for v in INSTRUMENTS.values()
+             if v.get("market", DEFAULT_MARKET) == (market or DEFAULT_MARKET)]
+    step = min(steps) if steps else 1
+    top = int(globals().get("MAX_LOTS", 5))
+    if step >= 1:
+        return [float(i) for i in range(1, top + 1)]
+    n = int(round(1 / step))
+    fr = [round(i * step, 4) for i in range(1, n + 1)]
+    return fr + [float(i) for i in range(2, top + 1)]
 
 
 def active_instruments():
@@ -941,6 +965,24 @@ MIN_REWARD_RISK_T3 = 1.0
 # it starts working again; it just no longer issues tickets. Remove the name
 # from this tuple to trade it again.
 WATCH_ONLY_INDICES = ("BANKNIFTY",)
+
+# ---------------------------------------------------------------------------
+# SPREAD — what it costs just to get in and out
+# ---------------------------------------------------------------------------
+# A market order buys at the offer and sells at the bid, so a round trip
+# gives up the whole bid-ask spread before the index has moved at all. The
+# tool prices tickets at the last trade (or Deribit's mark), which quietly
+# assumes that cost is zero.
+#
+# Measured 11 Sep 2026, 14:15 IST, five strikes either side of the money:
+#   Nifty 0.14-0.28%   Sensex 0.20-0.28%   Bank Nifty 0.26-0.43%
+#   BTC, nearest daily expiry 8.7-18%;  weekly 25 Sep 1.6-5.1%
+# Index options are nowhere near this limit. Near-dated BTC options almost
+# always are - a 10% spread is a 10% loss on entry, which no target in this
+# tool is large enough to earn back. Held, with the reason shown, rather than
+# ticketed at a price nobody could have traded at. Pre-declared, not fitted;
+# checked only when the chain actually quotes both sides. 0 switches it off.
+MAX_SPREAD_PCT = 3.0
 
 # Is MIN_MINUTES_BETWEEN_TICKETS counted per index, or across all three?
 # Moot while that setting is 0 — kept because it matters the moment it is not.

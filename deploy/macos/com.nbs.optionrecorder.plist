@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.nbs.optionrecorder</string>
+  <!-- Fires at 06:30 local, which is 16:00 IST on US daylight time and 17:00
+       IST on standard time - after the 15:40 F&O close either way, and the
+       same IST day. -wait covers a clock that fires early. Saves the day's
+       real option candles before the expiring weekly disappears from Kite. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/sureshkumar/CLAUDE WORKSPACE/trading-tool 4/record_options.py</string>
+    <string>--wait</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>6</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>/Users/sureshkumar/Library/Logs/nbs-option-recorder.log</string>
+  <key>StandardErrorPath</key><string>/Users/sureshkumar/Library/Logs/nbs-option-recorder.log</string>
+</dict>
+</plist>

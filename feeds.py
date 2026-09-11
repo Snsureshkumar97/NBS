@@ -239,6 +239,8 @@ def _public(rec, name=None):
         # layer simply never forwarded them, so the site showed index points
         # only and the number a buyer actually pays was missing from it.
         "ltp": rec.get("live_ltp"),
+        "spread": rec.get("spread"),
+        "max_spread": getattr(config, "MAX_SPREAD_PCT", 0),
         "premium_targets": rec.get("premium_targets") or [None, None, None],
         "premium_stop": rec.get("premium_stop_loss"),
         "premium_source": rec.get("premium_source"),
