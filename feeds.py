@@ -608,15 +608,17 @@ class Feed:
         strike, opt = pub.get("strike"), pub.get("option_type")
         if not strike or not opt:
             return
-        have = self.sug_tokens.get(name)
-        if have and have[0] == strike and have[1] == opt:
-            return                            # already streaming this one
         try:
             inst = self._provider_for(name, None).option_instrument(name, strike, opt)
         except Exception:
             inst = None
         if not inst:
             return
+        have = self.sug_tokens.get(name)
+        # Compared on the full contract name, not strike and side: the expiry
+        # is chosen by spread and can change while the strike stays the same.
+        if have and have[2] == inst:
+            return                            # already streaming this one
         self.sug_tokens[name] = (strike, opt, inst)
         st.subscribe([f"ticker.{inst}.100ms"])
 
@@ -636,7 +638,7 @@ class Feed:
             return
         try:
             inst = self._provider_for(name, None).option_instrument(
-                name, trade["strike"], trade["option_type"])
+                name, trade["strike"], trade["option_type"], trade.get("expiry"))
         except Exception:
             inst = None
         if not inst:

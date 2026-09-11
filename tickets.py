@@ -425,6 +425,12 @@ class TicketBook:
             oi = rec.get("option_chain")
             if not oi:
                 return None
+            # The chain on hand is for another expiry now - its price for
+            # this strike belongs to a different contract. The tick stream,
+            # subscribed to the ticket's own contract, carries it instead.
+            if (trade.get("expiry") and oi.get("expiry")
+                    and str(oi["expiry"])[:10] != str(trade["expiry"])[:10]):
+                return None
             try:
                 return signal_engine._find_strike_ltp(oi, trade["strike"],
                                                       trade["option_type"])
@@ -791,6 +797,10 @@ class TicketBook:
             "index": rec["index"],
             "option_type": rec["option_type"],
             "strike": rec["suggested_strike"],
+            # Frozen with the strike. On crypto the expiry is picked by spread
+            # and can move while a ticket is open; without this the ticket
+            # would silently start reading a different contract's price.
+            "expiry": (rec.get("option_chain") or {}).get("expiry"),
             "entry_time": stamp.strftime("%H:%M:%S"),
             "entry_ts": stamp,
             # The reasoning frozen at this instant. Without it, reading the

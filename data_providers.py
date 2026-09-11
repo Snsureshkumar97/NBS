@@ -629,6 +629,68 @@ class DeribitDataProvider:
         seen = {r["expiry"] for r in rows}
         return sorted(seen, key=_deribit_expiry_date)
 
+    # ------------------------------------------------------- expiry choice
+    # The nearest BTC expiry is a daily, and its options are quoted 8-18% wide
+    # around the money (measured 11 Sep 2026) - a loss that size on entry and
+    # exit before the price has moved. Weeklies further out are 2-5%. So the
+    # chain is taken from the NEAREST expiry whose at-the-money spread is under
+    # MAX_SPREAD_PCT, not simply the nearest: the shortest-dated contract that
+    # can actually be bought at a fair price. If none qualifies, the nearest is
+    # used and the spread gate holds the ticket, saying why.
+    def _atm_spread(self, rows, tag, spot):
+        """Median bid-ask spread, % of mid, of the three strikes nearest the
+        money, calls and puts both. Median so one stale quote cannot decide."""
+        mine = [r for r in rows if r["expiry"] == tag]
+        strikes = sorted({r["strike"] for r in mine}, key=lambda k: abs(k - spot))[:3]
+        pcts = []
+        for r in mine:
+            if r["strike"] in strikes and r.get("bid_coin") and r.get("ask_coin"):
+                b, a = r["bid_coin"], r["ask_coin"]
+                if a >= b:
+                    pcts.append((a - b) / ((a + b) / 2) * 100)
+        if len(pcts) < 3:
+            return None
+        pcts.sort()
+        return pcts[len(pcts) // 2]
+
+    def pick_expiry(self, index_key: str):
+        """The expiry tag the chain, the stream and a new ticket all use."""
+        rows = self._chain_rows(index_key)
+        if not rows:
+            return None
+        tags = sorted({r["expiry"] for r in rows}, key=_deribit_expiry_date)
+        cap = float(getattr(__import__("config"), "MAX_SPREAD_PCT", 0) or 0)
+        if not cap:
+            return tags[0]
+        ccy = INSTRUMENTS[index_key]["deribit_currency"]
+        # Asked on every tick by the stream loop; the chain it reads is only
+        # refreshed every 30s, so the answer cannot change faster than that.
+        hit = _DERIBIT_PICK_AT.get(ccy)
+        if hit and time.time() - hit < 30 and _DERIBIT_PICK.get(ccy) in tags:
+            return _DERIBIT_PICK[ccy]
+        _DERIBIT_PICK_AT[ccy] = time.time()
+        try:
+            spot = self.spot(index_key)
+        except Exception:
+            return _DERIBIT_PICK.get(ccy) or tags[0]
+        # A little hysteresis: stay on the current pick while it is still
+        # comfortably tradeable, so the suggested contract does not flick
+        # between two expiries every thirty seconds as quotes breathe.
+        prev = _DERIBIT_PICK.get(ccy)
+        if prev in tags:
+            sp = self._atm_spread(rows, prev, spot)
+            earlier_ok = any((self._atm_spread(rows, t, spot) or 1e9) <= cap
+                             for t in tags[:tags.index(prev)])
+            if sp is not None and sp <= cap * 1.25 and not earlier_ok:
+                return prev
+        for t in tags[:8]:
+            sp = self._atm_spread(rows, t, spot)
+            if sp is not None and sp <= cap:
+                _DERIBIT_PICK[ccy] = t
+                return t
+        _DERIBIT_PICK[ccy] = tags[0]
+        return tags[0]
+
     def option_instrument(self, index_key: str, strike, option_type: str,
                           expiry: str = None):
         """Deribit's name for one contract, e.g. BTC-11SEP26-77000-P.
@@ -640,7 +702,7 @@ class DeribitDataProvider:
         rows = self._chain_rows(index_key)
         if not rows:
             return None
-        tag = expiry or min((r["expiry"] for r in rows), key=_deribit_expiry_date)
+        tag = _deribit_tag(expiry) if expiry else self.pick_expiry(index_key)
         kind = "C" if str(option_type).upper().startswith("C") else "P"
         want = int(strike)
         if not any(r["expiry"] == tag and r["strike"] == want and r["kind"] == kind
@@ -658,7 +720,7 @@ class DeribitDataProvider:
             return None
         if not rows:
             return None
-        target = expiry or min((r["expiry"] for r in rows), key=_deribit_expiry_date)
+        target = _deribit_tag(expiry) if expiry else self.pick_expiry(index_key)
         by_strike = {}
         for r in rows:
             if r["expiry"] != target:
@@ -694,6 +756,22 @@ _DERIBIT_OPT = re.compile(r"^([A-Z]+)-(\d{1,2}[A-Z]{3}\d{2})-(\d+)-([CP])$")
 _DERIBIT_MONTHS = {m: i + 1 for i, m in enumerate(
     ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"])}
+
+
+_DERIBIT_PICK = {}       # currency -> expiry tag currently in use
+_DERIBIT_PICK_AT = {}    # currency -> when it was last worked out
+
+
+def _deribit_tag(expiry):
+    """Accept either Deribit's tag ("25SEP26") or an ISO date ("2026-09-25").
+    Tickets store the ISO form the chain reports; Deribit names use the tag."""
+    s = str(expiry)
+    try:
+        d = dt.date.fromisoformat(s[:10])
+    except ValueError:
+        return s
+    months = {v: k for k, v in _DERIBIT_MONTHS.items()}
+    return f"{d.day}{months[d.month]}{d.year % 100:02d}"
 
 
 def _deribit_expiry_date(tag: str):

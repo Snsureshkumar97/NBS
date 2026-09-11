@@ -1230,7 +1230,8 @@ def how_page(user=None, record=None):
     <code>{_cfg("MAX_SPREAD_PCT", 3.0)}%</code> of its price &mdash; buying at
     the offer and selling at the bid would give that up before the market
     moved. Index options are typically 0.2&ndash;0.4%; near-dated BTC options
-    are often 8&ndash;18%</td></tr>
+    are often 8&ndash;18%, so on crypto the tool takes the nearest expiry whose
+    spread is under the limit instead of simply the nearest one</td></tr>
    <tr><td>WATCH ONLY</td><td>the index is shown and explained but not
     ticketed. {_watch_only_text()}</td></tr>
    <tr><td>LOSS LIMIT</td><td>once you enter your capital, today&rsquo;s closed

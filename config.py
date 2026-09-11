@@ -982,6 +982,12 @@ WATCH_ONLY_INDICES = ("BANKNIFTY",)
 # tool is large enough to earn back. Held, with the reason shown, rather than
 # ticketed at a price nobody could have traded at. Pre-declared, not fitted;
 # checked only when the chain actually quotes both sides. 0 switches it off.
+#
+# On crypto the same number also CHOOSES the contract: the chain is taken from
+# the nearest BTC expiry whose at-the-money spread is under this limit
+# (DeribitDataProvider.pick_expiry), rather than the nearest expiry outright.
+# On 11 Sep that was 30 Oct at 1.9%, with the dailies at 7-13%. A ticket
+# freezes the expiry it was issued on.
 MAX_SPREAD_PCT = 3.0
 
 # Is MIN_MINUTES_BETWEEN_TICKETS counted per index, or across all three?
