@@ -320,6 +320,7 @@ class Feed:
         self.streamer = None
         self.tokens = {}          # index name -> instrument token
         self.opt_tokens = {}      # index name -> the open ticket's contract
+        self.opt_for = {}         # index name -> the trade_id that contract is for
         self.sug_tokens = {}      # index name -> (strike, type, token) suggested
         self.sug_px = {}          # index name -> that contract's live premium
         self.base_df = {}         # index name -> the completed REST candles
@@ -368,6 +369,30 @@ class Feed:
             self.state.update(fields)
 
     # -- the loop -----------------------------------------------------------
+    def _ref(self):
+        """Any instrument of this feed's market - they share its session."""
+        keys = self.instruments()
+        return keys[0] if keys else None
+
+    def _ticket_contract_ok(self, name):
+        """True when opt_tokens[name] belongs to the ticket open NOW.
+
+        It was cleared only when a ticket closed on a streamed tick. Closed any
+        other way - cleared, the bell, the analysis pass - the next ticket
+        inherited the old contract's stream, and its targets and stop would
+        have been checked against a different option's price.
+        """
+        book = self.tickets.books.get(name)
+        trade = book.trade if book else None
+        if trade is None or trade["status"] != "OPEN":
+            self.opt_tokens.pop(name, None)
+            self.opt_for.pop(name, None)
+            return False
+        if self.opt_for.get(name) != trade.get("trade_id"):
+            self.opt_tokens.pop(name, None)
+            self.opt_for.pop(name, None)
+        return True
+
     def _provider_for(self, name, kite_provider):
         """The right venue for one instrument.
 
@@ -424,7 +449,10 @@ class Feed:
                 self.stage = "stream"
                 self._start_stream()
                 self.stage = "market-check"
-                open_now = is_market_open(now_ist())
+                # THIS feed's market. Asked with no instrument, it answered for
+                # the NSE session - so the crypto feed rang the 15:40 bell on an
+                # open BTC ticket and reported "market closed" every evening.
+                open_now = is_market_open(now_ist(), self._ref())
                 for name in self.instruments():
                     if _stopping.is_set() or self._idle():
                         break
@@ -636,7 +664,7 @@ class Feed:
         crypto twin of _subscribe_ticket.
         """
         st = self.dstream
-        if st is None or self.opt_tokens.get(name) is not None:
+        if st is None or not self._ticket_contract_ok(name) or self.opt_tokens.get(name) is not None:
             return
         book = self.tickets.books.get(name)
         trade = book.trade if book else None
@@ -650,6 +678,7 @@ class Feed:
         if not inst:
             return
         self.opt_tokens[name] = inst
+        self.opt_for[name] = trade.get("trade_id")
         st.subscribe([f"ticker.{inst}.100ms"])
 
     def _crypto_track(self):
@@ -826,7 +855,8 @@ class Feed:
         one specific strike, and that contract has its own price, which is the
         one the P&L is actually made of.
         """
-        if self.streamer is None or self.opt_tokens.get(name) is not None:
+        if (self.streamer is None or not self._ticket_contract_ok(name)
+                or self.opt_tokens.get(name) is not None):
             return
         book = self.tickets.books.get(name)
         trade = book.trade if book else None
@@ -844,6 +874,7 @@ class Feed:
         if not tok:
             return
         self.opt_tokens[name] = tok
+        self.opt_for[name] = trade.get("trade_id")
         try:
             self.streamer.subscribe([tok], quote=True)
         except Exception:
@@ -1239,7 +1270,7 @@ class Feed:
         out = {"spots": spots,
                "live": bool(st is not None and st.connected
                             and age is not None and age < 15.0
-                            and is_market_open(now_ist())),
+                            and is_market_open(now_ist(), self._ref())),
                "age": round(age, 1) if age is not None else None,
                "premium": {}, "ltp": sug, "bar": self.forming(),
                "stream_error": self.stream_error, "stage": self.stage}

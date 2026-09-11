@@ -476,13 +476,20 @@ class TicketBook:
             # subscribed to the ticket's own contract, carries it instead.
             if (trade.get("expiry") and oi.get("expiry")
                     and str(oi["expiry"])[:10] != str(trade["expiry"])[:10]):
-                return None
+                return self._streamed(trade)
             try:
                 return signal_engine._find_strike_ltp(oi, trade["strike"],
                                                       trade["option_type"])
             except Exception:
                 return None
         return rec.get("spot")
+
+    def _streamed(self, trade):
+        """The ticket's own contract as last streamed, or None. Used when the
+        chain on hand is for another expiry, so a clear or the bell still logs
+        a real exit price - they were logging none."""
+        book = self.books.get(trade.get("index"))
+        return book.live if book is not None else None
 
     def _track(self, book, rec):
         """Check an open ticket against its frozen levels, then re-arm if it
@@ -901,6 +908,8 @@ class TicketBook:
             "trade_id": f"{rec['index']}-{stamp.strftime('%Y%m%d-%H%M%S')}",
         }
         book.last_ticket_at = stamp
+        # The previous ticket's streamed price is not this one's.
+        book.live = None
         # Written to disk immediately rather than on close — if this dies
         # mid-trade there is still proof the signal happened.
         try:
