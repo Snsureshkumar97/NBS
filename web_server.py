@@ -1476,7 +1476,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="19" cy="13.9" r="2" fill="#4caf50"/>
     </svg>
-    <div>NBS Signal Tool<small>Nifty · Bank Nifty · Sensex</small></div>
+    <div>NBS Signal Tool<small id="brandsub">Nifty · Bank Nifty · Sensex</small></div>
   </a>
   <div class="row" style="display:flex;gap:8px;align-items:center">
     <span class="pill"><span class="beat" id="beat"></span><span id="mkt">connecting</span></span>
@@ -1949,7 +1949,8 @@ function riskBox(r, tk, sess){
       s += ". Enter your capital to see it as a share of the account.";
     }
     parts.push(s);
-  } else if(!(tk && tk.open)){
+  } else if(!(tk && tk.open) && r.bias && r.bias !== "NEUTRAL"){
+    // Only when there IS a trade to size; on "No trade" there is nothing to say.
     parts.push(cap ? "No live premium stop for this signal, so its risk in money cannot be worked out yet."
                    : "");
   }
@@ -2959,6 +2960,14 @@ function greet(s){
   who.textContent = email.split("@")[0];
   who.title = email;
   const k = s.kite || {};
+  // Crypto needs no broker and trades none of the three indices, so the
+  // Zerodha line and the index names would both be describing the wrong screen.
+  if(s.market === "crypto"){
+    $("said").textContent = "Bitcoin options on Deribit, priced live in dollars - "
+                          + "one screen, around the clock.";
+    const bs = $("brandsub"); if(bs) bs.textContent = "BTC · Deribit · 24/7";
+    return;
+  }
   $("said").textContent = k.connected
     ? (k.user_id ? `Connected to Zerodha as ${k.user_id}. Nifty, Bank Nifty and `
                  + `Sensex — one screen for the session.`

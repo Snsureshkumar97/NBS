@@ -207,7 +207,7 @@ def page(data):
                 f'<div class="s">{sub}</div></div>')
 
     def pf(v):
-        return "—" if v is None else f"{v:.2f}"
+        return "no losses" if v is None else f"{v:.2f}"
 
     head = ""
     if s:
