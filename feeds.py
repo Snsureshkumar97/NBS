@@ -199,6 +199,20 @@ def _key_for(email, market=None):
 
 
 # ---------------------------------------------------------------------------
+def _room(rec):
+    reach = rec.get("reach") or {}
+    spot = rec.get("spot")
+    def to(d, sign):
+        return None if spot is None or d is None else round(spot + sign * d, 2)
+    return {
+        "up": reach.get("reach_up"), "up_to": to(reach.get("reach_up"), +1),
+        "up_cap": reach.get("cap_up"),
+        "down": reach.get("reach_down"), "down_to": to(reach.get("reach_down"), -1),
+        "down_cap": reach.get("cap_down"),
+        "side": {"CE": "up", "PE": "down"}.get(rec.get("option_type")),
+    }
+
+
 def _public(rec, name=None):
     """The parts of a recommendation a browser needs.
 
@@ -236,6 +250,10 @@ def _public(rec, name=None):
         "expiry": (rec.get("option_chain") or {}).get("expiry"),
         "risk_points": rec.get("risk_points"),
         "reach_points": rec.get("reach_points"),
+        # Both sides, with the price each reaches and what limits it. The rec
+        # has always carried this; the page only ever saw one number, so
+        # "606 pts of room" never said which way or to where.
+        "room": _room(rec),
         "reach_to_risk": rec.get("reach_to_risk"),
         "reach_reason": rec.get("reach_reason"),
         "not_worth_it": rec.get("not_worth_it"),

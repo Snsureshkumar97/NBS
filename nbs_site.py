@@ -174,8 +174,11 @@ CSS = """
    carry meaning, and re-tuning them per theme is how a red comes to look like
    an amber on one screen and not the other. */
 :root{
-  --bg:#0b0b0d; --surface:#141417; --raised:#1b1b20; --sunken:#0f0f12;
-  --bd:#2a2a31; --bd-soft:#1e1e24;
+  /* Deep slate rather than flat black: a faint blue in the base lets the
+     accent, the green and the orange all sit on it without any one of
+     them looking pasted on. Ink and signal colours are unchanged. */
+  --bg:#0a0d14; --surface:#10141d; --raised:#161b26; --sunken:#0c1018;
+  --bd:#222938; --bd-soft:#1a2030;
   --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#6f6f7b;
   --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --r:3px; --r-sm:3px;
@@ -198,8 +201,27 @@ a:hover{text-decoration:underline}
    reads as an accidental indent rather than as a measure. */
 .narrow{max-width:760px;margin:0}
 
+/* ---------- background ----------
+   Three soft glows fixed to the viewport - blue from the top left, green from
+   the top right, a little violet from below - over a faint chart grid that
+   fades out down the page. Cards stay solid on top of it, so it is felt in the
+   gutters and never behind a number you have to read. */
+body{background-color:var(--bg);
+  background-image:
+    radial-gradient(1100px 620px at 12% -8%, rgba(77,148,232,.14), transparent 62%),
+    radial-gradient(900px 520px at 100% 0%, rgba(76,175,80,.08), transparent 58%),
+    radial-gradient(1000px 700px at 50% 115%, rgba(176,122,212,.07), transparent 60%);
+  background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size:40px 40px;
+  -webkit-mask-image:radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 80%);
+          mask-image:radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 80%)}
+
 /* ---------- header ---------- */
-header{position:sticky;top:0;z-index:30;background:rgba(11,11,13,.9);
+header{position:sticky;top:0;z-index:30;background:rgba(10,13,20,.80);
   backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--bd)}
 .hd{max-width:1060px;margin:0 auto;padding:11px 22px;display:flex;
   align-items:center;gap:18px;justify-content:space-between}

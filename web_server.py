@@ -1038,8 +1038,11 @@ PAGE = r"""<!doctype html>
    re-checked against for colour-blind separation — the notes in
    chart_panel.py record what the previous pair failed on. */
 :root{
-  --bg:#0b0b0d; --surface:#141417; --raised:#1b1b20; --sunken:#0f0f12;
-  --bd:#2a2a31; --bd-soft:#1e1e24;
+  /* Deep slate rather than flat black: a faint blue in the base lets the
+     accent, the green and the orange all sit on it without any one of
+     them looking pasted on. Ink and signal colours are unchanged. */
+  --bg:#0a0d14; --surface:#10141d; --raised:#161b26; --sunken:#0c1018;
+  --bd:#222938; --bd-soft:#1a2030;
   --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#6f6f7b;
   --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --ema-fast:#4d94e8; --ema-slow:#f6a500; --vwap:#b07ad4;
@@ -1055,8 +1058,27 @@ body{margin:0;background:var(--bg);color:var(--ink);
    wastes half of it. */
 .wrap{max-width:1320px;margin:0 auto;padding:0 20px 64px}
 
+/* ---------- background ----------
+   Three soft glows fixed to the viewport - blue from the top left, green from
+   the top right, a little violet from below - over a faint chart grid that
+   fades out down the page. Cards stay solid on top of it, so it is felt in the
+   gutters and never behind a number you have to read. */
+body{background-color:var(--bg);
+  background-image:
+    radial-gradient(1100px 620px at 12% -8%, rgba(77,148,232,.14), transparent 62%),
+    radial-gradient(900px 520px at 100% 0%, rgba(76,175,80,.08), transparent 58%),
+    radial-gradient(1000px 700px at 50% 115%, rgba(176,122,212,.07), transparent 60%);
+  background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size:40px 40px;
+  -webkit-mask-image:radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 80%);
+          mask-image:radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 80%)}
+
 /* ---------- header ---------- */
-header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
+header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--bd-soft)}
 .hd{max-width:1120px;margin:0 auto;padding:13px 20px;display:flex;
   align-items:center;gap:14px;justify-content:space-between}
@@ -1075,6 +1097,23 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,11,13,.92);
 .lbtn.ao{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600}
 .lbtn.ao.on{color:var(--up);border-color:rgba(76,175,80,.4);
   background:rgba(76,175,80,.12)}
+.room{margin-top:14px;border-top:1px solid var(--bd-soft);padding-top:12px}
+.rr-h{font-size:10.5px;font-weight:700;letter-spacing:.9px;color:var(--ink-3);
+  text-transform:uppercase;margin:0 0 6px}
+.rr{display:grid;grid-template-columns:78px 86px 118px 1fr auto;gap:10px;
+  align-items:center;padding:7px 10px;border-radius:6px;font-size:13px;
+  border:1px solid transparent}
+.rr.mine{background:var(--raised);border-color:var(--bd)}
+.rr-d{font-weight:700}
+.rr-p{font-weight:650;color:var(--ink)}
+.rr-to{color:var(--ink-2)}
+.rr-to b{color:var(--ink);font-weight:650}
+.rr-c{color:var(--ink-3);font-size:12px}
+.rr-tag{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--accent);border:1px solid rgba(77,148,232,.4);border-radius:999px;
+  padding:1px 8px}
+@media(max-width:640px){.rr{grid-template-columns:72px 1fr 1fr}
+  .rr-c,.rr-tag{grid-column:1/-1}}
 .feedtag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);background:var(--sunken);border:1px solid var(--bd-soft);
   border-radius:3px;padding:1px 5px;flex:none}
@@ -1505,6 +1544,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   <div class="ladder" id="ladder"></div>
   <div class="lnote" id="lnote"></div>
   <div class="gauges" id="gauges"></div>
+  <div class="room" id="room"></div>
   <div class="gnote" id="gnote"></div>
  </div>
 
@@ -2065,6 +2105,49 @@ function sparkline(){
 // input that abstained. A dash is not a neutral vote — the engine ignores it
 // entirely, and the note under the panel says so rather than leaving a reader
 // to assume a blank bar was counted as zero.
+// ---------------------------------------------------------- room to run
+// Which way there is room, how far, to what price, and what is stopping it.
+// The engine has measured both sides all along; the page showed one bare
+// number, so "606 pts of room" never said up or down, or up to where.
+const ARROW = {up: "\u25B2", down: "\u25BC"};
+function roomReading(r){
+  const rm = r.room || {}, side = rm.side;
+  if(side && rm[side] != null)
+    return ARROW[side] + " " + num(rm[side],0) + " \u2192 " + num(rm[side + "_to"],0);
+  return num(r.reach_points,0) + " pts";
+}
+function roomSub(r){
+  const rm = r.room || {}, side = rm.side;
+  if(side && rm[side] != null)
+    return ARROW[side] + " " + num(rm[side],0) + " pts, to " + num(rm[side + "_to"],0);
+  return r.reach_points == null ? "" : num(r.reach_points,0) + " pts of room";
+}
+function roomRun(r){
+  const el = $("room");
+  if(!el) return;
+  const rm = (r && r.room) || {};
+  if(rm.up == null && rm.down == null){ el.innerHTML = ""; return; }
+  // An open ticket decides which side is "this trade", not the current
+  // signal: with a PE running and the signal gone quiet, the room that matters
+  // is still the room below.
+  const tk = ((LAST && LAST.tickets) || {})[CUR];
+  const open = tk && tk.ticket && tk.ticket.open !== false && tk.ticket.option_type;
+  const side = open ? (tk.ticket.option_type === "CE" ? "up" : "down") : rm.side;
+  const line = dir => {
+    const pts = rm[dir], to = rm[dir + "_to"], cap = rm[dir + "_cap"];
+    const mine = side === dir;
+    const col = dir === "up" ? "var(--up)" : "var(--down)";
+    return `<div class="rr${mine ? " mine" : ""}">`
+      + `<span class="rr-d" style="color:${col}">${ARROW[dir]} ${dir === "up" ? "Up" : "Down"}</span>`
+      + `<span class="rr-p">${pts == null ? "\u2014" : num(pts,0) + " pts"}</span>`
+      + `<span class="rr-to">${to == null ? "" : "to <b>" + num(to,0) + "</b>"}</span>`
+      + `<span class="rr-c">${cap ? "limited by " + esc(cap) : ""}</span>`
+      + (mine ? `<span class="rr-tag">${open ? "open trade" : "this trade"}</span>` : "")
+      + `</div>`;
+  };
+  el.innerHTML = `<div class="rr-h">Room to run</div>` + line("up") + line("down");
+}
+
 function gauges(r, why){
   const rows = [];
   (why && why.votes || []).forEach(v => {
@@ -2080,7 +2163,7 @@ function gauges(r, why){
   if(r.reach_points != null){
     rows.push(["Room to Run", r.reach_to_risk!=null && r.reach_to_risk>=1 ? 1
                : r.reach_to_risk!=null ? -1 : null,
-               num(r.reach_points,0) + " pts",
+               roomReading(r),
                r.reach_to_risk==null?"var(--ink-3)"
                : r.reach_to_risk>=1?"var(--up)":"var(--warn)"]);
   }
@@ -2521,7 +2604,7 @@ function render(s){
     tile("Trend strength", r.adx==null?"—":r.adx, r.adx==null?"":(r.adx_ok?"above the 20 gate":"below the 20 gate"),
          r.adx==null?"":(r.adx_ok?"var(--up)":"var(--warn)")) +
     tile("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+":1",
-         r.reach_points==null?"":num(r.reach_points,0)+" pts of room",
+         roomSub(r),
          r.reach_to_risk==null?"":(r.reach_to_risk>=2?"var(--up)":r.reach_to_risk<0.6?"var(--down)":"var(--warn)"));
 
   const tstate = (s.tickets||{})[CUR] || null;
@@ -2546,6 +2629,7 @@ function render(s){
 
   const w=(s.why||{})[CUR];
   gauges(r, w);
+  roomRun(r);
   ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.
