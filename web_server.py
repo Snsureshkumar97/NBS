@@ -1174,6 +1174,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .mkt .nm{font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--ink-3);
   text-transform:uppercase}
 .mkt .px{font-size:20px;font-weight:650;letter-spacing:-.4px;margin-top:3px}
+.mkt .ex{font-size:11px;color:var(--ink-3);margin-top:3px;white-space:nowrap}
+.mkt .ex.today{color:var(--warn);font-weight:650}
 .mkt .st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
   font-weight:650;margin-top:3px}
 .chip{display:inline-block;width:7px;height:7px;border-radius:2px;flex:none}
@@ -1709,8 +1711,14 @@ function markets(s){
              el.setAttribute("role","tab"); w.appendChild(el);
              el.addEventListener("click",()=>{CUR=k;render(LAST);}); }
     el.setAttribute("aria-selected", k===CUR?"true":"false");
+    // The expiry on every card, all the time: the open ticket's own contract
+    // when one is running on this index, otherwise the one being suggested.
+    const tk = ((s.tickets||{})[k]||{}).ticket;
+    const iso = (tk && tk.open && tk.expiry) ? tk.expiry : (r && r.expiry);
+    const ex = expiryText(iso, true);
     el.innerHTML=`<div><div class="nm">${esc(k)}</div>
-      <div class="px" id="px-${esc(k)}">${px}</div></div>
+      <div class="px" id="px-${esc(k)}">${px}</div>
+      ${ex ? `<div class="ex${ex.includes("today") ? " today" : ""}">Exp ${esc(ex)}</div>` : ""}</div>
       <div class="st" style="color:${col}"><i class="chip" style="background:${col}"></i>${esc(label)}</div>`;
   });
 }
@@ -1723,7 +1731,7 @@ function tile(l,v,d,cls){
 
 function blank(msg,detail){
   $("bias").textContent=msg; $("bias").style.color="var(--ink-3)";
-  $("conftag").style.display="none";
+  $("conftag").style.display="none"; $("exptag").style.display="none";
   $("reason").textContent=detail||"";
   $("tiles").innerHTML=""; $("ladder").innerHTML="";
   $("lswitch").style.display="none"; $("lnote").innerHTML="";
@@ -2031,7 +2039,7 @@ $("tclear").onclick = () => {
 // "25 Sep 2026 · Fri · 14 days left" from an ISO date. Calendar days to the
 // expiry date; "expires today" on the day itself, because that is the day the
 // premium behaves differently.
-function expiryText(iso){
+function expiryText(iso, short){
   if(!iso) return "";
   const d = new Date(String(iso).slice(0,10) + "T00:00:00");
   if(isNaN(d)) return "";
@@ -2040,6 +2048,11 @@ function expiryText(iso){
   const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const when = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
   const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+  if(short){
+    // For the index cards: "15 Sep · Tue · 4d", or "15 Sep · today".
+    const dm = `${d.getDate()} ${M[d.getMonth()]}`;
+    return days <= 0 ? `${dm} · today` : `${dm} · ${wd} · ${days}d`;
+  }
   const left = days <= 0 ? "expires today" : days === 1 ? "1 day left" : days + " days left";
   return `${when} · ${wd} · ${left}`;
 }
@@ -2781,10 +2794,13 @@ function render(s){
     const running = !!(tkOpen && tkOpen.open);
     const ex = expiryText(running && tkOpen.expiry ? tkOpen.expiry : r.expiry);
     const et = $("exptag");
-    if(ex && (bull || bear || running)){
+    // Always shown when known - with no signal it is the nearest expiry the
+    // tool would use, which is still worth knowing before one arrives.
+    if(ex){
       et.style.display = "inline-flex";
       et.className = "tag " + (ex.includes("today") ? "warn" : "flat");
-      et.textContent = "Expiry " + ex + (running ? " · your ticket" : "");
+      et.textContent = (bull || bear || running ? "Expiry " : "Nearest expiry ")
+                     + ex + (running ? " · your ticket" : "");
     } else et.style.display = "none";
   }
 
