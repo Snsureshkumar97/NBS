@@ -569,6 +569,179 @@ LOGO = ('<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden
 # ===========================================================================
 # SHELL
 # ===========================================================================
+# ---------------------------------------------------------------------------
+# THE 3D LAYER — nbs-signal-3d.html on the public site, in CSS alone.
+# ---------------------------------------------------------------------------
+# The tool draws this scene on a canvas; the site cannot, because vercel.json
+# sends script-src 'none' - deliberately, a marketing site has no business
+# running code - so here it is built from CSS: drifting fields of green and
+# amber points, two floating glows, and a slowly turning candlestick chart of
+# real CSS 3D boxes, glass cards over the top. The candles are Nifty's last
+# fourteen 15-minute bars from the most recent day the option recorder saved,
+# baked in when the site is exported, so it is a real chart and not a drawing.
+def _dots(seed, n, w, h, rgb, alpha, rmax):
+    import random
+    rnd = random.Random(seed)
+    out = []
+    for _ in range(n):
+        x, y = rnd.randint(0, w), rnd.randint(0, h)
+        r = round(rnd.uniform(.6, rmax), 1)
+        a = round(alpha * rnd.uniform(.55, 1.0), 2)
+        out.append(f"radial-gradient({r}px {r}px at {x}px {y}px,"
+                   f"rgba({rgb},{a}) 99%,transparent 100%)")
+    return ",".join(out)
+
+
+def _scene_candles():
+    """Nifty's latest 14 fifteen-minute candles, or a stand-in shape."""
+    import glob
+    import math
+    import os
+    bars = []
+    try:
+        import pandas as pd
+        files = sorted(glob.glob(os.path.expanduser(
+            "~/trading-tool-logs/option_history/*.csv.gz")))
+        if files:
+            d = pd.read_csv(files[-1])
+            x = d[(d["kind"] == "IDX") & (d["index"] == "NIFTY")].copy()
+            x["ts"] = pd.to_datetime(x["ts"])
+            b = (x.set_index("ts").resample("15min")
+                 .agg({"open": "first", "high": "max", "low": "min", "close": "last"})
+                 .dropna().tail(14))
+            bars = [(r.open, r.high, r.low, r.close) for r in b.itertuples()]
+    except Exception:
+        bars = []
+    if len(bars) < 6:
+        p, bars = 100.0, []
+        for i in range(14):
+            o = p
+            p += math.sin(i * 1.7) * 3 - .6
+            bars.append((o, max(o, p) + 1.6, min(o, p) - 1.6, p))
+    hi = max(b[1] for b in bars)
+    lo = min(b[2] for b in bars)
+    k = 220.0 / max(hi - lo, 1e-9)
+    html = []
+    for i, (o, h, l, c) in enumerate(bars):
+        top, bot = (max(o, c) - lo) * k, (min(o, c) - lo) * k
+        body = max(top - bot, 3.0)
+        cls = "u" if c >= o else "d"
+        html.append(
+            f'<div class="cb {cls}" style="left:{i * 34}px;bottom:{bot:.0f}px;'
+            f'--h:{body:.0f}px">'
+            f'<i class="wk" style="bottom:{(l - lo) * k - bot:.0f}px;'
+            f'height:{(h - l) * k:.0f}px"></i>'
+            f'<i class="fr"></i><i class="sd"></i><i class="tp"></i></div>')
+    return "".join(html)
+
+
+def scene_html():
+    return ('<div class="scene" aria-hidden="true">'
+            '<div class="stars s1"></div><div class="stars s2"></div>'
+            '<div class="stars s3"></div>'
+            '<div class="orb og"></div><div class="orb oa"></div>'
+            f'<div class="c3d"><div class="c3r">{_scene_candles()}</div></div>'
+            '</div>')
+
+
+SCENE_CSS = """
+/* =================== the 3D layer (CSS only) =================== */
+:root{
+  --bg:#05060a; --surface:rgba(255,255,255,.04); --raised:rgba(255,255,255,.07);
+  --sunken:rgba(6,8,12,.7); --bd:rgba(255,255,255,.09); --bd-soft:rgba(255,255,255,.06);
+  --ink:#f0f2f6; --ink-2:#a3aabb; --ink-3:#6b7282;
+  --up:#2be08a; --down:#ef5570; --warn:#f2a33d;
+  --glow-up:rgba(43,224,138,.45); --r:16px; --r-sm:12px;
+}
+html{background:#05060a}
+body{background:transparent}
+body::before{display:none}
+.scene{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+  background:radial-gradient(900px 600px at 85% 12%,rgba(43,224,138,.07),transparent 60%),
+             radial-gradient(800px 600px at 8% 92%,rgba(242,163,61,.05),transparent 60%),#05060a}
+.stars{position:absolute;left:0;top:0;width:calc(100% + 800px);height:calc(100% + 600px);
+  will-change:transform}
+.s1{background-image:""" + _dots(1, 16, 520, 380, "43,224,138", .6, 1.6) + """;
+  background-size:520px 380px;animation:drift1 140s linear infinite}
+.s2{background-image:""" + _dots(2, 14, 700, 460, "242,163,61", .36, 1.3) + """;
+  background-size:700px 460px;animation:drift2 190s linear infinite}
+.s3{background-image:""" + _dots(3, 12, 300, 260, "43,224,138", .28, 1.0) + """;
+  background-size:300px 260px;animation:drift3 90s linear infinite;opacity:.8}
+@keyframes drift1{to{transform:translate(-520px,-380px)}}
+@keyframes drift2{from{transform:translate(-700px,-460px)}to{transform:translate(0,0)}}
+@keyframes drift3{to{transform:translate(-300px,-520px)}}
+.orb{position:absolute;border-radius:50%;filter:blur(10px)}
+.og{width:700px;height:700px;right:-120px;top:-160px;
+  background:radial-gradient(circle,rgba(43,224,138,.30),rgba(43,224,138,.10) 40%,transparent 70%);
+  animation:float1 12s ease-in-out infinite}
+.oa{width:520px;height:520px;left:-160px;bottom:-160px;
+  background:radial-gradient(circle,rgba(242,163,61,.22),rgba(242,163,61,.07) 40%,transparent 70%);
+  animation:float2 15s ease-in-out infinite}
+@keyframes float1{50%{transform:translateY(40px);opacity:.8}}
+@keyframes float2{50%{transform:translateX(50px)}}
+
+/* the candlestick chart, as CSS 3D boxes */
+.c3d{position:absolute;right:-1%;top:16%;width:480px;height:260px;perspective:1100px;opacity:.36;
+  transform:scale(.8);transform-origin:right top}
+.c3r{position:absolute;inset:0;transform-style:preserve-3d;
+  transform:rotateX(10deg) rotateY(-22deg);animation:sway 16s ease-in-out infinite}
+@keyframes sway{50%{transform:rotateX(8deg) rotateY(-14deg) translateY(-12px)}}
+.cb{position:absolute;width:18px;height:var(--h);transform-style:preserve-3d}
+.cb i{position:absolute;display:block}
+.cb .fr{inset:0;border-radius:2px}
+.cb .sd{top:0;right:-6px;width:6px;height:100%;transform-origin:left;transform:rotateY(90deg)}
+.cb .tp{left:0;top:-6px;width:100%;height:6px;transform-origin:bottom;transform:rotateX(90deg)}
+.cb .wk{left:8.5px;width:1px;background:rgba(139,147,163,.45);transform:translateZ(-3px)}
+.cb.u .fr{background:linear-gradient(180deg,#4dffab,#0f9b57);box-shadow:0 0 18px rgba(43,224,138,.35)}
+.cb.u .sd{background:#0b6e3e} .cb.u .tp{background:#5dffb6}
+.cb.d .fr{background:linear-gradient(180deg,#ff7a91,#a5203c);box-shadow:0 0 18px rgba(239,85,112,.3)}
+.cb.d .sd{background:#7a1a2e} .cb.d .tp{background:#ff8ea2}
+
+/* glass */
+header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
+.card,ol.steps li,details,.next a,.panel,.diagram,.mcard button,.cool,.eyebrow,
+footer .legal,.warm,.fig{
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),rgba(9,11,17,.72);
+  border:1px solid var(--bd);border-radius:16px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 20px 40px -25px rgba(0,0,0,.7)}
+.eyebrow{border-radius:999px}
+.warm,footer .legal{border-color:rgba(242,163,61,.3);
+  background:linear-gradient(180deg,rgba(242,163,61,.08),rgba(242,163,61,.02)),rgba(9,11,17,.72)}
+.fig{border-color:rgba(242,163,61,.3)}
+.shotwrap,figure img{border-radius:16px;border-color:var(--bd);
+  box-shadow:0 40px 100px -30px rgba(0,0,0,.8),0 0 90px -30px var(--glow-up)}
+footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.subnav{background:rgba(5,6,10,.8)}
+.btn{background:linear-gradient(180deg,#5aa2ee,#3a7fd0)}
+.btn.ghost{background:rgba(255,255,255,.04)}
+.hero h1{text-shadow:0 0 50px rgba(43,224,138,.25)}
+.dot{box-shadow:0 0 10px var(--glow-up)}
+.card .idx,.kicker{color:var(--up)}
+.tbl code{background:rgba(255,255,255,.07)}
+.dg-box,.dg-wait{fill:rgba(255,255,255,.05)}
+
+/* depth on hover - the CSS stand-in for the tool's cursor tilt */
+.card,ol.steps li,.next a,.mcard button{transition:transform .25s ease,box-shadow .3s ease,border-color .3s}
+.card:hover,ol.steps li:hover,.next a:hover,.mcard button:hover{
+  transform:perspective(900px) rotateX(2deg) translateY(-3px);
+  border-color:rgba(43,224,138,.35);
+  box-shadow:0 0 0 1px rgba(43,224,138,.15),0 25px 60px -20px var(--glow-up)}
+
+@media (prefers-reduced-motion: reduce){
+  .stars,.orb,.c3r{animation:none}
+  .card,ol.steps li,.next a,.mcard button{transition:none}
+  .card:hover,ol.steps li:hover,.next a:hover,.mcard button:hover{transform:none}
+}
+/* Beside the centred hero text only when there is room for it to be beside. */
+@media (max-width:1180px){.c3d{display:none}}
+@media (max-width:760px){
+  .c3d{display:none}
+  .card,ol.steps li,details,.panel{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+}
+"""
+
+
 def shell(title, body, user=None, active="", description="", noindex=False):
     """Every page on the site, wrapped in the same chrome."""
     links = "".join(
@@ -597,8 +770,9 @@ def shell(title, body, user=None, active="", description="", noindex=False):
 {'<meta name="robots" content="noindex">' if noindex else ''}
 <meta name="description" content="{_esc(description or (BRAND + ' — a rule-based decision-support screen for Nifty, Bank Nifty and Sensex index options. Not advice, not SEBI-registered.'))}">
 <title>{_esc(title) if title.startswith(BRAND) else _esc(title) + ' — ' + _esc(BRAND)}</title>
-<style>{CSS}</style>
+<style>{CSS}{SCENE_CSS}</style>
 </head><body>
+{scene_html()}
 
 <header><div class="hd">
  <a class="brand" href="/">{LOGO}<div>{_esc(BRAND)}<small>{_esc(TAGLINE)}</small></div></a>

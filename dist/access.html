@@ -367,8 +367,104 @@ button.wide{width:100%;margin-top:20px}
 form.inline{display:inline}
 button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:pointer;
   padding:0;text-decoration:underline;font-family:inherit}
+
+/* =================== the 3D layer (CSS only) =================== */
+:root{
+  --bg:#05060a; --surface:rgba(255,255,255,.04); --raised:rgba(255,255,255,.07);
+  --sunken:rgba(6,8,12,.7); --bd:rgba(255,255,255,.09); --bd-soft:rgba(255,255,255,.06);
+  --ink:#f0f2f6; --ink-2:#a3aabb; --ink-3:#6b7282;
+  --up:#2be08a; --down:#ef5570; --warn:#f2a33d;
+  --glow-up:rgba(43,224,138,.45); --r:16px; --r-sm:12px;
+}
+html{background:#05060a}
+body{background:transparent}
+body::before{display:none}
+.scene{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+  background:radial-gradient(900px 600px at 85% 12%,rgba(43,224,138,.07),transparent 60%),
+             radial-gradient(800px 600px at 8% 92%,rgba(242,163,61,.05),transparent 60%),#05060a}
+.stars{position:absolute;left:0;top:0;width:calc(100% + 800px);height:calc(100% + 600px);
+  will-change:transform}
+.s1{background-image:radial-gradient(1.4px 1.4px at 137px 291px,rgba(43,224,138,0.54) 99%,transparent 100%),radial-gradient(1.1px 1.1px at 261px 60px,rgba(43,224,138,0.45) 99%,transparent 100%),radial-gradient(0.7px 0.7px at 388px 107px,rgba(43,224,138,0.34) 99%,transparent 100%),radial-gradient(1.2px 1.2px at 399px 221px,rgba(43,224,138,0.54) 99%,transparent 100%),radial-gradient(1.3px 1.3px at 456px 136px,rgba(43,224,138,0.39) 99%,transparent 100%),radial-gradient(0.6px 0.6px at 104px 162px,rgba(43,224,138,0.34) 99%,transparent 100%),radial-gradient(1.3px 1.3px at 9px 195px,rgba(43,224,138,0.59) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 29px 270px,rgba(43,224,138,0.45) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 507px 283px,rgba(43,224,138,0.39) 99%,transparent 100%),radial-gradient(1.6px 1.6px at 224px 235px,rgba(43,224,138,0.58) 99%,transparent 100%),radial-gradient(1.5px 1.5px at 426px 284px,rgba(43,224,138,0.36) 99%,transparent 100%),radial-gradient(1.3px 1.3px at 303px 61px,rgba(43,224,138,0.57) 99%,transparent 100%),radial-gradient(1.1px 1.1px at 512px 216px,rgba(43,224,138,0.58) 99%,transparent 100%),radial-gradient(0.9px 0.9px at 194px 155px,rgba(43,224,138,0.59) 99%,transparent 100%),radial-gradient(1.0px 1.0px at 511px 258px,rgba(43,224,138,0.56) 99%,transparent 100%),radial-gradient(1.3px 1.3px at 491px 124px,rgba(43,224,138,0.44) 99%,transparent 100%);
+  background-size:520px 380px;animation:drift1 140s linear infinite}
+.s2{background-image:radial-gradient(0.7px 0.7px at 57px 46px,rgba(242,163,61,0.33) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 685px 437px,rgba(242,163,61,0.3) 99%,transparent 100%),radial-gradient(1.0px 1.0px at 621px 18px,rgba(242,163,61,0.22) 99%,transparent 100%),radial-gradient(0.9px 0.9px at 441px 326px,rgba(242,163,61,0.32) 99%,transparent 100%),radial-gradient(1.0px 1.0px at 521px 190px,rgba(242,163,61,0.27) 99%,transparent 100%),radial-gradient(1.2px 1.2px at 274px 18px,rgba(242,163,61,0.26) 99%,transparent 100%),radial-gradient(0.9px 0.9px at 326px 194px,rgba(242,163,61,0.34) 99%,transparent 100%),radial-gradient(0.7px 0.7px at 168px 286px,rgba(242,163,61,0.24) 99%,transparent 100%),radial-gradient(0.7px 0.7px at 180px 166px,rgba(242,163,61,0.28) 99%,transparent 100%),radial-gradient(1.1px 1.1px at 368px 263px,rgba(242,163,61,0.23) 99%,transparent 100%),radial-gradient(0.9px 0.9px at 456px 407px,rgba(242,163,61,0.28) 99%,transparent 100%),radial-gradient(1.0px 1.0px at 372px 404px,rgba(242,163,61,0.26) 99%,transparent 100%),radial-gradient(1.3px 1.3px at 456px 82px,rgba(242,163,61,0.26) 99%,transparent 100%),radial-gradient(1.0px 1.0px at 472px 335px,rgba(242,163,61,0.28) 99%,transparent 100%);
+  background-size:700px 460px;animation:drift2 190s linear infinite}
+.s3{background-image:radial-gradient(0.7px 0.7px at 121px 66px,rgba(43,224,138,0.23) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 297px 33px,rgba(43,224,138,0.27) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 240px 132px,rgba(43,224,138,0.18) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 240px 243px,rgba(43,224,138,0.26) 99%,transparent 100%),radial-gradient(0.9px 0.9px at 118px 77px,rgba(43,224,138,0.22) 99%,transparent 100%),radial-gradient(0.7px 0.7px at 7px 32px,rgba(43,224,138,0.27) 99%,transparent 100%),radial-gradient(0.9px 0.9px at 21px 154px,rgba(43,224,138,0.26) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 137px 242px,rgba(43,224,138,0.27) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 198px 218px,rgba(43,224,138,0.25) 99%,transparent 100%),radial-gradient(1.0px 1.0px at 227px 68px,rgba(43,224,138,0.17) 99%,transparent 100%),radial-gradient(0.7px 0.7px at 69px 253px,rgba(43,224,138,0.28) 99%,transparent 100%),radial-gradient(0.8px 0.8px at 223px 154px,rgba(43,224,138,0.26) 99%,transparent 100%);
+  background-size:300px 260px;animation:drift3 90s linear infinite;opacity:.8}
+@keyframes drift1{to{transform:translate(-520px,-380px)}}
+@keyframes drift2{from{transform:translate(-700px,-460px)}to{transform:translate(0,0)}}
+@keyframes drift3{to{transform:translate(-300px,-520px)}}
+.orb{position:absolute;border-radius:50%;filter:blur(10px)}
+.og{width:700px;height:700px;right:-120px;top:-160px;
+  background:radial-gradient(circle,rgba(43,224,138,.30),rgba(43,224,138,.10) 40%,transparent 70%);
+  animation:float1 12s ease-in-out infinite}
+.oa{width:520px;height:520px;left:-160px;bottom:-160px;
+  background:radial-gradient(circle,rgba(242,163,61,.22),rgba(242,163,61,.07) 40%,transparent 70%);
+  animation:float2 15s ease-in-out infinite}
+@keyframes float1{50%{transform:translateY(40px);opacity:.8}}
+@keyframes float2{50%{transform:translateX(50px)}}
+
+/* the candlestick chart, as CSS 3D boxes */
+.c3d{position:absolute;right:-1%;top:16%;width:480px;height:260px;perspective:1100px;opacity:.36;
+  transform:scale(.8);transform-origin:right top}
+.c3r{position:absolute;inset:0;transform-style:preserve-3d;
+  transform:rotateX(10deg) rotateY(-22deg);animation:sway 16s ease-in-out infinite}
+@keyframes sway{50%{transform:rotateX(8deg) rotateY(-14deg) translateY(-12px)}}
+.cb{position:absolute;width:18px;height:var(--h);transform-style:preserve-3d}
+.cb i{position:absolute;display:block}
+.cb .fr{inset:0;border-radius:2px}
+.cb .sd{top:0;right:-6px;width:6px;height:100%;transform-origin:left;transform:rotateY(90deg)}
+.cb .tp{left:0;top:-6px;width:100%;height:6px;transform-origin:bottom;transform:rotateX(90deg)}
+.cb .wk{left:8.5px;width:1px;background:rgba(139,147,163,.45);transform:translateZ(-3px)}
+.cb.u .fr{background:linear-gradient(180deg,#4dffab,#0f9b57);box-shadow:0 0 18px rgba(43,224,138,.35)}
+.cb.u .sd{background:#0b6e3e} .cb.u .tp{background:#5dffb6}
+.cb.d .fr{background:linear-gradient(180deg,#ff7a91,#a5203c);box-shadow:0 0 18px rgba(239,85,112,.3)}
+.cb.d .sd{background:#7a1a2e} .cb.d .tp{background:#ff8ea2}
+
+/* glass */
+header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
+.card,ol.steps li,details,.next a,.panel,.diagram,.mcard button,.cool,.eyebrow,
+footer .legal,.warm,.fig{
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),rgba(9,11,17,.72);
+  border:1px solid var(--bd);border-radius:16px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 20px 40px -25px rgba(0,0,0,.7)}
+.eyebrow{border-radius:999px}
+.warm,footer .legal{border-color:rgba(242,163,61,.3);
+  background:linear-gradient(180deg,rgba(242,163,61,.08),rgba(242,163,61,.02)),rgba(9,11,17,.72)}
+.fig{border-color:rgba(242,163,61,.3)}
+.shotwrap,figure img{border-radius:16px;border-color:var(--bd);
+  box-shadow:0 40px 100px -30px rgba(0,0,0,.8),0 0 90px -30px var(--glow-up)}
+footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.subnav{background:rgba(5,6,10,.8)}
+.btn{background:linear-gradient(180deg,#5aa2ee,#3a7fd0)}
+.btn.ghost{background:rgba(255,255,255,.04)}
+.hero h1{text-shadow:0 0 50px rgba(43,224,138,.25)}
+.dot{box-shadow:0 0 10px var(--glow-up)}
+.card .idx,.kicker{color:var(--up)}
+.tbl code{background:rgba(255,255,255,.07)}
+.dg-box,.dg-wait{fill:rgba(255,255,255,.05)}
+
+/* depth on hover - the CSS stand-in for the tool's cursor tilt */
+.card,ol.steps li,.next a,.mcard button{transition:transform .25s ease,box-shadow .3s ease,border-color .3s}
+.card:hover,ol.steps li:hover,.next a:hover,.mcard button:hover{
+  transform:perspective(900px) rotateX(2deg) translateY(-3px);
+  border-color:rgba(43,224,138,.35);
+  box-shadow:0 0 0 1px rgba(43,224,138,.15),0 25px 60px -20px var(--glow-up)}
+
+@media (prefers-reduced-motion: reduce){
+  .stars,.orb,.c3r{animation:none}
+  .card,ol.steps li,.next a,.mcard button{transition:none}
+  .card:hover,ol.steps li:hover,.next a:hover,.mcard button:hover{transform:none}
+}
+/* Beside the centred hero text only when there is room for it to be beside. */
+@media (max-width:1180px){.c3d{display:none}}
+@media (max-width:760px){
+  .c3d{display:none}
+  .card,ol.steps li,details,.panel{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+}
 </style>
 </head><body>
+<div class="scene" aria-hidden="true"><div class="stars s1"></div><div class="stars s2"></div><div class="stars s3"></div><div class="orb og"></div><div class="orb oa"></div><div class="c3d"><div class="c3r"><div class="cb d" style="left:0px;bottom:30px;--h:36px"><i class="wk" style="bottom:-14px;height:51px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:34px;bottom:32px;--h:6px"><i class="wk" style="bottom:-11px;height:28px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:68px;bottom:40px;--h:18px"><i class="wk" style="bottom:-5px;height:42px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:102px;bottom:61px;--h:4px"><i class="wk" style="bottom:-24px;height:36px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb d" style="left:136px;bottom:38px;--h:30px"><i class="wk" style="bottom:-27px;height:57px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:170px;bottom:41px;--h:22px"><i class="wk" style="bottom:-23px;height:51px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb d" style="left:204px;bottom:37px;--h:28px"><i class="wk" style="bottom:-37px;height:75px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:238px;bottom:38px;--h:81px"><i class="wk" style="bottom:-27px;height:115px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:272px;bottom:118px;--h:51px"><i class="wk" style="bottom:-4px;height:106px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:306px;bottom:171px;--h:10px"><i class="wk" style="bottom:-24px;height:39px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:340px;bottom:184px;--h:13px"><i class="wk" style="bottom:-17px;height:41px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb d" style="left:374px;bottom:174px;--h:23px"><i class="wk" style="bottom:-3px;height:27px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb u" style="left:408px;bottom:175px;--h:24px"><i class="wk" style="bottom:-55px;height:81px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div><div class="cb d" style="left:442px;bottom:138px;--h:61px"><i class="wk" style="bottom:0px;height:61px"></i><i class="fr"></i><i class="sd"></i><i class="tp"></i></div></div></div></div>
 
 <header><div class="hd">
  <a class="brand" href="/"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg><div>NBS Signal Tool<small>Nifty · Bank Nifty · Sensex</small></div></a>
