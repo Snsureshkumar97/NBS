@@ -2646,6 +2646,7 @@ function chartDraw(){
   const everyN = Math.max(1, Math.round(view.length / Math.max(2, Math.floor(plotW/86))));
   cx.textAlign = "center"; cx.textBaseline = "top";
   let lastDay = null;
+  const ticks = [];
   for(let k=0;k<view.length;k++){
     const t = view[k][0];
     const day = new Date(t*1000).toDateString();
@@ -2655,8 +2656,24 @@ function chartDraw(){
     const x = Math.round(X(i0+k)) + 0.5;
     cx.strokeStyle = newDay ? C.bd : C.bdSoft;
     cx.beginPath(); cx.moveTo(x, PAD.t); cx.lineTo(x, PAD.t+plotH); cx.stroke();
-    cx.fillStyle = C.ink3;
-    cx.fillText(newDay ? fmtD(t) : fmtT(t), x, PAD.t+plotH+6);
+    ticks.push({x, day: newDay, text: newDay ? fmtD(t) : fmtT(t)});
+  }
+  // Labels only where they fit. A day boundary lands wherever the session
+  // starts, usually a bar or two from a regular tick, and the two used to be
+  // printed on top of each other ("09 Sept" over "09:45"). Day labels are
+  // placed first; a time label that would touch any placed label is skipped.
+  cx.fillStyle = C.ink3;
+  const placed = [];
+  const fits = (x, wd) => placed.every(p => x + wd/2 + 8 < p[0] || x - wd/2 - 8 > p[1]);
+  for(const pass of [true, false]){
+    for(const tk of ticks){
+      if(tk.day !== pass) continue;
+      const wd = cx.measureText(tk.text).width;
+      const x = Math.min(Math.max(tk.x, PAD.l + wd/2), w - PAD.r - wd/2);
+      if(!fits(x, wd)) continue;
+      placed.push([x - wd/2, x + wd/2]);
+      cx.fillText(tk.text, x, PAD.t+plotH+6);
+    }
   }
 
   // ---- overlays --------------------------------------------------------
@@ -2700,24 +2717,52 @@ function chartDraw(){
   }
 
   // ---- levels ----------------------------------------------------------
-  function level(v, label, colour){
-    if(v == null) return;
-    const y = Y(v); if(y < PAD.t-1 || y > PAD.t+plotH+1) return;
+  // Lines at their true prices; the tags on the right are spread at least a
+  // tag's height apart, because T1, T2 and T3 are often a few points from
+  // each other and their tags used to print one over the next.
+  const lv = [[L.t1, "T1", C.up], [L.t2, "T2", C.up], [L.t3, "T3", C.up], [L.stop, "SL", C.down]]
+    .filter(a => a[0] != null)
+    .map(a => ({v: a[0], label: a[1], colour: a[2], y: Y(a[0])}))
+    .filter(a => a.y >= PAD.t-1 && a.y <= PAD.t+plotH+1);
+  lv.forEach(a => {
+    cx.save(); cx.strokeStyle = a.colour; cx.lineWidth = 1; cx.setLineDash([5,4]);
+    cx.beginPath(); cx.moveTo(PAD.l, Math.round(a.y)+0.5);
+    cx.lineTo(w-PAD.r, Math.round(a.y)+0.5); cx.stroke(); cx.restore();
+    a.ty = a.y;
+  });
+  // The current-price tag is drawn after these at its own height and never
+  // moves, so it takes part as a fixed slot - otherwise it simply covered
+  // whichever target sat nearest the price, which is usually T1.
+  const lastBar = bars[bars.length-1];
+  const slots = lv.slice();
+  if(i1 >= bars.length && lastBar){
+    const py = Y(lastBar[4]);
+    if(py >= PAD.t && py <= PAD.t+plotH) slots.push({y: py, ty: py, fixed: true});
+  }
+  const tagLo = PAD.t + 8, tagHi = PAD.t + plotH - 8, GAP = 17;
+  for(let pass = 0; pass < 30; pass++){
+    slots.sort((a, b) => a.ty - b.ty);
+    let moved = false;
+    for(let i = 1; i < slots.length; i++){
+      const a = slots[i-1], b = slots[i], d = b.ty - a.ty;
+      if(d >= GAP) continue;
+      const push = GAP - d; moved = true;
+      if(a.fixed){ b.ty += push; }
+      else if(b.fixed){ a.ty -= push; }
+      else { a.ty -= push / 2; b.ty += push / 2; }
+    }
+    slots.forEach(t => { if(!t.fixed) t.ty = Math.min(tagHi, Math.max(tagLo, t.ty)); });
+    if(!moved) break;
+  }
+  lv.forEach(a => {
     cx.save();
-    cx.strokeStyle = colour; cx.lineWidth = 1; cx.setLineDash([5,4]);
-    cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
-    cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
-    cx.setLineDash([]);
-    cx.fillStyle = colour;
-    cx.fillRect(w-PAD.r, y-8, PAD.r, 16);
+    cx.fillStyle = a.colour;
+    cx.fillRect(w-PAD.r, a.ty-8, PAD.r, 16);
     cx.fillStyle = "#fff"; cx.font = "10px -apple-system,sans-serif";
     cx.textAlign = "left"; cx.textBaseline = "middle";
-    cx.fillText(label + " " + Math.round(v).toLocaleString("en-IN"),
-                w-PAD.r+4, y);
+    cx.fillText(a.label + " " + Math.round(a.v).toLocaleString("en-IN"), w-PAD.r+4, a.ty);
     cx.restore();
-  }
-  level(L.t1, "T1", C.up); level(L.t2, "T2", C.up); level(L.t3, "T3", C.up);
-  level(L.stop, "SL", C.down);
+  });
 
   // ---- last price ------------------------------------------------------
   const last = bars[bars.length-1];
