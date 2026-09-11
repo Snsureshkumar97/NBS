@@ -2037,8 +2037,9 @@ function expiryText(iso){
   if(isNaN(d)) return "";
   const today = new Date(); today.setHours(0,0,0,0);
   const days = Math.round((d - today) / 86400000);
-  const when = d.toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"});
-  const wd = d.toLocaleDateString("en-GB", {weekday:"short"});
+  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const when = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
+  const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
   const left = days <= 0 ? "expires today" : days === 1 ? "1 day left" : days + " days left";
   return `${when} · ${wd} · ${left}`;
 }
