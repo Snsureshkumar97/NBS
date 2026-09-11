@@ -673,23 +673,45 @@ class DeribitDataProvider:
             spot = self.spot(index_key)
         except Exception:
             return _DERIBIT_PICK.get(ccy) or tags[0]
-        # A little hysteresis: stay on the current pick while it is still
-        # comfortably tradeable, so the suggested contract does not flick
-        # between two expiries every thirty seconds as quotes breathe.
+        # STICKY. It used to move the moment a nearer expiry's spread dipped
+        # under the limit, and in half an hour on 11 Sep the suggestion went
+        # 30 Oct -> 2 Oct -> 25 Sep -> 2 Oct. Now, once chosen, an expiry is kept:
+        #   * while its spread stays under 1.5x the limit - leaving only after
+        #     four checks in a row (two minutes) above that, not on one wide quote;
+        #   * until it is within a day of settling, when it is rolled;
+        #   * and it is swapped for a NEARER expiry only after two hours, and
+        #     only if that one is comfortably tight (under 0.75x the limit).
+        # Tickets are unaffected either way: each keeps the expiry it opened on.
+        now = time.time()
+        live = [t for t in tags if _deribit_hours_left(t) > 24]
         prev = _DERIBIT_PICK.get(ccy)
-        if prev in tags:
+        if prev in live:
             sp = self._atm_spread(rows, prev, spot)
-            earlier_ok = any((self._atm_spread(rows, t, spot) or 1e9) <= cap
-                             for t in tags[:tags.index(prev)])
-            if sp is not None and sp <= cap * 1.25 and not earlier_ok:
+            if sp is None or sp > cap * 1.5:
+                _DERIBIT_BAD[ccy] = _DERIBIT_BAD.get(ccy, 0) + 1
+                if _DERIBIT_BAD[ccy] < 4:
+                    return prev
+            else:
+                _DERIBIT_BAD[ccy] = 0
+                held = now - _DERIBIT_SINCE.get(ccy, now)
+                if held >= 2 * 3600:
+                    for t in live[:live.index(prev)]:
+                        nsp = self._atm_spread(rows, t, spot)
+                        if nsp is not None and nsp <= cap * 0.75:
+                            return self._set_pick(ccy, t)
                 return prev
-        for t in tags[:8]:
+        for t in live[:8]:
             sp = self._atm_spread(rows, t, spot)
             if sp is not None and sp <= cap:
-                _DERIBIT_PICK[ccy] = t
-                return t
-        _DERIBIT_PICK[ccy] = tags[0]
-        return tags[0]
+                return self._set_pick(ccy, t)
+        return self._set_pick(ccy, live[0] if live else tags[0])
+
+    def _set_pick(self, ccy, tag):
+        if _DERIBIT_PICK.get(ccy) != tag:
+            _DERIBIT_SINCE[ccy] = time.time()
+        _DERIBIT_PICK[ccy] = tag
+        _DERIBIT_BAD[ccy] = 0
+        return tag
 
     def option_instrument(self, index_key: str, strike, option_type: str,
                           expiry: str = None):
@@ -760,6 +782,17 @@ _DERIBIT_MONTHS = {m: i + 1 for i, m in enumerate(
 
 _DERIBIT_PICK = {}       # currency -> expiry tag currently in use
 _DERIBIT_PICK_AT = {}    # currency -> when it was last worked out
+_DERIBIT_SINCE = {}      # currency -> when the current pick was chosen
+_DERIBIT_BAD = {}        # currency -> checks in a row the pick has been too wide
+
+
+def _deribit_hours_left(tag):
+    """Hours until a Deribit expiry settles (08:00 UTC on the day)."""
+    d = _deribit_expiry_date(tag)
+    if d == dt.date.max:
+        return 1e9
+    settle = dt.datetime(d.year, d.month, d.day, 8, 0, tzinfo=dt.timezone.utc)
+    return (settle - dt.datetime.now(dt.timezone.utc)).total_seconds() / 3600.0
 
 
 def _deribit_tag(expiry):

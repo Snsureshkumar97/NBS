@@ -607,6 +607,12 @@ class Feed:
             pub = (entry or {}).get("public") or {}
         strike, opt = pub.get("strike"), pub.get("option_type")
         if not strike or not opt:
+            # No suggestion any more, so no suggested premium. Keeping the last
+            # one left the price of a contract nobody is being shown - after a
+            # PE signal went neutral, its put kept feeding the tick endpoint.
+            with self.lock:
+                self.sug_px.pop(name, None)
+            self.sug_tokens.pop(name, None)
             return
         try:
             inst = self._provider_for(name, None).option_instrument(name, strike, opt)
@@ -862,6 +868,12 @@ class Feed:
             pub = (entry or {}).get("public") or {}
         strike, opt = pub.get("strike"), pub.get("option_type")
         if not strike or not opt:
+            # No suggestion any more, so no suggested premium. Keeping the last
+            # one left the price of a contract nobody is being shown - after a
+            # PE signal went neutral, its put kept feeding the tick endpoint.
+            with self.lock:
+                self.sug_px.pop(name, None)
+            self.sug_tokens.pop(name, None)
             return
         have = self.sug_tokens.get(name)
         if have and have[0] == strike and have[1] == opt:

@@ -927,6 +927,7 @@ class TicketBook:
         book.last_close_at = now_ist()
         row = {
             "index": trade["index"], "strike": trade["strike"],
+            "expiry": trade.get("expiry"),
             "option_type": trade["option_type"], "entry": entry,
             "exit": price, "entry_time": trade["entry_time"],
             "exit_time": now_ist().strftime("%H:%M:%S"),
@@ -1023,6 +1024,7 @@ class TicketBook:
             pnl = round((price - entry) * trade["lot_size"] * trade.get("lots", 1), 2)
         return {
             "index": trade["index"], "strike": trade["strike"],
+            "expiry": trade.get("expiry"),
             "option_type": trade["option_type"],
             "status": trade["status"], "open": trade["status"] == "OPEN",
             "entry_time": trade["entry_time"],

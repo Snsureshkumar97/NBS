@@ -1563,6 +1563,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   <div class="hero">
    <div class="v" id="bias">—</div>
    <span class="tag flat" id="conftag" style="display:none"></span>
+   <span class="tag flat" id="exptag" style="display:none"></span>
   </div>
   <div class="contract" id="tcontract" style="display:none"></div>
   <div class="issued" id="tissued" style="display:none"></div>
@@ -2027,6 +2028,21 @@ $("tclear").onclick = () => {
 // desktop learned this the hard way: it used to print "a ticket is issued when
 // the direction changes" whichever of the five gates was actually holding,
 // which is true for exactly one of them — the least common one.
+// "25 Sep 2026 · Fri · 14 days left" from an ISO date. Calendar days to the
+// expiry date; "expires today" on the day itself, because that is the day the
+// premium behaves differently.
+function expiryText(iso){
+  if(!iso) return "";
+  const d = new Date(String(iso).slice(0,10) + "T00:00:00");
+  if(isNaN(d)) return "";
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((d - today) / 86400000);
+  const when = d.toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"});
+  const wd = d.toLocaleDateString("en-GB", {weekday:"short"});
+  const left = days <= 0 ? "expires today" : days === 1 ? "1 day left" : days + " days left";
+  return `${when} · ${wd} · ${left}`;
+}
+
 function ticketBox(r, state){
   const tk = state && state.ticket, wait = state && state.wait;
   const open = !!(tk && tk.open);
@@ -2049,7 +2065,9 @@ function ticketBox(r, state){
   const c = $("tcontract");
   if(open){
     c.style.display = "";
+    const ex = expiryText(tk.expiry);
     c.innerHTML = `<b>${esc(tk.index)} ${esc(String(tk.strike))} ${esc(tk.option_type)}</b>`
+                + (ex ? ` · expiry <b>${esc(ex)}</b>` : "")
                 + ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`;
     $("tissued").style.display = "";
     $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`;
@@ -2754,6 +2772,20 @@ function render(s){
     $("conftag").className="tag "+(bull?"up":bear?"down":"flat");
     $("conftag").textContent=(bull||bear? r.strike+" "+(r.option_type==="CE"?"Call":"Put")+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";
+
+  // The expiry of the contract in play - the open ticket's own when one is
+  // running, since that is the contract actually being tracked.
+  {
+    const tkOpen = ((s.tickets||{})[CUR]||{}).ticket;
+    const running = !!(tkOpen && tkOpen.open);
+    const ex = expiryText(running && tkOpen.expiry ? tkOpen.expiry : r.expiry);
+    const et = $("exptag");
+    if(ex && (bull || bear || running)){
+      et.style.display = "inline-flex";
+      et.className = "tag " + (ex.includes("today") ? "warn" : "flat");
+      et.textContent = "Expiry " + ex + (running ? " · your ticket" : "");
+    } else et.style.display = "none";
+  }
 
   $("reason").innerHTML = (bull||bear)
     ? `Risking <b>${num(r.risk_points,0)}</b> points to a stop at <b>${num(r.stop,0)}</b>.`
