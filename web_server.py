@@ -467,6 +467,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_tick(user)
             if path == "/api/chain":
                 return self._api_chain(user, qs)
+            if path == "/api/news":
+                return self._api_news(user)
             if path == "/api/markets":
                 # Public on purpose: it is world index levels off a free feed,
                 # not anybody's data, and the strip is drawn before login on
@@ -581,6 +583,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                      else config.active_instruments(),
         }
         return self._send(json.dumps(payload), "application/json")
+
+    def _api_news(self, user):
+        """Headlines for this market, fetched and de-duplicated by the server.
+
+        Nothing about the user goes out with the request, and the browser
+        never touches the publishers - see news.py.
+        """
+        import news
+        try:
+            items, note = news.headlines(self._current_market() or "nse_index")
+        except Exception:
+            items, note = [], "Headlines are unavailable right now."
+        return self._send(json.dumps({"items": items, "note": note}),
+                          "application/json")
 
     def _api_chain(self, user, qs):
         """The option chain the signal was computed from, for one instrument.
@@ -1521,6 +1537,18 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   .pill{padding:5px 10px;font-size:11.5px}
 }
 
+/* ---------- headlines ---------- */
+.news{display:grid;gap:0}
+.news a{display:block;padding:9px 2px;border-bottom:1px solid var(--bd-soft);
+  color:var(--ink-2);font-size:13.5px;line-height:1.45;text-decoration:none}
+.news a:last-child{border-bottom:0}
+.news a:hover{color:var(--ink)}
+.news .m{display:flex;gap:8px;align-items:center;margin-top:3px;
+  font-size:11px;color:var(--ink-3)}
+.news .src{border:1px solid var(--bd);border-radius:999px;padding:1px 7px}
+.newsnote{color:var(--ink-3);font-size:11.5px;margin-top:9px}
+.newsnote:empty{display:none}
+
 /* ---------- a workspace you can arrange ----------
    The drag handle appears on hover, top-right of a movable panel. Only the
    two side-by-side stacks take part: the signal, the trend row and the
@@ -1897,6 +1925,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
      <span><i class="chip" style="background:var(--up)"></i>Up candle</span>
      <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
     </div>
+   </div>
+   <div class="card" data-panel="news" id="newscard">
+    <p class="eyebrow">Headlines &middot; <span id="newshead">market news</span></p>
+    <div class="news" id="news"></div>
+    <div class="newsnote" id="newsnote"></div>
    </div>
    <div class="card" id="reccard" data-panel="record">
     <p class="eyebrow">Track record &middot; wins and losses</p>
@@ -3130,6 +3163,7 @@ function render(s){
   riskBox(r, tstate && tstate.ticket, s.session);
   sessionStrip(s.session, s.order);
   chainFetch();
+  newsFetch();
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -3494,7 +3528,7 @@ addEventListener("resize",()=>{clearTimeout(window._rz);
 const PANELS = [["signal","Signal card"], ["trend","Trend, day move, confidence"],
                 ["chart","Price chart"], ["record","Track record"],
                 ["range","Today's range"], ["chain","Option chain"],
-                ["map","Market map"], ["why","Why - every input"]];
+                ["map","Market map"], ["news","Headlines"], ["why","Why - every input"]];
 const PKEY = "nbs.panels.v1";
 let HIDDEN = new Set();
 try{ HIDDEN = new Set(JSON.parse(localStorage.getItem(PKEY) || "[]")); }catch(e){}
@@ -3509,6 +3543,7 @@ function togglePanel(k){
   applyPanels();
   if(!HIDDEN.has("chart")) { try{ chartDraw(); }catch(e){} }
   if(!HIDDEN.has("chain")) chainFetch(true);
+  if(!HIDDEN.has("news")) newsFetch(true);
 }
 applyPanels();
 
@@ -3664,6 +3699,34 @@ function chainDraw(d){
       box.scrollTop += (rb.top - bb.top) - (bb.height / 2 - rb.height / 2);
     }
   }
+}
+
+// ============================================================ headlines
+// Fetched by the server from public RSS, several sources de-duplicated into
+// one list. Opened in a new tab, and never trusted: the title is escaped and
+// only http(s) links are kept (news.py does that check too).
+let NEWS_AT = 0;
+const ago = ts => {
+  if(!ts) return "";
+  const m = Math.max(0, Math.round((Date.now() / 1000 - ts) / 60));
+  return m < 1 ? "just now" : m < 60 ? m + "m ago"
+       : m < 1440 ? Math.round(m / 60) + "h ago" : Math.round(m / 1440) + "d ago";
+};
+async function newsFetch(force){
+  const card = $("newscard");
+  if(!card || card.hidden) return;
+  if(!force && Date.now() - NEWS_AT < 300000) return;
+  NEWS_AT = Date.now();
+  try{
+    const d = await (await fetch("/api/news", {cache:"no-store"})).json();
+    const box = $("news");
+    box.innerHTML = (d.items || []).slice(0, 12).map(it =>
+      `<a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">`
+      + `${esc(it.title)}<span class="m"><span class="src">${esc(it.source)}</span>`
+      + `<span>${esc(ago(it.ts))}</span></span></a>`).join("")
+      || `<p style="color:var(--ink-3);font-size:13px;margin:0">No headlines right now.</p>`;
+    $("newsnote").textContent = d.note || "";
+  }catch(e){}
 }
 
 // ============================================================ palette
