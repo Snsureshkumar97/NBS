@@ -1521,6 +1521,21 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   .pill{padding:5px 10px;font-size:11.5px}
 }
 
+/* ---------- a workspace you can arrange ----------
+   The drag handle appears on hover, top-right of a movable panel. Only the
+   two side-by-side stacks take part: the signal, the trend row and the
+   reasoning are full-width and their order on the page is the argument the
+   screen is making, so they stay where they are. */
+[data-panel]{position:relative}
+.grip{position:absolute;top:9px;right:9px;z-index:4;width:24px;height:22px;
+  border-radius:7px;border:1px solid var(--bd);background:rgba(255,255,255,.06);
+  color:var(--ink-3);font-size:11px;line-height:1;display:flex;align-items:center;
+  justify-content:center;cursor:grab;opacity:0;transition:opacity .15s}
+[data-panel]:hover > .grip,.grip:focus{opacity:1}
+.grip:active{cursor:grabbing}
+[data-panel].dragging{opacity:.45}
+[data-panel].over{outline:2px dashed rgba(77,148,232,.65);outline-offset:3px}
+
 /* A hidden panel stays hidden: several of these are grid or flex containers
    whose own display would otherwise win against the hidden attribute. */
 [hidden]{display:none !important}
@@ -1860,7 +1875,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
        simply stop and leave the rest of its height empty. Down here the card
        is also twice as wide, which lets .rec's auto-fit put all five tiles in
        one row instead of four and an orphan. -->
-  <div>
+  <div id="colL">
    <div class="card" data-panel="chart">
     <p class="eyebrow">Price &middot; 15-minute candles</p>
     <div class="chartwrap">
@@ -1890,7 +1905,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
    </div>
   </div>
 
-  <div>
+  <div id="colR">
    <div class="card" data-panel="range">
     <p class="eyebrow">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
@@ -3497,6 +3512,83 @@ function togglePanel(k){
 }
 applyPanels();
 
+
+// ============================================================ layout
+// The useful half of OpenTerminal's widget grid: the two side stacks can be
+// re-ordered, and a panel can be dragged from one stack to the other. Saved
+// per browser, restored on the next visit. The full-width panels are left
+// alone - the signal above the reasoning is the argument the page is making.
+const LKEY = "nbs.layout.v1";
+const STACKS = ["colL", "colR"];
+let LAYOUT = {};
+try{ LAYOUT = JSON.parse(localStorage.getItem(LKEY) || "{}"); }catch(e){}
+const stackOf = el => (el && el.parentElement && STACKS.includes(el.parentElement.id))
+                      ? el.parentElement.id : null;
+function saveLayout(){
+  const out = {};
+  STACKS.forEach(id => {
+    const box = document.getElementById(id);
+    if(!box) return;
+    out[id] = [...box.querySelectorAll(":scope > [data-panel]")].map(e => e.dataset.panel);
+  });
+  LAYOUT = out;
+  try{ localStorage.setItem(LKEY, JSON.stringify(out)); }catch(e){}
+}
+function applyLayout(){
+  STACKS.forEach(id => {
+    const box = document.getElementById(id);
+    const names = LAYOUT[id];
+    if(!box || !Array.isArray(names)) return;
+    names.forEach(n => {
+      const el = document.querySelector(`[data-panel="${n}"]`);
+      // Only panels that already live in one of the two stacks, so a layout
+      // saved by an older version cannot pull the signal card into a column.
+      if(el && stackOf(el)) box.appendChild(el);
+    });
+  });
+}
+function resetLayout(){
+  LAYOUT = {};
+  try{ localStorage.removeItem(LKEY); }catch(e){}
+  location.reload();
+}
+function wireDrag(){
+  document.querySelectorAll("#colL > [data-panel], #colR > [data-panel]").forEach(el => {
+    if(el.querySelector(":scope > .grip")) return;
+    const g = document.createElement("button");
+    g.className = "grip"; g.type = "button"; g.title = "Drag to move this panel";
+    g.setAttribute("aria-label", "Move panel"); g.textContent = "∷";
+    g.addEventListener("mousedown", () => { el.draggable = true; });
+    g.addEventListener("mouseup", () => { el.draggable = false; });
+    el.appendChild(g);
+    el.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", el.dataset.panel);
+      e.dataTransfer.effectAllowed = "move";
+      el.classList.add("dragging");
+    });
+    el.addEventListener("dragend", () => {
+      el.draggable = false; el.classList.remove("dragging");
+      document.querySelectorAll(".over").forEach(x => x.classList.remove("over"));
+    });
+    el.addEventListener("dragover", e => {
+      if(!document.querySelector(".dragging")) return;
+      e.preventDefault(); el.classList.add("over");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", e => {
+      e.preventDefault(); el.classList.remove("over");
+      const name = e.dataTransfer.getData("text/plain");
+      const src = document.querySelector(`[data-panel="${name}"]`);
+      if(!src || src === el || !el.closest("#colL, #colR")) return;
+      const r = el.getBoundingClientRect();
+      el.parentElement.insertBefore(src, e.clientY < r.top + r.height / 2 ? el : el.nextSibling);
+      saveLayout();
+      try{ chartDraw(); }catch(err){}
+    });
+  });
+}
+applyLayout(); wireDrag();
+
 // ============================================================ option chain
 // The chain the signal was computed from: calls left, puts right, strikes
 // down the middle, the money highlighted and the suggested contract ringed.
@@ -3560,10 +3652,17 @@ function chainDraw(d){
     + `over 3% and the tool holds the ticket.</span>`;
   // Centre the money once per index, not on every refresh - otherwise the
   // table yanks itself back while you are reading a far strike.
+  //
+  // By moving the BOX's own scrollTop, never scrollIntoView: that scrolls
+  // every ancestor as well, so loading the page threw you down to the option
+  // chain instead of leaving you at the top of the screen.
   if(CHAIN_SCROLLED !== d.index){
     CHAIN_SCROLLED = d.index;
-    const row = t.querySelector("tr.atm");
-    if(row && row.scrollIntoView) row.scrollIntoView({block:"center"});
+    const row = t.querySelector("tr.atm"), box = t.closest(".chainwrap");
+    if(row && box){
+      const rb = row.getBoundingClientRect(), bb = box.getBoundingClientRect();
+      box.scrollTop += (rb.top - bb.top) - (bb.height / 2 - rb.height / 2);
+    }
   }
 }
 
@@ -3576,13 +3675,16 @@ function palItems(){
   if(((LAST && LAST.markets) || []).length > 1)
     out.push({t:"Market", label:"Switch market", sub:"Indian indices / crypto",
               run:() => location.href = "/market"});
-  PANELS.forEach(([k, label]) => out.push(
+  PANELS.forEach(([k, label], i) => out.push(
     {t:"Panel", label:(HIDDEN.has(k) ? "Show " : "Hide ") + label,
-     sub:HIDDEN.has(k) ? "hidden" : "showing", run:() => togglePanel(k)}));
+     sub:(i < 9 ? "⌥" + (i + 1) + " · " : "") + (HIDDEN.has(k) ? "hidden" : "showing"),
+     run:() => togglePanel(k)}));
   out.push({t:"Go", label:"Review - your results so far", run:() => location.href="/review"});
   out.push({t:"Go", label:"How it works", run:() => location.href="/how-it-works"});
   out.push({t:"Go", label:"Zerodha connection", run:() => location.href="/connect"});
   out.push({t:"Go", label:"Results", run:() => location.href="/results"});
+  out.push({t:"Do", label:"Reset the panel layout", sub:"order and visibility",
+            run:() => { HIDDEN = new Set(); try{ localStorage.removeItem(PKEY); }catch(e){} resetLayout(); }});
   out.push({t:"Do", label:"Set capital and risk per trade",
             run:() => { const c = $("capital"); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }});
   out.push({t:"Do", label:"Clear the open ticket",
@@ -3621,6 +3723,18 @@ $("pallist").addEventListener("click", e => {
 $("pal").addEventListener("mousedown", e => { if(e.target === $("pal")) palClose(); });
 document.addEventListener("keydown", e => {
   const open = !$("pal").hidden;
+  // Option/Alt + 1-9 shows or hides a panel, 0 brings them all back. Read from
+  // e.code, because Alt+1 on a Mac types a character, not a digit.
+  if(e.altKey && !e.metaKey && !e.ctrlKey && /^Digit[0-9]$/.test(e.code || "")){
+    const n = +e.code.slice(5);
+    e.preventDefault();
+    if(n === 0){
+      HIDDEN = new Set();
+      try{ localStorage.setItem(PKEY, "[]"); }catch(err){}
+      applyPanels(); try{ chartDraw(); }catch(err){} chainFetch(true);
+    } else if(PANELS[n - 1]) togglePanel(PANELS[n - 1][0]);
+    return;
+  }
   if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){
     e.preventDefault(); open ? palClose() : palOpen(); return;
   }
