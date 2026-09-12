@@ -465,6 +465,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_state(user)
             if path == "/api/tick":
                 return self._api_tick(user)
+            if path == "/api/chain":
+                return self._api_chain(user, qs)
             if path == "/api/markets":
                 # Public on purpose: it is world index levels off a free feed,
                 # not anybody's data, and the strip is drawn before login on
@@ -579,6 +581,56 @@ class Handler(http.server.BaseHTTPRequestHandler):
                      else config.active_instruments(),
         }
         return self._send(json.dumps(payload), "application/json")
+
+    def _api_chain(self, user, qs):
+        """The option chain the signal was computed from, for one instrument.
+
+        Strikes around the money with both sides' price, bid, ask and open
+        interest - the same table a terminal puts on screen, built from data
+        the tool already has rather than from a second source.
+        """
+        market = self._current_market()
+        names = config.instruments_in(market)
+        name = (qs.get("index") or [""])[0].upper()
+        if name not in names:
+            name = names[0] if names else ""
+        feed = feeds.for_user(user, market)
+        chain = feed.chain(name) if name else None
+        if not chain or not chain.get("strikes"):
+            return self._send(json.dumps({"index": name, "rows": [],
+                                          "error": "no chain right now"}),
+                              "application/json")
+        meta = config.INSTRUMENTS.get(name) or {}
+        step = meta.get("strike_step") or 50
+        spot = chain.get("spot")
+        strikes = sorted(chain["strikes"], key=lambda s: s["strike"])
+        atm = min((s["strike"] for s in strikes),
+                  key=lambda k: abs(k - (spot or 0))) if spot else None
+        # A window either side of the money: the whole chain is hundreds of
+        # rows, and nobody reads the 20% out-of-the-money wing on a screen.
+        span = 12
+        if atm is not None:
+            strikes = [s for s in strikes if abs(s["strike"] - atm) <= span * step]
+
+        def side(s, kind):
+            ltp, bid, ask = s.get(f"{kind}_ltp"), s.get(f"{kind}_bid"), s.get(f"{kind}_ask")
+            pct = None
+            if bid and ask and ask >= bid:
+                pct = round((ask - bid) / ((ask + bid) / 2) * 100, 2)
+            return {"ltp": ltp, "bid": bid, "ask": ask,
+                    "oi": s.get(f"{kind}_oi"), "spread": pct}
+
+        rows = [{"strike": s["strike"], "ce": side(s, "call"), "pe": side(s, "put")}
+                for s in strikes]
+        rec = ((feed.snapshot().get("indices") or {}).get(name) or {})
+        return self._send(json.dumps({
+            "index": name, "expiry": chain.get("expiry"), "spot": spot, "atm": atm,
+            "pcr": chain.get("pcr"), "max_pain": chain.get("max_pain"),
+            "call_wall": chain.get("top_call_oi_strike"),
+            "put_wall": chain.get("top_put_oi_strike"),
+            "suggested": {"strike": rec.get("strike"), "type": rec.get("option_type")},
+            "currency": "USD" if market == "crypto" else "INR",
+            "rows": rows}), "application/json")
 
     def _api_tick(self, user):
         """Prices only, read straight out of the tick socket's memory.
@@ -1469,6 +1521,54 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   .pill{padding:5px 10px;font-size:11.5px}
 }
 
+/* A hidden panel stays hidden: several of these are grid or flex containers
+   whose own display would otherwise win against the hidden attribute. */
+[hidden]{display:none !important}
+
+/* ---------- option chain ----------
+   Calls on the left, puts on the right, strikes down the middle - the way a
+   chain is read everywhere. Built from the same snapshot the signal was
+   computed from, so the two can never disagree. */
+.chainwrap{max-height:420px;overflow:auto;border:1px solid var(--bd);
+  border-radius:12px;background:rgba(6,8,12,.55)}
+table.chain{width:100%;border-collapse:collapse;font-size:12px;
+  font-variant-numeric:tabular-nums;font-family:"SF Mono",Consolas,monospace}
+table.chain th{position:sticky;top:0;z-index:1;background:rgba(10,12,18,.97);
+  font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+  font-weight:700;padding:7px 6px;text-align:right}
+table.chain th.k,table.chain td.k{text-align:center;color:var(--ink-2);font-weight:700}
+table.chain th.ce{color:var(--up)} table.chain th.pe{color:var(--down)}
+table.chain td{padding:5px 6px;text-align:right;color:var(--ink-3);
+  border-top:1px solid var(--bd-soft);white-space:nowrap}
+table.chain td.px{color:var(--ink-2)}
+table.chain tr.atm{background:rgba(255,255,255,.06)}
+table.chain tr.atm td{color:var(--ink-2)} table.chain tr.atm td.k{color:var(--ink)}
+table.chain td.mine{outline:1px solid rgba(77,148,232,.55);border-radius:4px;color:var(--ink)}
+table.chain .wall{color:var(--warn);font-weight:700}
+table.chain .wide{color:var(--down)}
+.chainbar{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);margin-top:10px}
+.chainbar b{color:var(--ink-2)}
+
+/* ---------- the command palette ---------- */
+.pal{position:fixed;inset:0;z-index:60;background:rgba(3,4,7,.6);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:flex-start;justify-content:center;padding-top:12vh}
+.palbox{width:min(620px,92vw);background:rgba(12,15,22,.97);border:1px solid var(--bd);
+  border-radius:16px;box-shadow:0 40px 90px -30px rgba(0,0,0,.9);overflow:hidden}
+.palbox input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--bd);
+  color:var(--ink);font:inherit;font-size:16px;padding:15px 18px;outline:none}
+.pallist{max-height:52vh;overflow:auto;padding:6px}
+.palrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
+  cursor:pointer;font-size:14px;color:var(--ink-2)}
+.palrow .t{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+  border:1px solid var(--bd);border-radius:999px;padding:1px 8px;flex:none}
+.palrow .s{color:var(--ink-3);font-size:12px;margin-left:auto;white-space:nowrap}
+.palrow.on{background:rgba(77,148,232,.18);color:var(--ink)}
+.palhint{border-top:1px solid var(--bd);padding:8px 14px;font-size:11.5px;color:var(--ink-3);
+  display:flex;gap:14px}
+.palhint kbd{font:inherit;font-size:11px;background:rgba(255,255,255,.07);
+  border:1px solid var(--bd);border-radius:5px;padding:1px 5px}
+
 /* =====================================================================
    THE 3D LAYER - nbs-signal-3d.html, applied to the live screen.
    A particle field, two glows and a slowly turning candlestick chart made
@@ -1594,6 +1694,15 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 }
 </style></head><body>
 <canvas id="bg3d" aria-hidden="true"></canvas>
+<div class="pal" id="pal" hidden>
+ <div class="palbox" role="dialog" aria-label="Command palette">
+  <input id="palq" placeholder="Jump to an index, a panel or a page&hellip;"
+         autocomplete="off" spellcheck="false">
+  <div class="pallist" id="pallist"></div>
+  <div class="palhint"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span>
+   <span><kbd>&crarr;</kbd> run</span><span><kbd>esc</kbd> close</span></div>
+ </div>
+</div>
 
 <header><div class="hd">
   <a class="brand" href="/" style="color:inherit;text-decoration:none">
@@ -1680,7 +1789,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </div>
  <div class="feedline" id="sfeed"></div>
 
- <div class="card herocard" id="sigcard" style="margin-top:14px">
+ <div class="card herocard" id="sigcard" data-panel="signal" style="margin-top:14px">
   <div class="thead">
    <p class="eyebrow" id="teyebrow">Signal</p>
    <span class="badge prev" id="tbadge" style="display:none"></span>
@@ -1723,7 +1832,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="gnote" id="gnote"></div>
  </div>
 
- <div class="top3">
+ <div class="top3" data-panel="trend">
   <div class="card">
    <p class="eyebrow">Market trend</p>
    <div class="hero"><div class="v" id="trend"
@@ -1752,7 +1861,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
        is also twice as wide, which lets .rec's auto-fit put all five tiles in
        one row instead of four and an orphan. -->
   <div>
-   <div class="card">
+   <div class="card" data-panel="chart">
     <p class="eyebrow">Price &middot; 15-minute candles</p>
     <div class="chartwrap">
      <div class="chartbar">
@@ -1774,7 +1883,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
      <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
     </div>
    </div>
-   <div class="card" id="reccard">
+   <div class="card" id="reccard" data-panel="record">
     <p class="eyebrow">Track record &middot; wins and losses</p>
     <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
       No completed trades recorded yet.</p></div>
@@ -1782,11 +1891,16 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   </div>
 
   <div>
-   <div class="card">
+   <div class="card" data-panel="range">
     <p class="eyebrow">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
    </div>
-   <div class="card">
+   <div class="card" data-panel="chain" id="chaincard">
+    <p class="eyebrow">Option chain &middot; <span id="chainhead">&mdash;</span></p>
+    <div class="chainwrap"><table class="chain" id="chain"></table></div>
+    <div class="chainbar" id="chainbar"></div>
+   </div>
+   <div class="card" data-panel="map">
     <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
     <div class="mapwrap" id="mapwrap"></div>
     <div class="mapbar">
@@ -1797,7 +1911,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   </div>
  </div>
 
- <div class="card" style="margin-top:14px">
+ <div class="card" data-panel="why" style="margin-top:14px">
   <p class="eyebrow">Why — every input, in full</p>
   <div class="why" id="why"></div>
  </div>
@@ -3000,6 +3114,7 @@ function render(s){
   ladder(r, tstate && tstate.ticket);
   riskBox(r, tstate && tstate.ticket, s.session);
   sessionStrip(s.session, s.order);
+  chainFetch();
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -3353,6 +3468,168 @@ priceTick(); setInterval(priceTick,250);
 markets_(); setInterval(markets_,60000);
 addEventListener("resize",()=>{clearTimeout(window._rz);
   window._rz=setTimeout(()=>render(LAST),260)});
+</script>
+<script>
+// ============================================================ workspace
+// Borrowed from OpenTerminal: panels you can put away, and one keystroke that
+// gets you anywhere. Not its drag-and-resize grid - this screen has an order
+// that was chosen (signal first, reasoning last) and a layout engine would
+// mostly be a way to break it - but the useful half of the idea is here:
+// hide what you do not use, and it stays hidden on your next visit.
+const PANELS = [["signal","Signal card"], ["trend","Trend, day move, confidence"],
+                ["chart","Price chart"], ["record","Track record"],
+                ["range","Today's range"], ["chain","Option chain"],
+                ["map","Market map"], ["why","Why - every input"]];
+const PKEY = "nbs.panels.v1";
+let HIDDEN = new Set();
+try{ HIDDEN = new Set(JSON.parse(localStorage.getItem(PKEY) || "[]")); }catch(e){}
+function applyPanels(){
+  document.querySelectorAll("[data-panel]").forEach(el => {
+    el.hidden = HIDDEN.has(el.dataset.panel);
+  });
+}
+function togglePanel(k){
+  if(HIDDEN.has(k)) HIDDEN.delete(k); else HIDDEN.add(k);
+  try{ localStorage.setItem(PKEY, JSON.stringify([...HIDDEN])); }catch(e){}
+  applyPanels();
+  if(!HIDDEN.has("chart")) { try{ chartDraw(); }catch(e){} }
+  if(!HIDDEN.has("chain")) chainFetch(true);
+}
+applyPanels();
+
+// ============================================================ option chain
+// The chain the signal was computed from: calls left, puts right, strikes
+// down the middle, the money highlighted and the suggested contract ringed.
+// Nothing new is fetched from anywhere - the server already had this.
+let CHAIN_AT = 0, CHAIN_FOR = null, CHAIN_SCROLLED = null;
+const oiFmt = v => v == null ? "—" :
+  new Intl.NumberFormat("en-IN", {notation:"compact", maximumFractionDigits:1}).format(v);
+async function chainFetch(force){
+  const card = $("chaincard");
+  if(!card || card.hidden || !CUR) return;
+  if(!force && CHAIN_FOR === CUR && Date.now() - CHAIN_AT < 20000) return;
+  CHAIN_AT = Date.now(); CHAIN_FOR = CUR;
+  try{
+    const d = await (await fetch("/api/chain?index=" + encodeURIComponent(CUR),
+                                 {cache:"no-store"})).json();
+    chainDraw(d);
+  }catch(e){}
+}
+function chainDraw(d){
+  const t = $("chain"), bar = $("chainbar");
+  if(!t) return;
+  if(!d || !d.rows || !d.rows.length){
+    t.innerHTML = "";
+    $("chainhead").textContent = "—";
+    bar.innerHTML = "No chain from the broker right now.";
+    return;
+  }
+  $("chainhead").textContent = (d.index || "") + " · expiry " + (d.expiry || "—");
+  const cell = (o, kind, strike) => {
+    const mine = d.suggested && d.suggested.strike === strike
+              && (d.suggested.type === (kind === "ce" ? "CE" : "PE"));
+    const wall = (kind === "ce" ? d.call_wall : d.put_wall) === strike;
+    const wide = o.spread != null && o.spread > 3;
+    return `<td class="px${mine?" mine":""}">${o.ltp == null ? "—" : num(o.ltp,2)}</td>`
+         + `<td>${o.bid == null ? "—" : num(o.bid,2)}</td>`
+         + `<td>${o.ask == null ? "—" : num(o.ask,2)}</td>`
+         + `<td class="${wide?"wide":""}">${o.spread == null ? "—" : o.spread.toFixed(1)+"%"}</td>`
+         + `<td class="${wall?"wall":""}">${oiFmt(o.oi)}</td>`;
+  };
+  t.innerHTML =
+    `<thead><tr><th colspan="5" class="ce" style="text-align:center">Calls</th>`
+    + `<th class="k">Strike</th>`
+    + `<th colspan="5" class="pe" style="text-align:center">Puts</th></tr>`
+    + `<tr><th>LTP</th><th>Bid</th><th>Ask</th><th>Spr</th><th>OI</th><th class="k"></th>`
+    + `<th>LTP</th><th>Bid</th><th>Ask</th><th>Spr</th><th>OI</th></tr></thead><tbody>`
+    + d.rows.map(r => {
+        const atm = r.strike === d.atm;
+        return `<tr class="${atm?"atm":""}" data-k="${r.strike}">`
+             + cell(r.ce, "ce", r.strike)
+             + `<td class="k">${num(r.strike,0)}</td>`
+             + cell(r.pe, "pe", r.strike) + `</tr>`;
+      }).join("") + `</tbody>`;
+  const sym = d.currency === "USD" ? "$" : "₹";
+  bar.innerHTML =
+    `<span>Spot <b>${d.spot == null ? "—" : num(d.spot,2)}</b></span>`
+    + `<span>PCR <b>${d.pcr == null ? "—" : d.pcr}</b></span>`
+    + (d.max_pain != null ? `<span>Max pain <b>${num(d.max_pain,0)}</b></span>` : "")
+    + (d.call_wall != null ? `<span>Call wall <b>${num(d.call_wall,0)}</b></span>` : "")
+    + (d.put_wall != null ? `<span>Put wall <b>${num(d.put_wall,0)}</b></span>` : "")
+    + `<span>Prices in ${sym}, per unit of the contract. Spr = the bid-ask gap; `
+    + `over 3% and the tool holds the ticket.</span>`;
+  // Centre the money once per index, not on every refresh - otherwise the
+  // table yanks itself back while you are reading a far strike.
+  if(CHAIN_SCROLLED !== d.index){
+    CHAIN_SCROLLED = d.index;
+    const row = t.querySelector("tr.atm");
+    if(row && row.scrollIntoView) row.scrollIntoView({block:"center"});
+  }
+}
+
+// ============================================================ palette
+const PAL = {items: [], sel: 0};
+function palItems(){
+  const out = [];
+  ((LAST && LAST.order) || []).forEach(k => out.push(
+    {t:"Index", label:k, sub:"show this index", run:() => { CUR = k; render(LAST); chainFetch(true); }}));
+  if(((LAST && LAST.markets) || []).length > 1)
+    out.push({t:"Market", label:"Switch market", sub:"Indian indices / crypto",
+              run:() => location.href = "/market"});
+  PANELS.forEach(([k, label]) => out.push(
+    {t:"Panel", label:(HIDDEN.has(k) ? "Show " : "Hide ") + label,
+     sub:HIDDEN.has(k) ? "hidden" : "showing", run:() => togglePanel(k)}));
+  out.push({t:"Go", label:"Review - your results so far", run:() => location.href="/review"});
+  out.push({t:"Go", label:"How it works", run:() => location.href="/how-it-works"});
+  out.push({t:"Go", label:"Zerodha connection", run:() => location.href="/connect"});
+  out.push({t:"Go", label:"Results", run:() => location.href="/results"});
+  out.push({t:"Do", label:"Set capital and risk per trade",
+            run:() => { const c = $("capital"); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }});
+  out.push({t:"Do", label:"Clear the open ticket",
+            run:() => { const b = $("tclear"); if(b && b.style.display !== "none") b.click(); }});
+  out.push({t:"Do", label:"Log out", run:() => location.href="/logout"});
+  return out;
+}
+function palRender(){
+  const q = $("palq").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  PAL.items = palItems().filter(it => {
+    const hay = (it.t + " " + it.label + " " + (it.sub || "")).toLowerCase();
+    return q.every(w => hay.includes(w));
+  });
+  if(PAL.sel >= PAL.items.length) PAL.sel = Math.max(0, PAL.items.length - 1);
+  $("pallist").innerHTML = PAL.items.map((it, i) =>
+    `<div class="palrow${i === PAL.sel ? " on" : ""}" data-i="${i}">`
+    + `<span class="t">${esc(it.t)}</span><span>${esc(it.label)}</span>`
+    + (it.sub ? `<span class="s">${esc(it.sub)}</span>` : "") + `</div>`).join("")
+    || `<div class="palrow"><span class="s">nothing matches</span></div>`;
+}
+function palOpen(){
+  $("pal").hidden = false; $("palq").value = ""; PAL.sel = 0; palRender(); $("palq").focus();
+}
+function palClose(){ $("pal").hidden = true; $("palq").blur(); }
+function palRun(){
+  const it = PAL.items[PAL.sel];
+  palClose();
+  if(it && it.run) it.run();
+}
+$("palq").addEventListener("input", () => { PAL.sel = 0; palRender(); });
+$("pallist").addEventListener("click", e => {
+  const row = e.target.closest(".palrow");
+  if(!row || row.dataset.i === undefined) return;
+  PAL.sel = +row.dataset.i; palRun();
+});
+$("pal").addEventListener("mousedown", e => { if(e.target === $("pal")) palClose(); });
+document.addEventListener("keydown", e => {
+  const open = !$("pal").hidden;
+  if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){
+    e.preventDefault(); open ? palClose() : palOpen(); return;
+  }
+  if(!open) return;
+  if(e.key === "Escape"){ e.preventDefault(); palClose(); }
+  else if(e.key === "ArrowDown"){ e.preventDefault(); PAL.sel = Math.min(PAL.sel + 1, PAL.items.length - 1); palRender(); }
+  else if(e.key === "ArrowUp"){ e.preventDefault(); PAL.sel = Math.max(PAL.sel - 1, 0); palRender(); }
+  else if(e.key === "Enter"){ e.preventDefault(); palRun(); }
+});
 </script>
 <script>
 // ------------------------------------------------------------ the 3D scene

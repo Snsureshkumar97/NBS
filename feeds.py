@@ -376,6 +376,16 @@ class Feed:
             self.state.update(fields)
 
     # -- the loop -----------------------------------------------------------
+    def chain(self, name):
+        """The last option-chain snapshot for one instrument, or None.
+
+        Already fetched every cycle for the signal itself - the strike ladder,
+        the PCR and the walls all come out of it - and thrown away after. The
+        screen can show it for the price of handing it over.
+        """
+        with self.lock:
+            return self.base_oi.get(name)
+
     def _ref(self):
         """Any instrument of this feed's market - they share its session."""
         keys = self.instruments()
