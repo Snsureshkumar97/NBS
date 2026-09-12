@@ -628,13 +628,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if atm is not None:
             strikes = [s for s in strikes if abs(s["strike"] - atm) <= span * step]
 
+        # Where open interest stood when the tool first saw this chain today.
+        # OI is a running total, so the number that means something intraday is
+        # what has been added or closed since the session started - not the
+        # total itself. Kept in memory: it is a fact about today, and a
+        # restart honestly loses it rather than inventing a baseline.
+        import datetime as _dt
+        day = _dt.datetime.now().strftime("%Y-%m-%d")
+        bkey = (market, name, str(chain.get("expiry")), day)
+        base = _OI_BASE.get(bkey)
+        if base is None:
+            base = _OI_BASE[bkey] = {s["strike"]: (s.get("call_oi"), s.get("put_oi"))
+                                     for s in chain["strikes"]}
+            _OI_BASE_AT[bkey] = time.time()
+            for k in [k for k in _OI_BASE if k[3] != day]:
+                _OI_BASE.pop(k, None); _OI_BASE_AT.pop(k, None)
+
         def side(s, kind):
             ltp, bid, ask = s.get(f"{kind}_ltp"), s.get(f"{kind}_bid"), s.get(f"{kind}_ask")
             pct = None
             if bid and ask and ask >= bid:
                 pct = round((ask - bid) / ((ask + bid) / 2) * 100, 2)
+            was = (base.get(s["strike"]) or (None, None))[0 if kind == "call" else 1]
+            now = s.get(f"{kind}_oi")
+            chg = (now - was) if (was is not None and now is not None) else None
             return {"ltp": ltp, "bid": bid, "ask": ask,
-                    "oi": s.get(f"{kind}_oi"), "spread": pct}
+                    "oi": now, "oi_chg": chg, "spread": pct}
 
         rows = [{"strike": s["strike"], "ce": side(s, "call"), "pe": side(s, "put")}
                 for s in strikes]
@@ -645,6 +664,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "call_wall": chain.get("top_call_oi_strike"),
             "put_wall": chain.get("top_put_oi_strike"),
             "suggested": {"strike": rec.get("strike"), "type": rec.get("option_type")},
+            "since": time.strftime("%H:%M", time.localtime(_OI_BASE_AT.get(bkey, time.time()))),
             "currency": "USD" if market == "crypto" else "INR",
             "rows": rows}), "application/json")
 
@@ -1128,6 +1148,11 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 # ---------------------------------------------------------------------------
 # THE PAGE
 # ---------------------------------------------------------------------------
+# Open interest as the tool first saw it today, per market/index/expiry, so the
+# chain can show what has been added since rather than only the running total.
+_OI_BASE = {}
+_OI_BASE_AT = {}
+
 PAGE = r"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -1185,8 +1210,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* ---------- header ---------- */
 header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--bd-soft)}
-.hd{max-width:none;margin:0;padding:11px 20px;display:flex;
-  align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.hd{max-width:none;margin:0;padding:11px 18px;display:flex;
+  align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;
+  overflow:hidden}
+@media(max-width:1100px){.status .st-clock{display:none}}
+@media(max-width:820px){.status .feedtag{display:none}}
 .hd .row{flex:0 1 auto;min-width:0;justify-content:flex-end}
 .hd .status{flex:0 0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px}
@@ -1609,6 +1637,49 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .sections{display:block;margin-top:16px}
 .tabs-legacy{display:none}
 
+/* ---------- home ---------- */
+.hsec{margin:0 0 26px}
+.htitle{font-size:clamp(26px,3.4vw,38px);line-height:1.1;margin:0 0 8px;letter-spacing:-.8px;
+  font-weight:800}
+.hsub{color:var(--ink-2);font-size:14.5px;max-width:680px;margin:0 0 16px}
+.gmk{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px}
+.gmk .q{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),
+  rgba(9,11,17,.72);border:1px solid var(--bd);border-radius:14px;padding:12px 14px}
+.gmk .q .n{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+  font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gmk .q .p{font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.gmk .q .c{font-size:12px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.dcard{display:block;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.05),
+  rgba(255,255,255,.015)),rgba(9,11,17,.72);border:1px solid var(--bd);border-radius:16px;
+  padding:16px 18px;cursor:pointer;font:inherit;color:inherit;text-decoration:none;
+  transition:transform .2s,border-color .2s,box-shadow .2s}
+.dcard:hover{transform:translateY(-2px);border-color:rgba(43,224,138,.35);
+  box-shadow:0 20px 50px -25px var(--glow-up);text-decoration:none}
+.dcard .i{font-size:20px;line-height:1}
+.dcard b{display:block;margin:9px 0 4px;font-size:15px;color:var(--ink)}
+.dcard span{font-size:12.5px;color:var(--ink-3);line-height:1.5;display:block}
+
+/* ---------- index mover, pulse, option clock, calculator ---------- */
+.mover,.pulse,.clock2{display:grid;gap:7px}
+.mvrow{display:grid;grid-template-columns:96px 1fr 74px;gap:10px;align-items:center;font-size:12.5px}
+.mvrow .s{color:var(--ink-2);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mvbar{height:8px;border-radius:5px;background:linear-gradient(180deg,#0a0b0f,#16181f);
+  position:relative;overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.55)}
+.mvbar i{position:absolute;top:0;height:100%;border-radius:5px}
+.mvbar u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--bd)}
+.mvval{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.pulse .ph{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);
+  font-weight:700;margin-top:6px}
+.pulse .pr{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  color:var(--ink-2);padding:3px 0;font-variant-numeric:tabular-nums}
+.calcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.calcgrid label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--ink-3)}
+.calcgrid input{background:var(--raised);border:1px solid var(--bd);border-radius:9px;
+  padding:8px 10px;color:var(--ink);font:inherit;font-size:13.5px}
+.calcout{margin-top:12px;font-size:13px;color:var(--ink-2);line-height:1.7}
+.calcout b{color:var(--ink)}
+
 /* ---------- the status strip ---------- */
 .status{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);
   border:1px solid var(--bd);border-radius:999px;padding:6px 14px;font-size:12.5px;
@@ -1623,6 +1694,7 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .acct{display:inline-flex;align-items:center;gap:8px;background:rgba(77,148,232,.12);
   border:1px solid rgba(77,148,232,.35);border-radius:999px;padding:4px 12px 4px 4px;
   font-size:12.5px;font-weight:650;color:var(--ink)}
+.acct span{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acct i{width:24px;height:24px;border-radius:50%;background:linear-gradient(180deg,#5aa2ee,#3a7fd0);
   color:#fff;display:flex;align-items:center;justify-content:center;font-style:normal;
   font-size:12px;text-transform:uppercase}
@@ -1887,8 +1959,9 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div>NBS Signal Tool<small id="sidesub">Nifty · Bank Nifty · Sensex</small></div>
  </a>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
+  <button class="tab on" data-tab="home" role="tab" type="button"><i>&#127968;</i>Home</button>
   <p class="mgroup">Desk</p>
-  <button class="tab on" data-tab="signal" role="tab" type="button"><i>&#127919;</i>Signal</button>
+  <button class="tab" data-tab="signal" role="tab" type="button"><i>&#127919;</i>Signal</button>
   <p class="mgroup">Market</p>
   <button class="tab" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
@@ -1923,9 +1996,10 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <a class="chip" id="mktsw" href="/market" style="display:none"
        title="Switch market">&mdash;</a>
-    <a class="chip" href="/review" title="Your results so far, against the backtest">Review</a>
-    <a class="chip" id="kite" href="/connect">Zerodha</a>
+    <!-- Review, Zerodha and Sign out live in the sidebar; printing them here
+         too was what pushed this row off the edge of a narrower window. -->
     <span class="acct" title="Signed in"><i id="acctini">&nbsp;</i><span id="acctname">&mdash;</span></span>
+    <a class="chip" id="kite" href="/connect" style="display:none">Connect Zerodha</a>
     <a class="chip" id="signout" href="/logout" style="display:none">Sign out</a>
   </div>
 </div></header>
@@ -1980,7 +2054,13 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </nav>
  <div class="panes">
 
- <section class="pane on" data-pane="signal">
+ <section class="pane on" data-pane="home">
+  <div class="hsec">
+   <h2 class="htitle">Global markets</h2>
+   <p class="hsub">Where the wider market is sitting, before you look at a single
+    strike. These are the same levels that scroll across the top.</p>
+   <div class="gmk" id="gmk"></div>
+  </div>
   <div class="welcome">
   <div>
   <p class="eyebrow">Overview</p>
@@ -1993,6 +2073,17 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <a class="lbtn" href="/results">Results</a>
   </div>
   </div>
+  <div class="hsec">
+   <p class="eyebrow">Today</p>
+   <div class="recap" id="htoday"></div>
+  </div>
+  <div class="hsec">
+   <p class="eyebrow">Your desk</p>
+   <div class="dgrid" id="dgrid"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="signal">
   <div class="session" id="session" style="display:none">
   <span class="lbl">Session</span>
   <div class="chips" id="schips"></div>
@@ -2113,6 +2204,12 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </section>
 
  <section class="pane" data-pane="chain">
+  <div class="card" data-panel="clock" id="clockcard">
+   <p class="eyebrow">Option clock &middot; open interest added since
+    <span id="clocksince">the open</span></p>
+   <div class="clock2" id="clock2"></div>
+   <div class="gnote" id="clocknote"></div>
+  </div>
   <div class="card" data-panel="chain" id="chaincard">
   <p class="eyebrow">Option chain &middot; <span id="chainhead">&mdash;</span></p>
   <div class="chainwrap"><table class="chain" id="chain"></table></div>
@@ -2133,6 +2230,15 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     </div>
    </div>
    <div id="colM2">
+    <div class="card" data-panel="mover" id="movercard">
+     <p class="eyebrow">Index mover &middot; who is pushing <span id="movidx">&mdash;</span></p>
+     <div class="mover" id="mover"></div>
+     <div class="gnote" id="movernote"></div>
+    </div>
+    <div class="card" data-panel="pulse" id="pulsecard">
+     <p class="eyebrow">Market pulse</p>
+     <div class="pulse" id="pulse"></div>
+    </div>
     <div class="card" data-panel="sectors" id="sectorcard">
     <p class="eyebrow">Sectors &middot; weighted move today</p>
     <div class="sect" id="sectors"></div>
@@ -2159,6 +2265,17 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </section>
 
  <section class="pane" data-pane="record">
+  <div class="card" data-panel="calc" id="calccard">
+   <p class="eyebrow">Position calculator</p>
+   <div class="calcgrid">
+    <label>Capital<input id="c_cap" inputmode="decimal" autocomplete="off"></label>
+    <label>Risk %<input id="c_risk" inputmode="decimal" autocomplete="off"></label>
+    <label>Entry premium<input id="c_entry" inputmode="decimal" autocomplete="off"></label>
+    <label>Stop premium<input id="c_stop" inputmode="decimal" autocomplete="off"></label>
+    <label>Lot size<input id="c_lot" inputmode="decimal" autocomplete="off"></label>
+   </div>
+   <div class="calcout" id="calcout"></div>
+  </div>
   <div class="card" data-panel="recap" id="recapcard">
   <p class="eyebrow">Session recap</p>
   <div class="recap" id="recap"></div>
@@ -2188,6 +2305,21 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 
 <script>
 let CUR=null, LAST=null;
+// These are declared here, with the other page globals, because the code in
+// this block runs BEFORE the blocks that define the sections, the map and the
+// home screen - and a const or let reached before its own declaration throws
+// rather than reading as undefined, which silently killed everything after it.
+let MKT_ROWS = null;      // the strip's levels, reused by Home
+let MAPDATA = null;       // the constituent payload the map fetched
+let TAB = "home";         // the section on screen
+const DESK = [
+  ["signal", "&#127919;", "Signal", "The call, its strike, the ladder and what is holding it back."],
+  ["chart", "&#128200;", "Chart", "Candles with both EMAs and VWAP, at 5m, 15m or daily."],
+  ["chain", "&#9939;", "Option chain", "Calls and puts around the money, with the spread you would pay."],
+  ["market", "&#128506;", "Market", "The map, sector strength, the constituents and who is moving the index."],
+  ["news", "&#128240;", "News", "Headlines from several sources, de-duplicated."],
+  ["record", "&#128188;", "Record", "This session, your track record, and the full reasoning."],
+];
 var SCENE_BIAS = "";      // the 3D background's glow colour; read by the scene script
 const $=id=>document.getElementById(id);
 const num=(v,d=2)=>v===null||v===undefined||isNaN(v)?"—":
@@ -3394,6 +3526,7 @@ function render(s){
   if(TAB === "chain") chainFetch();
   if(TAB === "news") newsFetch();
   recapDraw(s);
+  if(TAB === "home") homeDraw(s);
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -3499,7 +3632,7 @@ async function heatMap(force){
   }catch(e){ return; }
   if(d.index !== CUR) return;              // the user switched mid-flight
   MAPDATA = d;
-  screenDraw(); sectorDraw();
+  screenDraw(); sectorDraw(); moverDraw(); pulseDraw();
   if(blind) return;
 
   if(!d.tiles || !d.tiles.length){
@@ -3582,7 +3715,9 @@ async function markets_(){
   if(strip) strip.style.display = "";
   try{
     const d = await (await fetch("/api/markets",{cache:"no-store"})).json();
+    MKT_ROWS = d.rows;
     renderTicker(d.rows);
+    if(TAB === "home") homeDraw(LAST);
   }catch(e){}
 }
 
@@ -3770,6 +3905,8 @@ const PANELS = [["signal","Signal card"], ["trend","Trend, day move, confidence"
                 ["chart","Price chart"], ["record","Track record"],
                 ["range","Today's range"], ["chain","Option chain"],
                 ["map","Market map"], ["news","Headlines"], ["sectors","Sectors"],
+                ["mover","Index mover"], ["pulse","Market pulse"],
+                ["clock","Option clock"], ["calc","Position calculator"],
                 ["screen","Constituents"], ["recap","Session recap"],
                 ["why","Why - every input"]];
 const PKEY = "nbs.panels.v1";
@@ -3896,7 +4033,7 @@ async function chainFetch(force){
   try{
     const d = await (await fetch("/api/chain?index=" + encodeURIComponent(CUR),
                                  {cache:"no-store"})).json();
-    chainDraw(d);
+    chainDraw(d); clockDraw(d);
   }catch(e){}
 }
 function chainDraw(d){
@@ -3965,12 +4102,11 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["signal", "chart", "chain", "market", "news", "record"];
-const TAB_LABEL = {signal:"Signal", chart:"Chart", chain:"Option chain",
+const TABS = ["home", "signal", "chart", "chain", "market", "news", "record"];
+const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", news:"News", record:"Record"};
-let TAB = "signal";
 function showTab(name, push){
-  if(!TABS.includes(name)) name = "signal";
+  if(!TABS.includes(name)) name = "home";
   TAB = name;
   document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === name));
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
@@ -3983,8 +4119,22 @@ function showTab(name, push){
   try{ wireDrag(); }catch(e){}
   if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }
   if(name === "market") heatMap(true);
+  if(name === "record"){
+    const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
+    if(cap && !cap.value){
+      cap.value = ses.capital ? Math.round(ses.capital) : "";
+      $("c_risk").value = ses.risk_pct || "";
+      const tk = ((LAST && LAST.tickets && LAST.tickets[CUR]) || {}).ticket;
+      const r = (LAST && LAST.indices && LAST.indices[CUR]) || {};
+      if($("c_lot") && !$("c_lot").value) $("c_lot").value = r.lot_size || "";
+      if($("c_entry") && !$("c_entry").value && r.ltp) $("c_entry").value = r.ltp.toFixed(2);
+      if($("c_stop") && !$("c_stop").value && r.premium_stop) $("c_stop").value = r.premium_stop.toFixed(2);
+      calcDraw();
+    }
+  }
   if(name === "chain") chainFetch(true);
   if(name === "news") newsFetch();
+  if(name === "home"){ homeDraw(LAST); markets_(); }
 }
 document.querySelectorAll(".tab").forEach(b =>
   b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -3992,10 +4142,179 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 (() => {
   let start = location.hash.slice(1);
   if(!TABS.includes(start)){
-    try{ start = localStorage.getItem("nbs.tab.v1") || "signal"; }catch(e){ start = "signal"; }
+    try{ start = localStorage.getItem("nbs.tab.v1") || "home"; }catch(e){ start = "home"; }
   }
   showTab(start, false);
 })();
+
+
+// ============================================================ home
+// The landing screen: where the wider market is, what today has done, and a
+// way into every section. Every number here is one the page already has -
+// the strip's own levels and the session the record is kept in.
+function homeDraw(s){
+  const g = $("gmk");
+  if(g && MKT_ROWS){
+    g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {
+      const up = r.pct == null ? 0 : r.pct;
+      const col = up > 0 ? "var(--up)" : up < 0 ? "var(--down)" : "var(--ink-3)";
+      const chg = r.change == null ? "—"
+        : `${r.change >= 0 ? "+" : "−"}${Math.abs(r.change).toLocaleString("en-IN")}`
+          + (r.pct == null ? "" : ` (${r.pct >= 0 ? "+" : "−"}${Math.abs(r.pct).toFixed(2)}%)`);
+      return `<div class="q"><div class="n">${esc(r.label)}</div>`
+           + `<div class="p">${r.price == null ? "—" : num(r.price, r.dp == null ? 2 : r.dp)}</div>`
+           + `<div class="c" style="color:${col}">${chg}</div></div>`;
+    }).join("");
+  }
+  const t = $("htoday"), ses = (s && s.session) || {};
+  if(t){
+    const cell = (l, v, col) => `<div class="r"><div class="l">${esc(l)}</div>`
+      + `<div class="v"${col ? ` style="color:${col}"` : ""}>${v}</div></div>`;
+    const n = ses.net;
+    t.innerHTML = cell("Market", s && s.market_open ? "Open" : "Closed",
+                       s && s.market_open ? "var(--up)" : "var(--ink-3)")
+      + cell("Tickets today", ses.issued == null ? "—" : ses.issued)
+      + cell("Net", n == null ? "—" : money(n),
+             (n || 0) > 0 ? "var(--up)" : (n || 0) < 0 ? "var(--down)" : "")
+      + cell("Watching", (s && (s.order || []).length) || "—");
+  }
+  const d = $("dgrid");
+  if(d && DESK.length && !d.dataset.built){
+    d.dataset.built = "1";
+    d.innerHTML = DESK.map(([tab, icon, title, desc]) =>
+      `<button class="dcard" type="button" data-go="${tab}"><span class="i">${icon}</span>`
+      + `<b>${esc(title)}</b><span>${esc(desc)}</span></button>`).join("");
+    d.addEventListener("click", e => {
+      const c = e.target.closest("[data-go]");
+      if(c) showTab(c.dataset.go);
+    });
+  }
+}
+
+// ============================================================ index mover
+// Which members are carrying the index and which are holding it back, in
+// index points: the level times the member's weight times its move. The
+// screener says what each stock did; this says what it did TO the index.
+function moverDraw(){
+  const box = $("mover");
+  if(!box || !MAPDATA) return;
+  const spot = ((LAST && LAST.indices && LAST.indices[CUR]) || {}).spot;
+  $("movidx").textContent = CUR || "—";
+  const rows = (MAPDATA.tiles || [])
+    .filter(r => r.pct != null && r.weight)
+    .map(r => ({sym: r.sym, pts: (spot || 0) * (r.weight / 100) * (r.pct / 100), pct: r.pct}))
+    .sort((a, b) => b.pts - a.pts);
+  if(!rows.length || !spot){
+    box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">Waiting for the constituents.</p>`;
+    $("movernote").textContent = "";
+    return;
+  }
+  const top = rows.slice(0, 5), bottom = rows.slice(-5).reverse();
+  const max = Math.max(...rows.map(r => Math.abs(r.pts)), 1);
+  const line = r => {
+    const up = r.pts >= 0, half = Math.min(50, Math.abs(r.pts) / max * 50);
+    return `<div class="mvrow"><span class="s">${esc(r.sym)}</span>`
+      + `<span class="mvbar"><u></u><i style="${up ? "left:50%" : "right:50%"};width:${half}%;`
+      + `background:${up ? "var(--up)" : "var(--down)"}"></i></span>`
+      + `<span class="mvval" style="color:${up ? "var(--up)" : "var(--down)"}">`
+      + `${up ? "+" : "−"}${Math.abs(r.pts).toFixed(1)}</span></div>`;
+  };
+  box.innerHTML = top.map(line).join("") + bottom.map(line).join("");
+  const net = rows.reduce((a, r) => a + r.pts, 0);
+  $("movernote").textContent =
+    `Index points contributed. The five pushing hardest and the five dragging most; `
+    + `everything listed adds to ${net >= 0 ? "+" : "−"}${Math.abs(net).toFixed(0)} points.`;
+}
+
+// ============================================================ market pulse
+function pulseDraw(){
+  const box = $("pulse");
+  if(!box || !MAPDATA) return;
+  const known = (MAPDATA.tiles || []).filter(r => r.pct != null);
+  if(!known.length){
+    box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">Waiting for the constituents.</p>`;
+    return;
+  }
+  const by = [...known].sort((a, b) => b.pct - a.pct);
+  const row = r => `<div class="pr"><span>${esc(r.sym)}</span>`
+    + `<span style="color:${r.pct >= 0 ? "var(--up)" : "var(--down)"}">`
+    + `${r.pct >= 0 ? "+" : "−"}${Math.abs(r.pct).toFixed(2)}%</span></div>`;
+  const up = known.filter(r => r.pct > 0).length, down = known.filter(r => r.pct < 0).length;
+  const b = MAPDATA.breadth || {};
+  box.innerHTML =
+      `<div class="pr"><span><b>${up}</b> up &middot; <b>${down}</b> down</span>`
+    + `<span style="color:${(b.weighted||0) >= 0 ? "var(--up)" : "var(--down)"}">`
+    + `weighted ${(b.weighted||0) >= 0 ? "+" : "−"}${Math.abs(b.weighted||0).toFixed(2)}%</span></div>`
+    + `<div class="ph">Leading</div>` + by.slice(0, 4).map(row).join("")
+    + `<div class="ph">Lagging</div>` + by.slice(-4).reverse().map(row).join("");
+}
+
+// ============================================================ option clock
+// Open interest is a running total, so the number that matters intraday is
+// what has been ADDED since the session started. Writers building at a strike
+// is where the market is defending; unwinding is where it has given up.
+function clockDraw(d){
+  const box = $("clock2");
+  if(!box) return;
+  $("clocksince").textContent = d && d.since ? d.since + " IST" : "the open";
+  const rows = (d && d.rows) || [];
+  const adds = [];
+  rows.forEach(r => {
+    if(r.ce && r.ce.oi_chg != null) adds.push({k: r.strike, side: "CE", v: r.ce.oi_chg});
+    if(r.pe && r.pe.oi_chg != null) adds.push({k: r.strike, side: "PE", v: r.pe.oi_chg});
+  });
+  const moved = adds.filter(a => Math.abs(a.v) > 0);
+  if(!moved.length){
+    box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+      + `Nothing added yet - this fills in as the session trades.</p>`;
+    $("clocknote").textContent = "";
+    return;
+  }
+  moved.sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+  const max = Math.max(...moved.map(a => Math.abs(a.v)), 1);
+  box.innerHTML = moved.slice(0, 8).map(a => {
+    const up = a.v >= 0, half = Math.min(50, Math.abs(a.v) / max * 50);
+    return `<div class="mvrow"><span class="s">${num(a.k,0)} ${a.side}</span>`
+      + `<span class="mvbar"><u></u><i style="${up ? "left:50%" : "right:50%"};width:${half}%;`
+      + `background:${a.side === "CE" ? "var(--up)" : "var(--down)"};opacity:${up ? 1 : .55}"></i></span>`
+      + `<span class="mvval" style="color:${up ? "var(--ink-2)" : "var(--ink-3)"}">`
+      + `${up ? "+" : "−"}${oiFmt(Math.abs(a.v))}</span></div>`;
+  }).join("");
+  $("clocknote").textContent = "Added (+) or closed (−) since the tool first saw "
+    + "today's chain. A restart starts the count again.";
+}
+
+// ============================================================ calculator
+// The same arithmetic the risk box does on a live signal, for a trade you are
+// sizing by hand. It places nothing and stores nothing.
+function calcDraw(){
+  const g = id => parseFloat(($(id).value || "").replace(/[^0-9.]/g, ""));
+  const cap = g("c_cap"), risk = g("c_risk"), entry = g("c_entry"),
+        stop = g("c_stop"), lot = g("c_lot");
+  const out = $("calcout");
+  if(!out) return;
+  if(!(entry > 0) || !(stop >= 0) || !(lot > 0) || !(entry > stop)){
+    out.innerHTML = "Enter an entry above the stop, and the lot size, to size a trade.";
+    return;
+  }
+  const perLot = (entry - stop) * lot;
+  let txt = `One lot risks <b>${money(perLot, false)}</b> `
+          + `(${num(entry - stop, 2)} of premium × ${num(lot, 0)}).`;
+  if(cap > 0 && risk > 0){
+    const budget = cap * risk / 100, fit = Math.floor(budget / perLot);
+    txt += ` At ${num(risk, 2)}% of ${money(cap, false)} you can risk `
+        + `<b>${money(budget, false)}</b>, which is `
+        + (fit >= 1 ? `<b>${fit} lot${fit !== 1 ? "s" : ""}</b> `
+                    + `(${money(perLot * fit, false)}, ${num(perLot * fit / cap * 100, 2)}% of capital).`
+                    : `<b>less than one lot</b> - one lot alone is `
+                      + `${num(perLot / cap * 100, 2)}% of capital.`);
+  }
+  out.innerHTML = txt;
+}
+["c_cap","c_risk","c_entry","c_stop","c_lot"].forEach(id => {
+  const el = $(id);
+  if(el) el.addEventListener("input", calcDraw);
+});
 
 // ============================================================ screener
 // OpenTerminal screens the whole US market; an index has a fixed, published
@@ -4003,7 +4322,6 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 // sort them, filter them, and see which sectors are carrying the move. Drawn
 // from the payload the market map already fetched - no second call, and the
 // two panels can never disagree with the map.
-let MAPDATA = null;
 const SCR = {by: "pct", dir: -1, q: "", sec: ""};
 function scrRows(){
   const t = (MAPDATA && MAPDATA.tiles) || [];
