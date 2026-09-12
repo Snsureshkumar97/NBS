@@ -1603,16 +1603,56 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
    The signal stays above these; everything else lives in a pane and only one
    pane is on screen at a time. Panes are hidden, never torn down, so the
    chart keeps its scroll and the chain keeps its place in the strikes. */
-.tabs{display:flex;gap:6px;margin:16px 0 0;flex-wrap:wrap;border-bottom:1px solid var(--bd-soft);
-  padding-bottom:10px}
-.tab{background:rgba(255,255,255,.04);border:1px solid var(--bd);color:var(--ink-2);
-  border-radius:999px;padding:7px 15px;font-size:13px;font-weight:650;cursor:pointer;
-  font-family:inherit;transition:background .15s,color .15s,border-color .15s}
-.tab:hover{color:var(--ink)}
-.tab.on{background:linear-gradient(180deg,#5aa2ee,#3a7fd0);border-color:#5aa2ee;color:#fff}
-.pane{display:none;margin-top:14px}
+/* The menu moved into the sidebar, so the sections area is just the panes. */
+.sections{display:block;margin-top:16px}
+.tabs-legacy{display:none}
+
+/* ---------- the sidebar ---------- */
+.side{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:40;display:flex;
+  flex-direction:column;gap:2px;padding:16px 12px 12px;overflow-y:auto;
+  background:rgba(8,10,16,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-right:1px solid var(--bd)}
+.main{margin-left:236px;min-width:0}
+.sbrand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px;
+  padding:6px 8px 16px}
+.sbrand small{display:block;font-weight:500;font-size:10px;color:var(--ink-3);
+  letter-spacing:.3px;text-transform:uppercase;margin-top:2px}
+.menu{display:flex;flex-direction:column;gap:2px}
+.mgroup{font-size:10.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--ink-3);margin:14px 0 6px;padding-left:10px}
+.menu .tab{display:flex;align-items:center;gap:10px;background:transparent;
+  border:1px solid transparent;color:var(--ink-2);border-radius:10px;padding:9px 11px;
+  font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;
+  text-decoration:none;transition:background .15s,color .15s,border-color .15s}
+.menu .tab i{font-style:normal;font-size:14px;width:18px;text-align:center;flex:none;opacity:.9}
+.menu .tab:hover{color:var(--ink);background:rgba(255,255,255,.05);text-decoration:none}
+.menu .tab.on{background:linear-gradient(90deg,rgba(77,148,232,.22),rgba(77,148,232,.05));
+  border-color:rgba(77,148,232,.45);color:var(--ink)}
+.sidefoot{margin-top:auto;display:flex;align-items:center;gap:8px;padding:10px 10px 4px;
+  border-top:1px solid var(--bd-soft);font-size:12px;color:var(--ink-3)}
+.sidefoot .su{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.sidefoot b{color:var(--ink-2);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;max-width:150px}
+.sout{margin-left:auto;color:var(--ink-3);font-size:15px;text-decoration:none;
+  border:1px solid var(--bd);border-radius:8px;padding:2px 8px}
+.sout:hover{color:var(--down);border-color:rgba(239,85,112,.5);text-decoration:none}
+/* On a narrow screen the sidebar becomes a strip across the top. */
+@media(max-width:900px){
+  .side{position:static;width:auto;flex-direction:row;align-items:center;gap:8px;
+    overflow-x:auto;border-right:0;border-bottom:1px solid var(--bd);padding:10px 12px}
+  .main{margin-left:0}
+  .sbrand{display:none}
+  .menu{flex-direction:row;gap:6px}
+  .mgroup,.sidefoot{display:none}
+  .menu .tab{white-space:nowrap;border-radius:999px;padding:7px 13px;
+    border-color:var(--bd);background:rgba(255,255,255,.04)}
+}
+.panes{min-width:0}
+.pane{display:none}
 .pane.on{display:block}
-@media(max-width:640px){.tab{padding:6px 12px;font-size:12.5px}}
+/* Under a laptop width the rail costs more than it gives, so it becomes a
+   strip across the top that you can push with a thumb. */
+
 
 /* ---------- a workspace you can arrange ----------
    The drag handle appears on hover, top-right of a movable panel. Only the
@@ -1812,6 +1852,36 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </div>
 </div>
 
+<aside class="side" id="side">
+ <a class="sbrand" href="/" style="color:inherit;text-decoration:none">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+   <rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/>
+   <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8"
+         stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+   <circle cx="19" cy="13.9" r="2" fill="#4caf50"/>
+  </svg>
+  <div>NBS Signal Tool<small id="sidesub">Nifty · Bank Nifty · Sensex</small></div>
+ </a>
+ <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
+  <p class="mgroup">Market</p>
+  <button class="tab on" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
+  <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
+  <button class="tab" data-tab="market" role="tab" type="button"><i>&#128506;</i>Market</button>
+  <p class="mgroup">Desk</p>
+  <button class="tab" data-tab="news" role="tab" type="button"><i>&#128240;</i>News</button>
+  <button class="tab" data-tab="record" role="tab" type="button"><i>&#128188;</i>Record</button>
+  <p class="mgroup">Account</p>
+  <a class="tab" href="/review"><i>&#128202;</i>Review</a>
+  <a class="tab" href="/connect"><i>&#128279;</i>Zerodha</a>
+  <a class="tab" href="/how-it-works"><i>&#10067;</i>How it works</a>
+ </nav>
+ <div class="sidefoot">
+  <div class="su">Signed in<b id="sideuser">&mdash;</b></div>
+  <a class="sout" href="/logout" title="Sign out">&#9211;</a>
+ </div>
+</aside>
+
+<div class="main">
 <header><div class="hd">
   <a class="brand" href="/" style="color:inherit;text-decoration:none">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1945,13 +2015,15 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
       lives behind a tab. Panes are switched by hiding, never by rebuilding:
       the chart keeps its scroll position, the chain keeps its place in the
       strikes, and nothing is re-fetched just because you looked away. -->
- <div class="tabs" id="tabs" role="tablist">
+ <div class="sections">
+ <nav class="tabs-legacy" hidden aria-hidden="true">
   <button class="tab on" data-tab="chart" role="tab" type="button">Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button">Option chain</button>
   <button class="tab" data-tab="market" role="tab" type="button">Market</button>
   <button class="tab" data-tab="news" role="tab" type="button">News</button>
   <button class="tab" data-tab="record" role="tab" type="button">Record</button>
- </div>
+ </nav>
+ <div class="panes">
 
  <section class="pane on" data-pane="chart">
   <div class="grid">
@@ -2073,6 +2145,8 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="why" id="why"></div>
   </div>
  </section>
+ </div>
+ </div>
 
  <footer>
   All figures are index points and exclude brokerage, STT, slippage and option time
@@ -2080,6 +2154,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   predict its future behaviour. Options can lose their entire value. Verify every
   number with your own broker before risking money.
  </footer>
+</div>
 </div>
 
 <script>
@@ -3492,6 +3567,8 @@ function greet(s){
   if(!email){ who.textContent = "—"; return; }
   who.textContent = email.split("@")[0];
   who.title = email;
+  const su = $("sideuser");
+  if(su){ su.textContent = email.split("@")[0]; su.title = email; }
   const k = s.kite || {};
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
@@ -3690,30 +3767,43 @@ applyPanels();
 // alone - the signal above the reasoning is the argument the page is making.
 const LKEY = "nbs.layout.v1";
 const STACKS = ["colL", "colR", "colM1", "colM2"];
+// A panel is movable inside its own stack, and a panel that sits straight in
+// a section is movable within that section. Keyed by container, so a layout
+// saved for one section can never reorder another.
+const DRAG_SEL = STACKS.map(id => `#${id} > [data-panel]`).join(", ")
+               + ", .pane > [data-panel]";
 let LAYOUT = {};
 try{ LAYOUT = JSON.parse(localStorage.getItem(LKEY) || "{}"); }catch(e){}
-const stackOf = el => (el && el.parentElement && STACKS.includes(el.parentElement.id))
-                      ? el.parentElement.id : null;
+const stackOf = el => {
+  const p = el && el.parentElement;
+  if(!p) return null;
+  if(STACKS.includes(p.id)) return p.id;
+  return p.classList && p.classList.contains("pane") ? "pane:" + p.dataset.pane : null;
+};
 function saveLayout(){
   const out = {};
-  STACKS.forEach(id => {
-    const box = document.getElementById(id);
-    if(!box) return;
-    out[id] = [...box.querySelectorAll(":scope > [data-panel]")].map(e => e.dataset.panel);
+  const boxes = [...STACKS.map(id => document.getElementById(id)),
+                 ...document.querySelectorAll(".pane")].filter(Boolean);
+  boxes.forEach(box => {
+    const key = box.id || ("pane:" + box.dataset.pane);
+    const kids = [...box.querySelectorAll(":scope > [data-panel]")].map(e => e.dataset.panel);
+    if(kids.length) out[key] = kids;
   });
   LAYOUT = out;
   try{ localStorage.setItem(LKEY, JSON.stringify(out)); }catch(e){}
 }
 function applyLayout(){
-  STACKS.forEach(id => {
-    const box = document.getElementById(id);
+  Object.keys(LAYOUT).forEach(id => {
+    const box = id.startsWith("pane:")
+      ? document.querySelector(`.pane[data-pane="${id.slice(5)}"]`)
+      : document.getElementById(id);
     const names = LAYOUT[id];
     if(!box || !Array.isArray(names)) return;
     names.forEach(n => {
       const el = document.querySelector(`[data-panel="${n}"]`);
       // Only panels that already live in one of the two stacks, so a layout
       // saved by an older version cannot pull the signal card into a column.
-      if(el && stackOf(el)) box.appendChild(el);
+      if(el && stackOf(el) === id) box.appendChild(el);
     });
   });
 }
@@ -3723,7 +3813,7 @@ function resetLayout(){
   location.reload();
 }
 function wireDrag(){
-  document.querySelectorAll("#colL > [data-panel], #colR > [data-panel]").forEach(el => {
+  document.querySelectorAll(DRAG_SEL).forEach(el => {
     if(el.querySelector(":scope > .grip")) return;
     const g = document.createElement("button");
     g.className = "grip"; g.type = "button"; g.title = "Drag to move this panel";
@@ -3749,7 +3839,7 @@ function wireDrag(){
       e.preventDefault(); el.classList.remove("over");
       const name = e.dataTransfer.getData("text/plain");
       const src = document.querySelector(`[data-panel="${name}"]`);
-      if(!src || src === el || !el.closest("#colL, #colR")) return;
+      if(!src || src === el || src.parentElement !== el.parentElement) return;
       const r = el.getBoundingClientRect();
       el.parentElement.insertBefore(src, e.clientY < r.top + r.height / 2 ? el : el.nextSibling);
       saveLayout();
