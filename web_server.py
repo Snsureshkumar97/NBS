@@ -1537,6 +1537,38 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   .pill{padding:5px 10px;font-size:11.5px}
 }
 
+/* ---------- screener, sectors, recap ---------- */
+.scrctl{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--ink-3)}
+.scrctl input,.scrctl select{background:var(--raised);color:var(--ink);border:1px solid var(--bd);
+  border-radius:8px;padding:4px 8px;font:inherit;font-size:12px}
+.scrctl input{width:110px}
+.scrwrap{max-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:12px;
+  background:rgba(6,8,12,.55)}
+table.scr{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+table.scr th{position:sticky;top:0;background:rgba(10,12,18,.97);font-size:10px;
+  letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);font-weight:700;
+  padding:7px 8px;text-align:right;cursor:pointer;white-space:nowrap}
+table.scr th:first-child,table.scr td:first-child{text-align:left}
+table.scr th.on{color:var(--ink-2)}
+table.scr td{padding:6px 8px;text-align:right;border-top:1px solid var(--bd-soft);
+  color:var(--ink-2);white-space:nowrap}
+table.scr td.sym{color:var(--ink);font-weight:650}
+table.scr td.sec{color:var(--ink-3);font-size:11.5px}
+.sect{display:grid;gap:7px}
+.sectrow{display:grid;grid-template-columns:104px 1fr 62px;gap:10px;align-items:center;
+  font-size:12.5px;color:var(--ink-2)}
+.sectbar{height:8px;border-radius:5px;background:linear-gradient(180deg,#0a0b0f,#16181f);
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.55);position:relative;overflow:hidden}
+.sectbar i{position:absolute;top:0;height:100%;border-radius:5px}
+.sectbar u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--bd)}
+.sectval{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+.recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.recap .r{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.recap .r .l{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+.recap .r .v{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.recaplist{margin-top:10px;font-size:12.5px;color:var(--ink-3)}
+.recaplist div{padding:5px 0;border-top:1px solid var(--bd-soft)}
+
 /* ---------- headlines ---------- */
 .news{display:grid;gap:0}
 .news a{display:block;padding:9px 2px;border-bottom:1px solid var(--bd-soft);
@@ -1931,6 +1963,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <div class="news" id="news"></div>
     <div class="newsnote" id="newsnote"></div>
    </div>
+   <div class="card" data-panel="recap" id="recapcard">
+    <p class="eyebrow">Session recap</p>
+    <div class="recap" id="recap"></div>
+    <div class="recaplist" id="recaplist"></div>
+   </div>
    <div class="card" id="reccard" data-panel="record">
     <p class="eyebrow">Track record &middot; wins and losses</p>
     <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
@@ -1947,6 +1984,19 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <p class="eyebrow">Option chain &middot; <span id="chainhead">&mdash;</span></p>
     <div class="chainwrap"><table class="chain" id="chain"></table></div>
     <div class="chainbar" id="chainbar"></div>
+   </div>
+   <div class="card" data-panel="sectors" id="sectorcard">
+    <p class="eyebrow">Sectors &middot; weighted move today</p>
+    <div class="sect" id="sectors"></div>
+   </div>
+   <div class="card" data-panel="screen" id="screencard">
+    <p class="eyebrow">Constituents &middot; <span id="scrcount">&mdash;</span></p>
+    <div class="scrctl">
+     <input id="scrq" placeholder="filter" autocomplete="off" spellcheck="false">
+     <select id="scrsec"><option value="">all sectors</option></select>
+     <span id="scrnote" style="margin-left:auto"></span>
+    </div>
+    <div class="scrwrap"><table class="scr" id="scr"></table></div>
    </div>
    <div class="card" data-panel="map">
     <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
@@ -3164,6 +3214,7 @@ function render(s){
   sessionStrip(s.session, s.order);
   chainFetch();
   newsFetch();
+  recapDraw(s);
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -3255,16 +3306,22 @@ async function heatMap(force){
   const box = $("mapwrap");
   if(!box) return;
   const w = Math.round(box.clientWidth), h = Math.round(box.clientHeight);
-  if(w < 40) return;
   if(!force && CUR === MAPKEY && Date.now() - MAPAT < 2000) return;
   MAPKEY = CUR; MAPAT = Date.now();
   $("mapidx").textContent = CUR || "—";
   let d;
+  // The screener and the sector panel read the same constituents, so the
+  // fetch happens even when the map itself is put away - with a nominal box,
+  // since nothing is being laid out.
+  const blind = box.hidden || w < 40;
   try{
-    d = await (await fetch(`/api/map/${encodeURIComponent(CUR)}?w=${w}&h=${h}`,
-                           {cache:"no-store"})).json();
+    d = await (await fetch(`/api/map/${encodeURIComponent(CUR)}?w=${blind?600:w}`
+                           + `&h=${blind?400:h}`, {cache:"no-store"})).json();
   }catch(e){ return; }
   if(d.index !== CUR) return;              // the user switched mid-flight
+  MAPDATA = d;
+  screenDraw(); sectorDraw();
+  if(blind) return;
 
   if(!d.tiles || !d.tiles.length){
     box.innerHTML = `<div style="display:flex;height:100%;align-items:center;
@@ -3528,7 +3585,9 @@ addEventListener("resize",()=>{clearTimeout(window._rz);
 const PANELS = [["signal","Signal card"], ["trend","Trend, day move, confidence"],
                 ["chart","Price chart"], ["record","Track record"],
                 ["range","Today's range"], ["chain","Option chain"],
-                ["map","Market map"], ["news","Headlines"], ["why","Why - every input"]];
+                ["map","Market map"], ["news","Headlines"], ["sectors","Sectors"],
+                ["screen","Constituents"], ["recap","Session recap"],
+                ["why","Why - every input"]];
 const PKEY = "nbs.panels.v1";
 let HIDDEN = new Set();
 try{ HIDDEN = new Set(JSON.parse(localStorage.getItem(PKEY) || "[]")); }catch(e){}
@@ -3544,6 +3603,7 @@ function togglePanel(k){
   if(!HIDDEN.has("chart")) { try{ chartDraw(); }catch(e){} }
   if(!HIDDEN.has("chain")) chainFetch(true);
   if(!HIDDEN.has("news")) newsFetch(true);
+  if(!HIDDEN.has("screen") || !HIDDEN.has("sectors") || !HIDDEN.has("map")) heatMap(true);
 }
 applyPanels();
 
@@ -3699,6 +3759,133 @@ function chainDraw(d){
       box.scrollTop += (rb.top - bb.top) - (bb.height / 2 - rb.height / 2);
     }
   }
+}
+
+
+// ============================================================ screener
+// OpenTerminal screens the whole US market; an index has a fixed, published
+// membership, so the useful version here is the index's own constituents:
+// sort them, filter them, and see which sectors are carrying the move. Drawn
+// from the payload the market map already fetched - no second call, and the
+// two panels can never disagree with the map.
+let MAPDATA = null;
+const SCR = {by: "pct", dir: -1, q: "", sec: ""};
+function scrRows(){
+  const t = (MAPDATA && MAPDATA.tiles) || [];
+  const q = SCR.q.toLowerCase();
+  const rows = t.filter(r => (!SCR.sec || r.sector === SCR.sec)
+                          && (!q || (r.sym + " " + r.sector).toLowerCase().includes(q)));
+  const key = SCR.by;
+  return rows.sort((a, b) => {
+    const av = key === "sym" ? a.sym : key === "sector" ? a.sector : a[key],
+          bv = key === "sym" ? b.sym : key === "sector" ? b.sector : b[key];
+    if(av == null) return 1;
+    if(bv == null) return -1;
+    if(typeof av === "string") return SCR.dir * av.localeCompare(bv);
+    return SCR.dir * (av - bv);
+  });
+}
+function screenDraw(){
+  const t = $("scr");
+  if(!t || !MAPDATA) return;
+  const all = MAPDATA.tiles || [];
+  const sel = $("scrsec");
+  const sectors = [...new Set(all.map(r => r.sector).filter(Boolean))].sort();
+  if(sel.options.length !== sectors.length + 1){
+    sel.innerHTML = `<option value="">all sectors</option>`
+      + sectors.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
+    sel.value = SCR.sec;
+  }
+  const rows = scrRows();
+  $("scrcount").textContent = rows.length === all.length
+    ? `${all.length} in ${CUR}` : `${rows.length} of ${all.length}`;
+  const head = (k, label) =>
+    `<th class="${SCR.by === k ? "on" : ""}" data-k="${k}">${label}`
+    + (SCR.by === k ? (SCR.dir < 0 ? " ▾" : " ▴") : "") + `</th>`;
+  t.innerHTML = `<thead><tr>${head("sym","Symbol")}${head("sector","Sector")}`
+    + `${head("weight","Weight")}${head("pct","Change")}</tr></thead><tbody>`
+    + rows.map(r => {
+        const col = r.pct == null ? "var(--ink-3)" : r.pct > 0 ? "var(--up)"
+                  : r.pct < 0 ? "var(--down)" : "var(--ink-2)";
+        const pct = r.pct == null ? "—"
+                  : (r.pct >= 0 ? "+" : "−") + Math.abs(r.pct).toFixed(2) + "%";
+        return `<tr><td class="sym">${esc(r.sym)}</td><td class="sec">${esc(r.sector||"")}</td>`
+             + `<td>${r.weight == null ? "—" : r.weight.toFixed(2) + "%"}</td>`
+             + `<td style="color:${col}">${pct}</td></tr>`;
+      }).join("") + `</tbody>`;
+  const known = all.filter(r => r.pct != null).length;
+  $("scrnote").textContent = known < all.length ? `${known}/${all.length} streaming` : "";
+}
+$("scr").addEventListener("click", e => {
+  const th = e.target.closest("th[data-k]");
+  if(!th) return;
+  const k = th.dataset.k;
+  if(SCR.by === k) SCR.dir = -SCR.dir; else { SCR.by = k; SCR.dir = (k === "sym" || k === "sector") ? 1 : -1; }
+  screenDraw();
+});
+$("scrq").addEventListener("input", e => { SCR.q = e.target.value; screenDraw(); });
+$("scrsec").addEventListener("change", e => { SCR.sec = e.target.value; screenDraw(); });
+
+// ============================================================ sectors
+// Each sector's move, weighted by what it is worth in the index rather than
+// averaged flat - a 12% bank moving 1% is not the same event as a 0.4% one.
+function sectorDraw(){
+  const box = $("sectors");
+  if(!box || !MAPDATA) return;
+  const by = {};
+  (MAPDATA.tiles || []).forEach(r => {
+    if(r.pct == null || !r.weight) return;
+    const s = by[r.sector] = by[r.sector] || {w: 0, wp: 0};
+    s.w += r.weight; s.wp += r.weight * r.pct;
+  });
+  const rows = Object.entries(by).map(([name, v]) => ({name, w: v.w, pct: v.wp / v.w}))
+                     .sort((a, b) => b.pct - a.pct);
+  if(!rows.length){ box.innerHTML =
+    `<p style="color:var(--ink-3);font-size:13px;margin:0">Waiting for the constituents.</p>`;
+    return; }
+  const max = Math.max(0.35, ...rows.map(r => Math.abs(r.pct)));
+  box.innerHTML = rows.map(r => {
+    const half = Math.min(50, Math.abs(r.pct) / max * 50);
+    const up = r.pct >= 0;
+    return `<div class="sectrow"><span>${esc(r.name)}</span>`
+      + `<span class="sectbar"><u></u><i style="${up ? "left:50%" : `right:50%`};`
+      + `width:${half}%;background:${up ? "var(--up)" : "var(--down)"}"></i></span>`
+      + `<span class="sectval" style="color:${up ? "var(--up)" : "var(--down)"}">`
+      + `${up ? "+" : "−"}${Math.abs(r.pct).toFixed(2)}%</span></div>`;
+  }).join("");
+}
+
+// ============================================================ recap
+// What this session has actually done, in one box: what the rules issued,
+// what came of it, and where the index finished. Read from the state the
+// page already has - the log on disk is the source for all of it.
+function recapDraw(s){
+  const box = $("recap");
+  if(!box) return;
+  const ses = s.session || {}, r = (s.indices || {})[CUR] || {}, tr = r.trend || {};
+  const cell = (l, v, col) => `<div class="r"><div class="l">${esc(l)}</div>`
+    + `<div class="v"${col ? ` style="color:${col}"` : ""}>${v}</div></div>`;
+  const net = ses.net == null ? null : ses.net;
+  box.innerHTML =
+      cell("Tickets today", ses.issued == null ? "—" : ses.issued)
+    + cell("Ran to target", ses.wins == null ? "—" : ses.wins, "var(--up)")
+    + cell("Stopped out", ses.stops == null ? "—" : ses.stops, "var(--down)")
+    + cell("Booked", ses.booked == null ? "—" : money(ses.booked),
+           (ses.booked || 0) > 0 ? "var(--up)" : (ses.booked || 0) < 0 ? "var(--down)" : "")
+    + cell("Open", ses.open == null ? "—" : money(ses.open),
+           (ses.open || 0) > 0 ? "var(--up)" : (ses.open || 0) < 0 ? "var(--down)" : "")
+    + cell("Net", net == null ? "—" : money(net),
+           (net || 0) > 0 ? "var(--up)" : (net || 0) < 0 ? "var(--down)" : "")
+    + cell(CUR + " today", tr.day_change == null ? "—"
+           : (tr.day_change > 0 ? "+" : "") + num(tr.day_change, 0),
+           tr.day_change > 0 ? "var(--up)" : tr.day_change < 0 ? "var(--down)" : "");
+  const recent = (ses.recent || []).slice(0, 4);
+  $("recaplist").innerHTML = recent.length
+    ? recent.map(t => `<div>${esc(t.index)} ${esc(String(t.strike || ""))} `
+        + `${esc(t.option_type || "")} &middot; ${esc(t.exit_time || "")} &middot; `
+        + `<span style="color:${(t.pnl||0) >= 0 ? "var(--up)" : "var(--down)"}">`
+        + `${t.pnl == null ? "no price" : money(t.pnl)}</span></div>`).join("")
+    : `<div>Nothing has closed yet today.</div>`;
 }
 
 // ============================================================ headlines
