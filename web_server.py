@@ -1599,6 +1599,21 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .newsnote{color:var(--ink-3);font-size:11.5px;margin-top:9px}
 .newsnote:empty{display:none}
 
+/* ---------- sections ----------
+   The signal stays above these; everything else lives in a pane and only one
+   pane is on screen at a time. Panes are hidden, never torn down, so the
+   chart keeps its scroll and the chain keeps its place in the strikes. */
+.tabs{display:flex;gap:6px;margin:16px 0 0;flex-wrap:wrap;border-bottom:1px solid var(--bd-soft);
+  padding-bottom:10px}
+.tab{background:rgba(255,255,255,.04);border:1px solid var(--bd);color:var(--ink-2);
+  border-radius:999px;padding:7px 15px;font-size:13px;font-weight:650;cursor:pointer;
+  font-family:inherit;transition:background .15s,color .15s,border-color .15s}
+.tab:hover{color:var(--ink)}
+.tab.on{background:linear-gradient(180deg,#5aa2ee,#3a7fd0);border-color:#5aa2ee;color:#fff}
+.pane{display:none;margin-top:14px}
+.pane.on{display:block}
+@media(max-width:640px){.tab{padding:6px 12px;font-size:12.5px}}
+
 /* ---------- a workspace you can arrange ----------
    The drag handle appears on hover, top-right of a movable panel. Only the
    two side-by-side stacks take part: the signal, the trend row and the
@@ -1925,115 +1940,139 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="gnote" id="gnote"></div>
  </div>
 
- <div class="top3" data-panel="trend">
-  <div class="card">
-   <p class="eyebrow">Market trend</p>
-   <div class="hero"><div class="v" id="trend"
-        style="font-size:23px;letter-spacing:-.5px">—</div></div>
-   <div class="sub" id="trendsub" style="margin-top:5px"></div>
-  </div>
-  <div class="card">
-   <p class="eyebrow">Day move</p>
-   <div class="daymove">
-    <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
-   </div>
-   <canvas class="spark" id="spark"></canvas>
-   <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
-  </div>
-  <div class="card">
-   <p class="eyebrow">Confidence</p>
-   <div class="ring" id="ring"></div>
-  </div>
+ <!-- The sections. One screen used to be one long scroll; the signal, the
+      index cards and the session stay pinned above this, and everything else
+      lives behind a tab. Panes are switched by hiding, never by rebuilding:
+      the chart keeps its scroll position, the chain keeps its place in the
+      strikes, and nothing is re-fetched just because you looked away. -->
+ <div class="tabs" id="tabs" role="tablist">
+  <button class="tab on" data-tab="chart" role="tab" type="button">Chart</button>
+  <button class="tab" data-tab="chain" role="tab" type="button">Option chain</button>
+  <button class="tab" data-tab="market" role="tab" type="button">Market</button>
+  <button class="tab" data-tab="news" role="tab" type="button">News</button>
+  <button class="tab" data-tab="record" role="tab" type="button">Record</button>
  </div>
 
- <div class="grid">
-  <!-- Left column. The track record sits under the chart rather than at the
-       bottom of the right-hand stack: the chart is a fixed 430px while the
-       range and the map together run past 600, so the left column used to
-       simply stop and leave the rest of its height empty. Down here the card
-       is also twice as wide, which lets .rec's auto-fit put all five tiles in
-       one row instead of four and an orphan. -->
-  <div id="colL">
-   <div class="card" data-panel="chart">
+ <section class="pane on" data-pane="chart">
+  <div class="grid">
+   <div id="colL">
+    <div class="card" data-panel="chart">
     <p class="eyebrow">Price &middot; <span id="tflabel">15-minute candles</span></p>
     <div class="chartwrap">
-     <div class="chartbar">
-      <div class="chartlegend" id="cvlegend"></div>
-      <div class="chartctl">
-       <button class="lbtn tf" data-tf="5m" type="button">5m</button>
-       <button class="lbtn tf on" data-tf="15m" type="button">15m</button>
-       <button class="lbtn tf" data-tf="1d" type="button">1D</button>
-       <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
-       <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
-       <button class="lbtn" id="cvreset" type="button">Reset</button>
-      </div>
-     </div>
-     <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
-      earlier candles, scroll to zoom."></canvas>
+    <div class="chartbar">
+    <div class="chartlegend" id="cvlegend"></div>
+    <div class="chartctl">
+    <button class="lbtn tf" data-tf="5m" type="button">5m</button>
+    <button class="lbtn tf on" data-tf="15m" type="button">15m</button>
+    <button class="lbtn tf" data-tf="1d" type="button">1D</button>
+    <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
+    <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
+    <button class="lbtn" id="cvreset" type="button">Reset</button>
+    </div>
+    </div>
+    <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
+    earlier candles, scroll to zoom."></canvas>
     </div>
     <div class="legend">
-     <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
-     <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
-     <span><i class="key dash"></i>VWAP</span>
-     <span><i class="chip" style="background:var(--up)"></i>Up candle</span>
-     <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
+    <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
+    <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
+    <span><i class="key dash"></i>VWAP</span>
+    <span><i class="chip" style="background:var(--up)"></i>Up candle</span>
+    <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
+    </div>
     </div>
    </div>
-   <div class="card" data-panel="news" id="newscard">
-    <p class="eyebrow">Headlines &middot; <span id="newshead">market news</span></p>
-    <div class="news" id="news"></div>
-    <div class="newsnote" id="newsnote"></div>
-   </div>
-   <div class="card" data-panel="recap" id="recapcard">
-    <p class="eyebrow">Session recap</p>
-    <div class="recap" id="recap"></div>
-    <div class="recaplist" id="recaplist"></div>
-   </div>
-   <div class="card" id="reccard" data-panel="record">
-    <p class="eyebrow">Track record &middot; wins and losses</p>
-    <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
-      No completed trades recorded yet.</p></div>
-   </div>
-  </div>
-
-  <div id="colR">
-   <div class="card" data-panel="range">
+   <div id="colR">
+    <div class="card" data-panel="range">
     <p class="eyebrow">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
-   </div>
-   <div class="card" data-panel="chain" id="chaincard">
-    <p class="eyebrow">Option chain &middot; <span id="chainhead">&mdash;</span></p>
-    <div class="chainwrap"><table class="chain" id="chain"></table></div>
-    <div class="chainbar" id="chainbar"></div>
-   </div>
-   <div class="card" data-panel="sectors" id="sectorcard">
-    <p class="eyebrow">Sectors &middot; weighted move today</p>
-    <div class="sect" id="sectors"></div>
-   </div>
-   <div class="card" data-panel="screen" id="screencard">
-    <p class="eyebrow">Constituents &middot; <span id="scrcount">&mdash;</span></p>
-    <div class="scrctl">
-     <input id="scrq" placeholder="filter" autocomplete="off" spellcheck="false">
-     <select id="scrsec"><option value="">all sectors</option></select>
-     <span id="scrnote" style="margin-left:auto"></span>
     </div>
-    <div class="scrwrap"><table class="scr" id="scr"></table></div>
+    <div class="top3" data-panel="trend">
+    <div class="card">
+    <p class="eyebrow">Market trend</p>
+    <div class="hero"><div class="v" id="trend"
+    style="font-size:23px;letter-spacing:-.5px">—</div></div>
+    <div class="sub" id="trendsub" style="margin-top:5px"></div>
+    </div>
+    <div class="card">
+    <p class="eyebrow">Day move</p>
+    <div class="daymove">
+    <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
+    </div>
+    <canvas class="spark" id="spark"></canvas>
+    <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
+    </div>
+    <div class="card">
+    <p class="eyebrow">Confidence</p>
+    <div class="ring" id="ring"></div>
+    </div>
+    </div>
    </div>
-   <div class="card" data-panel="map">
+  </div>
+ </section>
+
+ <section class="pane" data-pane="chain">
+  <div class="card" data-panel="chain" id="chaincard">
+  <p class="eyebrow">Option chain &middot; <span id="chainhead">&mdash;</span></p>
+  <div class="chainwrap"><table class="chain" id="chain"></table></div>
+  <div class="chainbar" id="chainbar"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="market">
+  <div class="grid">
+   <div id="colM1">
+    <div class="card" data-panel="map">
     <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
     <div class="mapwrap" id="mapwrap"></div>
     <div class="mapbar">
-     <span id="mapbreadth">loading&hellip;</span>
-     <div class="maplegend"><span>&minus;2%</span><i class="sw"></i><span>+2%</span></div>
+    <span id="mapbreadth">loading&hellip;</span>
+    <div class="maplegend"><span>&minus;2%</span><i class="sw"></i><span>+2%</span></div>
+    </div>
+    </div>
+   </div>
+   <div id="colM2">
+    <div class="card" data-panel="sectors" id="sectorcard">
+    <p class="eyebrow">Sectors &middot; weighted move today</p>
+    <div class="sect" id="sectors"></div>
+    </div>
+    <div class="card" data-panel="screen" id="screencard">
+    <p class="eyebrow">Constituents &middot; <span id="scrcount">&mdash;</span></p>
+    <div class="scrctl">
+    <input id="scrq" placeholder="filter" autocomplete="off" spellcheck="false">
+    <select id="scrsec"><option value="">all sectors</option></select>
+    <span id="scrnote" style="margin-left:auto"></span>
+    </div>
+    <div class="scrwrap"><table class="scr" id="scr"></table></div>
     </div>
    </div>
   </div>
- </div>
+ </section>
 
- <div class="card" data-panel="why" style="margin-top:14px">
+ <section class="pane" data-pane="news">
+  <div class="card" data-panel="news" id="newscard">
+  <p class="eyebrow">Headlines &middot; <span id="newshead">market news</span></p>
+  <div class="news" id="news"></div>
+  <div class="newsnote" id="newsnote"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="record">
+  <div class="card" data-panel="recap" id="recapcard">
+  <p class="eyebrow">Session recap</p>
+  <div class="recap" id="recap"></div>
+  <div class="recaplist" id="recaplist"></div>
+  </div>
+  <div class="card" id="reccard" data-panel="record">
+  <p class="eyebrow">Track record &middot; wins and losses</p>
+  <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
+  No completed trades recorded yet.</p></div>
+  </div>
+  <div class="card" data-panel="why" style="margin-top:14px">
   <p class="eyebrow">Why — every input, in full</p>
   <div class="why" id="why"></div>
- </div>
+  </div>
+ </section>
 
  <footer>
   All figures are index points and exclude brokerage, STT, slippage and option time
@@ -3248,8 +3287,8 @@ function render(s){
   ladder(r, tstate && tstate.ticket);
   riskBox(r, tstate && tstate.ticket, s.session);
   sessionStrip(s.session, s.order);
-  chainFetch();
-  newsFetch();
+  if(TAB === "chain") chainFetch();
+  if(TAB === "news") newsFetch();
   recapDraw(s);
 
   $("trend").textContent = tr.label||"—";
@@ -3650,7 +3689,7 @@ applyPanels();
 // per browser, restored on the next visit. The full-width panels are left
 // alone - the signal above the reasoning is the argument the page is making.
 const LKEY = "nbs.layout.v1";
-const STACKS = ["colL", "colR"];
+const STACKS = ["colL", "colR", "colM1", "colM2"];
 let LAYOUT = {};
 try{ LAYOUT = JSON.parse(localStorage.getItem(LKEY) || "{}"); }catch(e){}
 const stackOf = el => (el && el.parentElement && STACKS.includes(el.parentElement.id))
@@ -3797,6 +3836,40 @@ function chainDraw(d){
   }
 }
 
+
+
+// ============================================================ sections
+// One screen, five sections. The pane is switched by class, so nothing is
+// rebuilt and nothing is re-fetched for a section you already opened; what a
+// pane needs on first sight (a chart to size itself, a map to lay out) is
+// drawn when it becomes visible, because an element with no box cannot.
+const TABS = ["chart", "chain", "market", "news", "record"];
+const TAB_LABEL = {chart:"Chart", chain:"Option chain", market:"Market",
+                   news:"News", record:"Record"};
+let TAB = "chart";
+function showTab(name, push){
+  if(!TABS.includes(name)) name = "chart";
+  TAB = name;
+  document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === name));
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  try{ localStorage.setItem("nbs.tab.v1", name); }catch(e){}
+  if(push !== false && location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
+  // Anything that measures itself has to be measured now that it has a size.
+  if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }
+  if(name === "market") heatMap(true);
+  if(name === "chain") chainFetch(true);
+  if(name === "news") newsFetch();
+}
+document.querySelectorAll(".tab").forEach(b =>
+  b.addEventListener("click", () => showTab(b.dataset.tab)));
+addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
+(() => {
+  let start = location.hash.slice(1);
+  if(!TABS.includes(start)){
+    try{ start = localStorage.getItem("nbs.tab.v1") || "chart"; }catch(e){ start = "chart"; }
+  }
+  showTab(start, false);
+})();
 
 // ============================================================ screener
 // OpenTerminal screens the whole US market; an index has a fixed, published
@@ -3973,6 +4046,9 @@ function palItems(){
     {t:"Panel", label:(HIDDEN.has(k) ? "Show " : "Hide ") + label,
      sub:(i < 9 ? "⌥" + (i + 1) + " · " : "") + (HIDDEN.has(k) ? "hidden" : "showing"),
      run:() => togglePanel(k)}));
+  TABS.forEach(t => out.push(
+    {t:"Section", label:"Go to " + TAB_LABEL[t], sub:TAB === t ? "showing" : "",
+     run:() => showTab(t)}));
   Object.entries(TF_LABEL).forEach(([tf, label]) => out.push(
     {t:"Chart", label:"Show " + label, sub:CH.tf === tf ? "showing" : "",
      run:() => chartTF(tf)}));
