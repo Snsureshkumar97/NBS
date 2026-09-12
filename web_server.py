@@ -1607,6 +1607,25 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .sections{display:block;margin-top:16px}
 .tabs-legacy{display:none}
 
+/* ---------- the status strip ---------- */
+.status{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);
+  border:1px solid var(--bd);border-radius:999px;padding:6px 14px;font-size:12.5px;
+  font-weight:650;color:var(--ink-2);white-space:nowrap}
+.status .st-sep{width:1px;height:14px;background:var(--bd)}
+.status .st-mkt{color:var(--ink)}
+.status .st-clock{font-variant-numeric:tabular-nums;color:var(--ink-3);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);
+  border:1px solid var(--bd);border-radius:999px;padding:6px 13px;font-size:12.5px;
+  font-weight:650;color:var(--ink-2);text-decoration:none;white-space:nowrap}
+.chip:hover{color:var(--ink);background:rgba(255,255,255,.08);text-decoration:none}
+.acct{display:inline-flex;align-items:center;gap:8px;background:rgba(77,148,232,.12);
+  border:1px solid rgba(77,148,232,.35);border-radius:999px;padding:4px 12px 4px 4px;
+  font-size:12.5px;font-weight:650;color:var(--ink)}
+.acct i{width:24px;height:24px;border-radius:50%;background:linear-gradient(180deg,#5aa2ee,#3a7fd0);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-size:12px;text-transform:uppercase}
+@media(max-width:900px){.acct span{display:none}}
+
 /* ---------- the sidebar ---------- */
 .side{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:40;display:flex;
   flex-direction:column;gap:2px;padding:16px 12px 12px;overflow-y:auto;
@@ -1866,11 +1885,13 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div>NBS Signal Tool<small id="sidesub">Nifty · Bank Nifty · Sensex</small></div>
  </a>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
+  <p class="mgroup">Desk</p>
+  <button class="tab on" data-tab="signal" role="tab" type="button"><i>&#127919;</i>Signal</button>
   <p class="mgroup">Market</p>
-  <button class="tab on" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
+  <button class="tab" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
   <button class="tab" data-tab="market" role="tab" type="button"><i>&#128506;</i>Market</button>
-  <p class="mgroup">Desk</p>
+  <p class="mgroup">Research</p>
   <button class="tab" data-tab="news" role="tab" type="button"><i>&#128240;</i>News</button>
   <button class="tab" data-tab="record" role="tab" type="button"><i>&#128188;</i>Record</button>
   <p class="mgroup">Account</p>
@@ -1888,34 +1909,28 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 <header><div class="hd">
   <!-- The brand sits in the sidebar now; printing it again here was the same
        words twice across the top of the screen. -->
+  <!-- One status strip rather than three pills that each said a different
+       thing in a different shape: whether the market is trading, whether the
+       feed is alive, and the clock it was last true at. -->
+  <div class="status">
+   <span class="beat" id="beat"></span><span class="st-mkt" id="mkt">connecting</span>
+   <span class="st-sep"></span>
+   <span class="feedtag" id="feed">&mdash;</span>
+   <span class="st-clock" id="upd">&mdash;</span>
+  </div>
   <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <span class="pill"><span class="beat" id="beat"></span><span id="mkt">connecting</span></span>
-    <span class="pill"><span class="feedtag" id="feed">&mdash;</span><span id="upd">&mdash;</span></span>
-    <a class="pill" id="mktsw" href="/market" style="text-decoration:none;display:none"
+    <a class="chip" id="mktsw" href="/market" style="display:none"
        title="Switch market">&mdash;</a>
-    <a class="pill" href="/review" style="text-decoration:none"
-       title="Your results so far, against the backtest">Review</a>
-    <a class="pill" id="kite" href="/connect" style="text-decoration:none">Zerodha</a>
-    <a class="pill" id="signout" href="/logout" style="display:none;text-decoration:none">Sign out</a>
+    <a class="chip" href="/review" title="Your results so far, against the backtest">Review</a>
+    <a class="chip" id="kite" href="/connect">Zerodha</a>
+    <span class="acct" title="Signed in"><i id="acctini">&nbsp;</i><span id="acctname">&mdash;</span></span>
+    <a class="chip" id="signout" href="/logout" style="display:none">Sign out</a>
   </div>
 </div></header>
 
 <div class="ticker" aria-label="World market levels"><div class="tk-track" id="tkt"></div></div>
 
 <div class="wrap">
-
- <div class="welcome">
-  <div>
-   <p class="eyebrow">Overview</p>
-   <h1>Welcome, <span class="who" id="who">—</span></h1>
-   <p class="said" id="said">Nifty, Bank Nifty and Sensex — one screen for the session.</p>
-  </div>
-  <div class="acts">
-   <a class="lbtn" href="/how-it-works">How it works</a>
-   <a class="lbtn" href="/connect">Zerodha</a>
-   <a class="lbtn" href="/results">Results</a>
-  </div>
- </div>
 
  <!-- One line by default, the whole thing on demand. It is not dismissible
       and there is no "don't show again": the point of it is that it is always
@@ -1953,64 +1968,6 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 
  <div class="markets" id="markets" role="tablist"></div>
 
- <div class="session" id="session" style="display:none">
-  <span class="lbl">Session</span>
-  <div class="chips" id="schips"></div>
-  <div class="today">
-   <div class="n" id="snet">—</div>
-   <div class="d" id="sdetail"></div>
-  </div>
- </div>
- <div class="feedline" id="sfeed"></div>
-
- <div class="card herocard" id="sigcard" data-panel="signal" style="margin-top:14px">
-  <div class="thead">
-   <p class="eyebrow" id="teyebrow">Signal</p>
-   <span class="badge prev" id="tbadge" style="display:none"></span>
-   <button class="lbtn tclear" id="tclear" type="button"
-           style="display:none">Clear ticket</button>
-  </div>
-  <div class="hero">
-   <div class="v" id="bias">—</div>
-   <span class="tag flat" id="conftag" style="display:none"></span>
-   <span class="tag flat" id="exptag" style="display:none"></span>
-  </div>
-  <div class="contract" id="tcontract" style="display:none"></div>
-  <div class="issued" id="tissued" style="display:none"></div>
-  <div class="tstats" id="tstats" style="display:none"></div>
-  <div class="whyhold" id="twhy" style="display:none"></div>
-  <div class="sub" id="reason"></div>
-  <div class="tiles" id="tiles"></div>
-  <div class="lswitch" id="lswitch">
-   <button class="lbtn on" id="lb-index" type="button">Index points</button>
-   <button class="lbtn" id="lb-premium" type="button">Option premium (LTP)</button>
-   <div class="lots" id="lotswrap" style="margin-left:auto">
-    <label for="lots" id="lotslabel">Lots</label>
-    <select id="lots"></select>
-   </div>
-  </div>
-  <div class="ladder" id="ladder"></div>
-  <div class="lnote" id="lnote"></div>
-  <div class="risk" id="risk">
-   <div class="riskctl">
-    <label for="capital">Capital</label>
-    <input id="capital" type="text" inputmode="numeric" autocomplete="off"
-           placeholder="enter to size trades">
-    <label for="riskpct">Risk / trade</label>
-    <select id="riskpct"></select>
-   </div>
-   <div class="riskline" id="riskline"></div>
-  </div>
-  <div class="gauges" id="gauges"></div>
-  <div class="room" id="room"></div>
-  <div class="gnote" id="gnote"></div>
- </div>
-
- <!-- The sections. One screen used to be one long scroll; the signal, the
-      index cards and the session stay pinned above this, and everything else
-      lives behind a tab. Panes are switched by hiding, never by rebuilding:
-      the chart keeps its scroll position, the chain keeps its place in the
-      strikes, and nothing is re-fetched just because you looked away. -->
  <div class="sections">
  <nav class="tabs-legacy" hidden aria-hidden="true">
   <button class="tab on" data-tab="chart" role="tab" type="button">Chart</button>
@@ -2021,7 +1978,80 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </nav>
  <div class="panes">
 
- <section class="pane on" data-pane="chart">
+ <section class="pane on" data-pane="signal">
+  <div class="welcome">
+  <div>
+  <p class="eyebrow">Overview</p>
+  <h1>Welcome, <span class="who" id="who">—</span></h1>
+  <p class="said" id="said">Nifty, Bank Nifty and Sensex — one screen for the session.</p>
+  </div>
+  <div class="acts">
+  <a class="lbtn" href="/how-it-works">How it works</a>
+  <a class="lbtn" href="/connect">Zerodha</a>
+  <a class="lbtn" href="/results">Results</a>
+  </div>
+  </div>
+  <div class="session" id="session" style="display:none">
+  <span class="lbl">Session</span>
+  <div class="chips" id="schips"></div>
+  <div class="today">
+  <div class="n" id="snet">—</div>
+  <div class="d" id="sdetail"></div>
+  </div>
+  </div>
+  <div class="feedline" id="sfeed"></div>
+
+  <div class="card herocard" id="sigcard" data-panel="signal" style="margin-top:14px">
+  <div class="thead">
+  <p class="eyebrow" id="teyebrow">Signal</p>
+  <span class="badge prev" id="tbadge" style="display:none"></span>
+  <button class="lbtn tclear" id="tclear" type="button"
+  style="display:none">Clear ticket</button>
+  </div>
+  <div class="hero">
+  <div class="v" id="bias">—</div>
+  <span class="tag flat" id="conftag" style="display:none"></span>
+  <span class="tag flat" id="exptag" style="display:none"></span>
+  </div>
+  <div class="contract" id="tcontract" style="display:none"></div>
+  <div class="issued" id="tissued" style="display:none"></div>
+  <div class="tstats" id="tstats" style="display:none"></div>
+  <div class="whyhold" id="twhy" style="display:none"></div>
+  <div class="sub" id="reason"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="lswitch" id="lswitch">
+  <button class="lbtn on" id="lb-index" type="button">Index points</button>
+  <button class="lbtn" id="lb-premium" type="button">Option premium (LTP)</button>
+  <div class="lots" id="lotswrap" style="margin-left:auto">
+  <label for="lots" id="lotslabel">Lots</label>
+  <select id="lots"></select>
+  </div>
+  </div>
+  <div class="ladder" id="ladder"></div>
+  <div class="lnote" id="lnote"></div>
+  <div class="risk" id="risk">
+  <div class="riskctl">
+  <label for="capital">Capital</label>
+  <input id="capital" type="text" inputmode="numeric" autocomplete="off"
+  placeholder="enter to size trades">
+  <label for="riskpct">Risk / trade</label>
+  <select id="riskpct"></select>
+  </div>
+  <div class="riskline" id="riskline"></div>
+  </div>
+  <div class="gauges" id="gauges"></div>
+  <div class="room" id="room"></div>
+  <div class="gnote" id="gnote"></div>
+  </div>
+
+  <!-- The sections. One screen used to be one long scroll; the signal, the
+  index cards and the session stay pinned above this, and everything else
+  lives behind a tab. Panes are switched by hiding, never by rebuilding:
+  the chart keeps its scroll position, the chain keeps its place in the
+  strikes, and nothing is re-fetched just because you looked away. -->
+ </section>
+
+ <section class="pane" data-pane="chart">
   <div class="grid">
    <div id="colL">
     <div class="card" data-panel="chart">
@@ -3565,6 +3595,9 @@ function greet(s){
   who.title = email;
   const su = $("sideuser");
   if(su){ su.textContent = email.split("@")[0]; su.title = email; }
+  const an = $("acctname"), ai = $("acctini");
+  if(an){ an.textContent = email.split("@")[0]; }
+  if(ai){ ai.textContent = (email[0] || "?"); }
   const k = s.kite || {};
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
@@ -3929,12 +3962,12 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["chart", "chain", "market", "news", "record"];
-const TAB_LABEL = {chart:"Chart", chain:"Option chain", market:"Market",
-                   news:"News", record:"Record"};
-let TAB = "chart";
+const TABS = ["signal", "chart", "chain", "market", "news", "record"];
+const TAB_LABEL = {signal:"Signal", chart:"Chart", chain:"Option chain",
+                   market:"Market", news:"News", record:"Record"};
+let TAB = "signal";
 function showTab(name, push){
-  if(!TABS.includes(name)) name = "chart";
+  if(!TABS.includes(name)) name = "signal";
   TAB = name;
   document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === name));
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
@@ -3956,7 +3989,7 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 (() => {
   let start = location.hash.slice(1);
   if(!TABS.includes(start)){
-    try{ start = localStorage.getItem("nbs.tab.v1") || "chart"; }catch(e){ start = "chart"; }
+    try{ start = localStorage.getItem("nbs.tab.v1") || "signal"; }catch(e){ start = "signal"; }
   }
   showTab(start, false);
 })();
