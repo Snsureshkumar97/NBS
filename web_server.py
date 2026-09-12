@@ -479,7 +479,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 # Public on purpose: it is world index levels off a free feed,
                 # not anybody's data, and the strip is drawn before login on
                 # the marketing pages too.
-                return self._send(json.dumps({"rows": market_ticker.rows()}),
+                # The strip is Indian indices and sectors. On the crypto
+                # screen that is not context, it is a different market's
+                # numbers, so that screen asks for the world block instead -
+                # Nikkei through BTC/USD, which is real context for a coin.
+                grp = (qs.get("group") or [""])[0]
+                _rows = market_ticker.rows()
+                if grp:
+                    _rows = [r for r in _rows if r.get("group") == grp]
+                return self._send(json.dumps({"rows": _rows}),
                                   "application/json")
             if path.startswith("/chart/") and path.endswith(".svg"):
                 return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
@@ -613,7 +621,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         is worse than no screener. Daily candles are cached for fifteen
         minutes: a break of a fifty-session high does not change by the minute.
         """
-        feed = feeds.for_user(user, self._current_market())
+        market = self._current_market()
+        feed = feeds.for_user(user, market)
+        # A market with one instrument has no constituents to screen. It does
+        # have a live option chain, and where open interest sits across that
+        # chain is the honest answer to "what is the market doing" here.
+        if market != "nse_index":
+            return self._send(json.dumps(dict(feed.crypto_pulse(
+                (config.instruments_in(market) or ["BTC"])[0]),
+                scope="the live option chain", kind="crypto")),
+                "application/json")
         try:
             hist = feed.constituent_history("day", days=120)
         except Exception as exc:
@@ -670,7 +687,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         payload names the day rather than letting a stale screen pass for a
         live one.
         """
-        feed = feeds.for_user(user, self._current_market())
+        market = self._current_market()
+        feed = feeds.for_user(user, market)
+        if market != "nse_index":
+            return self._send(json.dumps(dict(feed.crypto_moves(
+                (config.instruments_in(market) or ["BTC"])[0]),
+                scope="the instrument itself", kind="crypto", live=True)),
+                "application/json")
         try:
             hist = feed.constituent_history("5minute", days=5)
         except Exception as exc:
@@ -797,6 +820,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             by.setdefault(strike, {})[opt] = round(last[(strike, opt)] - f0)
         rows = [{"strike": k, "ce": v.get("CE"), "pe": v.get("PE")}
                 for k, v in sorted(by.items())]
+        if not rows:
+            return self._send(json.dumps({
+                "rows": [], "day": day, "days": days, "index": index,
+                "expiry": use_exp, "expiries": exp_list, "from": frm, "to": to,
+                "note": f"The option recorder has nothing for {index} on {day}. "
+                        f"It keeps Nifty, Bank Nifty and Sensex; this screen "
+                        f"has no history for any other market."}),
+                "application/json")
         ce = sum(r["ce"] or 0 for r in rows)
         pe = sum(r["pe"] or 0 for r in rows)
         top_ce = max(rows, key=lambda r: r["ce"] or 0, default=None)
@@ -2603,6 +2634,7 @@ let CUR=null, LAST=null;
 let MKT_ROWS = null;      // the strip's levels, reused by Home
 let MAPDATA = null;       // the constituent payload the map fetched
 let TAB = "home";         // the section on screen
+let GATED_FOR = null;     // which market the tabs were last gated for
 const DESK = [
   ["signal", "&#127919;", "Signal", "The call, its strike, the ladder and what is holding it back."],
   ["chart", "&#128200;", "Chart", "Candles with both EMAs and VWAP, at 5m, 15m or daily."],
@@ -3723,6 +3755,7 @@ function render(s){
   // one reading that sends you looking for a bug in the tool.
   CCY = s.currency || "INR";
   const cas = !!s.closing_auction && !s.stale;
+  try{ gateTabs(); }catch(e){}
   $("beat").className = "beat" + (s.market_open && !s.stale && !cas ? " live" : "");
   $("mkt").textContent = s.stale ? "feed down"
     : (cas ? "Closing auction" : (s.market_open?"Market open":"Market closed"));
@@ -3996,15 +4029,17 @@ async function markets_(){
   // The strip is Indian indices, sectors and India VIX - context for the
   // Indian screen and noise on the crypto one, so it is not shown or fetched there.
   const strip = document.querySelector(".ticker");
-  if(LAST && LAST.market === "crypto"){
-    if(strip) strip.style.display = "none";
-    return;
-  }
-  if(strip) strip.style.display = "";
+  const crypto = !!(LAST && LAST.market === "crypto");
+  // The strip stays hidden on the crypto screen, but Home asks for the world
+  // block rather than nothing: hiding the ticker used to leave MKT_ROWS full
+  // of Indian indices from an earlier fetch, and Home printed NIFTY 50 at the
+  // top of a Bitcoin desk.
+  if(strip) strip.style.display = crypto ? "none" : "";
   try{
-    const d = await (await fetch("/api/markets",{cache:"no-store"})).json();
+    const d = await (await fetch("/api/markets" + (crypto ? "?group=world" : ""),
+                                 {cache:"no-store"})).json();
     MKT_ROWS = d.rows;
-    renderTicker(d.rows);
+    if(!crypto) renderTicker(d.rows);
     if(TAB === "home") homeDraw(LAST);
   }catch(e){}
 }
@@ -4425,6 +4460,7 @@ function showTab(name, push){
   if(name === "chain"){ chainFetch(true); oiFetch(); }
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
+  gateTabs();
 }
 document.querySelectorAll(".tab").forEach(b =>
   b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -4594,6 +4630,29 @@ async function oiFetch(){
     oiFetch();
   });
 });
+// Sector scope and the constituents screener are index-member screens. A
+// market with one instrument has no members, so those tabs are not shown
+// there at all - a hidden tab beats a blank panel that looks broken.
+function gateTabs(){
+  const crypto = !!(LAST && LAST.market === "crypto");
+  [["sector", crypto], ["market", crypto]].forEach(([name, hide]) => {
+    const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);
+    if(btn) btn.hidden = hide;
+    if(hide && TAB === name) showTab("home");
+  });
+  const sc = document.querySelector(`.pane[data-pane="sector"]`);
+  if(sc) sc.dataset.na = crypto ? "1" : "";
+  // The first render happens before /api/state has answered, so the market is
+  // unknown then and nothing can be gated on it. When it does arrive - or
+  // changes - the strip has to be asked for again, because the rows fetched
+  // under the previous assumption are the wrong market's.
+  const key = crypto ? "crypto" : "other";
+  if(GATED_FOR !== key){
+    GATED_FOR = key;
+    try{ markets_(); }catch(e){}
+  }
+}
+
 // ======================================================= pulse screeners
 // One fetch of /api/screen feeds four tables. Each says what it covers: these
 // are the index constituents this tool knows, not the whole exchange, and a
@@ -4633,6 +4692,7 @@ function screenPaint(){
     if(note) note.textContent = "Screener error: " + d.error;
     return;
   }
+  if(d.kind === "crypto"){ cryptoPulsePaint(d); return; }
   const sym = r => `<td class="sym">${esc(r.sym)}</td>`;
   const px = r => `<td>${num(r.close, 2)}</td>`;
   scrTable("bo10", rows.filter(r => r.bo10),
@@ -4665,6 +4725,66 @@ function screenPaint(){
     + `This is not the whole exchange.`;
 }
 
+// The crypto shapes of those two screens. Same panels, different question:
+// with one instrument there is no breadth, so the chain's own open interest
+// is the distribution worth showing.
+function cryptoPulsePaint(d){
+  const note = $("pulsenote");
+  ["bo50","boost","levels"].forEach(id => { const t = $(id); if(t) t.innerHTML = ""; });
+  ["bo50card","boostcard","levelscard"].forEach(id => {
+    const c = $(id); if(c) c.hidden = true; });
+  const p = $("pulse");
+  if(p){
+    if(d.pcr == null){
+      p.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+        + `Waiting for the option chain.</p>`;
+    }else{
+      const bull = d.pcr > 1;
+      p.innerHTML = `<div class="pr"><span>Put/call open interest</span>`
+        + `<b style="color:${bull ? "var(--up)" : "var(--down)"}">${d.pcr.toFixed(2)}</b></div>`
+        + `<div class="pr"><span>Calls open</span><b>${oiFmt(d.call_oi)}</b></div>`
+        + `<div class="pr"><span>Puts open</span><b>${oiFmt(d.put_oi)}</b></div>`
+        + `<div class="pr"><span>Call wall</span><b>${num(d.call_wall,0)}</b></div>`
+        + `<div class="pr"><span>Put wall</span><b>${num(d.put_wall,0)}</b></div>`
+        + `<div class="pr"><span>Spot</span><b>${num(d.spot,2)}</b></div>`;
+    }
+  }
+  const head = $("bo10card");
+  if(head){
+    head.hidden = false;
+    const t = head.querySelector(".eyebrow");
+    if(t) t.innerHTML = "Open interest around the money &middot; expiry "
+                      + esc(d.expiry || "—");
+  }
+  scrTable("bo10", d.strikes || [],
+    [["Strike", r => `<td class="sym">${num(r.strike,0)}</td>`],
+     ["Calls open", r => `<td>${oiFmt(r.ce)}</td>`],
+     ["Puts open", r => `<td>${oiFmt(r.pe)}</td>`],
+     ["Leaning", r => { const b = r.pe > r.ce;
+       return `<td style="color:${b ? "var(--up)" : "var(--down)"}">`
+            + `${b ? "puts" : "calls"}</td>`; }]],
+    "No chain right now.");
+  if(note) note.textContent = "Open interest across the live option chain, in "
+    + "contracts. One instrument has no breadth to measure, so this is where "
+    + "the positions actually sit.";
+}
+function cryptoMovesPaint(d){
+  const note = $("spknote"), bar = $("spkbar"), head = $("spkhead");
+  const c10 = $("spk10card");
+  if(c10) c10.hidden = true;
+  if(bar) bar.innerHTML = `<span class="lv on">live</span> `
+    + `${esc(d.index || "BTC")} &middot; ${num(d.close,2)}`
+    + (d.vx != null ? ` &middot; volume ${d.vx.toFixed(2)}× its average` : "");
+  if(head) head.textContent = "how far it has moved";
+  scrTable("spk5", d.rows || [],
+    [["Window", r => `<td class="sym">${esc(r.window)}</td>`],
+     ["Move", r => pctCell(r.move)]],
+    d.note || "Not enough candles yet.");
+  if(note) note.textContent = "This market trades one instrument, so there is "
+    + "no board of movers: this is what that instrument has done, on its own "
+    + "volume. Day range " + num(d.low,2) + " – " + num(d.high,2) + ".";
+}
+
 // ======================================================= momentum spikes
 let SPK = null, SPK_AT = 0;
 async function spikeFetch(force){
@@ -4682,6 +4802,7 @@ async function spikeFetch(force){
 function spikePaint(){
   const d = SPK || {}, rows = d.rows || [], note = $("spknote");
   if(d.error){ if(note) note.textContent = "Spike error: " + d.error; return; }
+  if(d.kind === "crypto"){ cryptoMovesPaint(d); return; }
   const bar = $("spkbar");
   if(bar){
     bar.innerHTML = d.live

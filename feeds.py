@@ -417,6 +417,13 @@ class Feed:
         than resolving the symbols a second time. Two rules for the same thing
         in one codebase is what put a 7px width on a labelled chip.
         """
+        # Constituents are an Indian-market idea. Deribit has no index
+        # members and no sectors - its equity_tokens() returns {} for exactly
+        # that reason - so asking this of a crypto feed is a bug in the
+        # caller, and it must say so rather than quietly answering with
+        # another market's stocks.
+        if self.market != "nse_index":
+            raise RuntimeError(f"no index constituents in the {self.market} market")
         hit = self._hist_cache.get(interval)
         if hit and time.time() - hit[0] < self._HIST_TTL.get(interval, 300):
             return hit[1]
@@ -459,6 +466,63 @@ class Feed:
         self._hist_missing = failed
         if out:
             self._hist_cache[interval] = (time.time(), out)
+        return out
+
+    def crypto_pulse(self, name="BTC"):
+        """The only "breadth" a one-instrument market has: where open interest
+        sits across the live chain, and what the coin itself just did.
+
+        Deribit publishes open interest per contract in the book summary, so
+        the walls and the put/call ratio are real numbers, not a stand-in for
+        the equity screens this market has no members for.
+        """
+        out = {"market": self.market, "index": name}
+        ch = self.chain(name) or {}
+        strikes = ch.get("strikes") or []
+        spot = ch.get("spot")
+        if strikes:
+            ce = sum(s.get("call_oi") or 0 for s in strikes)
+            pe = sum(s.get("put_oi") or 0 for s in strikes)
+            top_c = max(strikes, key=lambda s: s.get("call_oi") or 0)
+            top_p = max(strikes, key=lambda s: s.get("put_oi") or 0)
+            near = sorted(strikes, key=lambda s: abs(s["strike"] - (spot or 0)))[:9]
+            out.update({
+                "expiry": ch.get("expiry"), "spot": spot,
+                "call_oi": round(ce, 1), "put_oi": round(pe, 1),
+                "pcr": round(pe / ce, 3) if ce else None,
+                "call_wall": top_c["strike"], "put_wall": top_p["strike"],
+                "strikes": [{"strike": s["strike"],
+                             "ce": round(s.get("call_oi") or 0, 1),
+                             "pe": round(s.get("put_oi") or 0, 1)}
+                            for s in sorted(near, key=lambda s: s["strike"])]})
+        return out
+
+    def crypto_moves(self, name="BTC"):
+        """What the coin did over the last five and ten minutes, on its own
+        volume - the honest version of a spike screen for a market with one
+        instrument rather than fifty."""
+        out = {"market": self.market, "index": name}
+        try:
+            df = self.ohlc(name, "5m")
+        except Exception as exc:
+            return dict(out, error=str(exc)[:160])
+        if df is None or len(df) < 6:
+            return dict(out, note="Not enough five-minute candles yet.")
+        c, v = df["Close"], df["Volume"]
+        av = float(v.iloc[:-2].tail(20).mean() or 0)
+        last = float(c.iloc[-1])
+        rows = []
+        for label, back in (("5 minutes", 2), ("10 minutes", 3), ("30 minutes", 7),
+                            ("1 hour", 13)):
+            if len(c) > back:
+                rows.append({"window": label,
+                             "move": round((last / float(c.iloc[-back]) - 1) * 100, 2)})
+        out.update({
+            "close": round(last, 2),
+            "vx": round(float(v.iloc[-1]) / av, 2) if av else None,
+            "high": round(float(df["High"].tail(288).max()), 2),
+            "low": round(float(df["Low"].tail(288).min()), 2),
+            "rows": rows})
         return out
 
     def chain(self, name):
