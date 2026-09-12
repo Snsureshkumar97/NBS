@@ -1215,7 +1215,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   overflow:hidden}
 @media(max-width:1100px){.status .st-clock{display:none}}
 @media(max-width:820px){.status .feedtag{display:none}}
-.hd .row{flex:0 1 auto;min-width:0;justify-content:flex-end}
+.hd .row{flex:0 0 auto;justify-content:flex-end}
 .hd .status{flex:0 0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px}
 .brand svg{display:block}
@@ -1294,7 +1294,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .mkt .ex.today{color:var(--warn);font-weight:650}
 .mkt .st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
   font-weight:650;margin-top:3px}
-.chip{display:inline-block;width:7px;height:7px;border-radius:2px;flex:none}
+.swatch{display:inline-block;width:7px;height:7px;border-radius:2px;flex:none}
 
 /* ---------- layout ---------- */
 .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:14px;
@@ -1732,13 +1732,13 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 /* On a narrow screen the sidebar becomes a strip across the top. */
 @media(max-width:900px){
   .side{position:static;width:100%;max-width:100%;flex-direction:row;align-items:center;
-    gap:8px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--bd);
-    padding:10px 12px;-webkit-overflow-scrolling:touch}
+    flex-wrap:wrap;gap:8px;overflow-x:clip;overflow-y:visible;bottom:auto;
+    border-right:0;border-bottom:1px solid var(--bd);padding:10px 12px}
   .main{margin-left:0;width:100%;max-width:100%}
   body{overflow-x:hidden}
   .wrap{padding-left:14px;padding-right:14px}
   .sbrand{display:none}
-  .menu{flex-direction:row;gap:6px}
+  .menu{flex-direction:row;flex-wrap:wrap;gap:6px;min-width:0;max-width:100%}
   .mgroup,.sidefoot{display:none}
   .menu .tab{white-space:nowrap;border-radius:999px;padding:7px 13px;
     border-color:var(--bd);background:rgba(255,255,255,.04)}
@@ -1996,11 +1996,12 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <a class="chip" id="mktsw" href="/market" style="display:none"
        title="Switch market">&mdash;</a>
-    <!-- Review, Zerodha and Sign out live in the sidebar; printing them here
-         too was what pushed this row off the edge of a narrower window. -->
-    <span class="acct" title="Signed in"><i id="acctini">&nbsp;</i><span id="acctname">&mdash;</span></span>
+    <!-- Who you are signed in as, and signing out, are in the sidebar footer.
+         They were printed here as well, and the duplicate is what collided
+         with the market chip in the top corner. Zerodha stays: it changes to
+         "Connect Zerodha" when the broker session needs attention, which is
+         worth a place at the top of the screen. -->
     <a class="chip" id="kite" href="/connect" style="display:none">Connect Zerodha</a>
-    <a class="chip" id="signout" href="/logout" style="display:none">Sign out</a>
   </div>
 </div></header>
 
@@ -2188,8 +2189,8 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
     <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
     <span><i class="key dash"></i>VWAP</span>
-    <span><i class="chip" style="background:var(--up)"></i>Up candle</span>
-    <span><i class="chip" style="background:var(--down)"></i>Down candle</span>
+    <span><i class="swatch" style="background:var(--up)"></i>Up candle</span>
+    <span><i class="swatch" style="background:var(--down)"></i>Down candle</span>
     </div>
     </div>
    </div>
@@ -2355,7 +2356,7 @@ function markets(s){
     el.innerHTML=`<div><div class="nm">${esc(k)}</div>
       <div class="px" id="px-${esc(k)}">${px}</div>
       ${ex ? `<div class="ex${ex.includes("today") ? " today" : ""}">Exp ${esc(ex)}</div>` : ""}</div>
-      <div class="st" style="color:${col}"><i class="chip" style="background:${col}"></i>${esc(label)}</div>`;
+      <div class="st" style="color:${col}"><i class="swatch" style="background:${col}"></i>${esc(label)}</div>`;
   });
 }
 
@@ -3447,15 +3448,12 @@ function render(s){
   const sw = $("mktsw");
   if(sw){
     if(s.market_label){
-      sw.textContent = s.market_label;
+      sw.textContent = "Switch market";
       sw.style.display = "inline-flex";
       sw.title = (s.markets && s.markets.length > 1)
         ? "Switch market" : "This server runs one market";
     } else sw.style.display = "none";
   }
-  const so = $("signout");
-  if(s.user){ so.style.display="inline-flex"; so.title = s.user; }
-  else so.style.display="none";
   // Needing to connect and having a broken feed are different problems with
   // different fixes, so they are different notices — and only ever one of
   // them, because "connect your account" also explains the missing data.
@@ -3733,9 +3731,6 @@ function greet(s){
   who.title = email;
   const su = $("sideuser");
   if(su){ su.textContent = email.split("@")[0]; su.title = email; }
-  const an = $("acctname"), ai = $("acctini");
-  if(an){ an.textContent = email.split("@")[0]; }
-  if(ai){ ai.textContent = (email[0] || "?"); }
   const k = s.kite || {};
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
