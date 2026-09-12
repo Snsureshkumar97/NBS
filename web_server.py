@@ -3855,6 +3855,10 @@ function showTab(name, push){
   try{ localStorage.setItem("nbs.tab.v1", name); }catch(e){}
   if(push !== false && location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
   // Anything that measures itself has to be measured now that it has a size.
+  // The handles are added per panel, and a pane that was hidden at load had
+  // none: they are wired again on the way in, which is a no-op for any panel
+  // that already has one.
+  try{ wireDrag(); }catch(e){}
   if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }
   if(name === "market") heatMap(true);
   if(name === "chain") chainFetch(true);
