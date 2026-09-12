@@ -412,6 +412,29 @@ class KiteDataProvider:
             }
         return {s: t for s, t in self._equity_token_cache.items() if s in wanted}
 
+    def candles_for_token(self, token, interval="day", days=90):
+        """Candles for one instrument token, for the constituent screeners.
+
+        get_ohlc() resolves its token from an index name, so it cannot fetch a
+        stock. This takes the token directly and returns lower-case columns -
+        the screeners work in ohlcv, not the chart's capitalised frame.
+
+        The interval is passed through to Kite unchanged and an unknown one
+        raises, for the reason get_ohlc gives: a silent fallback once ran a
+        whole strategy on the wrong timeframe.
+        """
+        if interval not in ("minute", "3minute", "5minute", "10minute",
+                            "15minute", "30minute", "60minute", "day"):
+            raise ValueError(f"unknown interval {interval!r}")
+        to_date = _now_ist_naive()
+        from_date = to_date - dt.timedelta(days=days)
+        candles = self.kite.historical_data(token, from_date, to_date, interval)
+        df = pd.DataFrame(candles)
+        if df.empty:
+            return df
+        return df.rename(columns={"date": "ts"})[
+            ["ts", "open", "high", "low", "close", "volume"]]
+
     def option_token(self, index_key: str, strike, option_type: str, expiry=None):
         """Instrument token for one specific option contract, so the live
         feed can stream that exact strike's price tick by tick."""

@@ -303,6 +303,7 @@ class Feed:
         self.thread = None
         self.hist = {}            # name -> DataFrame, the deep chart window
         self._ohlc_cache = {}     # (name, interval) -> (fetched_at, DataFrame)
+        self._hist_cache = {}     # interval -> (fetched_at, {symbol: DataFrame})
         self.hist_at = 0.0
         # This user's own tickets, with their own trade log. A book per user
         # rather than one per server: the daily limits, the session total and
@@ -402,6 +403,63 @@ class Feed:
         df = drop_preopen(df, index_key=name)
         self._ohlc_cache[key] = (time.time(), df)
         return df
+
+    # Daily candles cost 0.28s a symbol and five-minute 0.29s, so the whole
+    # constituent list is about 16 seconds cold - a live endpoint with a cache
+    # in front of it, not a nightly job. Held longer than the index series
+    # because a breakout against 50 sessions does not change minute to minute.
+    _HIST_TTL = {"day": 900, "5minute": 180, "minute": 120}
+
+    def constituent_history(self, interval="day", days=90):
+        """Candles for every index constituent, cached.
+
+        Reuses eq_tokens - the same dict the heat map streams from - rather
+        than resolving the symbols a second time. Two rules for the same thing
+        in one codebase is what put a 7px width on a labelled chip.
+        """
+        hit = self._hist_cache.get(interval)
+        if hit and time.time() - hit[0] < self._HIST_TTL.get(interval, 300):
+            return hit[1]
+        token = user_kite.token_for(self.email)
+        if not token:
+            raise RuntimeError("no Zerodha token on this account")
+        try:
+            provider = KiteDataProvider(config.KITE_API_KEY, token)
+        except Exception as exc:
+            raise RuntimeError(f"could not reach Zerodha: {exc}")
+        tokens = self.eq_tokens
+        if not tokens:
+            # Not the streamer's dict: that one is only filled once a socket
+            # is up, and this endpoint is asked for by a page whether or not
+            # anything is streaming.
+            symbols = sorted({row[0] for rows in market_map.CONSTITUENTS.values()
+                              for row in rows})
+            tokens = provider.equity_tokens(symbols)
+            self.eq_tokens = tokens or self.eq_tokens
+        if not tokens:
+            raise RuntimeError("no constituent tokens resolved")
+        out, failed, first_error = {}, 0, None
+        for sym, tok in tokens.items():
+            try:
+                df = provider.candles_for_token(tok, interval=interval, days=days)
+            except Exception as exc:
+                failed += 1
+                if first_error is None:
+                    first_error = f"{type(exc).__name__}: {exc}"
+                continue
+            if df is not None and len(df):
+                out[sym] = df
+        # A symbol with no candles and a call that cannot work are different
+        # problems. Swallowing both as an empty dict is what let an empty Home
+        # screen look like "no data yet" for two rounds.
+        if failed and not out:
+            raise RuntimeError(f"constituent history failed for all "
+                               f"{failed} symbols - {first_error}")
+        self._hist_last_error = first_error if failed else None
+        self._hist_missing = failed
+        if out:
+            self._hist_cache[interval] = (time.time(), out)
+        return out
 
     def chain(self, name):
         """The last option-chain snapshot for one instrument, or None.

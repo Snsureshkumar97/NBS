@@ -72,7 +72,7 @@ NIFTY50 = [
     ("BAJFINANCE", "Financial Services", 2.2), ("HINDUNILVR", "FMCG", 2.1),
     ("MARUTI", "Automobiles", 1.9), ("SUNPHARMA", "Healthcare", 1.8),
     ("NTPC", "Power", 1.6), ("HCLTECH", "Information Technology", 1.6),
-    ("TATAMOTORS", "Automobiles", 1.5), ("ULTRACEMCO", "Construction", 1.3),
+    ("ULTRACEMCO", "Construction", 1.3),
     ("TITAN", "Consumer Durables", 1.3), ("POWERGRID", "Power", 1.2),
     ("ASIANPAINT", "Consumer Durables", 1.1), ("BAJAJFINSV", "Financial Services", 1.1),
     ("ADANIENT", "Metals & Mining", 1.0), ("ONGC", "Oil & Gas", 1.0),
@@ -109,12 +109,12 @@ SENSEX = [
     ("HINDUNILVR", "FMCG", 2.4), ("BAJFINANCE", "Financial Services", 2.4),
     ("MARUTI", "Automobiles", 2.2), ("SUNPHARMA", "Healthcare", 2.0),
     ("NTPC", "Power", 1.8), ("HCLTECH", "Information Technology", 1.8),
-    ("TATAMOTORS", "Automobiles", 1.7), ("ULTRACEMCO", "Construction", 1.5),
+    ("ULTRACEMCO", "Construction", 1.5),
     ("TITAN", "Consumer Durables", 1.5), ("POWERGRID", "Power", 1.3),
     ("ASIANPAINT", "Consumer Durables", 1.2), ("ADANIPORTS", "Services", 0.9),
     ("NESTLEIND", "FMCG", 1.0), ("TECHM", "Information Technology", 0.8),
     ("TATASTEEL", "Metals & Mining", 1.1), ("INDUSINDBK", "Financial Services", 0.5),
-    ("ZOMATO", "Consumer Services", 1.0), ("BAJAJFINSV", "Financial Services", 1.2),
+    ("ETERNAL", "Consumer Services", 1.0), ("BAJAJFINSV", "Financial Services", 1.2),
 ]
 
 CONSTITUENTS = {"NIFTY": NIFTY50, "BANKNIFTY": BANKNIFTY, "SENSEX": SENSEX}

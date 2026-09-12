@@ -469,6 +469,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_chain(user, qs)
             if path == "/api/news":
                 return self._api_news(user)
+            if path == "/api/screen":
+                return self._api_screen(user, qs)
+            if path == "/api/oiclock":
+                return self._api_oiclock(user, qs)
             if path == "/api/markets":
                 # Public on purpose: it is world index levels off a free feed,
                 # not anybody's data, and the strip is drawn before login on
@@ -598,6 +602,153 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._send(json.dumps({"items": items, "note": note}),
                           "application/json")
 
+    def _api_screen(self, user, qs):
+        """The constituent screeners: breakouts, volume and the day's move.
+
+        Covers the index constituents this tool knows - 56 symbols across
+        Nifty, Bank Nifty and Sensex, not the whole exchange - and says so in
+        the payload, because a screener that implies a wider net than it casts
+        is worse than no screener. Daily candles are cached for fifteen
+        minutes: a break of a fifty-session high does not change by the minute.
+        """
+        feed = feeds.for_user(user, self._current_market())
+        try:
+            hist = feed.constituent_history("day", days=120)
+        except Exception as exc:
+            return self._send(json.dumps({"rows": [], "covered": 0,
+                                          "error": str(exc)[:200]}),
+                              "application/json")
+        if not hist:
+            return self._send(json.dumps({"rows": [], "covered": 0,
+                                          "note": "Constituent history is not "
+                                                  "loaded yet."}),
+                              "application/json")
+        rows, short = [], 0
+        for sym, df in hist.items():
+            d = df.sort_values("ts")
+            if len(d) < 51:
+                short += 1
+                continue
+            close = float(d["close"].iloc[-1])
+            prev = float(d["close"].iloc[-2])
+            vol = float(d["volume"].iloc[-1])
+            av20 = float(d["volume"].iloc[-21:-1].mean() or 0)
+            hi10 = float(d["high"].iloc[-11:-1].max())
+            lo10 = float(d["low"].iloc[-11:-1].min())
+            hi50 = float(d["high"].iloc[-51:-1].max())
+            lo50 = float(d["low"].iloc[-51:-1].min())
+            rows.append({
+                "sym": sym, "close": round(close, 2),
+                "pct": round((close / prev - 1) * 100, 2) if prev else None,
+                "bo10": "high" if close > hi10 else ("low" if close < lo10 else ""),
+                "bo50": "high" if close > hi50 else ("low" if close < lo50 else ""),
+                "vx": round(vol / av20, 2) if av20 else None,
+                "hi10": round(hi10, 2), "lo10": round(lo10, 2),
+                "hi50": round(hi50, 2), "lo50": round(lo50, 2)})
+        rows.sort(key=lambda r: -(r["pct"] or 0))
+        return self._send(json.dumps({
+            "rows": rows, "covered": len(rows), "universe": len(hist),
+            "short_history": short,
+            "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
+            "missing": getattr(feed, "_hist_missing", 0)}), "application/json")
+
+    def _api_oiclock(self, user, qs):
+        """Open interest added or closed across a window of the session.
+
+        Read from the recorder's own files, so it can look at any minute of
+        any day it has kept - which is what the live chain endpoint cannot do,
+        since that one only knows what it has seen since it started.
+
+        The figure is the change WITHIN the window asked for. It is not "OI
+        added today": OI is a level that falls as well as rises, so a morning
+        build and an afternoon unwind are both real and do not cancel into
+        the day's net.
+        """
+        import glob as _glob, csv as _csv, gzip as _gzip, os as _os
+        d = _os.path.join(_os.path.expanduser("~"), "trading-tool-logs",
+                          "option_history")
+        files = sorted(_glob.glob(_os.path.join(d, "*.csv.gz")))
+        if not files:
+            return self._send(json.dumps({"rows": [], "days": [],
+                                          "note": "The option recorder has not "
+                                                  "written a day yet."}),
+                              "application/json")
+        days = [_os.path.basename(f)[:10] for f in files]
+        day = (qs.get("day") or [days[-1]])[0]
+        if day not in days:
+            day = days[-1]
+        index = (qs.get("index") or ["NIFTY"])[0].upper()
+        frm = (qs.get("from") or ["09:15"])[0]
+        to = (qs.get("to") or ["15:39"])[0]
+        path = _os.path.join(d, f"{day}.csv.gz")
+
+        want_exp = (qs.get("expiry") or [""])[0]
+        # Which expiries this day holds, before anything is summed. Two
+        # expiries share every strike, so a ladder that does not pin one
+        # counts both contracts under the same key and the total is nonsense.
+        expiries = set()
+        try:
+            with _gzip.open(path, "rt", newline="") as fh:
+                for r in _csv.DictReader(fh):
+                    if r.get("index") == index and r.get("kind") == "OPT" and r.get("expiry"):
+                        expiries.add(r["expiry"])
+        except OSError as exc:
+            return self._send(json.dumps({"rows": [], "days": days,
+                                          "error": str(exc)[:160]}),
+                              "application/json")
+        exp_sorted = sorted(expiries)
+        use_exp = want_exp if want_exp in expiries else (exp_sorted[0] if exp_sorted else "")
+
+        first, last, spot = {}, {}, None
+        try:
+            with _gzip.open(path, "rt", newline="") as fh:
+                for r in _csv.DictReader(fh):
+                    if r.get("index") != index:
+                        continue
+                    hm = (r.get("ts") or "")[11:16]
+                    if r.get("kind") == "IDX" and frm <= hm <= to:
+                        try: spot = float(r["close"])
+                        except (TypeError, ValueError): pass
+                        continue
+                    if r.get("kind") != "OPT" or (r.get("expiry") or "") != use_exp:
+                        continue
+                    if not (frm <= hm <= to):
+                        continue
+                    try:
+                        oi = float(r["oi"]); strike = float(r["strike"])
+                    except (TypeError, ValueError):
+                        continue
+                    k = (strike, r.get("opt"))
+                    if k not in first:
+                        first[k] = oi
+                    last[k] = oi
+        except OSError as exc:
+            return self._send(json.dumps({"rows": [], "days": days,
+                                          "error": str(exc)[:160]}),
+                              "application/json")
+
+        exp_list = exp_sorted
+        by = {}
+        for (strike, opt), f0 in first.items():
+            by.setdefault(strike, {})[opt] = round(last[(strike, opt)] - f0)
+        rows = [{"strike": k, "ce": v.get("CE"), "pe": v.get("PE")}
+                for k, v in sorted(by.items())]
+        ce = sum(r["ce"] or 0 for r in rows)
+        pe = sum(r["pe"] or 0 for r in rows)
+        top_ce = max(rows, key=lambda r: r["ce"] or 0, default=None)
+        top_pe = max(rows, key=lambda r: r["pe"] or 0, default=None)
+        return self._send(json.dumps({
+            "rows": rows, "day": day, "days": days, "index": index,
+            "expiry": use_exp, "expiries": exp_list,
+            "from": frm, "to": to, "spot": spot,
+            "net_ce": ce, "net_pe": pe,
+            "resistance": top_ce["strike"] if top_ce and (top_ce["ce"] or 0) > 0 else None,
+            "support": top_pe["strike"] if top_pe and (top_pe["pe"] or 0) > 0 else None,
+            "reading": ("puts written, support building" if pe > ce
+                        else "calls written, resistance building"),
+            "window_note": "Change within this window, not OI added today."},
+            default=float), "application/json")
+
     def _api_chain(self, user, qs):
         """The option chain the signal was computed from, for one instrument.
 
@@ -629,10 +780,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             strikes = [s for s in strikes if abs(s["strike"] - atm) <= span * step]
 
         # Where open interest stood when the tool first saw this chain today.
-        # OI is a running total, so the number that means something intraday is
-        # what has been added or closed since the session started - not the
-        # total itself. Kept in memory: it is a fact about today, and a
-        # restart honestly loses it rather than inventing a baseline.
+        # OI is a LEVEL - contracts outstanding right now - and it falls as
+        # positions are closed as readily as it rises: measured on the
+        # recorder's files, 176 of 384 minutes moved down. So the total on its
+        # own says little intraday; what has been added or closed since the
+        # session started is the number that means something. Kept in memory:
+        # it is a fact about today, and a restart honestly loses it rather
+        # than inventing a baseline.
         import datetime as _dt
         day = _dt.datetime.now().strftime("%Y-%m-%d")
         bkey = (market, name, str(chain.get("expiry")), day)
@@ -1700,6 +1854,13 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
   font-size:12px;text-transform:uppercase}
 @media(max-width:900px){.acct span{display:none}}
 
+.clockbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:2px 0 8px}
+.clockbar select{background:var(--sunken);color:var(--ink-2);border:1px solid var(--bd);
+  border-radius:8px;padding:4px 8px;font:inherit;font-size:12px;font-weight:650;
+  max-width:100%}
+.clockbar .to{color:var(--ink-3);font-size:12px}
+.clockhead{font-size:12.5px;color:var(--ink-2);margin-bottom:8px;line-height:1.5}
+
 /* ---------- the sidebar ---------- */
 .side{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:40;display:flex;
   flex-direction:column;gap:2px;padding:16px 12px 12px;overflow-y:auto;
@@ -1773,9 +1934,12 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
    Calls on the left, puts on the right, strikes down the middle - the way a
    chain is read everywhere. Built from the same snapshot the signal was
    computed from, so the two can never disagree. */
-.chainwrap{max-height:420px;overflow:auto;border:1px solid var(--bd);
+.chainwrap{max-height:420px;overflow:auto;-webkit-overflow-scrolling:touch;
+  border:1px solid var(--bd);
   border-radius:12px;background:rgba(6,8,12,.55)}
-table.chain{width:100%;border-collapse:collapse;font-size:12px;
+/* Ten columns of tabular figures do not fit a phone. The wrapper scrolls;
+   without a min-width the table simply drew outside it instead. */
+table.chain{width:100%;min-width:440px;border-collapse:collapse;font-size:12px;
   font-variant-numeric:tabular-nums;font-family:"SF Mono",Consolas,monospace}
 table.chain th{position:sticky;top:0;z-index:1;background:rgba(10,12,18,.97);
   font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
@@ -2206,8 +2370,15 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 
  <section class="pane" data-pane="chain">
   <div class="card" data-panel="clock" id="clockcard">
-   <p class="eyebrow">Option clock &middot; open interest added since
-    <span id="clocksince">the open</span></p>
+   <p class="eyebrow">Option clock &middot; open interest change in the window</p>
+   <div class="clockbar">
+    <select id="oiday" aria-label="Day"></select>
+    <select id="oiexp" aria-label="Expiry"></select>
+    <select id="oifrom" aria-label="Window start"></select>
+    <span class="to">to</span>
+    <select id="oito" aria-label="Window end"></select>
+   </div>
+   <div class="clockhead" id="oihead"></div>
    <div class="clock2" id="clock2"></div>
    <div class="gnote" id="clocknote"></div>
   </div>
@@ -4028,7 +4199,7 @@ async function chainFetch(force){
   try{
     const d = await (await fetch("/api/chain?index=" + encodeURIComponent(CUR),
                                  {cache:"no-store"})).json();
-    chainDraw(d); clockDraw(d);
+    chainDraw(d);
   }catch(e){}
 }
 function chainDraw(d){
@@ -4127,7 +4298,7 @@ function showTab(name, push){
       calcDraw();
     }
   }
-  if(name === "chain") chainFetch(true);
+  if(name === "chain"){ chainFetch(true); oiFetch(); }
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
 }
@@ -4248,20 +4419,88 @@ function pulseDraw(){
 // Open interest is a running total, so the number that matters intraday is
 // what has been ADDED since the session started. Writers building at a strike
 // is where the market is defending; unwinding is where it has given up.
+const OI = {day:"", exp:"", from:"09:15", to:"15:39", busy:false};
+function oiSlots(){
+  const hm = m => String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0");
+  const out = [];
+  for(let m = 9*60+15; m <= 15*60+35; m += 5) out.push(hm(m));
+  out.push("15:39");          // the session's real last minute, and the value
+  return out;                 // the endpoint defaults to - without it here,
+}                             // setting the select silently left it empty.
+function oiFill(sel, vals, cur){
+  const el = $(sel);
+  if(!el) return;
+  const want = vals.join("|");
+  if(el.dataset.vals !== want){
+    el.dataset.vals = want;
+    el.innerHTML = vals.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  }
+  if(cur && el.value !== cur){
+    el.value = cur;
+    // A <select> given a value it has no option for goes to "" and says
+    // nothing. That empty string is then sent as the query and the panel
+    // shows a different window than the one on screen.
+    if(el.value !== cur && vals.length) el.value = vals[vals.length - 1];
+  }
+}
+async function oiFetch(){
+  const card = $("clockcard");
+  if(!card || card.hidden || OI.busy) return;
+  OI.busy = true;
+  try{
+    const q = new URLSearchParams({index: CUR || "NIFTY", from: OI.from, to: OI.to});
+    if(OI.day) q.set("day", OI.day);
+    if(OI.exp) q.set("expiry", OI.exp);
+    const d = await (await fetch("/api/oiclock?" + q, {cache:"no-store"})).json();
+    clockDraw(d);
+  }catch(e){
+    // An endpoint that cannot answer and a session with no build-up are
+    // different things and must not look the same on screen.
+    $("clock2").innerHTML = `<p style="color:var(--warn);font-size:13px;margin:0">`
+      + `The option clock could not be read just now.</p>`;
+  }finally{ OI.busy = false; }
+}
+["oiday","oiexp","oifrom","oito"].forEach(id => {
+  const el = $(id);
+  if(el) el.addEventListener("change", () => {
+    OI.day = $("oiday").value; OI.exp = $("oiexp").value;
+    OI.from = $("oifrom").value; OI.to = $("oito").value;
+    if(OI.from > OI.to){ const t = OI.from; OI.from = OI.to; OI.to = t;
+                         $("oifrom").value = OI.from; $("oito").value = OI.to; }
+    oiFetch();
+  });
+});
 function clockDraw(d){
   const box = $("clock2");
   if(!box) return;
-  $("clocksince").textContent = d && d.since ? d.since + " IST" : "the open";
+  if(d && d.days) oiFill("oiday", d.days, d.day);
+  if(d && d.expiries && d.expiries.length) oiFill("oiexp", d.expiries, d.expiry);
+  const slots = oiSlots();
+  oiFill("oifrom", slots, d && d.from);
+  oiFill("oito", slots, d && d.to);
+  const head = $("oihead");
+  if(head){
+    if(d && d.note){ head.textContent = d.note; }
+    else if(d && (d.net_ce != null)){
+      const bull = (d.net_pe || 0) > (d.net_ce || 0);
+      head.innerHTML = `<b style="color:${bull ? "var(--up)" : "var(--down)"}">`
+        + `${esc(d.reading || "")}</b> &middot; calls ${d.net_ce >= 0 ? "+" : "−"}`
+        + `${oiFmt(Math.abs(d.net_ce))} &middot; puts ${d.net_pe >= 0 ? "+" : "−"}`
+        + `${oiFmt(Math.abs(d.net_pe))}`
+        + (d.support ? ` &middot; support ${num(d.support,0)}` : "")
+        + (d.resistance ? ` &middot; resistance ${num(d.resistance,0)}` : "");
+    } else head.textContent = "";
+  }
   const rows = (d && d.rows) || [];
   const adds = [];
   rows.forEach(r => {
-    if(r.ce && r.ce.oi_chg != null) adds.push({k: r.strike, side: "CE", v: r.ce.oi_chg});
-    if(r.pe && r.pe.oi_chg != null) adds.push({k: r.strike, side: "PE", v: r.pe.oi_chg});
+    if(r.ce != null) adds.push({k: r.strike, side: "CE", v: r.ce});
+    if(r.pe != null) adds.push({k: r.strike, side: "PE", v: r.pe});
   });
   const moved = adds.filter(a => Math.abs(a.v) > 0);
   if(!moved.length){
     box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
-      + `Nothing added yet - this fills in as the session trades.</p>`;
+      + `${d && d.note ? esc(d.note) : "No open-interest change in this window."}</p>`;
     $("clocknote").textContent = "";
     return;
   }
@@ -4275,8 +4514,10 @@ function clockDraw(d){
       + `<span class="mvval" style="color:${up ? "var(--ink-2)" : "var(--ink-3)"}">`
       + `${up ? "+" : "−"}${oiFmt(Math.abs(a.v))}</span></div>`;
   }).join("");
-  $("clocknote").textContent = "Added (+) or closed (−) since the tool first saw "
-    + "today's chain. A restart starts the count again.";
+  $("clocknote").textContent = (d && d.window_note ? d.window_note + " " : "")
+    + "Open interest is a level: it falls as positions close as readily as it "
+    + "rises, so a morning build and an afternoon unwind are both real and do "
+    + "not cancel into one number. Read from the recorder's own files.";
 }
 
 // ============================================================ calculator
@@ -4829,8 +5070,14 @@ def main():
     print("=" * 70)
     print(f"  Website:  {where}")
     if config.WEB_ADMIN_KEY:
+        # The key itself is NOT printed. This banner goes to a log file that
+        # is read, copied and pasted around, and the link it used to print in
+        # full opens account creation on whatever host this is published at.
+        # The fingerprint is enough to tell which key is loaded.
+        _k = config.WEB_ADMIN_KEY
         print(f"\n  OPERATOR PAGE — create accounts here, keep this link private:")
-        print(f"    {base}/admin?key={config.WEB_ADMIN_KEY}")
+        print(f"    {base}/admin?key=<your WEB_ADMIN_KEY>")
+        print(f"    (key loaded: {_k[:4]}…{len(_k)} chars — the value is in .env, not this log)")
         if not config.WEB_PUBLIC_URL:
             print("    (WEB_PUBLIC_URL isn't set, so that link assumes this machine.")
             print("     Run  python3 setup_web.py  if you're hosting it somewhere else.)")
