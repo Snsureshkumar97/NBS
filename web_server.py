@@ -1638,9 +1638,12 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .sout:hover{color:var(--down);border-color:rgba(239,85,112,.5);text-decoration:none}
 /* On a narrow screen the sidebar becomes a strip across the top. */
 @media(max-width:900px){
-  .side{position:static;width:auto;flex-direction:row;align-items:center;gap:8px;
-    overflow-x:auto;border-right:0;border-bottom:1px solid var(--bd);padding:10px 12px}
-  .main{margin-left:0}
+  .side{position:static;width:100%;max-width:100%;flex-direction:row;align-items:center;
+    gap:8px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--bd);
+    padding:10px 12px;-webkit-overflow-scrolling:touch}
+  .main{margin-left:0;width:100%;max-width:100%}
+  body{overflow-x:hidden}
+  .wrap{padding-left:14px;padding-right:14px}
   .sbrand{display:none}
   .menu{flex-direction:row;gap:6px}
   .mgroup,.sidefoot{display:none}
@@ -1883,16 +1886,9 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 
 <div class="main">
 <header><div class="hd">
-  <a class="brand" href="/" style="color:inherit;text-decoration:none">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/>
-      <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8"
-            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="19" cy="13.9" r="2" fill="#4caf50"/>
-    </svg>
-    <div>NBS Signal Tool<small id="brandsub">Nifty · Bank Nifty · Sensex</small></div>
-  </a>
-  <div class="row" style="display:flex;gap:8px;align-items:center">
+  <!-- The brand sits in the sidebar now; printing it again here was the same
+       words twice across the top of the screen. -->
+  <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <span class="pill"><span class="beat" id="beat"></span><span id="mkt">connecting</span></span>
     <span class="pill"><span class="feedtag" id="feed">&mdash;</span><span id="upd">&mdash;</span></span>
     <a class="pill" id="mktsw" href="/market" style="text-decoration:none;display:none"
