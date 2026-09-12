@@ -478,7 +478,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path.startswith("/chart/") and path.endswith(".svg"):
                 return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
             if path.startswith("/api/candles/"):
-                return self._candles(user, path[len("/api/candles/"):])
+                return self._candles(user, path[len("/api/candles/"):], qs)
             if path.startswith("/api/map/"):
                 return self._heat_map(user, path[len("/api/map/"):], qs)
 
@@ -797,7 +797,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                       "error": None if ok else msg}),
                           "application/json")
 
-    def _candles(self, user, key):
+    _TIMEFRAMES = ("5m", "15m", "1d")
+
+    def _candles(self, user, key, qs=None):
         """The bars themselves, as JSON, for the interactive chart.
 
         The SVG endpoint stays: it is what a browser with no JavaScript, and
@@ -809,6 +811,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         feed = feeds.for_user(user, self._current_market())
         df, rec = feed.candles(key)
+        # The levels and the reasoning always come from the 15-minute series
+        # the signal is computed on; only the bars change with the timeframe,
+        # and a timeframe that will not load falls back rather than emptying
+        # the chart.
+        tf = ((qs or {}).get("tf") or ["15m"])[0]
+        if tf not in self._TIMEFRAMES:
+            tf = "15m"
+        if tf != "15m":
+            try:
+                alt = feed.ohlc(key, tf)
+            except Exception:
+                alt = None
+            if alt is not None and len(alt) > 2:
+                df = alt
+            else:
+                tf = "15m"
         if df is None or len(df) < 2:
             return self._send(json.dumps({"candles": [], "index": key}),
                               "application/json")
@@ -867,7 +885,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         tg = pub.get("targets") or []
         payload = {
             "index": key,
-            "interval": "15m",
+            "interval": tf,
             "candles": bars,
             "ema_fast": ema_fast, "ema_slow": ema_slow, "vwap": vwap,
             "ema_fast_len": config.EMA_FAST, "ema_slow_len": config.EMA_SLOW,
@@ -1937,11 +1955,14 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
        one row instead of four and an orphan. -->
   <div id="colL">
    <div class="card" data-panel="chart">
-    <p class="eyebrow">Price &middot; 15-minute candles</p>
+    <p class="eyebrow">Price &middot; <span id="tflabel">15-minute candles</span></p>
     <div class="chartwrap">
      <div class="chartbar">
       <div class="chartlegend" id="cvlegend"></div>
       <div class="chartctl">
+       <button class="lbtn tf" data-tf="5m" type="button">5m</button>
+       <button class="lbtn tf on" data-tf="15m" type="button">15m</button>
+       <button class="lbtn tf" data-tf="1d" type="button">1D</button>
        <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
        <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
        <button class="lbtn" id="cvreset" type="button">Reset</button>
@@ -2734,17 +2755,32 @@ const CH = {
   hover:null, drag:null, pinch:null,
 };
 const CH_MIN_BARS = 20, CH_MAX_BARS = 600;
+try{ CH.tf = localStorage.getItem("nbs.tf.v1") || "15m"; }catch(e){ CH.tf = "15m"; }
 const PAD = {l:0, r:64, t:10, b:24};
 
 const cv = $("cv"), cx = cv.getContext("2d");
 
+// The signal is always computed on the 15-minute series; these are views of
+// the same market, and the levels drawn on them are the signal's own.
+const TF_LABEL = {"5m": "5-minute candles", "15m": "15-minute candles", "1d": "daily candles"};
+function chartTF(tf){
+  if(!TF_LABEL[tf] || tf === CH.tf) return;
+  CH.tf = tf;
+  try{ localStorage.setItem("nbs.tf.v1", tf); }catch(e){}
+  document.querySelectorAll(".lbtn.tf").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
+  $("tflabel").textContent = TF_LABEL[tf];
+  CH.key = null;                       // force a refetch at the new timeframe
+  CH.pinned = true;
+  chartWant(CUR);
+}
 function chartWant(key){
   const stale = Date.now() - CH.at > 30000;
   if(key === CH.key && !stale){ chartDraw(); return; }
   const first = key !== CH.key;
   CH.key = key;
   CH.at = Date.now();
-  fetch("/api/candles/" + encodeURIComponent(key), {cache:"no-store"})
+  fetch("/api/candles/" + encodeURIComponent(key) + "?tf=" + encodeURIComponent(CH.tf || "15m"),
+        {cache:"no-store"})
     .then(r => r.json())
     .then(d => {
       if(CH.key !== key) return;          // the user switched index mid-flight
@@ -3031,7 +3067,7 @@ function chartDraw(){
   const pc  = readout[1] ? (chg/readout[1]*100) : 0;
   const cc  = chg >= 0 ? C.up : C.down;
   $("cvlegend").innerHTML =
-    `<span class="o">${esc(d.index||"")} · 15m</span>`
+    `<span class="o">${esc(d.index||"")} · ${esc(d.interval || "15m")}</span>`
   + `<span>O <b>${f(readout[1])}</b></span>`
   + `<span>H <b>${f(readout[2])}</b></span>`
   + `<span>L <b>${f(readout[3])}</b></span>`
@@ -3816,6 +3852,14 @@ function screenDraw(){
   const known = all.filter(r => r.pct != null).length;
   $("scrnote").textContent = known < all.length ? `${known}/${all.length} streaming` : "";
 }
+document.querySelectorAll(".lbtn.tf").forEach(b =>
+  b.addEventListener("click", () => chartTF(b.dataset.tf)));
+(() => {                                   // restore the saved timeframe
+  const tf = CH.tf || "15m";
+  document.querySelectorAll(".lbtn.tf").forEach(b => b.classList.toggle("on", b.dataset.tf === tf));
+  const lab = $("tflabel"); if(lab) lab.textContent = TF_LABEL[tf] || TF_LABEL["15m"];
+})();
+
 $("scr").addEventListener("click", e => {
   const th = e.target.closest("th[data-k]");
   if(!th) return;
@@ -3929,6 +3973,9 @@ function palItems(){
     {t:"Panel", label:(HIDDEN.has(k) ? "Show " : "Hide ") + label,
      sub:(i < 9 ? "⌥" + (i + 1) + " · " : "") + (HIDDEN.has(k) ? "hidden" : "showing"),
      run:() => togglePanel(k)}));
+  Object.entries(TF_LABEL).forEach(([tf, label]) => out.push(
+    {t:"Chart", label:"Show " + label, sub:CH.tf === tf ? "showing" : "",
+     run:() => chartTF(tf)}));
   out.push({t:"Go", label:"Review - your results so far", run:() => location.href="/review"});
   out.push({t:"Go", label:"How it works", run:() => location.href="/how-it-works"});
   out.push({t:"Go", label:"Zerodha connection", run:() => location.href="/connect"});

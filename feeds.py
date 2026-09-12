@@ -302,6 +302,7 @@ class Feed:
         self.last_touch = time.time()
         self.thread = None
         self.hist = {}            # name -> DataFrame, the deep chart window
+        self._ohlc_cache = {}     # (name, interval) -> (fetched_at, DataFrame)
         self.hist_at = 0.0
         # This user's own tickets, with their own trade log. A book per user
         # rather than one per server: the daily limits, the session total and
@@ -376,6 +377,32 @@ class Feed:
             self.state.update(fields)
 
     # -- the loop -----------------------------------------------------------
+    _OHLC_TTL = {"5m": 60, "15m": 60, "1d": 600}
+
+    def ohlc(self, name, interval="15m", days=None):
+        """Candles at another timeframe, fetched when asked for and cached.
+
+        The loop keeps one deep 15-minute window because that is the series
+        the signal is computed on. A chart that also offers 5-minute and daily
+        views needs two more series nothing else wants, so they are pulled on
+        demand and held for a minute (ten for daily) rather than fetched on
+        every pass - the alternative is three times the calls to Zerodha for
+        two views most sessions never open.
+        """
+        key = (name, interval)
+        hit = self._ohlc_cache.get(key)
+        if hit and time.time() - hit[0] < self._OHLC_TTL.get(interval, 60):
+            return hit[1]
+        provider, state, _ = self._provider()
+        if provider is None:
+            return None
+        df = self._provider_for(name, provider).get_ohlc(
+            name, interval=interval,
+            lookback_days=days or (250 if interval == "1d" else 5))
+        df = drop_preopen(df, index_key=name)
+        self._ohlc_cache[key] = (time.time(), df)
+        return df
+
     def chain(self, name):
         """The last option-chain snapshot for one instrument, or None.
 
