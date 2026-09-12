@@ -471,6 +471,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_news(user)
             if path == "/api/screen":
                 return self._api_screen(user, qs)
+            if path == "/api/spikes":
+                return self._api_spikes(user, qs)
             if path == "/api/oiclock":
                 return self._api_oiclock(user, qs)
             if path == "/api/markets":
@@ -651,6 +653,68 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "short_history": short,
             "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
             "missing": getattr(feed, "_hist_missing", 0)}), "application/json")
+
+    def _api_spikes(self, user, qs):
+        """What moved hardest in the last five and ten minutes of the session.
+
+        Volume is compared with that symbol's OWN typical five-minute volume
+        that session, never with other symbols: a bank trading ten times a
+        smallcap's shares is not a spike, it is a bank.
+
+        TradeFinder calls this screen "Insider Strategy". It is nothing of the
+        kind - it is short-window momentum - and naming it that here would
+        imply information this tool does not have. It is called what it
+        measures.
+
+        When the market is shut this is the LAST session that traded, and the
+        payload names the day rather than letting a stale screen pass for a
+        live one.
+        """
+        feed = feeds.for_user(user, self._current_market())
+        try:
+            hist = feed.constituent_history("5minute", days=5)
+        except Exception as exc:
+            return self._send(json.dumps({"rows": [], "covered": 0,
+                                          "error": str(exc)[:200]}),
+                              "application/json")
+        if not hist:
+            return self._send(json.dumps({"rows": [], "covered": 0,
+                                          "note": "Intraday candles are not "
+                                                  "loaded yet."}),
+                              "application/json")
+        rows, session = [], ""
+        for sym, df in hist.items():
+            d = df.sort_values("ts")
+            if not len(d):
+                continue
+            day = str(d["ts"].iloc[-1])[:10]
+            session = max(session, day)
+            d = d[d["ts"].astype(str).str[:10] == day]
+            if len(d) < 25:
+                continue
+            c, v = d["close"], d["volume"]
+            av = float(v.iloc[:-2].tail(20).mean() or 0)
+            if not av:
+                continue
+            last = float(c.iloc[-1])
+            rows.append({
+                "sym": sym, "close": round(last, 2),
+                "m5": round((last / float(c.iloc[-2]) - 1) * 100, 2),
+                "m10": round((last / float(c.iloc[-3]) - 1) * 100, 2),
+                "v5": round(float(v.iloc[-1]) / av, 2),
+                "v10": round(float(v.iloc[-2:].sum()) / (2 * av), 2)})
+        # There is no _market_open_now() on this class - the snapshot is where
+        # that fact lives. A hasattr() guard round a method that does not exist
+        # would have reported None for ever while looking like a live field.
+        try:
+            live = bool((feed.snapshot() or {}).get("market_open"))
+        except Exception:
+            live = False
+        return self._send(json.dumps({
+            "rows": rows, "covered": len(rows), "session": session, "live": live,
+            "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
+            "note": "Volume is against each symbol's own average five-minute "
+                    "volume this session."}), "application/json")
 
     def _api_oiclock(self, user, qs):
         """Open interest added or closed across a window of the session.
@@ -1668,8 +1732,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .today .n{font-size:22px;font-weight:700;letter-spacing:-.5px;
   font-variant-numeric:tabular-nums}
 .today .d{font-size:11px;color:var(--ink-3);margin-top:1px}
-.feedline{font-size:12px;color:var(--ink-3);margin-top:9px}
-.feedline span{margin-right:14px;white-space:nowrap}
+.feedline{font-size:12px;color:var(--ink-3);margin-top:9px;
+  display:flex;flex-wrap:wrap;gap:0 14px}
+.feedline span{white-space:nowrap}
 @media(max-width:640px){.session{flex-direction:column;align-items:stretch}
   .today{text-align:left}}
 
@@ -1744,9 +1809,11 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
 .scrctl input,.scrctl select{background:var(--raised);color:var(--ink);border:1px solid var(--bd);
   border-radius:8px;padding:4px 8px;font:inherit;font-size:12px}
 .scrctl input{width:110px}
-.scrwrap{max-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:12px;
+.scrwrap{max-height:360px;overflow:auto;-webkit-overflow-scrolling:touch;
+  border:1px solid var(--bd);border-radius:12px;
   background:rgba(6,8,12,.55)}
-table.scr{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+table.scr{width:100%;border-collapse:collapse;font-size:12.5px;
+  font-variant-numeric:tabular-nums}
 table.scr th{position:sticky;top:0;background:rgba(10,12,18,.97);font-size:10px;
   letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);font-weight:700;
   padding:7px 8px;text-align:right;cursor:pointer;white-space:nowrap}
@@ -1854,6 +1921,13 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
   font-size:12px;text-transform:uppercase}
 @media(max-width:900px){.acct span{display:none}}
 
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:14px;margin-top:14px;align-items:start}
+.spkbar{font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
+.spkbar .lv{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;border:1px solid var(--bd);border-radius:999px;
+  padding:2px 8px;margin-right:6px;color:var(--ink-3)}
+.spkbar .lv.on{color:var(--up);border-color:rgba(43,224,138,.45)}
 .clockbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:2px 0 8px}
 .clockbar select{background:var(--sunken);color:var(--ink-2);border:1px solid var(--bd);
   border-radius:8px;padding:4px 8px;font:inherit;font-size:12px;font-weight:650;
@@ -1937,9 +2011,10 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .chainwrap{max-height:420px;overflow:auto;-webkit-overflow-scrolling:touch;
   border:1px solid var(--bd);
   border-radius:12px;background:rgba(6,8,12,.55)}
-/* Ten columns of tabular figures do not fit a phone. The wrapper scrolls;
-   without a min-width the table simply drew outside it instead. */
-table.chain{width:100%;min-width:440px;border-collapse:collapse;font-size:12px;
+/* Ten columns of tabular figures do not fit a phone, so .chainwrap scrolls
+   them. No min-width here: the wrapper clips and scrolls on its own, and the
+   min-width added earlier was answering a broken check, not a broken page. */
+table.chain{width:100%;border-collapse:collapse;font-size:12px;
   font-variant-numeric:tabular-nums;font-family:"SF Mono",Consolas,monospace}
 table.chain th{position:sticky;top:0;z-index:1;background:rgba(10,12,18,.97);
   font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
@@ -2130,6 +2205,9 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
   <button class="tab" data-tab="market" role="tab" type="button"><i>&#128506;</i>Market</button>
+  <button class="tab" data-tab="pulse" role="tab" type="button"><i>&#128200;</i>Market pulse</button>
+  <button class="tab" data-tab="sector" role="tab" type="button"><i>&#129518;</i>Sector scope</button>
+  <button class="tab" data-tab="spikes" role="tab" type="button"><i>&#9889;</i>Momentum spikes</button>
   <p class="mgroup">Research</p>
   <button class="tab" data-tab="news" role="tab" type="button"><i>&#128240;</i>News</button>
   <button class="tab" data-tab="record" role="tab" type="button"><i>&#128188;</i>Record</button>
@@ -2390,42 +2468,83 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </section>
 
  <section class="pane" data-pane="market">
-  <div class="grid">
-   <div id="colM1">
-    <div class="card" data-panel="map">
-    <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
-    <div class="mapwrap" id="mapwrap"></div>
-    <div class="mapbar">
-    <span id="mapbreadth">loading&hellip;</span>
-    <div class="maplegend"><span>&minus;2%</span><i class="sw"></i><span>+2%</span></div>
-    </div>
-    </div>
+  <div id="colM2">
+   <div class="card" data-panel="mover" id="movercard">
+    <p class="eyebrow">Index mover &middot; who is pushing <span id="movidx">&mdash;</span></p>
+    <div class="mover" id="mover"></div>
+    <div class="gnote" id="movernote"></div>
    </div>
-   <div id="colM2">
-    <div class="card" data-panel="mover" id="movercard">
-     <p class="eyebrow">Index mover &middot; who is pushing <span id="movidx">&mdash;</span></p>
-     <div class="mover" id="mover"></div>
-     <div class="gnote" id="movernote"></div>
-    </div>
-    <div class="card" data-panel="pulse" id="pulsecard">
-     <p class="eyebrow">Market pulse</p>
-     <div class="pulse" id="pulse"></div>
-    </div>
-    <div class="card" data-panel="sectors" id="sectorcard">
-    <p class="eyebrow">Sectors &middot; weighted move today</p>
-    <div class="sect" id="sectors"></div>
-    </div>
-    <div class="card" data-panel="screen" id="screencard">
+   <div class="card" data-panel="screen" id="screencard">
     <p class="eyebrow">Constituents &middot; <span id="scrcount">&mdash;</span></p>
     <div class="scrctl">
-    <input id="scrq" placeholder="filter" autocomplete="off" spellcheck="false">
-    <select id="scrsec"><option value="">all sectors</option></select>
-    <span id="scrnote" style="margin-left:auto"></span>
+     <input id="scrq" placeholder="filter" autocomplete="off" spellcheck="false">
+     <select id="scrsec"><option value="">all sectors</option></select>
+     <span id="scrnote" style="margin-left:auto"></span>
     </div>
     <div class="scrwrap"><table class="scr" id="scr"></table></div>
-    </div>
    </div>
   </div>
+ </section>
+
+ <!-- Market pulse: breadth, then the screeners the daily candles support.
+      The panels here are fed by /api/screen, which covers the index
+      constituents this tool knows - not the whole exchange, and it says so. -->
+ <section class="pane" data-pane="pulse">
+  <div class="card" data-panel="pulse" id="pulsecard">
+   <p class="eyebrow">Market pulse &middot; up against down</p>
+   <div class="pulse" id="pulse"></div>
+  </div>
+  <div class="grid2">
+   <div class="card" data-panel="bo10" id="bo10card">
+    <p class="eyebrow">Breakout beacon &middot; 10-day high or low</p>
+    <div class="scrwrap"><table class="scr" id="bo10"></table></div>
+   </div>
+   <div class="card" data-panel="bo50" id="bo50card">
+    <p class="eyebrow">Swing spectrum &middot; 50-day high or low</p>
+    <div class="scrwrap"><table class="scr" id="bo50"></table></div>
+   </div>
+   <div class="card" data-panel="boost" id="boostcard">
+    <p class="eyebrow">Intraday boost &middot; volume against its 20-session average</p>
+    <div class="scrwrap"><table class="scr" id="boost"></table></div>
+   </div>
+   <div class="card" data-panel="levels" id="levelscard">
+    <p class="eyebrow">Top and low level &middot; nearest its 50-day extreme</p>
+    <div class="scrwrap"><table class="scr" id="levels"></table></div>
+   </div>
+  </div>
+  <div class="gnote" id="pulsenote"></div>
+ </section>
+
+ <!-- Sector scope: the treemap and the sector strengths, moved here from the
+      Market tab rather than drawn a second time. -->
+ <section class="pane" data-pane="sector">
+  <div class="card" data-panel="map" id="mapcard">
+   <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
+   <div class="mapwrap" id="mapwrap"></div>
+   <div class="mapbar">
+    <span id="mapbreadth">loading&hellip;</span>
+    <div class="maplegend"><span>&minus;2%</span><i class="sw"></i><span>+2%</span></div>
+   </div>
+  </div>
+  <div class="card" data-panel="sectors" id="sectorcard">
+   <p class="eyebrow">Sectors &middot; weighted move today</p>
+   <div class="sect" id="sectors"></div>
+  </div>
+ </section>
+
+ <!-- Short-window momentum. TradeFinder calls this "Insider Strategy"; it is
+      not insider anything, and it is not called that here. -->
+ <section class="pane" data-pane="spikes">
+  <div class="card" data-panel="spk5" id="spk5card">
+   <p class="eyebrow">Momentum spikes &middot; <span id="spkhead">last five minutes</span></p>
+   <div class="spkbar" id="spkbar"></div>
+   <div class="scrwrap"><table class="scr" id="spk5"></table></div>
+  </div>
+  <div class="card" data-panel="spk10" id="spk10card">
+   <p class="eyebrow">Over the last ten minutes</p>
+   <div class="scrwrap"><table class="scr" id="spk10"></table></div>
+  </div>
+  <div class="gnote" id="spknote"></div>
  </section>
 
  <section class="pane" data-pane="news">
@@ -4101,7 +4220,7 @@ applyPanels();
 // per browser, restored on the next visit. The full-width panels are left
 // alone - the signal above the reasoning is the argument the page is making.
 const LKEY = "nbs.layout.v1";
-const STACKS = ["colL", "colR", "colM1", "colM2"];
+const STACKS = ["colL", "colR", "colM2"];
 // A panel is movable inside its own stack, and a panel that sits straight in
 // a section is movable within that section. Keyed by container, so a layout
 // saved for one section can never reorder another.
@@ -4268,9 +4387,11 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["home", "signal", "chart", "chain", "market", "news", "record"];
+const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
+              "spikes", "news", "record"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
-                   market:"Market", news:"News", record:"Record"};
+                   market:"Market", pulse:"Market pulse", sector:"Sector scope",
+                   spikes:"Momentum spikes", news:"News", record:"Record"};
 function showTab(name, push){
   if(!TABS.includes(name)) name = "home";
   TAB = name;
@@ -4285,6 +4406,9 @@ function showTab(name, push){
   try{ wireDrag(); }catch(e){}
   if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }
   if(name === "market") heatMap(true);
+  if(name === "sector") heatMap(true);
+  if(name === "pulse"){ pulseDraw(); screenFetch(); }
+  if(name === "spikes") spikeFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -4470,6 +4594,121 @@ async function oiFetch(){
     oiFetch();
   });
 });
+// ======================================================= pulse screeners
+// One fetch of /api/screen feeds four tables. Each says what it covers: these
+// are the index constituents this tool knows, not the whole exchange, and a
+// screener that implies a wider net than it casts is worse than none.
+let SCREEN = null, SCREEN_AT = 0;
+function scrTable(el, rows, cols, empty){
+  const t = $(el);
+  if(!t) return;
+  if(!rows.length){
+    t.innerHTML = `<tbody><tr><td style="color:var(--ink-3);padding:8px">`
+                + `${esc(empty)}</td></tr></tbody>`;
+    return;
+  }
+  t.innerHTML = `<thead><tr>${cols.map(c => `<th>${esc(c[0])}</th>`).join("")}</tr></thead>`
+    + `<tbody>${rows.map(r => `<tr>${cols.map(c => c[1](r)).join("")}</tr>`).join("")}</tbody>`;
+}
+const pctCell = v => {
+  const col = v == null ? "var(--ink-3)" : v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+  return `<td style="color:${col}">${v == null ? "—"
+    : (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "%"}</td>`;
+};
+async function screenFetch(force){
+  if(!force && SCREEN && Date.now() - SCREEN_AT < 300000){ screenPaint(); return; }
+  const note = $("pulsenote");
+  if(note) note.textContent = "Loading the constituents…";
+  try{
+    SCREEN = await (await fetch("/api/screen", {cache:"no-store"})).json();
+    SCREEN_AT = Date.now();
+    screenPaint();
+  }catch(e){
+    if(note) note.textContent = "The screener could not be read just now.";
+  }
+}
+function screenPaint(){
+  const d = SCREEN || {}, rows = d.rows || [], note = $("pulsenote");
+  if(d.error){
+    if(note) note.textContent = "Screener error: " + d.error;
+    return;
+  }
+  const sym = r => `<td class="sym">${esc(r.sym)}</td>`;
+  const px = r => `<td>${num(r.close, 2)}</td>`;
+  scrTable("bo10", rows.filter(r => r.bo10),
+    [["Symbol", sym], ["Price", px], ["Change", r => pctCell(r.pct)],
+     ["Broke", r => `<td style="color:${r.bo10 === "high" ? "var(--up)" : "var(--down)"}">`
+                  + `10-day ${r.bo10}</td>`]],
+    "Nothing broke its 10-day range in this session.");
+  scrTable("bo50", rows.filter(r => r.bo50),
+    [["Symbol", sym], ["Price", px], ["Change", r => pctCell(r.pct)],
+     ["Broke", r => `<td style="color:${r.bo50 === "high" ? "var(--up)" : "var(--down)"}">`
+                  + `50-day ${r.bo50}</td>`]],
+    "Nothing broke its 50-day range in this session.");
+  scrTable("boost", rows.filter(r => r.vx != null).sort((a,b) => b.vx - a.vx).slice(0, 12),
+    [["Symbol", sym], ["Price", px], ["Change", r => pctCell(r.pct)],
+     ["Volume", r => `<td>${r.vx.toFixed(2)}×</td>`]],
+    "No volume reading yet.");
+  const near = rows.filter(r => r.hi50 && r.lo50).map(r => {
+    const span = r.hi50 - r.lo50;
+    return Object.assign({}, r, {pos: span ? (r.close - r.lo50) / span * 100 : null});
+  }).filter(r => r.pos != null).sort((a,b) => Math.abs(b.pos - 50) - Math.abs(a.pos - 50));
+  scrTable("levels", near.slice(0, 12),
+    [["Symbol", sym], ["Price", px],
+     ["50-day low", r => `<td>${num(r.lo50, 2)}</td>`],
+     ["50-day high", r => `<td>${num(r.hi50, 2)}</td>`],
+     ["In range", r => `<td style="color:${r.pos > 80 ? "var(--up)" : r.pos < 20 ? "var(--down)" : "var(--ink-2)"}">`
+                     + `${r.pos.toFixed(0)}%</td>`]],
+    "No range reading yet.");
+  if(note) note.textContent = `${d.covered || 0} of ${d.universe || 0} `
+    + `${d.scope || "constituents"} — daily candles, cached for fifteen minutes. `
+    + `This is not the whole exchange.`;
+}
+
+// ======================================================= momentum spikes
+let SPK = null, SPK_AT = 0;
+async function spikeFetch(force){
+  if(!force && SPK && Date.now() - SPK_AT < 120000){ spikePaint(); return; }
+  const note = $("spknote");
+  if(note) note.textContent = "Loading five-minute candles…";
+  try{
+    SPK = await (await fetch("/api/spikes", {cache:"no-store"})).json();
+    SPK_AT = Date.now();
+    spikePaint();
+  }catch(e){
+    if(note) note.textContent = "The spike screen could not be read just now.";
+  }
+}
+function spikePaint(){
+  const d = SPK || {}, rows = d.rows || [], note = $("spknote");
+  if(d.error){ if(note) note.textContent = "Spike error: " + d.error; return; }
+  const bar = $("spkbar");
+  if(bar){
+    bar.innerHTML = d.live
+      ? `<span class="lv on">live</span> this session`
+      : `<span class="lv">last session</span> ${esc(d.session || "—")} — the market is shut, `
+        + `so this is the last session that traded, not live movement.`;
+  }
+  const head = $("spkhead");
+  if(head) head.textContent = d.live ? "last five minutes" : "final five minutes of " + (d.session || "");
+  const sym = r => `<td class="sym">${esc(r.sym)}</td>`;
+  const px = r => `<td>${num(r.close, 2)}</td>`;
+  // Above its own average, ranked by the size of the move either way: a spike
+  // is a move ON volume, so both halves have to be there.
+  const five = rows.filter(r => r.v5 > 1.2).sort((a,b) => Math.abs(b.m5) - Math.abs(a.m5)).slice(0, 12);
+  const ten  = rows.filter(r => r.v10 > 1.2).sort((a,b) => Math.abs(b.m10) - Math.abs(a.m10)).slice(0, 12);
+  scrTable("spk5", five,
+    [["Symbol", sym], ["Price", px], ["5-min move", r => pctCell(r.m5)],
+     ["Volume", r => `<td>${r.v5.toFixed(2)}×</td>`]],
+    "Nothing moved on volume in the final five minutes.");
+  scrTable("spk10", ten,
+    [["Symbol", sym], ["Price", px], ["10-min move", r => pctCell(r.m10)],
+     ["Volume", r => `<td>${r.v10.toFixed(2)}×</td>`]],
+    "Nothing moved on volume in the final ten minutes.");
+  if(note) note.textContent = `${d.covered || 0} ${d.scope || "constituents"}. `
+    + `${d.note || ""}`;
+}
+
 function clockDraw(d){
   const box = $("clock2");
   if(!box) return;
