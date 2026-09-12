@@ -1185,8 +1185,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* ---------- header ---------- */
 header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--bd-soft)}
-.hd{max-width:1120px;margin:0 auto;padding:13px 20px;display:flex;
-  align-items:center;gap:14px;justify-content:space-between}
+.hd{max-width:none;margin:0;padding:11px 20px;display:flex;
+  align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.hd .row{flex:0 1 auto;min-width:0;justify-content:flex-end}
+.hd .status{flex:0 0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px}
 .brand svg{display:block}
 .brand small{display:block;font-weight:500;font-size:11px;color:var(--ink-3);
@@ -2043,6 +2045,26 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="room" id="room"></div>
   <div class="gnote" id="gnote"></div>
   </div>
+  <div class="top3" data-panel="trend">
+  <div class="card">
+  <p class="eyebrow">Market trend</p>
+  <div class="hero"><div class="v" id="trend"
+  style="font-size:23px;letter-spacing:-.5px">—</div></div>
+  <div class="sub" id="trendsub" style="margin-top:5px"></div>
+  </div>
+  <div class="card">
+  <p class="eyebrow">Day move</p>
+  <div class="daymove">
+  <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
+  </div>
+  <canvas class="spark" id="spark"></canvas>
+  <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
+  </div>
+  <div class="card">
+  <p class="eyebrow">Confidence</p>
+  <div class="ring" id="ring"></div>
+  </div>
+  </div>
 
   <!-- The sections. One screen used to be one long scroll; the signal, the
   index cards and the session stay pinned above this, and everything else
@@ -2085,26 +2107,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <p class="eyebrow">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
     </div>
-    <div class="top3" data-panel="trend">
-    <div class="card">
-    <p class="eyebrow">Market trend</p>
-    <div class="hero"><div class="v" id="trend"
-    style="font-size:23px;letter-spacing:-.5px">—</div></div>
-    <div class="sub" id="trendsub" style="margin-top:5px"></div>
-    </div>
-    <div class="card">
-    <p class="eyebrow">Day move</p>
-    <div class="daymove">
-    <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
-    </div>
-    <canvas class="spark" id="spark"></canvas>
-    <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
-    </div>
-    <div class="card">
-    <p class="eyebrow">Confidence</p>
-    <div class="ring" id="ring"></div>
-    </div>
-    </div>
+    
    </div>
   </div>
  </section>
