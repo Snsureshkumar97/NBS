@@ -3172,6 +3172,7 @@ function markets(s){
       else if(r.bias==="BEARISH"){col="var(--down)";label="Buy PE";cls="down";}
       else if(r.not_worth_it){col="var(--warn)";label="No room";cls="warn";}
       else if(r.adx_blocked){col="var(--ink-3)";label="Trend too weak";}
+      else if(r.macd_blocked){col="var(--ink-3)";label="Momentum against";}
       else {label="No trade";}
     }
     let el=w.children[i];
