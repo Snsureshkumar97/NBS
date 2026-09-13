@@ -642,6 +642,18 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     adx_ok = adx_val is None or adx_val >= adx_needed
     adx_blocked = raw_bias != "NEUTRAL" and not adx_ok
 
+    # Momentum veto. MACD is already one of the four votes above, so a signal
+    # could fire with momentum against it, outvoted three to one. Requiring it
+    # to agree was the one condition out of seventeen tested that beat the live
+    # rules in BOTH periods and at every slippage and expiry assumption - see
+    # config.MACD_MUST_AGREE for the figures and for how much to trust them.
+    macd_score = tech.get("macd_score")
+    macd_agrees = (macd_score is None or macd_score == 0
+                   or (macd_score > 0) == (raw_bias == "BULLISH"))
+    macd_blocked = (getattr(config, "MACD_MUST_AGREE", False)
+                    and raw_bias != "NEUTRAL" and not adx_blocked
+                    and not macd_agrees)
+
     # Track exactly what is standing between "now" and a trade, so the tool
     # can explain its silence instead of just showing nothing.
     blockers = []
@@ -667,8 +679,20 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
             f"Trend too weak — ADX {adx_val} is below {adx_needed}. The market is "
             f"chopping, so agreement here is more likely noise than a real move."
         )
+    if macd_blocked:
+        blockers.append(
+            f"Momentum disagrees — the MACD histogram is "
+            f"{tech.get('macd_hist')} while the setup is {raw_bias.lower()}. The "
+            f"other indicators outvote it, but momentum against the move was the "
+            f"one filter that improved the rules in both test periods, so the "
+            f"trade waits for it to turn."
+        )
 
-    if adx_blocked:
+    if macd_blocked:
+        bias = "NEUTRAL"
+        action = (f"NO CLEAR TRADE - WAIT (indicators agree on {raw_bias.lower()}, "
+                  f"but MACD histogram {tech.get('macd_hist')} is against it)")
+    elif adx_blocked:
         bias = "NEUTRAL"
         action = (f"NO CLEAR TRADE - WAIT (indicators agree on {raw_bias.lower()}, but ADX="
                   f"{tech.get('adx')} < {config.ADX_TREND_THRESHOLD} — trend too weak, high chop risk)")
@@ -873,6 +897,7 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         "risk_points": risk_points,                 # entry-to-stop distance (1R), in index points
         "raw_bias": raw_bias,                       # what the score alone said, before the ADX gate
         "adx_blocked": adx_blocked,                  # True if a real signal was vetoed for weak trend strength
+        "macd_blocked": macd_blocked,                # True if momentum vetoed an otherwise-qualifying signal
         "target_basis": target_basis,               # "market_reach" | "risk_multiple" | "not_reachable"
         "reach_points": reach_used,                  # realistic travel distance in this direction
         "reach_reason": reach_reason,                # which limit was the binding one

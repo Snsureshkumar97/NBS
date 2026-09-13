@@ -181,7 +181,14 @@ def extra_features(df, vix):
     first_open = df["Open"].groupby(df.index.date).first()
     gap = (first_open / dc.shift(1) - 1.0).abs()
     vprev = pd.Series(vix).shift(1)
-    return {"gap": day.map(gap).to_numpy(), "vix": day.map(vprev).to_numpy()}
+    # Realised volatility over twenty sessions, annualised, shifted a day so a
+    # bar only ever sees finished history. Paired with VIX it gives the
+    # variance premium - what the market charges against what the index has
+    # actually been doing. The absolute VIX filter tested here before said
+    # nothing about that: 20 is cheap in a wild month and dear in a quiet one.
+    rv = (np.log(dc).diff().rolling(20).std() * math.sqrt(252) * 100).shift(1)
+    return {"gap": day.map(gap).to_numpy(), "vix": day.map(vprev).to_numpy(),
+            "rv": day.map(rv).to_numpy()}
 
 
 # ---------------------------------------------------------------- scoring
@@ -245,6 +252,14 @@ def main():
                                     entry_variants["min reward:risk 1 (T3)"](k)(i, r)),
         "skip gap > 1%": lambda k: (lambda i, r, k=k: base_gate[k](i, r) and not
                                     (X[k]["gap"][i] == X[k]["gap"][i] and X[k]["gap"][i] > 0.01)),
+        # PRE-DECLARED 13 Sep 2026, one threshold, not swept: skip the entry
+        # when implied volatility is at least half again the realised. See the
+        # note in this file's docstring - if it fails either period it is
+        # reported failed and nothing changes.
+        "skip premium >= 1.5x realised": lambda k: (lambda i, r, k=k: base_gate[k](i, r) and not
+                                    (X[k]["vix"][i] == X[k]["vix"][i] and
+                                     X[k]["rv"][i] == X[k]["rv"][i] and X[k]["rv"][i] > 0 and
+                                     X[k]["vix"][i] >= 1.5 * X[k]["rv"][i])),
     }
     exit_variants = {
         "hold to T3/stop (live)": {},
@@ -326,7 +341,8 @@ def main():
     out = {"LIVE RULES (OR break)": base}
     r, _ = evaluate("LIVE RULES (OR break)", {}, next_exp=True); out["next expiry on expiry day"] = r
     print(line("next expiry on expiry day", r))
-    for name in ("skip expiry day", "skip VIX > 20", "skip gap > 1%", "min reward:risk 1 (T3)",
+    for name in ("skip expiry day", "skip VIX > 20", "skip gap > 1%",
+                 "skip premium >= 1.5x realised", "min reward:risk 1 (T3)",
                  "R:R 1 + Bank Nifty watch-only"):
         r, _ = evaluate(name, {}); out[name] = r; print(line(name, r))
     for name, kw in list(exit_variants.items())[1:]:

@@ -986,6 +986,50 @@ MIN_REWARD_RISK_T3 = 1.0
 WATCH_ONLY_INDICES = ("BANKNIFTY",)
 
 # ---------------------------------------------------------------------------
+# MACD MUST AGREE WITH THE BIAS
+#
+# WHAT THIS ACTUALLY CHANGES, stated plainly because the name understates it:
+# MACD was ALREADY one of the four votes that build the bias (trend, MACD, RSI,
+# VWAP). A signal could therefore fire with MACD voting against it, outvoted
+# three to one. This promotes that vote to a VETO - momentum disagreeing is now
+# enough to hold the trade back on its own.
+#
+# MEASURED ON THE VETO AS IT RUNS (remeasure_veto.py, 13 Sep 2026, per lot
+# after Zerodha costs, real expiries, pooled over Nifty/BankNifty/Sensex):
+#                    profit factor        net per period
+#   in-sample        1.14 -> 1.23         +425,723 -> +538,176
+#   held-out year    1.05 -> 1.11          +97,860 -> +160,228
+#   2,980 trades -> 2,301 in-sample, 1,717 -> 1,373 held out.
+#
+# WHY THOSE NUMBERS AND NOT THE STUDY'S. strategy_study measured this as a gate
+# OUTSIDE the engine, which scored +99,026 / +115,266 at PF 1.23 / 1.15. This
+# is a veto INSIDE the engine, and the two are not the same rule: a blocked
+# signal frees the entry spacing here, so a later bar can take its place. On
+# Nifty alone the gate took 1,248 trades and the veto 1,253, sharing only
+# 1,048. The held-out profit factor is 1.11, not the 1.15 the gate scored.
+# Quoting the gate's figures against the veto would have been a measured-
+# sounding claim about a rule nobody measured.
+#
+# The gate version held at 3 of 3 slippage assumptions (0%, 0.25%, 0.50%) and
+# 2 of 2 expiry assumptions, and removed trades that were 61.0% losers against
+# a 57.3% base rate, with the ten worst only 4% of the losses avoided - a broad
+# improvement rather than a few rescued disasters. Those robustness checks were
+# run on the gate; the veto has been measured on both periods only.
+#
+# HOW MUCH TO TRUST IT - read this before relying on the numbers above:
+#   * It was the best of SEVENTEEN candidates tested. With that many, one
+#     surviving both periods is roughly what luck alone delivers.
+#   * It is unconfirmed on data that did not exist when it was chosen. The
+#     only real test is live trades from here.
+#   * The same trades priced six days from expiry instead of three swing the
+#     pooled result by hundreds of thousands of rupees. That sensitivity is
+#     larger than the gap between any two candidates in the study.
+#   * The tool's own live record is one closed trade.
+#
+# False switches it off and restores the previous behaviour exactly.
+MACD_MUST_AGREE = True
+
+# ---------------------------------------------------------------------------
 # SPREAD — what it costs just to get in and out
 # ---------------------------------------------------------------------------
 # A market order buys at the offer and sells at the bid, so a round trip
