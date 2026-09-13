@@ -571,6 +571,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
         payload = {
             "market_open": snap["market_open"],
+            "posgreeks": self._position_greeks(user, market,
+                                               snap.get("tickets") or {}),
             "closing_auction": snap.get("closing_auction", False),
             "always_on": bool((accounts.get_user(user) or {}).get("always_on"))
                          if user else False,
@@ -674,6 +676,60 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "short_history": short,
             "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
             "missing": getattr(feed, "_hist_missing", 0)}), "application/json")
+
+    def _position_greeks(self, user, market, tickets):
+        """What an open position is actually exposed to, in rupees.
+
+        A ticket shows entry, price and P&L. It does not show that the position
+        bleeds a known amount every day it is held, or what a hundred-point
+        move is worth - and those are the two numbers that decide whether
+        holding overnight is sensible. Priced with the same model as the chain,
+        scaled by the real lot size, so the answer is money rather than a
+        textbook sensitivity.
+        """
+        if market != "nse_index":
+            return {}
+        import datetime as _dt
+        import greeks as gk
+        ist = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        now = _dt.datetime.now(ist)
+        feed = feeds.for_user(user, market)
+        out = {}
+        for name, blob in (tickets or {}).items():
+            t = (blob or {}).get("ticket") if isinstance(blob, dict) else None
+            if not t or not t.get("open"):
+                continue
+            strike, kind = t.get("strike"), t.get("option_type")
+            prem, expiry = t.get("now"), str(t.get("expiry") or "")
+            lot = t.get("lot_size") or 0
+            lots = t.get("lots") or 1
+            rec = ((feed.snapshot().get("indices") or {}).get(name) or {})
+            spot = rec.get("spot") or rec.get("ltp_spot")
+            if not (strike and kind and prem and spot and expiry):
+                continue
+            try:
+                y, mo, dd = (int(x) for x in expiry.split("-")[:3])
+            except Exception:
+                continue
+            close = _dt.datetime(y, mo, dd, 15, 30, tzinfo=ist)
+            t_yr = gk.years_to_expiry((close - now).total_seconds() / 60.0)
+            iv = gk.implied_vol(prem, spot, strike, t_yr, kind)
+            if not iv:
+                out[name] = {"note": "No volatility fits this price, so the "
+                                     "sensitivities are not shown."}
+                continue
+            g_ = gk.greeks(spot, strike, t_yr, iv, kind)
+            qty = (lot or 0) * lots
+            out[name] = {
+                "iv": round(iv * 100, 2),
+                "delta": round(g_["delta"], 4),
+                "gamma": round(g_["gamma"], 7),
+                "theta_day": round(g_["theta"] * qty, 2) if qty else None,
+                "per_100": round(g_["delta"] * 100 * qty, 2) if qty else None,
+                "vega_pt": round(g_["vega"] * qty, 2) if qty else None,
+                "days": round((close - now).total_seconds() / 86400.0, 2),
+                "qty": qty}
+        return out
 
     def _api_greeks(self, user, qs):
         """The chain restated as volatility and sensitivities.
@@ -881,6 +937,41 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "vix_lo": round(min(year), 2), "vix_hi": round(max(year), 2)}
         except Exception as exc:
             out["vol"] = {"error": str(exc)[:140]}
+
+        # --------------------------------------------------------------- cone
+        # Realised volatility at several horizons against its OWN year, so
+        # "quiet" and "wild" are judged against this index's history rather
+        # than a number someone remembers. Short windows swing; long ones
+        # anchor, which is why every horizon is shown instead of one.
+        try:
+            import statistics as _st
+            cl = [float(x) for x in px["Close"].tolist()]
+            lr = [math.log(cl[i] / cl[i-1]) for i in range(1, len(cl))]
+            cone = []
+            for w in (5, 10, 20, 30, 60, 90):
+                if len(lr) < w + 5:
+                    continue
+                vals = []
+                for i in range(w, len(lr) + 1):
+                    win = lr[i-w:i]
+                    m = sum(win) / w
+                    sd = (sum((x - m) ** 2 for x in win) / (w - 1)) ** .5
+                    vals.append(sd * (252 ** .5) * 100)
+                now = vals[-1]
+                srt = sorted(vals)
+                def pc(q):
+                    return srt[min(len(srt) - 1, int(q * (len(srt) - 1)))]
+                cone.append({
+                    "window": w, "now": round(now, 2),
+                    "min": round(srt[0], 2), "p25": round(pc(.25), 2),
+                    "median": round(pc(.5), 2), "p75": round(pc(.75), 2),
+                    "max": round(srt[-1], 2),
+                    "rank": round(sum(1 for v in vals if v < now) / len(vals) * 100),
+                    "n": len(vals)})
+            out["cone"] = {"rows": cone, "iv": out.get("vol", {}).get("vix"),
+                           "sessions": len(cl)}
+        except Exception as exc:
+            out["cone"] = {"error": str(exc)[:140]}
 
         # -------------------------------------------------------------- levels
         levels = []
@@ -2690,6 +2781,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   </div>
   <div class="feedline" id="sfeed"></div>
 
+  <div class="card" data-panel="posgk" id="posgkcard" hidden style="margin-top:14px">
+   <p class="eyebrow">This position &middot; what it is exposed to</p>
+   <div class="pulse" id="posgk"></div>
+   <div class="gnote" id="posgknote"></div>
+  </div>
   <div class="card herocard" id="sigcard" data-panel="signal" style="margin-top:14px">
   <div class="thead">
   <p class="eyebrow" id="teyebrow">Signal</p>
@@ -2916,6 +3012,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <p class="eyebrow">Realised volatility &middot; what it actually did</p>
     <div class="scrwrap"><table class="scr" id="volrv"></table></div>
    </div>
+  </div>
+  <div class="card" data-panel="volcone" id="volconecard">
+   <p class="eyebrow">Volatility cone &middot; today against its own year</p>
+   <div class="scrwrap"><table class="scr" id="volcone"></table></div>
+   <div class="gnote" id="volconenote"></div>
   </div>
  </section>
 
@@ -4166,6 +4267,7 @@ function render(s){
   CCY = s.currency || "INR";
   const cas = !!s.closing_auction && !s.stale;
   try{ gateTabs(); }catch(e){}
+  try{ posGreeks(s); }catch(e){}
   $("beat").className = "beat" + (s.market_open && !s.stale && !cas ? " live" : "");
   $("mkt").textContent = s.stale ? "feed down"
     : (cas ? "Closing auction" : (s.market_open?"Market open":"Market closed"));
@@ -5071,6 +5173,41 @@ function gateTabs(){
   }
 }
 
+// What an open position is exposed to, in money rather than textbook units.
+// Hidden entirely when nothing is open: an empty table of dashes reads as
+// broken, and there is nothing to say when there is no position.
+function posGreeks(s){
+  const card = $("posgkcard"), box = $("posgk"), note = $("posgknote");
+  if(!card || !box) return;
+  const all = (s && s.posgreeks) || {};
+  const mine = all[CUR];
+  if(!mine){ card.hidden = true; return; }
+  card.hidden = false;
+  if(mine.note){
+    box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+      + `${esc(mine.note)}</p>`;
+    if(note) note.textContent = "";
+    return;
+  }
+  const theta = mine.theta_day, per100 = mine.per_100;
+  box.innerHTML =
+    statRow("Implied volatility", mine.iv.toFixed(2) + "%")
+  + statRow("Delta", mine.delta.toFixed(3))
+  + statRow("A 100-point move is worth",
+            per100 == null ? "—" : money(Math.abs(per100), false),
+            per100 >= 0 ? "var(--up)" : "var(--down)")
+  + statRow("Time decay, a day",
+            theta == null ? "—" : "−" + money(Math.abs(theta), false), "var(--down)")
+  + statRow("Per point of volatility",
+            mine.vega_pt == null ? "—" : money(Math.abs(mine.vega_pt), false));
+  if(note) note.textContent =
+    `On ${mine.qty} units, ${mine.days} days to expiry. Time decay is what `
+    + `holding costs if nothing moves - it is charged every day, weekends `
+    + `included, and it accelerates as expiry approaches. Delta is the move `
+    + `per point of index, so the hundred-point figure is what the position `
+    + `gains or loses on a move that size, before volatility changes.`;
+}
+
 // ======================================================= greeks & IV
 // The chain restated: what each price implies about movement, and how it will
 // change. Validated against the live chain before it was wired - ATM implied
@@ -5223,6 +5360,31 @@ function anaPaint(){
       + `inside its one-day expected move ${v.inside}% of the time (${v.inside_60}% `
       + `over the last 60). A fair one-sigma band would hold about 68%, so the `
       + `market has been pricing more movement than it delivered.`;
+  }
+  const cone = (d.cone || {});
+  scrTable("volcone", cone.rows || [],
+    [["Window", r => `<td class="sym">${r.window} days</td>`],
+     ["Now", r => `<td style="color:var(--ink)">${r.now.toFixed(2)}%</td>`],
+     ["Quietest", r => `<td>${r.min.toFixed(2)}%</td>`],
+     ["Median", r => `<td>${r.median.toFixed(2)}%</td>`],
+     ["Wildest", r => `<td>${r.max.toFixed(2)}%</td>`],
+     ["Percentile", r => {
+        const col = r.rank < 20 ? "var(--up)" : r.rank > 80 ? "var(--down)" : "var(--ink-2)";
+        return `<td style="color:${col}">${r.rank}%</td>`; }],
+     ["Windows", r => `<td>${r.n}</td>`]],
+    "Not enough daily history for a cone.");
+  if($("volconenote")){
+    const quiet = (cone.rows || []).filter(r => r.rank < 20).map(r => r.window + "d");
+    $("volconenote").textContent =
+      `Realised volatility over each window, ranked against every other window `
+      + `of the same length in ${cone.sessions || "—"} sessions. Short windows `
+      + `swing and long ones anchor, which is why all six are here rather than `
+      + `one number. `
+      + (quiet.length
+          ? `At ${quiet.join(", ")} the index is in the quietest fifth of its `
+            + `year while options are priced at ${cone.iv}% - the same premium `
+            + `the panel above measures, seen by horizon.`
+          : `Nothing is at an extreme of its own range today.`);
   }
   scrTable("volrv", [["10 sessions", v.rv10], ["20 sessions", v.rv20],
                      ["60 sessions", v.rv60], ["250 sessions", v.rv250]]
