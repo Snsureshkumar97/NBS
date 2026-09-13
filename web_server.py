@@ -473,6 +473,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_screen(user, qs)
             if path == "/api/spikes":
                 return self._api_spikes(user, qs)
+            if path == "/api/analytics":
+                return self._api_analytics(user, qs)
             if path == "/api/oiclock":
                 return self._api_oiclock(user, qs)
             if path == "/api/markets":
@@ -670,6 +672,199 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "short_history": short,
             "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
             "missing": getattr(feed, "_hist_missing", 0)}), "application/json")
+
+    def _api_analytics(self, user, qs):
+        """The analyst's numbers: volatility, levels, internals, strength,
+        seasonality.
+
+        Every block carries the sample it was computed from. A statistic
+        without its n is a claim, not a measurement, and this file has already
+        shipped one verdict drawn from an empty dataset.
+
+        All of it is NSE-sourced - India VIX, index candles, the constituent
+        list - so the crypto session gets an honest refusal rather than
+        another market's numbers.
+        """
+        import math
+        market = self._current_market()
+        if market != "nse_index":
+            return self._send(json.dumps({
+                "market": market,
+                "note": "These are Indian-market analytics - India VIX, the "
+                        "index candles and the constituent list. None of it "
+                        "exists for this market, so none of it is shown."}),
+                "application/json")
+
+        feed = feeds.for_user(user, market)
+        out = {"market": market}
+        try:
+            provider, state, _ = feed._provider()
+        except Exception:
+            provider = None
+        if provider is None:
+            return self._send(json.dumps({"error": "no data provider right now"}),
+                              "application/json")
+
+        def series(key, interval, days):
+            try:
+                return provider.get_ohlc(key, interval=interval, lookback_days=days)
+            except Exception:
+                return None
+
+        # ---------------------------------------------------------- volatility
+        try:
+            px = series("NIFTY", "1d", 400)
+            vix = provider.candles_for_token(264969, "day", days=400)
+            closes = [float(x) for x in px["Close"].tolist()]
+            rets = [math.log(closes[i] / closes[i-1]) for i in range(1, len(closes))]
+            def rvol(n):
+                w = rets[-n:]
+                if len(w) < 5: return None
+                m = sum(w) / len(w)
+                sd = (sum((x - m) ** 2 for x in w) / (len(w) - 1)) ** .5
+                return round(sd * (252 ** .5) * 100, 2)
+            ivnow = round(float(vix["close"].iloc[-1]), 2)
+            year = [float(x) for x in vix["close"].tolist()][-252:]
+            pctile = round(sum(1 for v in year if v < ivnow) / len(year) * 100, 1)
+            spot = closes[-1]
+            moves = {}
+            for label, d in (("day", 1), ("week", 5), ("month", 21)):
+                em = spot * (ivnow / 100) * ((d / 252) ** .5)
+                moves[label] = {"pts": round(em), "lo": round(spot - em, 2),
+                                "hi": round(spot + em, 2)}
+            # How often the day's move stayed inside what implied vol priced.
+            # Both sides aligned on plain dates: a half-normalised join gave
+            # NaN and read as 0%, which is impossible and was my error.
+            import pandas as _pd
+            pxd = px.copy()
+            pxd.index = _pd.to_datetime(px.index).tz_localize(None).normalize()
+            vx = vix.copy()
+            vx["d"] = _pd.to_datetime(vx["ts"]).dt.tz_localize(None).dt.normalize()
+            vs = vx.set_index("d")["close"].reindex(pxd.index).ffill().shift(1)
+            exp1 = pxd["Close"].shift(1) * (vs / 100) * (1 / 252) ** .5
+            act = (pxd["Close"] - pxd["Close"].shift(1)).abs()
+            both = _pd.concat([act, exp1], axis=1).dropna()
+            both.columns = ["a", "e"]
+            inside = (both["a"] <= both["e"])
+            rv20 = rvol(20)
+            out["vol"] = {
+                "vix": ivnow, "pctile": pctile,
+                "rv10": rvol(10), "rv20": rv20, "rv60": rvol(60), "rv250": rvol(250),
+                "premium": round(ivnow - rv20, 2) if rv20 else None,
+                "spot": round(spot, 2), "moves": moves,
+                "inside": round(float(inside.mean()) * 100),
+                "inside_n": int(len(inside)),
+                "inside_60": round(float(inside.tail(60).mean()) * 100),
+                "vix_lo": round(min(year), 2), "vix_hi": round(max(year), 2)}
+        except Exception as exc:
+            out["vol"] = {"error": str(exc)[:140]}
+
+        # -------------------------------------------------------------- levels
+        levels = []
+        for key in config.instruments_in(market):
+            try:
+                d = series(key, "1d", 60)
+                if d is None or len(d) < 15: continue
+                H, L, C = (float(d["High"].iloc[-1]), float(d["Low"].iloc[-1]),
+                           float(d["Close"].iloc[-1]))
+                pivot = (H + L + C) / 3
+                trs = []
+                for i in range(1, len(d)):
+                    hi, lo = float(d["High"].iloc[i]), float(d["Low"].iloc[i])
+                    pc = float(d["Close"].iloc[i-1])
+                    trs.append(max(hi - lo, abs(hi - pc), abs(lo - pc)))
+                atr = sum(trs[-14:]) / 14
+                row = {"index": key, "close": round(C, 2),
+                       "prev_high": round(H, 2), "prev_low": round(L, 2),
+                       "range": round(H - L, 2),
+                       "pivot": round(pivot, 2),
+                       "r1": round(2*pivot - L, 2), "s1": round(2*pivot - H, 2),
+                       "r2": round(pivot + (H - L), 2), "s2": round(pivot - (H - L), 2),
+                       "atr": round(atr), "atr_lo": round(C - atr, 2),
+                       "atr_hi": round(C + atr, 2), "session": str(d.index[-1].date())}
+                m = series(key, "5m", 5)
+                if m is not None and len(m) > 3:
+                    day = m.index[-1].date()
+                    sess = m[[ix.date() == day for ix in m.index]]
+                    if len(sess) >= 3:
+                        orb = sess.iloc[:3]
+                        oh, ol = float(orb["High"].max()), float(orb["Low"].min())
+                        cl = float(sess["Close"].iloc[-1])
+                        row.update({"or_hi": round(oh, 2), "or_lo": round(ol, 2),
+                                    "or_close": "above" if cl > oh else
+                                                "below" if cl < ol else "inside"})
+                levels.append(row)
+            except Exception:
+                continue
+        out["levels"] = levels
+
+        # ------------------------------------- internals + relative strength
+        try:
+            hist = feed.constituent_history("day", days=400)
+            closes = {s_: [float(x) for x in d["close"].tolist()]
+                      for s_, d in hist.items() if len(d) > 60}
+            n = min(len(v) for v in closes.values())
+            trimmed = {k: v[-n:] for k, v in closes.items()}
+            def ma(v, w): return sum(v[-w:]) / w
+            a20 = sum(1 for v in trimmed.values() if v[-1] > ma(v, 20))
+            a50 = sum(1 for v in trimmed.values() if v[-1] > ma(v, 50))
+            adv = sum(1 for v in trimmed.values() if v[-1] > v[-2])
+            dec = sum(1 for v in trimmed.values() if v[-1] < v[-2])
+            hi = sum(1 for v in trimmed.values() if v[-1] >= max(v))
+            lo = sum(1 for v in trimmed.values() if v[-1] <= min(v))
+            adline = []
+            run = 0
+            for i in range(max(1, n - 20), n):
+                up = sum(1 for v in trimmed.values() if v[i] > v[i-1])
+                dn = sum(1 for v in trimmed.values() if v[i] < v[i-1])
+                run += up - dn
+                adline.append(run)
+            total = len(trimmed)
+            out["internals"] = {
+                "n": total, "lookback": n,
+                "above20": round(a20 / total * 100, 1),
+                "above50": round(a50 / total * 100, 1),
+                "adv": adv, "dec": dec, "at_high": hi, "at_low": lo,
+                "adline": adline}
+            rs = sorted(((k, (v[-1] / v[-21] - 1) * 100) for k, v in trimmed.items()
+                         if len(v) > 21), key=lambda kv: -kv[1])
+            out["strength"] = {
+                "window": 20,
+                "leaders": [{"sym": k, "pct": round(v, 2)} for k, v in rs[:8]],
+                "laggards": [{"sym": k, "pct": round(v, 2)} for k, v in rs[-8:]]}
+        except Exception as exc:
+            out["internals"] = {"error": str(exc)[:140]}
+
+        # --------------------------------------------------------- seasonality
+        try:
+            d = series("NIFTY", "1d", 400)
+            rows, gaps = {}, []
+            prev_close = None
+            for ix, r in zip(d.index, d.itertuples()):
+                if prev_close:
+                    rows.setdefault(ix.weekday(), []).append(
+                        (float(r.Close) / prev_close - 1) * 100)
+                    gaps.append((float(r.Open) / prev_close - 1) * 100)
+                prev_close = float(r.Close)
+            names = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday", 4: "Friday"}
+            dow = []
+            for k in sorted(rows):
+                if k not in names: continue
+                v = rows[k]
+                m = sum(v) / len(v)
+                sd = (sum((x - m) ** 2 for x in v) / max(1, len(v) - 1)) ** .5
+                dow.append({"day": names[k], "avg": round(m, 3), "sd": round(sd, 2),
+                            "n": len(v), "up": round(sum(1 for x in v if x > 0) / len(v) * 100)})
+            out["season"] = {
+                "dow": dow, "n": len(gaps),
+                "gap_up": sum(1 for g in gaps if g > 0.1),
+                "gap_flat": sum(1 for g in gaps if abs(g) <= 0.1),
+                "gap_down": sum(1 for g in gaps if g < -0.1),
+                "gap_avg": round(sum(abs(g) for g in gaps) / len(gaps), 2)}
+        except Exception as exc:
+            out["season"] = {"error": str(exc)[:140]}
+
+        return self._send(json.dumps(out), "application/json")
 
     def _api_spikes(self, user, qs):
         """What moved hardest in the last five and ten minutes of the session.
@@ -1952,6 +2147,8 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
   font-size:12px;text-transform:uppercase}
 @media(max-width:900px){.acct span{display:none}}
 
+.adwrap{margin-top:4px}
+.adwrap canvas{display:block;width:100%;max-width:100%}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   gap:14px;margin-top:14px;align-items:start}
 .spkbar{font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
@@ -2234,6 +2431,12 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab" data-tab="pulse" role="tab" type="button"><i>&#128200;</i>Market pulse</button>
   <button class="tab" data-tab="sector" role="tab" type="button"><i>&#129518;</i>Sector scope</button>
   <button class="tab" data-tab="spikes" role="tab" type="button"><i>&#9889;</i>Momentum spikes</button>
+  <p class="mgroup">Analysis</p>
+  <button class="tab" data-tab="vol" role="tab" type="button"><i>&#127786;</i>Volatility</button>
+  <button class="tab" data-tab="levels" role="tab" type="button"><i>&#128207;</i>Levels</button>
+  <button class="tab" data-tab="internals" role="tab" type="button"><i>&#128202;</i>Internals</button>
+  <button class="tab" data-tab="strength" role="tab" type="button"><i>&#127947;</i>Relative strength</button>
+  <button class="tab" data-tab="season" role="tab" type="button"><i>&#128197;</i>Seasonality</button>
   <p class="mgroup">Research</p>
   <button class="tab" data-tab="news" role="tab" type="button"><i>&#128240;</i>News</button>
   <button class="tab" data-tab="record" role="tab" type="button"><i>&#128188;</i>Record</button>
@@ -2571,6 +2774,76 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
    <div class="scrwrap"><table class="scr" id="spk10"></table></div>
   </div>
   <div class="gnote" id="spknote"></div>
+ </section>
+
+ <section class="pane" data-pane="vol">
+  <div class="card" data-panel="volhead" id="volheadcard">
+   <p class="eyebrow">Volatility &middot; what the market is paying for movement</p>
+   <div class="pulse" id="volstats"></div>
+   <div class="gnote" id="volnote"></div>
+  </div>
+  <div class="grid2">
+   <div class="card" data-panel="volem" id="volemcard">
+    <p class="eyebrow">Expected move &middot; from implied volatility</p>
+    <div class="scrwrap"><table class="scr" id="volem"></table></div>
+    <div class="gnote" id="volemnote"></div>
+   </div>
+   <div class="card" data-panel="volrv" id="volrvcard">
+    <p class="eyebrow">Realised volatility &middot; what it actually did</p>
+    <div class="scrwrap"><table class="scr" id="volrv"></table></div>
+   </div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="levels">
+  <div class="card" data-panel="lvl" id="lvlcard">
+   <p class="eyebrow">Levels &middot; <span id="lvlsess">&mdash;</span></p>
+   <div class="scrwrap"><table class="scr" id="lvl"></table></div>
+   <div class="gnote" id="lvlnote"></div>
+  </div>
+  <div class="card" data-panel="lvlor" id="lvlorcard">
+   <p class="eyebrow">Opening range &middot; first fifteen minutes</p>
+   <div class="scrwrap"><table class="scr" id="lvlor"></table></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="internals">
+  <div class="card" data-panel="intn" id="intncard">
+   <p class="eyebrow">Market internals &middot; what the members are doing</p>
+   <div class="pulse" id="intstats"></div>
+   <div class="gnote" id="intnote"></div>
+  </div>
+  <div class="card" data-panel="intad" id="intadcard">
+   <p class="eyebrow">Advance/decline line &middot; last 20 sessions</p>
+   <div class="adwrap"><canvas id="adline" height="150"></canvas></div>
+   <div class="gnote" id="adnote"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="strength">
+  <div class="grid2">
+   <div class="card" data-panel="rsl" id="rslcard">
+    <p class="eyebrow">Leaders &middot; <span id="rswin">20</span>-day return</p>
+    <div class="scrwrap"><table class="scr" id="rslead"></table></div>
+   </div>
+   <div class="card" data-panel="rsg" id="rsgcard">
+    <p class="eyebrow">Laggards</p>
+    <div class="scrwrap"><table class="scr" id="rslag"></table></div>
+   </div>
+  </div>
+  <div class="gnote" id="rsnote"></div>
+ </section>
+
+ <section class="pane" data-pane="season">
+  <div class="card" data-panel="sdow" id="sdowcard">
+   <p class="eyebrow">By weekday &middot; <span id="seasn">&mdash;</span> sessions</p>
+   <div class="scrwrap"><table class="scr" id="sdow"></table></div>
+   <div class="gnote" id="sdownote"></div>
+  </div>
+  <div class="card" data-panel="sgap" id="sgapcard">
+   <p class="eyebrow">Opening gaps</p>
+   <div class="pulse" id="sgap"></div>
+  </div>
  </section>
 
  <section class="pane" data-pane="news">
@@ -4418,10 +4691,13 @@ function chainDraw(d){
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
-              "spikes", "news", "record"];
+              "spikes", "vol", "levels", "internals", "strength", "season",
+              "news", "record"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
-                   spikes:"Momentum spikes", news:"News", record:"Record"};
+                   spikes:"Momentum spikes", vol:"Volatility", levels:"Levels",
+                   internals:"Internals", strength:"Relative strength",
+                   season:"Seasonality", news:"News", record:"Record"};
 function showTab(name, push){
   if(!TABS.includes(name)) name = "home";
   TAB = name;
@@ -4439,6 +4715,7 @@ function showTab(name, push){
   if(name === "sector") heatMap(true);
   if(name === "pulse"){ pulseDraw(); screenFetch(); }
   if(name === "spikes") spikeFetch();
+  if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -4630,7 +4907,8 @@ async function oiFetch(){
 // there at all - a hidden tab beats a blank panel that looks broken.
 function gateTabs(){
   const crypto = !!(LAST && LAST.market === "crypto");
-  [["sector", crypto], ["market", crypto]].forEach(([name, hide]) => {
+  [["sector", crypto], ["market", crypto], ["vol", crypto], ["levels", crypto],
+   ["internals", crypto], ["strength", crypto], ["season", crypto]].forEach(([name, hide]) => {
     const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);
     if(btn) btn.hidden = hide;
     if(hide && TAB === name) showTab("home");
@@ -4646,6 +4924,197 @@ function gateTabs(){
     GATED_FOR = key;
     try{ markets_(); }catch(e){}
   }
+}
+
+// ======================================================= analysis
+// One fetch behind five panes. Every panel prints the sample it was computed
+// from: a statistic without its n is a claim, not a measurement.
+let ANA = null, ANA_AT = 0;
+async function anaFetch(force){
+  if(!force && ANA && Date.now() - ANA_AT < 600000){ anaPaint(); return; }
+  try{
+    ANA = await (await fetch("/api/analytics", {cache:"no-store"})).json();
+    ANA_AT = Date.now();
+  }catch(e){ ANA = {error: "could not be read"}; }
+  anaPaint();
+}
+const statRow = (label, value, colour) =>
+  `<div class="pr"><span>${esc(label)}</span>`
+  + `<b${colour ? ` style="color:${colour}"` : ""}>${value}</b></div>`;
+
+function anaPaint(){
+  const d = ANA || {};
+  if(d.note){                       // a market these do not apply to
+    ["volstats","intstats","sgap"].forEach(id => {
+      const el = $(id);
+      if(el) el.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+        + `${esc(d.note)}</p>`; });
+    ["volem","volrv","lvl","lvlor","rslead","rslag","sdow"].forEach(id => {
+      const t = $(id); if(t) t.innerHTML = ""; });
+    return;
+  }
+  const v = d.vol || {};
+  if($("volstats")){
+    if(v.error || v.vix == null){
+      $("volstats").innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+        + `Volatility data is not available right now.</p>`;
+    }else{
+      const rich = v.premium > 0;
+      $("volstats").innerHTML =
+        statRow("India VIX (implied)", v.vix.toFixed(2) + "%")
+      + statRow("Realised, 20 sessions", v.rv20 == null ? "—" : v.rv20.toFixed(2) + "%")
+      + statRow("Premium over realised", (v.premium >= 0 ? "+" : "−")
+                + Math.abs(v.premium).toFixed(2) + " pts",
+                rich ? "var(--warn)" : "var(--up)")
+      + statRow("VIX percentile, past year", v.pctile + "%")
+      + statRow("VIX range this year", v.vix_lo.toFixed(1) + " – " + v.vix_hi.toFixed(1));
+      $("volnote").textContent = rich
+        ? `Implied volatility sits ${v.premium.toFixed(2)} points above what the `
+          + `index has actually done over 20 sessions, so option premium is `
+          + `expensive relative to recent movement. That favours the seller and `
+          + `penalises the buyer - it does not predict direction.`
+        : `Implied volatility is below realised movement: premium is cheap `
+          + `relative to how much the index has been moving.`;
+    }
+  }
+  if(v.moves){
+    scrTable("volem", [["a day", v.moves.day], ["this week", v.moves.week],
+                       ["this month", v.moves.month]].map(([k, m]) =>
+              ({window: k, pts: m.pts, lo: m.lo, hi: m.hi})),
+      [["Over", r => `<td class="sym">${esc(r.window)}</td>`],
+       ["Expected move", r => `<td>±${num(r.pts,0)} pts</td>`],
+       ["Low", r => `<td>${num(r.lo,2)}</td>`],
+       ["High", r => `<td>${num(r.hi,2)}</td>`]],
+      "No implied volatility reading.");
+    if($("volemnote")) $("volemnote").textContent =
+      `One standard deviation from ${num(v.spot,2)} at today's implied `
+      + `volatility. Over the last ${v.inside_n} sessions the index stayed `
+      + `inside its one-day expected move ${v.inside}% of the time (${v.inside_60}% `
+      + `over the last 60). A fair one-sigma band would hold about 68%, so the `
+      + `market has been pricing more movement than it delivered.`;
+  }
+  scrTable("volrv", [["10 sessions", v.rv10], ["20 sessions", v.rv20],
+                     ["60 sessions", v.rv60], ["250 sessions", v.rv250]]
+             .filter(r => r[1] != null).map(([k, x]) => ({w: k, v: x})),
+    [["Window", r => `<td class="sym">${esc(r.w)}</td>`],
+     ["Annualised", r => `<td>${r.v.toFixed(2)}%</td>`]],
+    "No candles yet.");
+
+  const L = d.levels || [];
+  if(L.length && $("lvlsess")) $("lvlsess").textContent = "from " + L[0].session;
+  scrTable("lvl", L,
+    [["Index", r => `<td class="sym">${esc(r.index)}</td>`],
+     ["Close", r => `<td>${num(r.close,2)}</td>`],
+     ["S2", r => `<td>${num(r.s2,2)}</td>`], ["S1", r => `<td>${num(r.s1,2)}</td>`],
+     ["Pivot", r => `<td style="color:var(--ink)">${num(r.pivot,2)}</td>`],
+     ["R1", r => `<td>${num(r.r1,2)}</td>`], ["R2", r => `<td>${num(r.r2,2)}</td>`],
+     ["ATR(14)", r => `<td>${num(r.atr,0)}</td>`]],
+    "No levels yet.");
+  if($("lvlnote")) $("lvlnote").textContent =
+    "Floor pivots from the previous session's high, low and close. ATR(14) is "
+    + "the average true range over fourteen sessions - the distance this index "
+    + "typically covers in a day, which is what a stop has to survive.";
+  scrTable("lvlor", L.filter(r => r.or_hi != null),
+    [["Index", r => `<td class="sym">${esc(r.index)}</td>`],
+     ["Range low", r => `<td>${num(r.or_lo,2)}</td>`],
+     ["Range high", r => `<td>${num(r.or_hi,2)}</td>`],
+     ["Width", r => `<td>${num(r.or_hi - r.or_lo,0)} pts</td>`],
+     ["Closed", r => `<td style="color:${r.or_close === "above" ? "var(--up)"
+        : r.or_close === "below" ? "var(--down)" : "var(--ink-2)"}">${esc(r.or_close)}</td>`]],
+    "No intraday candles for the opening range.");
+
+  const i = d.internals || {};
+  if($("intstats")){
+    if(i.error || i.n == null){
+      $("intstats").innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+        + `Constituent history is not loaded.</p>`;
+    }else{
+      const weak = i.above20 < 30;
+      $("intstats").innerHTML =
+        statRow("Above their 20-day average", i.above20 + "%",
+                weak ? "var(--down)" : "var(--up)")
+      + statRow("Above their 50-day average", i.above50 + "%")
+      + statRow("Advancing / declining", i.adv + " / " + i.dec,
+                i.adv > i.dec ? "var(--up)" : "var(--down)")
+      + statRow(`At a ${i.lookback}-session high`, i.at_high)
+      + statRow(`At a ${i.lookback}-session low`, i.at_low);
+      $("intnote").textContent =
+        `${i.n} index members over ${i.lookback} sessions. Breadth says whether `
+        + `a move is the whole market or a few heavyweights: an index can rise `
+        + `while most of its members fall.`;
+    }
+  }
+  adDraw(i.adline || []);
+
+  const st = d.strength || {};
+  if($("rswin")) $("rswin").textContent = st.window || 20;
+  const rsCols = [["Symbol", r => `<td class="sym">${esc(r.sym)}</td>`],
+                  ["Return", r => pctCell(r.pct)]];
+  scrTable("rslead", st.leaders || [], rsCols, "No history yet.");
+  scrTable("rslag", (st.laggards || []).slice().reverse(), rsCols, "No history yet.");
+  if($("rsnote")) $("rsnote").textContent =
+    `Return over the last ${st.window || 20} sessions, across the index members `
+    + `this tool covers. Relative strength is about ranking, not direction: in a `
+    + `falling market the leader may still be down.`;
+
+  const se = d.season || {};
+  if($("seasn")) $("seasn").textContent = se.n || "—";
+  scrTable("sdow", se.dow || [],
+    [["Day", r => `<td class="sym">${esc(r.day)}</td>`],
+     ["Average", r => pctCell(r.avg)],
+     ["Up days", r => `<td>${r.up}%</td>`],
+     ["Spread", r => `<td>${r.sd.toFixed(2)}</td>`],
+     ["Sessions", r => `<td>${r.n}</td>`]],
+    "No daily history.");
+  if($("sdownote")) $("sdownote").textContent =
+    "Average close-to-close move by weekday. With about fifty samples a day "
+    + "these are tendencies, not rules - the spread column is wider than every "
+    + "average in the table, which is the point.";
+  if($("sgap") && se.n){
+    $("sgap").innerHTML =
+      statRow("Gapped up at the open", se.gap_up + " sessions", "var(--up)")
+    + statRow("Opened flat", se.gap_flat + " sessions")
+    + statRow("Gapped down", se.gap_down + " sessions", "var(--down)")
+    + statRow("Average gap, either way", se.gap_avg + "%");
+  }
+}
+
+// The A/D line: a running total of advances minus declines. Drawn rather than
+// tabulated because its shape is the information.
+function adDraw(vals){
+  const c = $("adline");
+  if(!c) return;
+  const box = c.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(240, Math.floor(box.width)), h = 150;
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + "px"; c.style.height = h + "px";
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  if(!vals.length){
+    g.fillStyle = "#6b7282"; g.font = "13px system-ui";
+    g.fillText("Waiting for the constituents.", 10, 24);
+    return;
+  }
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const span = (hi - lo) || 1, pad = 10;
+  const x = i => pad + i * (w - 2 * pad) / Math.max(1, vals.length - 1);
+  const y = v => h - pad - (v - lo) * (h - 2 * pad) / span;
+  g.strokeStyle = "rgba(255,255,255,.10)"; g.beginPath();
+  g.moveTo(pad, y(0)); g.lineTo(w - pad, y(0)); g.stroke();
+  const last = vals[vals.length - 1];
+  g.strokeStyle = last >= 0 ? "#2be08a" : "#ef5570";
+  g.lineWidth = 2; g.beginPath();
+  vals.forEach((v, i) => i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v)));
+  g.stroke();
+  g.fillStyle = last >= 0 ? "#2be08a" : "#ef5570";
+  g.beginPath(); g.arc(x(vals.length - 1), y(last), 3, 0, 7); g.fill();
+  const note = $("adnote");
+  if(note) note.textContent = `Cumulative advances minus declines over the last `
+    + `${vals.length} sessions, currently ${last >= 0 ? "+" : "−"}${Math.abs(last)}. `
+    + `A falling line while the index holds up means fewer and fewer names are `
+    + `carrying it.`;
 }
 
 // ======================================================= pulse screeners
