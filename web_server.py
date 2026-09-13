@@ -2568,19 +2568,52 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .sout{margin-left:auto;color:var(--ink-3);font-size:15px;text-decoration:none;
   border:1px solid var(--bd);border-radius:8px;padding:2px 8px}
 .sout:hover{color:var(--down);border-color:rgba(239,85,112,.5);text-decoration:none}
-/* On a narrow screen the sidebar becomes a strip across the top. */
+/* On a phone the sidebar used to become every section as a wrapped pill
+   across the top - twenty of them, a full screen of menu before any content.
+   It is a drawer instead, opened from the header, with the four sections used
+   most in a bar along the bottom within reach of a thumb. */
+.navbtn,.botnav,.navscrim{display:none}
 @media(max-width:900px){
-  .side{position:static;width:100%;max-width:100%;flex-direction:row;align-items:center;
-    flex-wrap:wrap;gap:8px;overflow-x:clip;overflow-y:visible;bottom:auto;
-    border-right:0;border-bottom:1px solid var(--bd);padding:10px 12px}
+  .side{width:min(300px,86vw);transform:translateX(-104%);visibility:hidden;z-index:70;
+    transition:transform .25s cubic-bezier(.2,.8,.2,1),visibility .25s;
+    background:rgba(8,10,16,.97);padding:14px 12px calc(12px + env(safe-area-inset-bottom))}
+  body.navopen .side{transform:none;visibility:visible;box-shadow:18px 0 48px rgba(0,0,0,.55)}
+  .navscrim{display:block;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .2s}
+  body.navopen .navscrim{opacity:1;pointer-events:auto}
+  body.navopen{overflow:hidden}
   .main{margin-left:0;width:100%;max-width:100%}
-  body{overflow-x:hidden}
+  body{overflow-x:hidden;padding-bottom:calc(66px + env(safe-area-inset-bottom))}
   .wrap{padding-left:14px;padding-right:14px}
-  .sbrand{display:none}
-  .menu{flex-direction:row;flex-wrap:wrap;gap:6px;min-width:0;max-width:100%}
-  .mgroup,.sidefoot{display:none}
-  .menu .tab{white-space:nowrap;border-radius:999px;padding:7px 13px;
-    border-color:var(--bd);background:rgba(255,255,255,.04)}
+  .navbtn{display:inline-flex;align-items:center;gap:7px;flex:0 1 auto;min-width:0;
+    background:rgba(255,255,255,.05);border:1px solid var(--bd);color:var(--ink);
+    border-radius:999px;padding:6px 12px 6px 10px;font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+  .navbtn i{font-style:normal;font-size:15px;line-height:1}
+  .navbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34vw}
+  /* under the .pal overlay (60), over the page */
+  .botnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:55;gap:2px;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(8,10,16,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--bd)}
+  .botnav button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:transparent;border:0;color:var(--ink-3);font:inherit;font-size:10.5px;font-weight:650;
+    padding:6px 2px;border-radius:10px;cursor:pointer}
+  .botnav button i{font-style:normal;font-size:18px;line-height:1}
+  .botnav button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .botnav button.on{color:var(--ink);background:rgba(77,148,232,.16)}
+}
+/* A small phone: the menu button, the market state and Switch market have to
+   share one line - at 360px "Switch market" dropped onto a second. The divider
+   goes and the market state gives way with an ellipsis before anything wraps. */
+@media(max-width:420px){
+  .hd{flex-wrap:nowrap;gap:6px;padding:10px}
+  .hd .status{flex:0 1 auto;min-width:0;padding:6px 10px;gap:7px}
+  .status .st-sep{display:none}
+  .status .st-mkt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hd .row{gap:6px!important;flex-wrap:nowrap!important}
+  .hd .chip{padding:6px 10px}
+  .navbtn{padding:6px 10px 6px 9px}
+  .navbtn span{max-width:24vw}
 }
 .panes{min-width:0}
 .pane{display:none}
@@ -2714,6 +2747,21 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 .mkt[aria-selected="true"]{background:linear-gradient(180deg,rgba(77,148,232,.12),rgba(255,255,255,.02)),rgba(9,11,17,.72)}
 .mkt[aria-selected="true"]::before{background:linear-gradient(180deg,#5aa2ee,#2be08a);width:3px}
 .mkt .px{font-size:24px;font-weight:600}
+/* On a phone the index cards were one full-width row each - a third of the
+   first screen spent on three numbers. One row of equal columns instead,
+   however many indices the market has (three here, one for Bitcoin). */
+@media(max-width:900px){
+  .markets{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+  .mkt{display:block;min-width:0}
+}
+@media(max-width:600px){
+  .mkt{padding:10px 10px 9px}
+  .mkt .nm{font-size:10px;letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mkt .px{font-size:17px;letter-spacing:-.3px;margin-top:2px}
+  .mkt .ex{font-size:10px;overflow:hidden;text-overflow:ellipsis}
+  .mkt .st{display:flex;align-items:flex-start;font-size:10.5px;line-height:1.25;margin-top:4px}
+  .mkt .st .swatch{margin-top:3px}
+}
 
 /* the signal card */
 .herocard{border-radius:20px;padding:26px 28px 28px;transform-style:preserve-3d;
@@ -2828,9 +2876,19 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <a class="sout" href="/logout" title="Sign out">&#9211;</a>
  </div>
 </aside>
+<div class="navscrim" id="navscrim"></div>
+<nav class="botnav" id="botnav" aria-label="Main sections">
+ <button class="tab" data-tab="home" type="button"><i>&#127968;</i><span>Home</span></button>
+ <button class="tab" data-tab="signal" type="button"><i>&#127919;</i><span>Signal</span></button>
+ <button class="tab" data-tab="chart" type="button"><i>&#128200;</i><span>Chart</span></button>
+ <button class="tab" data-tab="chain" type="button"><i>&#9939;</i><span>Chain</span></button>
+ <button id="bnmore" type="button" aria-controls="side" aria-expanded="false"><i>&#9776;</i><span>More</span></button>
+</nav>
 
 <div class="main">
 <header><div class="hd">
+  <button class="navbtn" id="navbtn" type="button" aria-controls="side"
+    aria-expanded="false" aria-label="Open the menu"><i>&#9776;</i><span id="navtitle">Home</span></button>
   <!-- The brand sits in the sidebar now; printing it again here was the same
        words twice across the top of the screen. -->
   <!-- One status strip rather than three pills that each said a different
@@ -5331,11 +5389,26 @@ const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option ch
                    levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
                    season:"Seasonality", news:"News", record:"Record", admin:"Admin"};
+// The phone menu. A drawer rather than a strip of pills, closed by picking a
+// section, tapping outside it, or Escape.
+function navOpen(){
+  document.body.classList.add("navopen");
+  ["navbtn", "bnmore"].forEach(id => { const b = $(id); if(b) b.setAttribute("aria-expanded", "true"); });
+}
+function navClose(){
+  if(!document.body.classList.contains("navopen")) return;
+  document.body.classList.remove("navopen");
+  ["navbtn", "bnmore"].forEach(id => { const b = $(id); if(b) b.setAttribute("aria-expanded", "false"); });
+}
+
 function showTab(name, push){
   if(!TABS.includes(name)) name = "home";
   TAB = name;
   document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === name));
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  { const nt = $("navtitle"); if(nt) nt.textContent = TAB_LABEL[name] || "Menu"; }
+  { const bm = $("bnmore"); if(bm) bm.classList.toggle("on", !["home", "signal", "chart", "chain"].includes(name)); }
+  navClose();
   try{ localStorage.setItem("nbs.tab.v1", name); }catch(e){}
   if(push !== false && location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
   // Anything that measures itself has to be measured now that it has a size.
@@ -5371,6 +5444,11 @@ function showTab(name, push){
 }
 document.querySelectorAll(".tab").forEach(b =>
   b.addEventListener("click", () => showTab(b.dataset.tab)));
+$("navbtn").addEventListener("click", navOpen);
+$("bnmore").addEventListener("click", () =>
+  document.body.classList.contains("navopen") ? navClose() : navOpen());
+$("navscrim").addEventListener("click", navClose);
+addEventListener("keydown", e => { if(e.key === "Escape") navClose(); });
 addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 (() => {
   let start = location.hash.slice(1);
