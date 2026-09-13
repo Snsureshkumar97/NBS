@@ -199,6 +199,59 @@ def _key_for(email, market=None):
 
 
 # ---------------------------------------------------------------------------
+def _ladder_odds(rec, tech):
+    """Chance of touching each rung before the 15:30 bell.
+
+    The volatility is solved from the live option chain - the same ATM implied
+    volatility the Greeks tab shows - because that is what is actually on the
+    record here. An earlier version of this function read three fields that do
+    not exist on any recommendation (iv_used, sigma_annual, sigma); it would
+    have returned blanks for ever while looking like a working feature.
+
+    ONE HONEST GAP. touch_model's calibration factor was fitted against
+    regime_study's sigma, which is yesterday's India VIX scaled by each index's
+    realised volatility. This feeds it chain-derived implied volatility instead.
+    The two are close today - 14.0% against a scaled VIX near 12.3 - but the
+    out-of-sample validation does not strictly cover the substitution, and it
+    cannot be re-run historically because the recorder holds two days of
+    chains. The screen says so rather than implying the check covered this.
+    """
+    blank = {"t1": None, "t2": None, "t3": None, "stop": None, "minutes": 0,
+             "iv": None}
+    try:
+        import datetime as _dt
+        import greeks as gk
+        import touch_model as tm
+
+        mins = tm.minutes_to_close()
+        spot = rec.get("spot") or tech.get("last_close")
+        chain = rec.get("option_chain") or {}
+        strikes = chain.get("strikes") or []
+        expiry = str(chain.get("expiry") or "")
+        if not (spot and strikes and expiry) or mins <= 0:
+            return dict(blank, minutes=round(mins) if mins else 0)
+
+        ist = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        y, mo, dd = (int(x) for x in expiry.split("-")[:3])
+        close = _dt.datetime(y, mo, dd, 15, 30, tzinfo=ist)
+        t_yr = gk.years_to_expiry((close - _dt.datetime.now(ist)).total_seconds() / 60.0)
+        atm = min(strikes, key=lambda s_: abs(s_["strike"] - spot))
+        ivs = []
+        for side, kind in (("call", "CE"), ("put", "PE")):
+            iv = gk.implied_vol(atm.get(f"{side}_ltp"), spot, atm["strike"], t_yr, kind)
+            if iv:
+                ivs.append(iv)
+        if not ivs:
+            return dict(blank, minutes=round(mins))
+        sigma = sum(ivs) / len(ivs)
+        out = tm.ladder_odds(spot, rec.get("index_targets"),
+                             rec.get("index_stop_loss"), sigma, mins)
+        out["iv"] = round(sigma * 100, 2)
+        return out
+    except Exception:
+        return blank
+
+
 def _room(rec):
     reach = rec.get("reach") or {}
     spot = rec.get("spot")
@@ -271,6 +324,7 @@ def _public(rec, name=None):
         "not_worth_it": rec.get("not_worth_it"),
         "adx_blocked": rec.get("adx_blocked"),
         "macd_blocked": rec.get("macd_blocked"),
+        "odds": _ladder_odds(rec, tech),
         "blockers": rec.get("blockers") or [],
         "votes": rec.get("votes") or {},
         "agree": rec.get("agree"), "dissent": rec.get("dissent"),

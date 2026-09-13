@@ -2190,6 +2190,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   font-variant-numeric:tabular-nums}
 .rung .rs{width:104px;text-align:right;font-size:12px;color:var(--ink-3);
   font-variant-numeric:tabular-nums}
+.rung .od{width:52px;text-align:right;font-size:12px;opacity:.9;
+  font-variant-numeric:tabular-nums}
 @media(max-width:560px){.rung .rs{display:none}}
 
 /* ---------- chart ---------- */
@@ -2813,6 +2815,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   </div>
   </div>
   <div class="ladder" id="ladder"></div>
+  <div class="gnote" id="laddernote"></div>
   <div class="lnote" id="lnote"></div>
   <div class="risk" id="risk">
   <div class="riskctl">
@@ -3323,11 +3326,35 @@ function ladder(r, tk){
       const amt = (v - base) * per;
       rs = money(amt);
     }
+    // The chance of TOUCHING this level before the bell, from live implied
+    // volatility and the minutes actually left. Not exclusive: a trade can
+    // touch T1, turn round and still hit the stop, so these do not sum to 100.
+    const od = r.odds || {};
+    const ch = od[k === "Stop" ? "stop" : k.toLowerCase()];
     return `<div class="rung"><div class="k">${k}</div>
       <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
       <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
+      <div class="od" style="color:${ch==null?"var(--ink-3)":c}" title="chance of touching this level before the close">${ch==null?"":ch+"%"}</div>
       <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
   }).join("");
+
+  // What these percentages are, and what they are not - said here rather than
+  // leaving the reader to assume precision the number does not have.
+  const ladderNote = $("laddernote");
+  if(ladderNote){
+    const o = r.odds || {};
+    ladderNote.textContent = (o.t1 == null)
+      ? (o.minutes === 0
+           ? "Chances appear while the market is open - with no time left to the bell there is nothing to compute."
+           : "No option chain right now, so the chances cannot be worked out.")
+      : `Chance of touching each level before the 15:30 close, with ${o.minutes} `
+        + `minutes left and implied volatility at ${o.iv}%. They do not add up to `
+        + `100: a trade can touch a target, turn round and still hit the stop. `
+        + `These are calibrated estimates - against 3,582 past trades the model `
+        + `lands within about four points on data it was not fitted to, and it `
+        + `reads a few points high on T3 and the stop. The calibration was fitted `
+        + `on a VIX-derived volatility and is fed the chain's implied volatility here.`;
+  }
 
   // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
   // list, so raising the cap in config raises it here too.

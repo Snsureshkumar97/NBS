@@ -419,6 +419,7 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=Non
             "adx": tech["adx"], "sl_basis": rec["sl_basis"],
             "expansion": (reach or {}).get("range_expansion"),
             "reach": rec.get("reach_points"), "rr": rec.get("reach_to_risk"),
+            "target_basis": rec.get("target_basis"),
         })
         last_i = i
 
