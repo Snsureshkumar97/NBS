@@ -3343,10 +3343,16 @@ function ladder(r, tk){
   const ladderNote = $("laddernote");
   if(ladderNote){
     const o = r.odds || {};
+    const noLevels = !(r.targets && r.targets[0] != null);
     ladderNote.textContent = (o.t1 == null)
       ? (o.minutes === 0
            ? "Chances appear while the market is open - with no time left to the bell there is nothing to compute."
-           : "No option chain right now, so the chances cannot be worked out.")
+           : o.iv == null
+               ? "No option chain right now, so the chances cannot be worked out."
+               : noLevels
+                   ? "No active signal, so there are no levels to price. The chain is fine - implied volatility is reading "
+                     + o.iv + "%."
+                   : "The levels could not be priced just now.")
       : `Chance of touching each level before the 15:30 close, with ${o.minutes} `
         + `minutes left and implied volatility at ${o.iv}%. They do not add up to `
         + `100: a trade can touch a target, turn round and still hit the stop. `
