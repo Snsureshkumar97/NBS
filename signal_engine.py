@@ -650,9 +650,18 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     macd_score = tech.get("macd_score")
     macd_agrees = (macd_score is None or macd_score == 0
                    or (macd_score > 0) == (raw_bias == "BULLISH"))
+    # When there is no option chain, the room-to-run gate further down refuses
+    # the trade and says the chain is missing. Vetoing on momentum first set
+    # the bias neutral before that gate could run, so a data outage was
+    # reported as "momentum disagrees" and never announced. The trade is
+    # refused either way; this only restores which reason is given. The
+    # backtest always has reachability, so no measured result depends on it.
+    chain_missing = (getattr(config, "TARGET_MODE", "") == "market"
+                     and getattr(config, "REQUIRE_REACHABILITY", True)
+                     and not bool(reach and reach.get("available")))
     macd_blocked = (getattr(config, "MACD_MUST_AGREE", False)
                     and raw_bias != "NEUTRAL" and not adx_blocked
-                    and not macd_agrees)
+                    and not macd_agrees and not chain_missing)
 
     # Track exactly what is standing between "now" and a trade, so the tool
     # can explain its silence instead of just showing nothing.

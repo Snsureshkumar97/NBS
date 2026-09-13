@@ -2,6 +2,15 @@
 import sys
 sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
 import tkinter as tk, gui, theme as T
+import config
+
+# This test walks price through all three targets and expects T3 to close the
+# trade. Since 11 Sep the configured exit is T2 (config.EXIT_AT_TARGET), which
+# closes the trade before T3 is ever reached, so the test failed from then on
+# while the product behaved exactly as intended. It pins the exit it is actually
+# about instead of inheriting the live setting; exit_target_test.py is the test
+# that checks the setting itself decides where a trade closes.
+config.EXIT_AT_TARGET = "T3"
 
 root = tk.Tk()
 app = gui.SignalApp(root)

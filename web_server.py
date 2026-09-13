@@ -225,8 +225,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # the marketing pages are the reason the site is reachable at all, and
     # gating them would leave a visitor staring at a login form with nothing
     # anywhere telling them what they would be logging in to.
-    GATED = ("/app", "/api/state", "/api/tick", "/api/map/", "/chart/",
-             "/connect")
+    # Everything under /api/ is gated, with the public exceptions named. This
+    # used to list API routes one by one, and every endpoint added after the
+    # list was written - analytics, greeks, oiclock, screen, spikes, chain,
+    # news, candles - answered anyone on the internet without a login, some of
+    # them spending the owner's Zerodha session to do it. A new route is now
+    # private unless someone deliberately makes it public.
+    GATED = ("/app", "/api/", "/chart/", "/connect")
+    # World index levels from a free feed: no user data, no broker call.
+    PUBLIC_API = ("/api/markets",)
 
     def _cookie(self, name):
         raw = self.headers.get("Cookie") or ""
@@ -387,7 +394,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         user = self._current_user()
 
         # One gate, checked once, instead of a condition repeated per route.
-        if not user and any(path == g or path.startswith(g) for g in self.GATED):
+        if (not user and path not in self.PUBLIC_API
+                and any(path == g or path.startswith(g) for g in self.GATED)):
             # The chart is data too. Gating the page but not the image it pulls
             # would leak the signals through the picture.
             if path.startswith("/chart/"):
@@ -1160,6 +1168,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         build and an afternoon unwind are both real and do not cancel into
         the day's net.
         """
+        # The recorder keeps Nifty, Bank Nifty and Sensex. Asked from any
+        # other market this defaulted to NIFTY and served Indian open interest
+        # to a crypto session - the same leak fixed elsewhere on 12 Sep.
+        if self._current_market() != "nse_index":
+            return self._send(json.dumps({
+                "rows": [], "days": [],
+                "note": "The option recorder keeps Nifty, Bank Nifty and "
+                        "Sensex. There is no recorded open interest for this "
+                        "market, so there is nothing to show."}),
+                "application/json")
         import glob as _glob, csv as _csv, gzip as _gzip, os as _os
         d = _os.path.join(_os.path.expanduser("~"), "trading-tool-logs",
                           "option_history")
@@ -5114,6 +5132,10 @@ function moverDraw(){
 function pulseDraw(){
   const box = $("pulse");
   if(!box || !MAPDATA) return;
+  // Breadth across index members. A one-instrument market has none, and this
+  // ran after the crypto paint and replaced it with "Waiting for the
+  // constituents" - a message about something that does not exist there.
+  if(LAST && LAST.market === "crypto") return;
   const known = (MAPDATA.tiles || []).filter(r => r.pct != null);
   if(!known.length){
     box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">Waiting for the constituents.</p>`;
@@ -5627,6 +5649,8 @@ function screenPaint(){
 // is the distribution worth showing.
 function cryptoPulsePaint(d){
   const note = $("pulsenote");
+  const pulseEyebrow = document.querySelector("#pulsecard .eyebrow");
+  if(pulseEyebrow) pulseEyebrow.innerHTML = "Market pulse &middot; the option chain";
   ["bo50","boost","levels"].forEach(id => { const t = $(id); if(t) t.innerHTML = ""; });
   ["bo50card","boostcard","levelscard"].forEach(id => {
     const c = $(id); if(c) c.hidden = true; });
@@ -5730,6 +5754,8 @@ function spikePaint(){
 function clockDraw(d){
   const box = $("clock2");
   if(!box) return;
+  const oiBar = document.querySelector("#clockcard .clockbar");
+  if(oiBar) oiBar.hidden = !(d && d.days && d.days.length);
   if(d && d.days) oiFill("oiday", d.days, d.day);
   if(d && d.expiries && d.expiries.length) oiFill("oiexp", d.expiries, d.expiry);
   const slots = oiSlots();
