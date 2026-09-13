@@ -26,6 +26,7 @@ WHAT THIS DELIBERATELY DOES NOT DO
     money enters this picture.
 """
 
+import datetime as _dt
 import hashlib
 import hmac
 import json
@@ -176,17 +177,22 @@ def always_on_users():
     with _lock:
         data = _load()
     return sorted(e for e, u in data["users"].items()
-                  if u.get("always_on") and not u.get("disabled"))
+                  if u.get("always_on") and not u.get("disabled")
+                  and not _expired(u))
 
 
-def create_user(email, password, now=None):
-    """Returns (ok, message)."""
+def create_user(email, password, now=None, expires=None):
+    """Returns (ok, message). `expires` is an optional YYYY-MM-DD - the last
+    day the account can sign in."""
     email = (email or "").strip().lower()
     if not EMAIL_RE.match(email):
         return False, "That doesn't look like an email address."
     problem = password_problem(password)
     if problem:
         return False, problem
+    expiry, bad = _clean_expiry(expires, allow_past=False)
+    if bad:
+        return False, bad
     stamp = now or time.strftime("%Y-%m-%d %H:%M")
     with _lock:
         data = _load()
@@ -200,8 +206,11 @@ def create_user(email, password, now=None):
             "last_login": None,
             "disabled": False,
         }
+        if expiry:
+            data["users"][email]["expires"] = expiry
         _save(data)
-    return True, "Account created."
+    return True, ("Account created, with access until " + _fmt_day(expiry) + "."
+                  if expiry else "Account created, with no expiry.")
 
 
 def set_password(email, password):
@@ -270,6 +279,15 @@ def authenticate(email, password, ip=""):
         _note_failure(ekey, ikey)
         return None, "Wrong email or password."
 
+    if user and _expired(user):
+        # Only reachable with the RIGHT password, so naming the reason tells a
+        # stranger nothing they did not already hold. It does tell the person
+        # locked out why, and who to ask - "wrong password" would send them
+        # round in circles resetting a password that was never the problem.
+        _clear_failures(ekey, ikey)
+        return None, (f"This account's access ended on {_fmt_day(user.get('expires'))}. "
+                      f"Ask the administrator to renew it.")
+
     _clear_failures(ekey, ikey)
     token = secrets.token_urlsafe(32)
     with _lock:
@@ -303,7 +321,10 @@ def session_user(token):
         if not s or s.get("expires", 0) <= time.time():
             return None
         user = data["users"].get(s["email"])
-        if not user or user.get("disabled"):
+        if not user or user.get("disabled") or _expired(user):
+            # An expired account's open sessions stop here. Refusing only new
+            # logins would leave an expired user signed in for up to the full
+            # two-week session on the cookie they already hold.
             return None
         return s["email"]
 
@@ -382,7 +403,9 @@ def update_user(email, patch):
     silently skip that step, leaving a signed-out user still signed in.
     """
     email = (email or "").strip().lower()
-    reserved = {"password", "disabled"}
+    # role and expires join them: both decide who may sign in, so each has a
+    # dedicated function with its own rules and session handling.
+    reserved = {"password", "disabled", "role", "expires"}
     bad = reserved & set(patch or {})
     if bad:
         return False, f"Use the dedicated function for: {', '.join(sorted(bad))}."
@@ -397,3 +420,186 @@ def update_user(email, patch):
                 data["users"][email][k] = v
         _save(data)
     return True, "Saved."
+
+
+# ---------------------------------------------------------------------------
+# roles and expiry
+# ---------------------------------------------------------------------------
+# An admin is an account with role "admin", set with set_role() on the server.
+# There is deliberately no way to promote anyone from the admin tab, so a
+# session that is not already an admin cannot become one by tampering with a
+# request.
+#
+# Expiry is a date - the last day an account can sign in - stored YYYY-MM-DD and
+# judged in India time, the clock this tool runs on. An expired account is
+# refused at login AND its open sessions stop working, exactly like a disabled
+# one. Admin accounts never expire: an admin whose access lapsed would have no
+# way back in to renew anything, including their own access.
+
+_IST = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+
+
+def today_ist():
+    return _dt.datetime.now(_IST).date()
+
+
+def _clean_expiry(expires, allow_past=True):
+    """(YYYY-MM-DD or None, error). Empty means no expiry."""
+    if expires in (None, ""):
+        return None, None
+    try:
+        day = _dt.date.fromisoformat(str(expires).strip())
+    except ValueError:
+        return None, "That expiry is not a date - use the calendar picker."
+    if not allow_past and day < today_ist():
+        return None, "That expiry date has already passed."
+    return day.isoformat(), None
+
+
+def _expired(user, today=None):
+    """True once the expiry date is behind us. Valid THROUGH the expiry day."""
+    if not user or user.get("role") == "admin":
+        return False
+    exp = user.get("expires")
+    if not exp:
+        return False
+    try:
+        return _dt.date.fromisoformat(exp) < (today or today_ist())
+    except ValueError:
+        return True          # an unreadable expiry fails closed, not open
+
+
+def _days_left(exp, today=None):
+    if not exp:
+        return None
+    try:
+        return (_dt.date.fromisoformat(exp) - (today or today_ist())).days
+    except ValueError:
+        return None
+
+
+def _fmt_day(exp):
+    try:
+        d = _dt.date.fromisoformat(exp)
+        return f"{d.day} {d.strftime('%b %Y')}"
+    except (TypeError, ValueError):
+        return str(exp or "")
+
+
+def is_admin(email):
+    email = (email or "").strip().lower()
+    with _lock:
+        user = _load()["users"].get(email)
+    return bool(user and user.get("role") == "admin" and not user.get("disabled"))
+
+
+def set_role(email, role):
+    """Make an account admin (role="admin") or ordinary (role=None)."""
+    if role not in ("admin", None):
+        return False, "Unknown role."
+    email = (email or "").strip().lower()
+    with _lock:
+        data = _load()
+        user = data["users"].get(email)
+        if not user:
+            return False, "No such account."
+        if role:
+            user["role"] = role
+            user.pop("expires", None)       # an admin never expires
+        else:
+            user.pop("role", None)
+        _save(data)
+    return True, (f"{email} is now an admin." if role else f"{email} is no longer an admin.")
+
+
+def set_expiry(email, expires):
+    """Set, move or clear an account's expiry. A date already passed closes the
+    account on the spot and signs it out; that is how access is cut."""
+    email = (email or "").strip().lower()
+    day, bad = _clean_expiry(expires, allow_past=True)
+    if bad:
+        return False, bad
+    with _lock:
+        data = _load()
+        user = data["users"].get(email)
+        if not user:
+            return False, "No such account."
+        if user.get("role") == "admin" and day:
+            return False, ("An admin account does not expire - a lapsed admin "
+                           "could not sign in to renew anything.")
+        if day:
+            user["expires"] = day
+        else:
+            user.pop("expires", None)
+        ended = _expired(user)
+        if ended:
+            data["sessions"] = {t: s for t, s in data["sessions"].items()
+                                if s.get("email") != email}
+        _save(data)
+    if not day:
+        return True, f"{email} no longer expires."
+    if ended:
+        return True, (f"{email}'s access ended on {_fmt_day(day)} - the account "
+                      f"is closed and signed out.")
+    return True, f"{email} now has access until {_fmt_day(day)}."
+
+
+def revoke_sessions(email):
+    """Sign an account out everywhere without touching the account itself."""
+    email = (email or "").strip().lower()
+    with _lock:
+        data = _load()
+        if email not in data["users"]:
+            return False, "No such account."
+        before = len(data["sessions"])
+        data["sessions"] = {t: s for t, s in data["sessions"].items()
+                            if s.get("email") != email}
+        n = before - len(data["sessions"])
+        _save(data)
+    return True, f"Signed {email} out of {n} session{'s' if n != 1 else ''}."
+
+
+def account_summary(email):
+    """What a signed-in user is told about their own access."""
+    email = (email or "").strip().lower()
+    with _lock:
+        user = _load()["users"].get(email)
+    if not user:
+        return None
+    admin = user.get("role") == "admin"
+    exp = None if admin else user.get("expires")
+    return {"email": email, "admin": admin, "expires": exp,
+            "expires_label": _fmt_day(exp) if exp else None,
+            "days_left": _days_left(exp), "expired": _expired(user)}
+
+
+def admin_view():
+    """Every account, for the admin tab - with an explicit list of fields.
+
+    Not get_user(): that strips the password hash but keeps kite_token, the
+    live Zerodha access token, and anything built on it would carry that
+    token into the browser. What goes out is named here, one field at a time.
+    """
+    now, today = time.time(), today_ist()
+    with _lock:
+        data = _load()
+    live = {}
+    for s in data["sessions"].values():
+        if s.get("expires", 0) > now:
+            live[s.get("email")] = live.get(s.get("email"), 0) + 1
+    out = []
+    for email, u in data["users"].items():
+        admin = u.get("role") == "admin"
+        exp = None if admin else u.get("expires")
+        status = ("disabled" if u.get("disabled")
+                  else "expired" if _expired(u, today) else "active")
+        out.append({
+            "email": email, "admin": admin, "status": status,
+            "expires": exp, "expires_label": _fmt_day(exp) if exp else None,
+            "days_left": _days_left(exp, today),
+            "created": u.get("created"), "last_login": u.get("last_login"),
+            "zerodha": bool(u.get("kite_token")),
+            "always_on": bool(u.get("always_on")),
+            "sessions": live.get(email, 0)})
+    out.sort(key=lambda r: (not r["admin"], r["created"] or ""))
+    return out

@@ -310,6 +310,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_ticket(form)
             if path == "/api/alwayson":
                 return self._do_always_on(form)
+            if path == "/api/admin":
+                return self._do_admin_api(form)
             if path == "/market":
                 return self._do_market(form)
             return self._send(nbs_site.result_page(
@@ -485,6 +487,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_analytics(user, qs)
             if path == "/api/greeks":
                 return self._api_greeks(user, qs)
+            if path == "/api/admin/users":
+                return self._api_admin_users(user)
             if path == "/api/oiclock":
                 return self._api_oiclock(user, qs)
             if path == "/api/markets":
@@ -593,6 +597,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "updated": snap["updated"],
             "mode": _state["mode"],
             "user": user,
+            # Who this is and until when - the renewal date a user needs to see,
+            # and whether the admin tab should exist at all on their screen.
+            "account": accounts.account_summary(user) if user else None,
             "feed": snap["feed"],
             "stale": snap["feed"] in ("missing", "stale", "expired"),
             "error": snap["error"],
@@ -738,6 +745,101 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "days": round((close - now).total_seconds() / 86400.0, 2),
                 "qty": qty}
         return out
+
+    def _same_origin(self):
+        """True when a state-changing request came from this site.
+
+        The session cookie is SameSite=Lax, which already stops another site's
+        form posting here with it. This is a second lock on the same door. A
+        request with no Origin at all is a non-browser client presenting a
+        real admin cookie, which is the credential, so it is let through.
+        """
+        origin = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if not origin:
+            return True
+        net = urllib.parse.urlparse(origin).netloc.lower()
+        allowed = {(self.headers.get("Host") or "").lower(),
+                   (self.headers.get("X-Forwarded-Host") or "").lower()}
+        public = urllib.parse.urlparse(config.WEB_PUBLIC_URL or "").netloc.lower()
+        if public:
+            allowed.add(public)
+        allowed.discard("")
+        return net in allowed
+
+    def _api_admin_users(self, user):
+        """Every account, for the admin tab. Admin only - checked HERE, not just
+        by hiding the tab: a hidden button is not a permission."""
+        if not accounts.is_admin(user):
+            return self._send(json.dumps({"error": "admin only"}),
+                              "application/json", code=403)
+        rows = accounts.admin_view()
+        try:
+            import subprocess as _sp
+            commit = _sp.run(["git", "rev-parse", "--short", "HEAD"],
+                             cwd=os.path.dirname(os.path.abspath(__file__)),
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            commit = ""
+        server = {"commit": commit, "started": _state.get("started"),
+                  "mode": _state.get("mode"), "feeds": len(feeds.active()),
+                  "accounts": len(rows),
+                  "sessions": sum(r["sessions"] for r in rows),
+                  "signup": bool(config.WEB_ALLOW_SIGNUP)}
+        return self._send(json.dumps({"users": rows, "server": server, "me": user,
+                                      "today": accounts.today_ist().isoformat()}),
+                          "application/json")
+
+    def _do_admin_api(self, form):
+        """Account management from inside the tool, for the admin only.
+
+        Three checks, and none of them is the tab being hidden: a signed-in
+        session, that session belonging to an admin, and the request coming
+        from this site. Admin accounts - including the one making the request -
+        cannot be expired, disabled, deleted, signed out or have their password
+        reset from here, so the admin cannot lock themselves out by mistake.
+        The key-based /admin page remains as the way back in regardless.
+        """
+        def reply(ok, message, code=200):
+            return self._send(json.dumps({"ok": bool(ok), "message": message}),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not accounts.is_admin(user):
+            return reply(False, "Admin only.", 403)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        action = (form.get("action") or "").strip()
+        email = (form.get("email") or "").strip().lower()
+        if action == "create":
+            ok, msg = accounts.create_user(email, form.get("password") or "",
+                                           expires=(form.get("expires") or "").strip() or None)
+            return reply(ok, msg)
+        target = accounts.get_user(email)
+        if not target:
+            return reply(False, "No such account.")
+        if (email == user or target.get("role") == "admin") and action in (
+                "expiry", "disable", "delete", "password", "signout", "unlink"):
+            return reply(False, "That is an admin account. It cannot be changed from "
+                                "here, so an admin cannot be locked out by accident.")
+        if action == "expiry":
+            ok, msg = accounts.set_expiry(email, (form.get("expires") or "").strip() or None)
+        elif action == "disable":
+            ok, msg = accounts.set_disabled(email, True)
+        elif action == "enable":
+            ok, msg = accounts.set_disabled(email, False)
+        elif action == "password":
+            ok, msg = accounts.set_password(email, form.get("password") or "")
+        elif action == "signout":
+            ok, msg = accounts.revoke_sessions(email)
+        elif action == "unlink":
+            user_kite.disconnect(email)
+            ok, msg = True, f"Disconnected {email} from Zerodha."
+        elif action == "delete":
+            ok, msg = accounts.delete_user(email)
+        else:
+            return reply(False, "Unknown action.", 400)
+        return reply(ok, msg)
 
     def _api_greeks(self, user, qs):
         """The chain restated as volatility and sensitivities.
@@ -2381,6 +2483,30 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
   font-size:12px;text-transform:uppercase}
 @media(max-width:900px){.acct span{display:none}}
 
+.admmsg{font-size:12.5px;min-height:18px;margin:2px 0 8px}
+.admbadge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;border:1px solid;border-radius:999px;padding:1px 8px}
+.admyou{font-size:10.5px;color:var(--ink-3);margin-left:7px}
+.admbox{display:flex;flex-direction:column;gap:9px;padding:8px 2px;text-align:left}
+.admline{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.admline span{font-size:11.5px;color:var(--ink-3);min-width:98px}
+.admline input{background:var(--raised);border:1px solid var(--bd);border-radius:9px;
+  color:var(--ink);padding:5px 9px;font:inherit;font-size:12.5px;color-scheme:dark}
+.admquick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.calcgrid input[type=date]{color-scheme:dark}
+.lbtn.admdanger{color:var(--down);border-color:rgba(239,85,112,.45)}
+.admtbl td{white-space:nowrap}
+.admtbl tr.admdetail td{white-space:normal}
+/* The manage panel sits inside a table that scrolls sideways on a phone. Pin it
+   to the visible width so its buttons wrap in view instead of running off under
+   the scroll, where Delete could not be seen at all. */
+@media (max-width:760px){
+  .admbox{position:sticky;left:0;width:calc(100vw - 92px);max-width:calc(100vw - 92px)}
+  .admline span{min-width:0;width:100%}
+}
+.adm [hidden],.menu .tab[hidden]{display:none!important}
+.sidefoot .su small{font-size:10.5px;color:var(--ink-3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .adwrap{margin-top:4px}
 .adwrap canvas{display:block;width:100%;max-width:100%}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
@@ -2679,9 +2805,10 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <a class="tab" href="/review"><i>&#128202;</i>Review</a>
   <a class="tab" href="/connect"><i>&#128279;</i>Zerodha</a>
   <a class="tab" href="/how-it-works"><i>&#10067;</i>How it works</a>
+  <button class="tab" data-tab="admin" role="tab" type="button" hidden><i>&#128737;</i>Admin</button>
  </nav>
  <div class="sidefoot">
-  <div class="su">Signed in<b id="sideuser">&mdash;</b></div>
+  <div class="su">Signed in<b id="sideuser">&mdash;</b><small id="siderenew"></small></div>
   <a class="sout" href="/logout" title="Sign out">&#9211;</a>
  </div>
 </aside>
@@ -2726,6 +2853,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
    measured &rsaquo;</span></summary>
   <div id="honest"></div>
  </details>
+
+ <div class="notice stale" id="renewnote" style="display:none">
+  <div><b>Renewal due.</b> <span id="renewmsg"></span> Ask the administrator to
+   renew it before then.</div>
+ </div>
 
  <div class="notice stale" id="connect" style="display:none">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -2773,6 +2905,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <p class="eyebrow">Overview</p>
   <h1>Welcome, <span class="who" id="who">—</span></h1>
   <p class="said" id="said">Nifty, Bank Nifty and Sensex — one screen for the session.</p>
+  <p class="said" id="renewline"></p>
   </div>
   <div class="acts">
   <a class="lbtn" href="/how-it-works">How it works</a>
@@ -3107,6 +3240,42 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="card" data-panel="sgap" id="sgapcard">
    <p class="eyebrow">Opening gaps</p>
    <div class="pulse" id="sgap"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="admin">
+  <div class="card adm" data-panel="admusers" id="admuserscard">
+   <p class="eyebrow">Accounts &middot; <span id="admcount">&mdash;</span></p>
+   <div class="admmsg" id="admmsg"></div>
+   <div class="scrwrap"><table class="scr admtbl" id="admusers"></table></div>
+   <div class="gnote">Access runs through the end of the expiry date, India time.
+    An expired account cannot sign in, and anyone already signed in is signed
+    out. Admin accounts never expire and cannot be changed from here, so you
+    cannot lock yourself out.</div>
+  </div>
+  <div class="grid2">
+   <div class="card adm" data-panel="admcreate" id="admcreatecard">
+    <p class="eyebrow">Create an account</p>
+    <div class="calcgrid">
+     <label>Email<input id="ac_email" type="email" autocomplete="off" spellcheck="false"></label>
+     <label>Password<input id="ac_pass" type="text" autocomplete="off" spellcheck="false"></label>
+     <label>Access until<input id="ac_exp" type="date"></label>
+    </div>
+    <div class="admquick">
+     <button class="lbtn" type="button" data-cq="30">30 days</button>
+     <button class="lbtn" type="button" data-cq="90">90 days</button>
+     <button class="lbtn" type="button" data-cq="365">1 year</button>
+     <button class="lbtn" type="button" data-cq="never">No expiry</button>
+     <button class="lbtn on" type="button" id="ac_go">Create account</button>
+    </div>
+    <div class="gnote">The password shows as you type on purpose: there is no email
+     to send it in, so you read it back to them. At least 10 characters - tell them
+     to treat it as temporary.</div>
+   </div>
+   <div class="card adm" data-panel="admserver" id="admservercard">
+    <p class="eyebrow">Server</p>
+    <div class="pulse" id="admserver"></div>
+   </div>
   </div>
  </section>
 
@@ -4626,6 +4795,7 @@ function greet(s){
   who.title = email;
   const su = $("sideuser");
   if(su){ su.textContent = email.split("@")[0]; su.title = email; }
+  try{ accountDraw(s); }catch(e){}
   const k = s.kite || {};
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
@@ -4994,13 +5164,13 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record"];
+              "season", "news", "record", "admin"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
-                   season:"Seasonality", news:"News", record:"Record"};
+                   season:"Seasonality", news:"News", record:"Record", admin:"Admin"};
 function showTab(name, push){
   if(!TABS.includes(name)) name = "home";
   TAB = name;
@@ -5020,6 +5190,7 @@ function showTab(name, push){
   if(name === "spikes") spikeFetch();
   if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
   if(name === "greeks") gkFetch();
+  if(name === "admin") adminFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -5222,6 +5393,12 @@ function gateTabs(){
     if(btn) btn.hidden = hide;
     if(hide && TAB === name) showTab("home");
   });
+  // The admin tab exists only on an admin's screen. The server refuses every
+  // admin request from anyone else regardless; hiding it is courtesy, not security.
+  const admBtn = document.querySelector('.menu .tab[data-tab="admin"]');
+  const isAdmin = !!(LAST && LAST.account && LAST.account.admin);
+  if(admBtn) admBtn.hidden = !isAdmin;
+  if(!isAdmin && TAB === "admin") showTab("home");
   const sc = document.querySelector(`.pane[data-pane="sector"]`);
   if(sc) sc.dataset.na = crypto ? "1" : "";
   // The first render happens before /api/state has answered, so the market is
@@ -5269,6 +5446,172 @@ function posGreeks(s){
     + `per point of index, so the hundred-point figure is what the position `
     + `gains or loses on a move that size, before volatility changes.`;
 }
+
+// ======================================================= account + admin
+// Your own renewal date, everywhere it can be seen: the sidebar on a desktop,
+// the Home screen on a phone (the sidebar footer is hidden there), and a notice
+// across every section once a week or less is left.
+function accountDraw(s){
+  const a = (s && s.account) || null;
+  const side = $("siderenew"), line = $("renewline"), note = $("renewnote");
+  const soon = !!(a && !a.admin && a.days_left != null && a.days_left <= 7);
+  const left = a && a.days_left != null
+    ? (a.days_left <= 0 ? "ends today" : `${a.days_left} day${a.days_left === 1 ? "" : "s"} left`) : "";
+  if(side){
+    side.textContent = !a ? "" : a.admin ? "Admin" : a.expires ? `Access until ${a.expires_label}` : "No expiry set";
+    side.style.color = soon ? "var(--warn)" : "";
+  }
+  if(line){
+    line.textContent = (a && !a.admin && a.expires) ? `Your access runs until ${a.expires_label} - ${left}.` : "";
+    line.style.color = soon ? "var(--warn)" : "";
+  }
+  if(note){
+    note.style.display = soon ? "flex" : "none";
+    if(soon) $("renewmsg").textContent = a.days_left <= 0
+      ? `Your access ends today, ${a.expires_label}.`
+      : `Your access renews on ${a.expires_label} - ${left}.`;
+  }
+}
+
+let ADM = null;
+function admStatus(msg, ok){
+  const el = $("admmsg");
+  if(el){ el.textContent = msg || ""; el.style.color = ok ? "var(--up)" : "var(--down)"; }
+}
+function admAddDays(base, n){
+  const [y, m, d] = String(base).split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  t.setUTCDate(t.getUTCDate() + n);
+  return t.toISOString().slice(0, 10);
+}
+function admDays(r){
+  if(r.admin) return "never";
+  if(!r.expires) return "no expiry";
+  if(r.days_left == null) return "—";
+  if(r.days_left < 0) return `ended ${-r.days_left}d ago`;
+  if(r.days_left === 0) return "ends today";
+  return `${r.days_left} day${r.days_left === 1 ? "" : "s"}`;
+}
+async function adminFetch(){
+  const t = $("admusers");
+  if(!t) return;
+  try{
+    const r = await fetch("/api/admin/users", {cache:"no-store"});
+    if(r.status === 403){ t.innerHTML = `<tbody><tr><td style="color:var(--ink-3);padding:8px">Admin only.</td></tr></tbody>`; return; }
+    ADM = await r.json();
+  }catch(e){ admStatus("The account list could not be read.", false); return; }
+  const ex = $("ac_exp");
+  if(ex && !ex.value && ADM.today) ex.value = admAddDays(ADM.today, 30);
+  adminPaint();
+}
+async function adminAction(fields){
+  try{
+    const r = await fetch("/api/admin", {method:"POST", cache:"no-store",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams(fields)});
+    const d = await r.json();
+    admStatus(d.message || (d.ok ? "Done." : "That did not work."), !!d.ok);
+    if(d.ok) adminFetch();
+    return d;
+  }catch(e){
+    admStatus("That could not be sent.", false);
+    return {ok:false};
+  }
+}
+function adminPaint(){
+  const d = ADM || {}, t = $("admusers");
+  if(!t) return;
+  const rows = d.users || [];
+  $("admcount").textContent = `${rows.length} account${rows.length === 1 ? "" : "s"}`;
+  const badge = r => {
+    const c = r.admin ? "var(--accent)" : r.status === "active" ? "var(--up)"
+            : r.status === "expired" ? "var(--down)" : "var(--ink-3)";
+    return `<span class="admbadge" style="color:${c};border-color:${c}">${r.admin ? "admin" : r.status}</span>`;
+  };
+  const btn = (act, i, label, extra) =>
+    `<button class="lbtn${extra ? " " + extra : ""}" type="button" data-act="${act}" data-i="${i}">${label}</button>`;
+  t.innerHTML = `<thead><tr><th>Account</th><th>Status</th><th>Access until</th><th>Left</th>`
+    + `<th>Last login</th><th>Zerodha</th><th></th></tr></thead><tbody>`
+    + rows.map((r, i) => {
+        const soon = !r.admin && r.days_left != null && r.days_left <= 7;
+        const main = `<tr><td class="sym">${esc(r.email)}${r.email === d.me ? '<span class="admyou">you</span>' : ""}</td>`
+          + `<td>${badge(r)}</td>`
+          + `<td>${r.admin ? "—" : esc(r.expires_label || "no expiry")}</td>`
+          + `<td style="color:${soon ? "var(--warn)" : "var(--ink-2)"}">${admDays(r)}</td>`
+          + `<td>${esc(r.last_login || "never")}</td>`
+          + `<td>${r.zerodha ? "connected" : "—"}</td>`
+          + `<td>${r.admin ? "" : btn("edit", i, "Manage")}</td></tr>`;
+        if(r.admin) return main;
+        return main + `<tr class="admdetail" data-for="${i}" hidden><td colspan="7"><div class="admbox">`
+          + `<div class="admline"><span>Access until</span>`
+          + `<input type="date" class="admdate" value="${esc(r.expires || "")}">`
+          + btn("exp-save", i, "Save date") + btn("exp-add", i, "+30 days", "d30")
+          + btn("exp-add", i, "+90 days", "d90") + btn("exp-add", i, "+1 year", "d365")
+          + btn("exp-never", i, "No expiry") + `</div>`
+          + `<div class="admline"><span>New password</span>`
+          + `<input type="text" class="admpass" autocomplete="off" spellcheck="false">`
+          + btn("password", i, "Reset password") + `</div>`
+          + `<div class="admline"><span>Access</span>`
+          + btn(r.status === "disabled" ? "enable" : "disable", i, r.status === "disabled" ? "Enable" : "Disable")
+          + btn("signout", i, `Sign out everywhere (${r.sessions})`)
+          + (r.zerodha ? btn("unlink", i, "Disconnect Zerodha") : "")
+          + btn("delete", i, "Delete account", "admdanger") + `</div>`
+          + `</div></td></tr>`;
+      }).join("") + `</tbody>`;
+  const sv = d.server || {}, sb = $("admserver");
+  if(sb) sb.innerHTML =
+      statRow("Accounts", sv.accounts == null ? "—" : sv.accounts)
+    + statRow("Signed-in sessions", sv.sessions == null ? "—" : sv.sessions)
+    + statRow("Live data feeds", sv.feeds == null ? "—" : sv.feeds)
+    + statRow("Signup", sv.signup ? "open to anyone" : "closed - accounts are made here")
+    + statRow("Running since", esc(sv.started || "—"))
+    + statRow("Build", esc(sv.commit || "—"));
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("#admusers [data-act]");
+  if(b){
+    const i = Number(b.dataset.i), r = ((ADM && ADM.users) || [])[i];
+    if(!r) return;
+    const act = b.dataset.act;
+    const row = document.querySelector(`#admusers tr.admdetail[data-for="${i}"]`);
+    if(act === "edit"){ if(row) row.hidden = !row.hidden; return; }
+    const scope = row || document;
+    const today = (ADM && ADM.today) || new Date().toISOString().slice(0, 10);
+    if(act === "exp-save"){
+      const v = (scope.querySelector(".admdate") || {}).value || "";
+      if(!v){ admStatus("Pick a date first, or choose No expiry.", false); return; }
+      adminAction({action:"expiry", email:r.email, expires:v}); return;
+    }
+    if(act === "exp-add"){
+      // Renewal counts on from the current expiry, not from today, so renewing
+      // early does not cost the user the days they already had.
+      const base = (r.expires && r.expires > today) ? r.expires : today;
+      const n = b.classList.contains("d365") ? 365 : b.classList.contains("d90") ? 90 : 30;
+      adminAction({action:"expiry", email:r.email, expires:admAddDays(base, n)}); return;
+    }
+    if(act === "exp-never"){ adminAction({action:"expiry", email:r.email, expires:""}); return; }
+    if(act === "password"){
+      adminAction({action:"password", email:r.email,
+                   password:(scope.querySelector(".admpass") || {}).value || ""}); return;
+    }
+    if(act === "delete"){
+      if(!confirm(`Delete ${r.email}? This removes the account and its Zerodha connection, and cannot be undone.`)) return;
+    }
+    adminAction({action:act, email:r.email});
+    return;
+  }
+  const q = e.target.closest("#admcreatecard [data-cq]");
+  if(q){
+    const today = (ADM && ADM.today) || new Date().toISOString().slice(0, 10);
+    $("ac_exp").value = q.dataset.cq === "never" ? "" : admAddDays(today, Number(q.dataset.cq));
+    return;
+  }
+  if(e.target.closest("#ac_go")){
+    adminAction({action:"create", email:$("ac_email").value.trim(),
+                 password:$("ac_pass").value, expires:$("ac_exp").value})
+      .then(d => { if(d && d.ok){ $("ac_email").value = ""; $("ac_pass").value = ""; } });
+  }
+});
 
 // ======================================================= greeks & IV
 // The chain restated: what each price implies about movement, and how it will
