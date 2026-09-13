@@ -475,6 +475,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_spikes(user, qs)
             if path == "/api/analytics":
                 return self._api_analytics(user, qs)
+            if path == "/api/greeks":
+                return self._api_greeks(user, qs)
             if path == "/api/oiclock":
                 return self._api_oiclock(user, qs)
             if path == "/api/markets":
@@ -672,6 +674,127 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "short_history": short,
             "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
             "missing": getattr(feed, "_hist_missing", 0)}), "application/json")
+
+    def _api_greeks(self, user, qs):
+        """The chain restated as volatility and sensitivities.
+
+        A premium on its own says little: 120 rupees two days from expiry and
+        120 a fortnight out are not the same bet. Implied volatility is that
+        price expressed as the movement it implies, which compares across
+        strikes and days; the greeks say how it will change.
+
+        Validated against the live chain before it was wired here: ATM implied
+        volatility solved to 13.9 / 13.7 / 14.5% against India VIX at 12.3,
+        with the downside puts bid over the upside calls on Nifty and Sensex -
+        the put skew an equity index always carries.
+
+        Crypto is refused rather than guessed at. Deribit's BTC options are
+        inverse and quoted in the coin, so rupee-style Black-Scholes would
+        produce confident nonsense.
+        """
+        import datetime as _dt
+        import greeks as gk
+
+        market = self._current_market()
+        if market != "nse_index":
+            return self._send(json.dumps({
+                "note": "These are European cash-settled index options priced "
+                        "with Black-Scholes. Deribit's contracts are inverse "
+                        "and quoted in the coin, so the same model does not "
+                        "apply and is not pretended to."}), "application/json")
+
+        names = config.instruments_in(market)
+        name = (qs.get("index") or [""])[0].upper()
+        if name not in names:
+            name = (self._current_index(user) if hasattr(self, "_current_index")
+                    else None) or (names[0] if names else "")
+        feed = feeds.for_user(user, market)
+        chain = feed.chain(name) if name else None
+        if not chain or not chain.get("strikes"):
+            return self._send(json.dumps({"index": name, "rows": [],
+                                          "note": "No chain from the broker "
+                                                  "right now."}),
+                              "application/json")
+
+        spot = chain.get("spot")
+        expiry = str(chain.get("expiry") or "")
+        try:
+            y, mo, dd = (int(x) for x in expiry.split("-"))
+        except Exception:
+            return self._send(json.dumps({"index": name, "rows": [],
+                                          "note": "No expiry on this chain."}),
+                              "application/json")
+        ist = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+        # To the close on expiry day, not to midnight: on the day itself that
+        # difference is most of what is left of the option's life.
+        close = _dt.datetime(y, mo, dd, 15, 30, tzinfo=ist)
+        minutes = (close - _dt.datetime.now(ist)).total_seconds() / 60.0
+        t = gk.years_to_expiry(minutes)
+
+        strikes = sorted(chain["strikes"], key=lambda s_: s_["strike"])
+        atm = min((s_["strike"] for s_ in strikes),
+                  key=lambda k: abs(k - (spot or 0))) if spot else None
+        meta = config.INSTRUMENTS.get(name) or {}
+        step = meta.get("strike_step") or 50
+        if atm is not None:
+            strikes = [s_ for s_ in strikes if abs(s_["strike"] - atm) <= 12 * step]
+
+        rows, solved, quotes = [], 0, 0
+        for s_ in strikes:
+            k = s_["strike"]
+            row = {"strike": k, "atm": (k == atm)}
+            for side, tag in (("call", "ce"), ("put", "pe")):
+                px = s_.get(f"{side}_ltp")
+                oi = s_.get(f"{side}_oi")
+                kind = "CE" if side == "call" else "PE"
+                quotes += 1
+                iv = gk.implied_vol(px, spot, k, t, kind)
+                if iv:
+                    solved += 1
+                    g_ = gk.greeks(spot, k, t, iv, kind)
+                    row[tag] = {"ltp": px, "oi": oi,
+                                "iv": round(iv * 100, 2),
+                                "delta": round(g_["delta"], 4),
+                                "gamma": round(g_["gamma"], 7),
+                                "theta": round(g_["theta"], 2),
+                                "vega": round(g_["vega"], 2),
+                                "gxoi": round(g_["gamma"] * (oi or 0), 1)}
+                else:
+                    row[tag] = {"ltp": px, "oi": oi, "iv": None}
+            rows.append(row)
+
+        def _avg(vals):
+            vals = [v for v in vals if v is not None]
+            return round(sum(vals) / len(vals), 2) if vals else None
+
+        atm_iv = _avg([ (r.get("ce") or {}).get("iv") for r in rows if r["atm"] ]
+                    + [ (r.get("pe") or {}).get("iv") for r in rows if r["atm"] ])
+        put_wing = _avg([(r.get("pe") or {}).get("iv") for r in rows
+                         if spot and r["strike"] < spot * 0.99])
+        call_wing = _avg([(r.get("ce") or {}).get("iv") for r in rows
+                          if spot and r["strike"] > spot * 1.01])
+        # OI-weighted gamma by strike. Called a concentration, not dealer
+        # positioning: who is short which side is not knowable from here.
+        conc = []
+        for r in rows:
+            v = ((r.get("ce") or {}).get("gxoi") or 0) - ((r.get("pe") or {}).get("gxoi") or 0)
+            if v:
+                conc.append({"strike": r["strike"], "v": round(v, 1)})
+        conc.sort(key=lambda c: -abs(c["v"]))
+
+        return self._send(json.dumps({
+            "index": name, "spot": spot, "expiry": expiry, "atm": atm,
+            "minutes": round(minutes), "days": round(minutes / 1440, 2),
+            "t": round(t, 6), "rate": gk.RATE * 100,
+            "atm_iv": atm_iv, "put_wing": put_wing, "call_wing": call_wing,
+            "skew": (round(put_wing - call_wing, 2)
+                     if (put_wing is not None and call_wing is not None) else None),
+            "solved": solved, "quotes": quotes,
+            "concentration": conc[:8], "rows": rows,
+            "note": "Implied volatility is solved from the last traded price: "
+                    "this feed carries no bid or ask, so an illiquid strike can "
+                    "hold a stale reading. Time runs to the 15:30 close on "
+                    "expiry day."}), "application/json")
 
     def _api_analytics(self, user, qs):
         """The analyst's numbers: volatility, levels, internals, strength,
@@ -2433,6 +2556,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab" data-tab="spikes" role="tab" type="button"><i>&#9889;</i>Momentum spikes</button>
   <p class="mgroup">Analysis</p>
   <button class="tab" data-tab="vol" role="tab" type="button"><i>&#127786;</i>Volatility</button>
+  <button class="tab" data-tab="greeks" role="tab" type="button"><i>&#120491;</i>Greeks &amp; IV</button>
   <button class="tab" data-tab="levels" role="tab" type="button"><i>&#128207;</i>Levels</button>
   <button class="tab" data-tab="internals" role="tab" type="button"><i>&#128202;</i>Internals</button>
   <button class="tab" data-tab="strength" role="tab" type="button"><i>&#127947;</i>Relative strength</button>
@@ -2792,6 +2916,24 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <p class="eyebrow">Realised volatility &middot; what it actually did</p>
     <div class="scrwrap"><table class="scr" id="volrv"></table></div>
    </div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="greeks">
+  <div class="card" data-panel="gkhead" id="gkheadcard">
+   <p class="eyebrow">Implied volatility &middot; <span id="gkhead">&mdash;</span></p>
+   <div class="pulse" id="gkstats"></div>
+   <div class="gnote" id="gknote"></div>
+  </div>
+  <div class="card" data-panel="gkchain" id="gkchaincard">
+   <p class="eyebrow">The chain, priced &middot; implied volatility and sensitivities</p>
+   <div class="scrwrap"><table class="scr" id="gkchain"></table></div>
+   <div class="gnote" id="gkchainnote"></div>
+  </div>
+  <div class="card" data-panel="gkconc" id="gkconccard">
+   <p class="eyebrow">Gamma concentration &middot; open interest weighted</p>
+   <div class="scrwrap"><table class="scr" id="gkconc"></table></div>
+   <div class="gnote" id="gkconcnote"></div>
   </div>
  </section>
 
@@ -4691,11 +4833,12 @@ function chainDraw(d){
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
-              "spikes", "vol", "levels", "internals", "strength", "season",
-              "news", "record"];
+              "spikes", "vol", "greeks", "levels", "internals", "strength",
+              "season", "news", "record"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
-                   spikes:"Momentum spikes", vol:"Volatility", levels:"Levels",
+                   spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
+                   levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
                    season:"Seasonality", news:"News", record:"Record"};
 function showTab(name, push){
@@ -4716,6 +4859,7 @@ function showTab(name, push){
   if(name === "pulse"){ pulseDraw(); screenFetch(); }
   if(name === "spikes") spikeFetch();
   if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
+  if(name === "greeks") gkFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -4908,7 +5052,8 @@ async function oiFetch(){
 function gateTabs(){
   const crypto = !!(LAST && LAST.market === "crypto");
   [["sector", crypto], ["market", crypto], ["vol", crypto], ["levels", crypto],
-   ["internals", crypto], ["strength", crypto], ["season", crypto]].forEach(([name, hide]) => {
+   ["internals", crypto], ["strength", crypto], ["season", crypto],
+   ["greeks", crypto]].forEach(([name, hide]) => {
     const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);
     if(btn) btn.hidden = hide;
     if(hide && TAB === name) showTab("home");
@@ -4924,6 +5069,92 @@ function gateTabs(){
     GATED_FOR = key;
     try{ markets_(); }catch(e){}
   }
+}
+
+// ======================================================= greeks & IV
+// The chain restated: what each price implies about movement, and how it will
+// change. Validated against the live chain before it was wired - ATM implied
+// volatility solved to within a tenth of a point of the offline run, with the
+// put skew an equity index always carries.
+let GK = null, GK_AT = 0, GK_FOR = null;
+async function gkFetch(force){
+  const want = CUR || "";
+  if(!force && GK && GK_FOR === want && Date.now() - GK_AT < 45000){ gkPaint(); return; }
+  try{
+    GK = await (await fetch("/api/greeks?index=" + encodeURIComponent(want),
+                            {cache:"no-store"})).json();
+    GK_AT = Date.now(); GK_FOR = want;
+  }catch(e){ GK = {error:"could not be read"}; }
+  gkPaint();
+}
+function gkPaint(){
+  const d = GK || {};
+  const head = $("gkhead"), stats = $("gkstats");
+  if(d.note && !(d.rows || []).length){
+    if(head) head.textContent = "—";
+    if(stats) stats.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
+      + `${esc(d.note)}</p>`;
+    ["gkchain","gkconc"].forEach(id => { const t = $(id); if(t) t.innerHTML = ""; });
+    if($("gknote")) $("gknote").textContent = "";
+    return;
+  }
+  if(head) head.textContent = `${esc(d.index || "")} · expiry ${esc(d.expiry || "—")}`
+    + ` · ${d.days} days left`;
+  if(stats){
+    const skewUp = (d.skew || 0) > 0;
+    stats.innerHTML =
+      statRow("At the money", d.atm_iv == null ? "—" : d.atm_iv.toFixed(2) + "%")
+    + statRow("Downside puts", d.put_wing == null ? "—" : d.put_wing.toFixed(2) + "%")
+    + statRow("Upside calls", d.call_wing == null ? "—" : d.call_wing.toFixed(2) + "%")
+    + statRow("Skew (puts − calls)", d.skew == null ? "—"
+              : (d.skew >= 0 ? "+" : "−") + Math.abs(d.skew).toFixed(2) + " pts",
+              skewUp ? "var(--down)" : "var(--up)")
+    + statRow("Strikes that solved", `${d.solved} of ${d.quotes}`);
+  }
+  if($("gknote")) $("gknote").textContent =
+    (d.skew > 0
+      ? "Downside puts carry more implied volatility than upside calls - the "
+        + "usual shape for an index, where protection costs more than upside. "
+      : "Upside calls carry as much implied volatility as the puts, which is "
+        + "unusual for an index and worth a second look. ")
+    + `Priced at a ${d.rate}% rate, ${d.minutes} minutes to the close on expiry `
+    + `day. ${d.note || ""}`;
+
+  const cell = (o, k, dp) => `<td>${!o || o[k] == null ? "—" : num(o[k], dp)}</td>`;
+  scrTable("gkchain", d.rows || [],
+    [["Strike", r => `<td class="sym"${r.atm ? ' style="color:var(--ink)"' : ""}>`
+        + `${num(r.strike,0)}${r.atm ? " ·" : ""}</td>`],
+     ["Call IV", r => `<td>${(r.ce||{}).iv == null ? "—" : r.ce.iv.toFixed(2)+"%"}</td>`],
+     ["Δ", r => cell(r.ce, "delta", 3)],
+     ["Θ/day", r => cell(r.ce, "theta", 1)],
+     ["Put IV", r => `<td>${(r.pe||{}).iv == null ? "—" : r.pe.iv.toFixed(2)+"%"}</td>`],
+     ["Δ ", r => cell(r.pe, "delta", 3)],
+     ["Θ/day ", r => cell(r.pe, "theta", 1)],
+     ["Γ", r => cell(r.ce, "gamma", 6)],
+     ["Vega", r => cell(r.ce, "vega", 1)]],
+    "No chain right now.");
+  if($("gkchainnote")) $("gkchainnote").textContent =
+    "Delta is the move per point of index; gamma how fast delta itself moves; "
+    + "theta what a day of waiting costs; vega the change per point of implied "
+    + "volatility. Gamma and vega are the same for a call and a put at the same "
+    + "strike, so they are shown once. A dash means no volatility fits that "
+    + "price - usually a stale quote on a far strike, and refusing is the "
+    + "honest answer.";
+
+  scrTable("gkconc", d.concentration || [],
+    [["Strike", r => `<td class="sym">${num(r.strike,0)}</td>`],
+     ["Gamma × OI", r => {
+        const up = r.v >= 0;
+        return `<td style="color:${up ? "var(--up)" : "var(--down)"}">`
+             + `${up ? "+" : "−"}${num(Math.abs(r.v),0)}</td>`; }],
+     ["Distance from spot", r => `<td>${d.spot == null ? "—"
+        : (r.strike >= d.spot ? "+" : "−") + num(Math.abs(r.strike - d.spot), 0)}</td>`]],
+    "No open interest to weight.");
+  if($("gkconcnote")) $("gkconcnote").textContent =
+    "Gamma weighted by open interest, calls counted positive and puts negative. "
+    + "This is where the chain's gamma sits, not a claim about who is hedging "
+    + "it: which side a dealer is short is not visible from outside the "
+    + "exchange, so it is not asserted here.";
 }
 
 // ======================================================= analysis
