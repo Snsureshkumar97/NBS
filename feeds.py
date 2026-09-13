@@ -279,6 +279,47 @@ def _ladder_odds(rec, tech):
     except Exception:
         return blank
 
+def _trade_charges(name, entry, exits, lot_size):
+    """Zerodha's charges for one round trip on ONE lot, at each exit.
+
+    Split so the page can scale them to any number of lots exactly: brokerage
+    is a flat Rs 20 an order whatever the size (plus GST on it); everything
+    else - STT, exchange, SEBI, stamp and the GST on those - grows with the
+    quantity. Taken from regime_study.net_rupees, the cost model the backtests
+    were judged on, at zero slippage: slippage is not a charge, and the page
+    says it is left out. Indian index options only; Deribit's fees are
+    different and are not modelled, so crypto gets None.
+
+    exits: [T1, T2, T3, stop] option prices.
+    """
+    try:
+        exch = (config.INSTRUMENTS.get(name) or {}).get("kite_exchange")
+        if exch not in ("NSE", "BSE") or entry is None or not lot_size:
+            return None
+        import regime_study as rs
+        flat = 2 * rs.BROKERAGE_PER_ORDER * (1 + rs.GST)
+        per = {}
+        for key, px in zip(("t1", "t2", "t3", "stop"), exits):
+            if px is None:
+                per[key] = None
+                continue
+            gross = (px - entry) * lot_size
+            per[key] = round(gross - rs.net_rupees(entry, px, lot_size, exch, 0.0) - flat, 2)
+        return {"flat": round(flat, 2), "per_lot": per, "exchange": exch}
+    except Exception:
+        return None
+
+
+def _live_charges(name, rec, meta):
+    """Charges for the live signal - only when its premium is a real quote,
+    since charges on an approximated premium would be precision about a guess."""
+    if rec.get("premium_source") != "live" or rec.get("live_ltp") is None:
+        return None
+    pt = (list(rec.get("premium_targets") or []) + [None] * 3)[:3]
+    return _trade_charges(name, rec.get("live_ltp"), pt + [rec.get("premium_stop_loss")],
+                          meta.get("lot_size"))
+
+
 def _ticket_odds(ticket, idx):
     """The chance of reaching an open ticket's FROZEN levels from the live index.
 
@@ -386,6 +427,9 @@ def _public(rec, name=None):
         "exit_at": (lambda v: v if v in ("T1", "T2", "T3") else "T3")(
             str(getattr(config, "EXIT_AT_TARGET", "T3") or "T3").upper()),
         "odds": _ladder_odds(rec, tech),
+        # What the trade costs to do, so the page can show the reward and the
+        # risk after charges rather than before them.
+        "charges": _live_charges(name or rec.get("index"), rec, meta),
         "blockers": rec.get("blockers") or [],
         "votes": rec.get("votes") or {},
         "agree": rec.get("agree"), "dissent": rec.get("dissent"),
@@ -1605,6 +1649,11 @@ class Feed:
             t = pub.get("ticket")
             if t and t.get("open"):
                 t["odds"] = _ticket_odds(t, v.get("public"))
+                if t.get("tracked_on") == "premium":
+                    t["charges"] = _trade_charges(
+                        k, t.get("entry"),
+                        (list(t.get("targets") or []) + [None] * 3)[:3] + [t.get("stop")],
+                        t.get("lot_size"))
             out[k] = pub
         return out
 

@@ -2136,6 +2136,14 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .riskctl input,.riskctl select{background:var(--raised);color:var(--ink);
   border:1px solid var(--bd);border-radius:8px;padding:4px 8px;font:inherit;font-size:12px}
 .riskctl input{width:130px}
+/* Not .rr - that name already styles the rows of another table as a
+   five-column grid, and sharing it turned this panel into one. */
+.rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
+.rrcard:empty{display:none}
+.rrsum{font-size:12.5px;color:var(--ink-2);line-height:1.65;margin:4px 0 10px}
+.rrsum b{color:var(--ink)}
+.rrtbl td,.rrtbl th{white-space:nowrap}
+.rrtbl tr.exit td{background:rgba(255,255,255,.035)}
 .riskline{font-size:12px;color:var(--ink-3);line-height:1.6;margin-top:8px}
 .riskline:empty{display:none}
 .riskline b{color:var(--ink-2)}
@@ -2978,6 +2986,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="ladder" id="ladder"></div>
   <div class="gnote" id="laddernote"></div>
   <div class="lnote" id="lnote"></div>
+  <div class="rrcard" id="rr"></div>
   <div class="risk" id="risk">
   <div class="riskctl">
   <label for="capital">Capital</label>
@@ -3404,7 +3413,7 @@ function blank(msg,detail){
   $("bias").textContent=msg; $("bias").style.color="var(--ink-3)";
   $("conftag").style.display="none"; $("exptag").style.display="none";
   $("reason").textContent=detail||"";
-  $("tiles").innerHTML=""; $("ladder").innerHTML="";
+  $("tiles").innerHTML=""; $("ladder").innerHTML=""; $("rr").innerHTML="";
   $("lswitch").style.display="none"; $("lnote").innerHTML="";
   $("gauges").innerHTML=""; $("gnote").textContent="";
   $("ring").innerHTML=""; $("dmv").textContent="—"; $("dmp").textContent="";
@@ -3717,6 +3726,100 @@ function riskBox(r, tk, sess){
   }
   line.innerHTML = parts.filter(Boolean).join("<br>");
 }
+// --------------------------------------------------------- risk & reward
+// How the trade on screen actually pays: what the stop costs, what each target
+// makes, how many times the risk that is, and the win rate it needs to break
+// even - in rupees after Zerodha's charges when there is a live premium, in
+// index points when there is not. The open ticket's frozen levels when one is
+// running, the live signal's otherwise.
+function rrBox(r, tk){
+  const el = $("rr");
+  if(!el) return;
+  const open = !!(tk && tk.open);
+  const live = !open && !!r && !!r.bias && r.bias !== "NEUTRAL";
+  if(!open && !live){ el.innerHTML = ""; return; }
+  let prem, entry, tg, stop, lotSize, lots, exitAt, odds, ch;
+  if(open){
+    prem = tk.tracked_on === "premium";
+    entry = tk.entry; tg = tk.targets || []; stop = tk.stop;
+    lotSize = tk.lot_size; lots = tk.lots || 1; exitAt = tk.exit_at;
+    odds = tk.odds || {}; ch = tk.charges || null;
+  } else {
+    prem = r.ltp != null && r.premium_stop != null && (r.premium_targets || []).some(v => v != null);
+    entry = prem ? r.ltp : r.spot;
+    tg = (prem ? r.premium_targets : r.targets) || [];
+    stop = prem ? r.premium_stop : r.stop;
+    lotSize = r.lot_size; lots = LOTS; exitAt = r.exit_at;
+    odds = r.odds || {}; ch = r.charges || null;
+  }
+  exitAt = String(exitAt || "T2").toUpperCase();
+  const risk = (entry == null || stop == null) ? 0 : Math.abs(entry - stop);
+  if(!(risk > 0)){ el.innerHTML = ""; return; }
+
+  const dp = prem ? 2 : 0, pts = prem ? "" : " pts";
+  const unit = (lotSize || 1) > 1 ? "lot" : "contract";
+  const size = `${lots} ${unit}${lots !== 1 ? "s" : ""}`;
+  const qty = (prem && lotSize) ? lotSize * lots : 0;          // money only on the premium
+  const cost = key => (ch && ch.per_lot && ch.per_lot[key] != null) ? ch.flat + ch.per_lot[key] * lots : 0;
+  const loss = qty ? risk * qty + cost("stop") : null;
+  const rows = [["T1", tg[0]], ["T2", tg[1]], ["T3", tg[2]]].filter(([, v]) => v != null).map(([k, v]) => {
+    const move = Math.abs(v - entry), R = move / risk;
+    const gain = qty ? move * qty - cost(k.toLowerCase()) : null;
+    const be = qty ? (gain > 0 ? loss / (loss + gain) * 100 : null) : 100 / (1 + R);
+    return {k, v, move, R, gain, be, od: odds[k.toLowerCase()]};
+  });
+  const pc = v => v == null ? "" : `${v}%`;
+  const lbl = k => k === exitAt ? `${k} · exit` : k === "T3" ? "T3 · room check" : k;
+
+  const head = `<thead><tr><th>Level</th><th>Price</th><th>From entry</th><th>× risk</th>`
+    + (qty ? `<th>${esc(size)}${ch ? ", after charges" : ", before fees"}</th>` : "")
+    + `<th>Break-even win rate</th><th>Chance</th></tr></thead>`;
+  const body = rows.map(x => `<tr${x.k === exitAt ? ' class="exit"' : ""}><td class="sym">${lbl(x.k)}</td>`
+      + `<td>${num(x.v, dp)}</td><td style="color:var(--up)">+${num(x.move, dp)}${pts}</td>`
+      + `<td>${x.R.toFixed(2)}R</td>`
+      + (qty ? `<td style="color:${x.gain > 0 ? "var(--up)" : "var(--down)"}">${money(x.gain)}</td>` : "")
+      + `<td>${x.be == null ? "never - charges exceed it" : x.be.toFixed(0) + "%"}</td>`
+      + `<td>${pc(x.od)}</td></tr>`).join("")
+    + `<tr><td class="sym">Stop</td><td>${num(stop, dp)}</td>`
+    + `<td style="color:var(--down)">&minus;${num(risk, dp)}${pts}</td><td>&minus;1.00R</td>`
+    + (qty ? `<td style="color:var(--down)">${money(-loss)}</td>` : "")
+    + `<td>&mdash;</td><td>${pc(odds.stop)}</td></tr>`;
+
+  const x = rows.find(v => v.k === exitAt);
+  const who = open ? "This ticket" : "This trade";
+  let sum = "";
+  if(x && qty && !(x.gain > 0)){
+    sum = `${who} exits at <b>${x.k}</b>, but after charges the move from ${num(entry, dp)} to `
+        + `${num(x.v, dp)} does not pay for itself at ${esc(size)}: it loses <b>${money(x.gain, false)}</b> even when it works.`;
+  } else if(x){
+    const ratio = qty ? x.gain / loss : x.R;
+    const riskTxt = qty ? money(loss, false) : num(risk, dp) + pts;
+    const gainTxt = qty ? money(x.gain, false) : num(x.move, dp) + pts;
+    sum = `${who} exits at <b>${x.k}</b>. You risk <b>${riskTxt}</b> - from ${num(entry, dp)} down to the stop at `
+        + `${num(stop, dp)}${ch ? ", charges included" : ""} - to make <b>${gainTxt}</b> at ${num(x.v, dp)}. `
+        + `That is <b>${ratio.toFixed(2)} to 1</b>: each loss takes ${(1 / ratio).toFixed(2)} wins to earn back, `
+        + `so it comes out ahead only if it wins more than <b>${x.be.toFixed(0)}%</b> of the time.`;
+    if(x.od != null && odds.stop != null){
+      sum += ` The model gives ${x.k} a ${x.od}% chance of being reached ${esc(odds.horizon || "")} and the stop ${odds.stop}%. `
+           + `Those overlap - a trade can touch both - so set them loosely against the ${x.be.toFixed(0)}% it needs; they are not a win rate.`;
+    }
+  }
+  const notes = [];
+  if(!prem) notes.push("In index points - there is no live option price for this strike, so no rupee figures.");
+  else if(ch) notes.push(`After Zerodha's charges at ${esc(size)}: brokerage of ₹20 an order, STT on the sell side, `
+                       + `exchange, SEBI and stamp charges, and GST. Slippage is not included - a wide spread costs more.`);
+  else if(CCY === "USD") notes.push("Deribit's trading fees are not included.");
+  else notes.push("Charges could not be worked out, so these are before costs.");
+  notes.push(`"× risk" is how far each level is from entry compared with the stop. The Reward : risk tile above is `
+           + `a different number: how far the market has room to run against the stop - the check that decides `
+           + `whether a trade is issued at all - not what the exit pays.`);
+
+  el.innerHTML = `<p class="eyebrow">Risk and reward on this ${open ? "ticket" : "trade"}</p>`
+    + (sum ? `<div class="rrsum">${sum}</div>` : "")
+    + `<div class="scrwrap"><table class="scr rrtbl">${head}<tbody>${body}</tbody></table></div>`
+    + `<div class="gnote">${notes.join(" ")}</div>`;
+}
+
 function postRisk(fields){
   fetch("/api/ticket", {method:"POST",
     headers:{"Content-Type":"application/x-www-form-urlencoded"},
@@ -4638,6 +4741,7 @@ function render(s){
   ticketBox(r, tstate);
   ladder(r, tstate && tstate.ticket);
   riskBox(r, tstate && tstate.ticket, s.session);
+  rrBox(r, tstate && tstate.ticket);
   sessionStrip(s.session, s.order);
   if(TAB === "chain") chainFetch();
   if(TAB === "news") newsFetch();
