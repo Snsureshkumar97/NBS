@@ -5023,37 +5023,37 @@ function anaPaint(){
         : r.or_close === "below" ? "var(--down)" : "var(--ink-2)"}">${esc(r.or_close)}</td>`]],
     "No intraday candles for the opening range.");
 
-  const i = d.internals || {};
+  const intern = d.internals || {};
   if($("intstats")){
-    if(i.error || i.n == null){
+    if(intern.error || intern.n == null){
       $("intstats").innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
         + `Constituent history is not loaded.</p>`;
     }else{
-      const weak = i.above20 < 30;
+      const weak = intern.above20 < 30;
       $("intstats").innerHTML =
-        statRow("Above their 20-day average", i.above20 + "%",
+        statRow("Above their 20-day average", intern.above20 + "%",
                 weak ? "var(--down)" : "var(--up)")
-      + statRow("Above their 50-day average", i.above50 + "%")
-      + statRow("Advancing / declining", i.adv + " / " + i.dec,
-                i.adv > i.dec ? "var(--up)" : "var(--down)")
-      + statRow(`At a ${i.lookback}-session high`, i.at_high)
-      + statRow(`At a ${i.lookback}-session low`, i.at_low);
+      + statRow("Above their 50-day average", intern.above50 + "%")
+      + statRow("Advancing / declining", intern.adv + " / " + intern.dec,
+                intern.adv > intern.dec ? "var(--up)" : "var(--down)")
+      + statRow(`At a ${intern.lookback}-session high`, intern.at_high)
+      + statRow(`At a ${intern.lookback}-session low`, intern.at_low);
       $("intnote").textContent =
-        `${i.n} index members over ${i.lookback} sessions. Breadth says whether `
+        `${intern.n} index members over ${intern.lookback} sessions. Breadth says whether `
         + `a move is the whole market or a few heavyweights: an index can rise `
         + `while most of its members fall.`;
     }
   }
-  adDraw(i.adline || []);
+  adDraw(intern.adline || []);
 
-  const st = d.strength || {};
-  if($("rswin")) $("rswin").textContent = st.window || 20;
+  const strong = d.strength || {};
+  if($("rswin")) $("rswin").textContent = strong.window || 20;
   const rsCols = [["Symbol", r => `<td class="sym">${esc(r.sym)}</td>`],
                   ["Return", r => pctCell(r.pct)]];
-  scrTable("rslead", st.leaders || [], rsCols, "No history yet.");
-  scrTable("rslag", (st.laggards || []).slice().reverse(), rsCols, "No history yet.");
+  scrTable("rslead", strong.leaders || [], rsCols, "No history yet.");
+  scrTable("rslag", (strong.laggards || []).slice().reverse(), rsCols, "No history yet.");
   if($("rsnote")) $("rsnote").textContent =
-    `Return over the last ${st.window || 20} sessions, across the index members `
+    `Return over the last ${strong.window || 20} sessions, across the index members `
     + `this tool covers. Relative strength is about ranking, not direction: in a `
     + `falling market the leader may still be down.`;
 
