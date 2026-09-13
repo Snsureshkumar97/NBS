@@ -43,6 +43,13 @@ WHAT IT FOUND (11 Sep 2026, history to 14 Aug 2026)
   * The daily loss brake helped the held-out year and hurt in-sample; it is
     kept as a limit on the downside (DAILY_LOSS_LIMIT_R), not as an edge.
 
+WHICH TARGET THIS EXITS AT
+    The same one the live ticket engine uses - config.EXIT_AT_TARGET, today T2.
+    It used to be hard-coded to T3 here while tickets closed at T2, so every
+    number this file produced described an exit the tool does not perform. The
+    setting is read now, so the two cannot disagree again without someone
+    changing the setting itself.
+
     python3 pro_study.py
 """
 import datetime as dt
@@ -112,11 +119,15 @@ def years_to(expiry_date, when):
 
 # ---------------------------------------------------------------- exits
 def simulate(A, i, tr, hold_bars=26, square_off=True,
-             be_after_t1=False, half_at_t1=False, time_stop=None):
+             be_after_t1=False, half_at_t1=False, time_stop=None, target=None):
     """Legs of one trade under an exit policy: [(exit_spot, bar, weight), ...].
 
     Stop is tested before targets inside a bar - the bar does not say which came
     first, and the pessimistic order is the only defensible one."""
+    if target is None:
+        target = str(getattr(config, "EXIT_AT_TARGET", "T3") or "T3").lower()
+        if target not in ("t1", "t2", "t3"):
+            target = "t3"
     hi, lo, cl, end = A["hi"], A["lo"], A["cl"], A["end"]
     ce = tr["side"] == "CE"
     stop, legs, rem, t1_done = tr["stop"], [], 1.0, False
@@ -130,8 +141,9 @@ def simulate(A, i, tr, hold_bars=26, square_off=True,
                 legs.append((tr["t1"], j, 0.5)); rem = 0.5
             if be_after_t1 or half_at_t1:
                 stop = tr["entry"]
-        if (hi[j] >= tr["t3"]) if ce else (lo[j] <= tr["t3"]):
-            legs.append((tr["t3"], j, rem)); return legs
+        tgt = tr.get(target) if hasattr(tr, "get") else tr[target]
+        if tgt is not None and ((hi[j] >= tgt) if ce else (lo[j] <= tgt)):
+            legs.append((tgt, j, rem)); return legs
         if time_stop and not t1_done and (j - i) >= time_stop:
             legs.append((cl[j], j, rem)); return legs
         if square_off and end[j]:

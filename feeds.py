@@ -324,6 +324,10 @@ def _public(rec, name=None):
         "not_worth_it": rec.get("not_worth_it"),
         "adx_blocked": rec.get("adx_blocked"),
         "macd_blocked": rec.get("macd_blocked"),
+        # Which rung actually ends the trade. The ticket freezes this at entry;
+        # before a ticket exists the page still needs it to label the ladder.
+        "exit_at": (lambda v: v if v in ("T1", "T2", "T3") else "T3")(
+            str(getattr(config, "EXIT_AT_TARGET", "T3") or "T3").upper()),
         "odds": _ladder_odds(rec, tech),
         "blockers": rec.get("blockers") or [],
         "votes": rec.get("votes") or {},

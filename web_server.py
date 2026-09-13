@@ -2182,7 +2182,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .rung{display:flex;align-items:center;gap:12px;padding:7px 0;
   border-bottom:1px solid var(--bd-soft)}
 .rung:last-child{border-bottom:0}
-.rung .k{width:44px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ink-3)}
+.rung .k{width:88px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ink-3)}
 .rung .bar{flex:1;height:4px;border-radius:2px;background:var(--bd-soft);overflow:hidden}
 .rung .bar i{display:block;height:100%;border-radius:2px;
   transition:width .45s ease-out}
@@ -3309,6 +3309,9 @@ function ladder(r, tk){
   const base = prem ? r.ltp : r.spot;
   const dp   = prem ? 2 : 0;      // premiums are paise; index points are not
 
+  const exitAt = (r.exit_at || "T2").toUpperCase();
+  const lbl = k => k === exitAt ? k + " · exit"
+                 : k === "T3"   ? "T3 · room check" : k;
   const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
                ["T3",tg[2],"var(--up)"],["Stop",stop,"var(--down)"]];
   const spread=Math.max(...rungs.map(x=>x[1]==null?0:Math.abs(x[1]-(base||0))))||1;
@@ -3331,7 +3334,10 @@ function ladder(r, tk){
     // touch T1, turn round and still hit the stop, so these do not sum to 100.
     const od = r.odds || {};
     const ch = od[k === "Stop" ? "stop" : k.toLowerCase()];
-    return `<div class="rung"><div class="k">${k}</div>
+    return `<div class="rung"><div class="k" title="${k === exitAt
+        ? "the trade closes here" : k === "T3"
+        ? "not an exit - the room-to-run check that decides whether a ticket is issued at all"
+        : ""}">${lbl(k)}</div>
       <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
       <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
       <div class="od" style="color:${ch==null?"var(--ink-3)":c}" title="chance of touching this level before the close">${ch==null?"":ch+"%"}</div>
