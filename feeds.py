@@ -217,24 +217,52 @@ def _ladder_odds(rec, tech):
     chains. The screen says so rather than implying the check covered this.
     """
     blank = {"t1": None, "t2": None, "t3": None, "stop": None, "minutes": 0,
-             "iv": None}
+             "iv": None, "horizon": None, "year_minutes": None}
     try:
         import datetime as _dt
         import greeks as gk
         import touch_model as tm
 
-        mins = tm.minutes_to_close()
+        name = rec.get("index")
+        always = bool(name) and config.market_for(name)["always_open"]
         spot = rec.get("spot") or tech.get("last_close")
         chain = rec.get("option_chain") or {}
         strikes = chain.get("strikes") or []
         expiry = str(chain.get("expiry") or "")
-        if not (spot and strikes and expiry) or mins <= 0:
-            return dict(blank, minutes=round(mins) if mins else 0)
+        now = _dt.datetime.now(_dt.timezone.utc)
+        try:
+            exp_day = _dt.date.fromisoformat(expiry[:10])
+        except ValueError:
+            exp_day = None
 
-        ist = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
-        y, mo, dd = (int(x) for x in expiry.split("-")[:3])
-        close = _dt.datetime(y, mo, dd, 15, 30, tzinfo=ist)
-        t_yr = gk.years_to_expiry((close - _dt.datetime.now(ist)).total_seconds() / 60.0)
+        if always:
+            # Crypto has no bell, so "before the close" was measured to 15:30
+            # IST - a time that means nothing to Bitcoin. And the contract on
+            # the ticket can be weeks from settling, a horizon over which every
+            # level reads near certain. The next 24 hours instead, or less when
+            # the contract settles sooner (Deribit, 08:00 UTC), on the calendar
+            # year its implied volatility is quoted over.
+            settle = (_dt.datetime(exp_day.year, exp_day.month, exp_day.day, 8, 0,
+                                   tzinfo=_dt.timezone.utc) if exp_day else None)
+            to_settle = (settle - now).total_seconds() / 60.0 if settle else None
+            mins = 24 * 60.0 if to_settle is None else min(24 * 60.0, to_settle)
+            year = tm.CALENDAR_YEAR_MINUTES
+            horizon = ("in the next 24 hours" if mins >= 24 * 60.0 - 1
+                       else "before this contract settles at 13:30 IST")
+        else:
+            ist = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+            settle = (_dt.datetime(exp_day.year, exp_day.month, exp_day.day, 15, 30,
+                                   tzinfo=ist) if exp_day else None)
+            mins = tm.minutes_to_close()
+            year = tm.TRADING_YEAR_MINUTES
+            horizon = "before the 15:30 close"
+
+        base = dict(blank, minutes=round(mins) if mins and mins > 0 else 0,
+                    horizon=horizon, year_minutes=year)
+        if not (spot and strikes and settle) or mins <= 0:
+            return base
+
+        t_yr = gk.years_to_expiry(max(0.0, (settle - now).total_seconds() / 60.0))
         atm = min(strikes, key=lambda s_: abs(s_["strike"] - spot))
         ivs = []
         for side, kind in (("call", "CE"), ("put", "PE")):
@@ -242,14 +270,43 @@ def _ladder_odds(rec, tech):
             if iv:
                 ivs.append(iv)
         if not ivs:
-            return dict(blank, minutes=round(mins))
+            return base
         sigma = sum(ivs) / len(ivs)
         out = tm.ladder_odds(spot, rec.get("index_targets"),
-                             rec.get("index_stop_loss"), sigma, mins)
-        out["iv"] = round(sigma * 100, 2)
+                             rec.get("index_stop_loss"), sigma, mins, year)
+        out.update(iv=round(sigma * 100, 2), horizon=horizon, year_minutes=year)
         return out
     except Exception:
         return blank
+
+def _ticket_odds(ticket, idx):
+    """The chance of reaching an open ticket's FROZEN levels from the live index.
+
+    The live ladder is priced against the levels the engine recalculates each
+    pass; an open ticket is measured against the ones fixed at entry, so its
+    chances are worked out on those - with the same implied volatility, window
+    and year basis the live ladder just used. A level already reached reads
+    100, because it has been.
+    """
+    try:
+        import touch_model as tm
+        o = (idx or {}).get("odds") or {}
+        out = {"t1": None, "t2": None, "t3": None, "stop": None,
+               "minutes": o.get("minutes") or 0, "iv": o.get("iv"),
+               "horizon": o.get("horizon"), "year_minutes": o.get("year_minutes")}
+        spot = (idx or {}).get("spot")
+        if not (ticket and ticket.get("open") and spot and o.get("iv")
+                and o.get("minutes") and o.get("year_minutes")):
+            return out
+        got = tm.ladder_odds(spot, ticket.get("index_targets"), ticket.get("index_stop"),
+                             o["iv"] / 100.0, o["minutes"], o["year_minutes"])
+        hit = ticket.get("hit") or {}
+        for key in ("T1", "T2", "T3"):
+            out[key.lower()] = 100 if hit.get(key) else got.get(key.lower())
+        out["stop"] = 100 if ticket.get("sl_hit") else got.get("stop")
+        return out
+    except Exception:
+        return None
 
 
 def _room(rec):
@@ -1539,6 +1596,18 @@ class Feed:
             self.wake.clear()
 
     # -- reading ------------------------------------------------------------
+    def _tickets_with_odds(self):
+        """Each index's ticket state, an open ticket carrying the chance of
+        reaching its own frozen levels from where the index is now."""
+        out = {}
+        for k, v in self.state["indices"].items():
+            pub = self.tickets.public(k)
+            t = pub.get("ticket")
+            if t and t.get("open"):
+                t["odds"] = _ticket_odds(t, v.get("public"))
+            out[k] = pub
+        return out
+
     def snapshot(self):
         with self.lock:
             return {
@@ -1551,7 +1620,7 @@ class Feed:
                 "error": self.state["error"],
                 "indices": {k: v["public"] for k, v in self.state["indices"].items()},
                 "why": {k: v["why"] for k, v in self.state["indices"].items()},
-                "tickets": {k: self.tickets.public(k) for k in self.state["indices"]},
+                "tickets": self._tickets_with_odds(),
                 "session": self.tickets.session(),
                 "events": list(self.events[:8]),
             }

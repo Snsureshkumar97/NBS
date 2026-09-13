@@ -1111,6 +1111,11 @@ class TicketBook:
             "sl_hit": trade["sl_hit"], "sl_hit_time": trade["sl_hit_time"],
             "exit_at": trade.get("exit_at", "T3"),
             "cooldown_skipped": bool(trade.get("cooldown_skipped")),
+            # The frozen INDEX levels, whichever way the ticket is tracked, so
+            # the chance of reaching each can be priced from the live index -
+            # a premium ticket's rungs are these same levels in option terms.
+            "index_targets": trade.get("index_targets"),
+            "index_stop": trade.get("index_sl"),
         }
 
     def public(self, name, rec=None):

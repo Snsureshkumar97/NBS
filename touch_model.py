@@ -71,8 +71,17 @@ import math
 # the data it was fitted to and mislead on everything else.
 CALIBRATION = 0.601
 
+# The year a volatility is quoted over, in minutes. Indian index options trade
+# 252 sessions of 375 minutes (09:15-15:30), and the calibration above was
+# fitted on that basis. Crypto never closes: its implied volatility is quoted
+# over a calendar year, so a 24-hour window has to be measured against one -
+# on the trading year it would read as four sessions and inflate every chance.
+TRADING_YEAR_MINUTES = 252.0 * 375.0
+CALENDAR_YEAR_MINUTES = 365.0 * 24 * 60
 
-def touch_probability(distance, sigma_annual, minutes_left):
+
+def touch_probability(distance, sigma_annual, minutes_left,
+                      year_minutes=TRADING_YEAR_MINUTES):
     """Chance of price touching a level `distance` points away before the close.
 
     distance      absolute points from here to the level
@@ -83,8 +92,7 @@ def touch_probability(distance, sigma_annual, minutes_left):
         return None
     if minutes_left is None or minutes_left <= 0:
         return 0.0
-    # A trading year: 252 sessions of 375 minutes (09:15-15:30).
-    t = minutes_left / (252.0 * 375.0)
+    t = minutes_left / year_minutes
     move = sigma_annual * math.sqrt(t)          # 1 sd of RELATIVE move
     if move <= 0:
         return 0.0
@@ -94,11 +102,12 @@ def touch_probability(distance, sigma_annual, minutes_left):
     return max(0.0, min(1.0, p))
 
 
-def touch_probability_pct(distance, spot, sigma_annual, minutes_left):
+def touch_probability_pct(distance, spot, sigma_annual, minutes_left,
+                          year_minutes=TRADING_YEAR_MINUTES):
     """Same, taking a point distance and a spot, returning whole percent."""
     if not spot or spot <= 0 or distance is None:
         return None
-    p = touch_probability(abs(distance) / spot, sigma_annual, minutes_left)
+    p = touch_probability(abs(distance) / spot, sigma_annual, minutes_left, year_minutes)
     return None if p is None else round(p * 100)
 
 
@@ -113,7 +122,8 @@ def minutes_to_close(now=None):
     return max(0.0, (close - now).total_seconds() / 60.0)
 
 
-def ladder_odds(spot, targets, stop, sigma_annual, minutes_left):
+def ladder_odds(spot, targets, stop, sigma_annual, minutes_left,
+                year_minutes=TRADING_YEAR_MINUTES):
     """Chance of touching each target and the stop before the close.
 
     These are not exclusive: a trade can touch T1, turn round and hit the stop,
@@ -125,9 +135,11 @@ def ladder_odds(spot, targets, stop, sigma_annual, minutes_left):
         return out
     for key, level in zip(("t1", "t2", "t3"), (targets or [None, None, None])):
         if level is not None:
-            out[key] = touch_probability_pct(level - spot, spot, sigma_annual, minutes_left)
+            out[key] = touch_probability_pct(level - spot, spot, sigma_annual,
+                                             minutes_left, year_minutes)
     if stop is not None:
-        out["stop"] = touch_probability_pct(stop - spot, spot, sigma_annual, minutes_left)
+        out["stop"] = touch_probability_pct(stop - spot, spot, sigma_annual,
+                                            minutes_left, year_minutes)
     return out
 
 

@@ -3456,8 +3456,13 @@ function ladder(r, tk){
     $("lswitch").style.display = "none";
     const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
                  ["T3",tg[2],"var(--up)"],["Stop",tk.stop,"var(--down)"]];
+    // The chance of reaching each of THIS ticket's frozen levels from where the
+    // index is now. The live ladder had it; this branch returned before it, so
+    // the percentages vanished exactly when a position was open.
+    const tod = tk.odds || {};
     $("ladder").innerHTML = rungs.map(([k,v,c])=>{
       const done = k==="Stop" ? tk.sl_hit : (tk.hit||{})[k];
+      const ch = tod[k === "Stop" ? "stop" : k.toLowerCase()];
       const when = k==="Stop" ? tk.sl_hit_time : (tk.hit_time||{})[k];
       // How far price has actually travelled from entry toward this level —
       // the desktop's "38% of the way". The old bar drew the level's distance
@@ -3477,8 +3482,22 @@ function ladder(r, tk){
         <div class="bar" title="${done?"reached":Math.round(pct)+"% of the way"}"
           ><i style="width:${done?100:pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
         <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
+        <div class="od" style="color:${ch==null?"var(--ink-3)":c}" title="chance of reaching this level">${ch==null?"":ch+"%"}</div>
         <div class="rs" style="color:${rs.startsWith("+")?"var(--up)":rs?"var(--down)":"var(--ink-3)"}">${rs}</div></div>`;
     }).join("");
+    const tln = $("laddernote");
+    if(tln){
+      const crypto = tod.year_minutes === 525600;
+      tln.textContent = tod.t1 == null
+        ? (tod.minutes === 0
+             ? "Chances appear while the market is open - with no time left to the bell there is nothing to compute."
+             : tod.iv == null ? "No option chain right now, so the chances cannot be worked out." : "")
+        : `Chance of the index reaching each of this ticket's levels ${tod.horizon || "before the close"}, `
+          + `from where it is now, with implied volatility at ${tod.iv}%. A level already reached reads 100%. `
+          + `They do not add up to 100: a trade can touch a target, turn round and still hit the stop. `
+          + (crypto ? "On BTC these are rough - the calibration was fitted on Nifty trades and has not been checked on Bitcoin."
+                    : "Calibrated estimates - against 3,582 past trades the model lands within about four points.");
+    }
     $("lnote").innerHTML = prem
       ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
@@ -3556,13 +3575,14 @@ function ladder(r, tk){
                    ? "No active signal, so there are no levels to price. The chain is fine - implied volatility is reading "
                      + o.iv + "%."
                    : "The levels could not be priced just now.")
-      : `Chance of touching each level before the 15:30 close, with ${o.minutes} `
+      : `Chance of touching each level ${o.horizon || "before the 15:30 close"}, with ${o.minutes} `
         + `minutes left and implied volatility at ${o.iv}%. They do not add up to `
         + `100: a trade can touch a target, turn round and still hit the stop. `
         + `These are calibrated estimates - against 3,582 past trades the model `
         + `lands within about four points on data it was not fitted to, and it `
         + `reads a few points high on T3 and the stop. The calibration was fitted `
-        + `on a VIX-derived volatility and is fed the chain's implied volatility here.`;
+        + `on a VIX-derived volatility and is fed the chain's implied volatility here.`
+        + (o.year_minutes === 525600 ? " On BTC none of that validation applies - it was fitted on Nifty, so read these as rough." : "");
   }
 
   // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
