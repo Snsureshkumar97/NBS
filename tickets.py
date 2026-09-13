@@ -75,6 +75,12 @@ class IndexBook:
         self.last_ticket_at = None     # datetime, per index
         self.last_close_at = None      # datetime the last ticket here closed
         self.wait_reason = None        # (code, short, long)
+        # A cooldown you chose to skip, pinned to the ticket or exit it was
+        # counting from. Pinned rather than a flag so it is one-shot by
+        # construction: the next ticket or exit moves the reference, and the
+        # waiver stops matching without anything having to remember to clear it.
+        self.cooldown_waived = None    # {"ref": datetime|None, "gap": datetime|None}
+        self.waiver_applied = False    # set while evaluating, when it let one through
         self.live = None               # newest streamed price for this index
 
     # -- the gate that only this index knows about -------------------------
@@ -578,6 +584,8 @@ class TicketBook:
             book.confirm_streak = 1
             book.confirm_since = now
 
+        book.waiver_applied = False
+
         def hold(code, short, why):
             book.wait_reason = (code, short, why)
             return []
@@ -621,7 +629,11 @@ class TicketBook:
         gap = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0)
         per_index = _cfg("TICKET_GAP_PER_INDEX", False)
         last_any = book.last_ticket_epoch() if per_index else self._last_any()
-        if gap and last_any is not None and (now - last_any) < gap * 60:
+        waived = book.cooldown_waived or {}
+        if (gap and last_any is not None and (now - last_any) < gap * 60
+                and "gap" in waived and waived["gap"] == self._gap_ref(book)):
+            book.waiver_applied = True
+        elif gap and last_any is not None and (now - last_any) < gap * 60:
             left = int((gap * 60 - (now - last_any)) / 60) + 1
             scope = "on this index" if per_index else "across all indices"
             return hold("ticket_gap", "COOLDOWN",
@@ -778,11 +790,15 @@ class TicketBook:
         # From the later of the last entry and the last exit. Counted from the
         # entry alone, a trade stopped out 22 minutes in could be bought
         # straight back - exactly what this pause exists to prevent.
-        ref = max([t for t in (book.last_ticket_at, book.last_close_at) if t is not None],
-                  default=None)
+        ref = self._reentry_ref(book)
         if ref is not None:
             gap = (now_ist() - ref).total_seconds() / 60.0
-            if gap < mins:
+            waived = book.cooldown_waived or {}
+            if gap < mins and "ref" in waived and waived["ref"] == ref:
+                # Skipped by hand. Only the clock is waived: the room check
+                # below, and every gate after this one, still decide.
+                book.waiver_applied = True
+            elif gap < mins:
                 return ("reentry_cooldown", "COOLDOWN",
                         f"Already ticketed {side} today. A second ticket the same "
                         f"way waits {mins} minutes after the last - about "
@@ -830,6 +846,7 @@ class TicketBook:
         next evaluation, several times a second, until the chain refreshed.
         Thirteen tickets in twelve seconds against a cap of four, measured.
         """
+        book.waiver_applied = False
         if self.entry_block() is not None:
             return False
         # Re-arm is only ever a second ticket the SAME way, so it answers to
@@ -906,7 +923,14 @@ class TicketBook:
             "sl_hit_time": None,
             "status": "OPEN",
             "trade_id": f"{rec['index']}-{stamp.strftime('%Y%m%d-%H%M%S')}",
+            # Issued only because you skipped a cooldown by hand. Kept with the
+            # ticket and written to the log, so the record can show whether
+            # those entries earn their keep separately from the ones the
+            # rules let through on their own.
+            "cooldown_skipped": bool(book.waiver_applied),
         }
+        book.cooldown_waived = None
+        book.waiver_applied = False
         book.last_ticket_at = stamp
         # The previous ticket's streamed price is not this one's.
         book.live = None
@@ -996,6 +1020,45 @@ class TicketBook:
             book.trade = None
             return None
 
+    def skip_cooldown(self, name):
+        """Let the next ticket on this index through its cooldown, once.
+
+        Only the clock is lifted. The ticket is still issued by the rules on
+        the next reading - the direction confirmed, room to the targets, reward
+        to risk, the spread, one position at a time, the daily brake - so this
+        cannot open anything those would refuse. Returns (ok, message).
+        """
+        with self.lock:
+            book = self.books.get(name)
+            if book is None:
+                return False, "That index is not on this market."
+            if book.trade is not None and book.trade["status"] == "OPEN":
+                return False, "A ticket is already open on this index."
+            code = (book.wait_reason or (None,))[0]
+            if code not in ("reentry_cooldown", "ticket_gap"):
+                return False, "Nothing on this index is waiting on a cooldown right now."
+            book.cooldown_waived = {"ref": self._reentry_ref(book),
+                                    "gap": self._gap_ref(book)}
+            book.wait_reason = ("cooldown_skipped", "COOLDOWN SKIPPED",
+                                "Cooldown skipped. The ticket is issued on the next "
+                                "reading if every other check still passes.")
+            return True, (f"Cooldown skipped on {name}. The ticket comes on the next "
+                          f"reading if the other checks still pass.")
+
+    def _reentry_ref(self, book):
+        """What the same-direction cooldown counts from: the later of the last
+        entry and the last exit on this index."""
+        return max([t for t in (book.last_ticket_at, book.last_close_at) if t is not None],
+                   default=None)
+
+    def _gap_ref(self, book):
+        """What the between-tickets gap counts from, as a datetime - stable
+        between readings, unlike the float stamps the gap itself compares."""
+        if _cfg("TICKET_GAP_PER_INDEX", False):
+            return book.last_ticket_at
+        stamps = [b.last_ticket_at for b in self.books.values() if b.last_ticket_at]
+        return max(stamps) if stamps else None
+
     def close_all_at_bell(self):
         """Square up every open ticket at the close.
 
@@ -1047,6 +1110,7 @@ class TicketBook:
             "hit": trade["hit"], "hit_time": trade["hit_time"],
             "sl_hit": trade["sl_hit"], "sl_hit_time": trade["sl_hit_time"],
             "exit_at": trade.get("exit_at", "T3"),
+            "cooldown_skipped": bool(trade.get("cooldown_skipped")),
         }
 
     def public(self, name, rec=None):

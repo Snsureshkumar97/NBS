@@ -32,6 +32,9 @@ FIELDS = [
     "status", "pnl", "lot_size", "lots", "tracked_on",
     "entry_spot", "risk_points", "reach_points", "reward_risk",
     "score", "confidence", "adx", "strictness",
+    # Last, so a log written before it existed is still the same columns in
+    # the same order - _upgrade_header() only ever appends to that header.
+    "cooldown_skipped",
 ]
 
 
@@ -105,9 +108,41 @@ def user_log_path(email, market=None):
     return os.path.join(d, CSV_NAME)
 
 
+def _upgrade_header(path):
+    """Give a log written before a column was added the current header.
+
+    Without this a new row lands in an old file with one value more than the
+    header names, and csv reads that value back under no name at all - the
+    column would exist in the file and be invisible to every reader. Only a
+    header that is exactly an earlier FIELDS (the same columns, in order, with
+    the new ones missing from the end) is touched; anything else is left
+    alone rather than guessed at. Rewritten to a temp file and swapped in, so
+    a failure part-way leaves the original intact.
+    """
+    try:
+        with open(path, newline="") as f:
+            header = next(csv.reader(f), None)
+        if not header or header == FIELDS:
+            return
+        if len(header) >= len(FIELDS) or header != FIELDS[:len(header)]:
+            return
+        with open(path, newline="") as f:
+            rows = list(csv.DictReader(f))
+        tmp = path + ".upgrade"
+        with open(tmp, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows)
+        os.replace(tmp, path)
+    except (OSError, csv.Error):
+        pass
+
+
 def _append(row, path=None):
     path = path or _log_path()
     new = not os.path.exists(path)
+    if not new:
+        _upgrade_header(path)
     try:
         with open(path, "a", newline="") as f:
             w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
@@ -150,6 +185,7 @@ def _base_row(trade, rec, now):
         "confidence": r.get("confidence"),
         "adx": (r.get("technical") or {}).get("adx"),
         "strictness": r.get("strictness"),
+        "cooldown_skipped": "yes" if trade.get("cooldown_skipped") else "",
     }
 
 

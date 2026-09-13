@@ -1530,6 +1530,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         action = form.get("action")
         if action == "clear":
             book.clear(form.get("index") or "")
+        elif action == "skip_cooldown":
+            # Lifts only the clock on one index, once. The ticket itself is
+            # still issued by the rules on the next reading, or not at all.
+            ok, msg = book.skip_cooldown(form.get("index") or "")
+            return self._send(json.dumps({"ok": ok, "message": msg,
+                                          "session": book.session()}),
+                              "application/json")
         else:
             try:
                 lots = float(form["lots"]) if "lots" in form else None
@@ -2259,6 +2266,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .badge.hold{background:#1c1710;border-color:#3a2f18;color:#e0a93a}
 .badge.prev{background:var(--raised);border-color:var(--bd);color:var(--ink-3)}
 .tclear{margin-left:auto}
+.tskip{color:var(--warn);border-color:rgba(242,163,61,.45)}
 .contract{font-size:13px;color:var(--ink-2);margin-top:4px}
 .contract b{color:var(--ink)}
 .issued{font-size:12px;color:var(--ink-3);margin-top:3px}
@@ -2945,6 +2953,8 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <span class="badge prev" id="tbadge" style="display:none"></span>
   <button class="lbtn tclear" id="tclear" type="button"
   style="display:none">Clear ticket</button>
+  <button class="lbtn tclear tskip" id="tskip" type="button"
+  style="display:none">Skip cooldown</button>
   </div>
   <div class="hero">
   <div class="v" id="bias">—</div>
@@ -3727,6 +3737,27 @@ $("tclear").onclick = () => {
     .then(() => tick()).catch(()=>{});
 };
 
+$("tskip").onclick = () => {
+  if(!confirm(`Skip the cooldown on ${CUR}?\n\n`
+            + "Only the waiting time is lifted, once. The ticket is still issued by "
+            + "the rules on the next reading - confirmed direction, room to the "
+            + "targets, reward to risk, spread, one position at a time - so it "
+            + "may still not come if one of those is not met.\n\n"
+            + "The cooldown is there so a stop-out is not bought straight back. "
+            + "A ticket issued this way is marked in your trade log.")) return;
+  const b = $("tskip"); b.disabled = true;
+  fetch("/api/ticket", {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({action:"skip_cooldown", index:CUR})})
+    .then(x => x.json())
+    .then(j => {
+      if(j && !j.ok && j.message){ const w = $("twhy"); w.style.display = ""; w.textContent = j.message; }
+      return tick();
+    })
+    .catch(()=>{})
+    .finally(() => { b.disabled = false; });
+};
+
 // --------------------------------------------------------------- ticket
 // A live signal and an issued ticket are different things, and the badge names
 // the rule that is holding one rather than asserting a generic reason. The
@@ -3772,6 +3803,10 @@ function ticketBox(r, state){
   } else badge.style.display = "none";
 
   $("tclear").style.display = open ? "" : "none";
+  // Offered only while a cooldown is what is holding the ticket - not for a
+  // missing room, a spread or the daily brake, which it could not lift anyway.
+  const cooling = !open && !!wait && (wait.code === "reentry_cooldown" || wait.code === "ticket_gap");
+  $("tskip").style.display = cooling ? "" : "none";
 
   const c = $("tcontract");
   if(open){
@@ -3781,7 +3816,8 @@ function ticketBox(r, state){
                 + (ex ? ` · expiry <b>${esc(ex)}</b>` : "")
                 + ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`;
     $("tissued").style.display = "";
-    $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`;
+    $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`
+      + (tk.cooldown_skipped ? " · cooldown skipped by you" : "");
   } else {
     c.style.display = "none"; $("tissued").style.display = "none";
   }
