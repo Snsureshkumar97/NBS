@@ -29,7 +29,7 @@ import xml.etree.ElementTree as ET
 TIMEOUT = 8
 TTL = 300                      # five minutes; these publish a few times an hour
 PER_SOURCE = 12
-UA = "Mozilla/5.0 (compatible; NBS Signal Tool; +https://nbstradingtool.vercel.app)"
+UA = "Mozilla/5.0 (compatible; TradePicker; +https://nbstradingtool.vercel.app)"
 
 SOURCES = {
     # Sources that serve an honestly-identified reader. Business Standard,

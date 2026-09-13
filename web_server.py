@@ -194,7 +194,7 @@ def track_record(user=None, market=None):
 # HTTP
 # ---------------------------------------------------------------------------
 class Handler(http.server.BaseHTTPRequestHandler):
-    server_version = "SignalTool"
+    server_version = "TradePicker"
 
     def log_message(self, *a):
         pass
@@ -1409,7 +1409,7 @@ PAGE = r"""<!doctype html>
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<title>NBS Signal Tool — Nifty · Bank Nifty · Sensex</title>
+<title>TradePicker — Nifty · Bank Nifty · Sensex · Bitcoin</title>
 <style>
 /* Kite's palette, so this screen and kite.zerodha.com can sit in adjacent
    tabs without the eye having to re-calibrate between them. The up/down pair
@@ -2220,13 +2220,8 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 
 <aside class="side" id="side">
  <a class="sbrand" href="/" style="color:inherit;text-decoration:none">
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-   <rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/>
-   <path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8"
-         stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-   <circle cx="19" cy="13.9" r="2" fill="#4caf50"/>
-  </svg>
-  <div>NBS Signal Tool<small id="sidesub">Nifty · Bank Nifty · Sensex</small></div>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><rect x="4.6" y="11.5" width="2.2" height="6" rx="1" fill="#3a4050"/><rect x="8.3" y="9.5" width="2.2" height="8" rx="1" fill="#3a4050"/><rect x="12" y="6.5" width="2.6" height="11" rx="1.1" fill="#4d94e8"/><rect x="16.4" y="12.5" width="2.2" height="5" rx="1" fill="#3a4050"/><circle cx="13.3" cy="4.4" r="2.1" fill="#4caf50"/><path d="M12.4 4.4l.7.7 1.3-1.4" stroke="#0d1117" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
  </a>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
   <button class="tab on" data-tab="home" role="tab" type="button"><i>&#127968;</i>Home</button>

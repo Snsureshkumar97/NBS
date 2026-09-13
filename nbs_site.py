@@ -1,5 +1,5 @@
 """
-nbs_site.py — the public website for NBS Signal Tool
+nbs_site.py — the public website for TradePicker
 ================================================================================
 Every page a visitor can reach without an account, plus the login and Zerodha
 connect screens that sit between them and the app:
@@ -53,8 +53,8 @@ import struct
 import accounts
 import config
 
-BRAND = "NBS Signal Tool"
-TAGLINE = "Nifty · Bank Nifty · Sensex"
+BRAND = "TradePicker"
+TAGLINE = "Nifty · Bank Nifty · Sensex · Bitcoin"
 
 NAV = [
     ("/how-it-works", "How it works"),
@@ -526,12 +526,7 @@ button.link{background:none;border:0;color:var(--ink-3);font-size:13px;cursor:po
 # The tab icon. An SVG rather than an .ico because it is the same mark as the
 # header logo, scales to any tab size, and costs a few hundred bytes — and
 # because a missing favicon is a 404 in every visitor's console.
-FAVICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-           '<rect width="24" height="24" rx="6" fill="#4d94e8"/>'
-           '<path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#ffffff" '
-           'stroke-width="2" fill="none" stroke-linecap="round" '
-           'stroke-linejoin="round"/>'
-           '<circle cx="19" cy="13.9" r="2" fill="#8ee6a8"/></svg>')
+FAVICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#4d94e8"/><rect x="4.6" y="12" width="2.4" height="6" rx="1" fill="#bcd9f7"/><rect x="8.4" y="10" width="2.4" height="8" rx="1" fill="#bcd9f7"/><rect x="12.2" y="6.5" width="2.8" height="11.5" rx="1.2" fill="#ffffff"/><rect x="16.6" y="13" width="2.4" height="5" rx="1" fill="#bcd9f7"/><circle cx="13.6" cy="4.2" r="2.2" fill="#8ee6a8"/></svg>')
 
 
 def robots_txt(base=""):
@@ -559,11 +554,7 @@ def sitemap_xml(base):
             + urls + "</urlset>")
 
 
-LOGO = ('<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
-        '<rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/>'
-        '<path d="M5 16.5l3.6-4.2 2.9 2.6 3-4.4 4.5 3.4" stroke="#4d94e8" '
-        'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>'
-        '<circle cx="19" cy="13.9" r="2" fill="#4caf50"/></svg>')
+LOGO = ('<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><rect x="4.6" y="11.5" width="2.2" height="6" rx="1" fill="#3a4050"/><rect x="8.3" y="9.5" width="2.2" height="8" rx="1" fill="#3a4050"/><rect x="12" y="6.5" width="2.6" height="11" rx="1.1" fill="#4d94e8"/><rect x="16.4" y="12.5" width="2.2" height="5" rx="1" fill="#3a4050"/><circle cx="13.3" cy="4.4" r="2.1" fill="#4caf50"/><path d="M12.4 4.4l.7.7 1.3-1.4" stroke="#0d1117" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>')
 
 
 # ===========================================================================
@@ -1487,7 +1478,7 @@ def how_page(user=None, record=None):
         ("/results", "Then", "What it measured"))}
 </div></div>"""
     return shell("How it works", body, user=user, active="/how-it-works",
-                 description=("The full rule set behind NBS Signal Tool: EMA stacking, "
+                 description=("The full rule set behind TradePicker: EMA stacking, "
                               "the ADX gate, MACD/RSI/VWAP votes, the option chain, "
                               "ATR-derived targets and the reward-to-risk gate."))
 
@@ -1563,7 +1554,7 @@ def screen_page(user=None, record=None):
         ("/how-it-works", "Back", "How it works"))}
 </div>"""
     return shell("The screen", body, user=user, active="/screen",
-                   description=("Every part of the NBS Signal Tool screen, "
+                   description=("Every part of the TradePicker screen, "
                                 "captured from a live session: the signal "
                                 "board, the chart, the market map and the "
                                 "reasoning."))
@@ -1650,7 +1641,7 @@ def results_page(user=None, record=None):
         ("/disclaimer", "Also", "The full disclaimer"))}
 </div></div>"""
     return shell("What it measured", body, user=user, active="/results",
-                 description=("The backtest behind NBS Signal Tool: 8,837 signals over "
+                 description=("The backtest behind TradePicker: 8,837 signals over "
                               "three years, roughly break-even before costs and "
                               "negative after them."))
 
@@ -1780,7 +1771,7 @@ def security_page(user=None, record=None):
         ("/faq", "Then", "Questions"))}
 </div></div>"""
     return shell("Security and privacy", body, user=user, active="/security",
-                 description=("How NBS Signal Tool stores passwords, sessions and "
+                 description=("How TradePicker stores passwords, sessions and "
                               "Zerodha tokens — and what never leaves the server."))
 
 
@@ -2005,7 +1996,7 @@ def kite_page(user=None, record=None):
 """
     return shell("Connecting Zerodha", body, user=user, active="/kite",
                  description="How to set up a Kite Connect app and connect a "
-                             "Zerodha account to the NBS Signal Tool.")
+                             "Zerodha account to the TradePicker.")
 
 
 def access_page(user=None, record=None):
@@ -2092,7 +2083,7 @@ def access_page(user=None, record=None):
 </div></div>"""
     return shell("How access works", body, user=user, active="/access",
                  description=("How accounts and the per-user Zerodha connection work "
-                              "on NBS Signal Tool."))
+                              "on TradePicker."))
 
 
 # ===========================================================================
@@ -2184,7 +2175,7 @@ def faq_page(user=None, record=None):
         ("/access", "Back", "How access works"))}
 </div></div>"""
     return shell("Questions", body, user=user, active="/faq",
-                 description="Common questions about NBS Signal Tool.")
+                 description="Common questions about TradePicker.")
 
 
 # ===========================================================================
@@ -2253,7 +2244,7 @@ def disclaimer_page(user=None, record=None):
 </div></div>"""
     return shell("Disclaimer", body, user=user, active="",
                  description=("Risk, the SEBI position, and what was measured — the "
-                              "full disclaimer for NBS Signal Tool."))
+                              "full disclaimer for TradePicker."))
 
 
 # ===========================================================================

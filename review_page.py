@@ -271,7 +271,7 @@ def page(data):
                   "holiday-shifted expiry counts on its scheduled day.</p>")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Review · NBS Signal Tool</title>
+<title>Review · TradePicker</title>
 <style>
 :root{{--bg:#0a0d14;--card:#121724;--bd:#232b3d;--ink:#e8ecf4;--ink2:#aab3c5;--ink3:#76809a;
   --up:#4caf50;--down:#ff5722;--warn:#f6a500;--accent:#4d94e8}}
