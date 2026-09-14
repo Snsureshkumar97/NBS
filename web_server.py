@@ -791,7 +791,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                   "mode": _state.get("mode"), "feeds": len(feeds.active()),
                   "accounts": len(rows),
                   "sessions": sum(r["sessions"] for r in rows),
-                  "signup": bool(config.WEB_ALLOW_SIGNUP)}
+                  "signup": bool(config.WEB_ALLOW_SIGNUP),
+                  # Years the NSE holiday calendar covers. A year missing from
+                  # it makes every holiday look like a trading day.
+                  "holiday_years": sorted(__import__("main").NSE_HOLIDAYS_BY_YEAR)}
         return self._send(json.dumps({"users": rows, "server": server, "me": user,
                                       "today": accounts.today_ist().isoformat()}),
                           "application/json")
@@ -4167,10 +4170,27 @@ function sparkline(){
   const bars = ((CH.data||{}).candles) || [];
   const blank = () => { $("dmv").textContent="—"; $("dmp").textContent="";
                         $("dmlo").textContent=""; $("dmhi").textContent=""; };
-  if(!bars.length){ blank(); return; }
+  // The line needs the chart's candles, which load when the Chart tab is
+  // opened - so on the Signal tab the card read "—" all day. The number does
+  // not need them: the server already sends the day's change with every
+  // reading. Shown without the line until the candles arrive, and called the
+  // last session once the market has shut, because that is what it is.
+  const fromTrend = () => {
+    const tr = ((LAST && LAST.indices && LAST.indices[CUR]) || {}).trend || {};
+    if(tr.day_change == null){ blank(); return; }
+    const up = tr.day_change >= 0, col = up ? css("--up") : css("--down");
+    const f = v => Math.abs(v).toLocaleString("en-IN", {maximumFractionDigits: 2});
+    $("dmv").textContent = (up ? "+" : "−") + f(tr.day_change); $("dmv").style.color = col;
+    $("dmp").textContent = tr.day_change_pct == null ? ""
+      : "(" + (up ? "+" : "−") + Math.abs(tr.day_change_pct).toFixed(2) + "%)";
+    $("dmp").style.color = col;
+    $("dmlo").textContent = (LAST && LAST.market_open) ? "" : "last session";
+    $("dmhi").textContent = "";
+  };
+  if(!bars.length){ fromTrend(); return; }
   const lastDay = new Date(bars[bars.length-1][0]*1000).toDateString();
   let today = bars.filter(b => new Date(b[0]*1000).toDateString() === lastDay);
-  if(today.length < 2){ blank(); return; }
+  if(today.length < 2){ fromTrend(); return; }
 
   // The newest candle is up to fifteen minutes old and its close only moves
   // when the analysis refreshes. The streamed spot is where the market is
@@ -5852,6 +5872,17 @@ function adminPaint(){
     + statRow("Signed-in sessions", sv.sessions == null ? "—" : sv.sessions)
     + statRow("Live data feeds", sv.feeds == null ? "—" : sv.feeds)
     + statRow("Signup", sv.signup ? "open to anyone" : "closed - accounts are made here")
+    + (() => {
+        // Warn once the calendar runs out: the year itself missing, or from
+        // mid-November the next year missing (NSE publishes it in December).
+        const years = sv.holiday_years || [], now = new Date(), y = now.getFullYear();
+        const due = !years.includes(y) ? y
+                  : (now.getMonth() === 11 || (now.getMonth() === 10 && now.getDate() >= 15)) && !years.includes(y + 1) ? y + 1 : null;
+        const have = years.length ? years.join(", ") : "none";
+        return statRow("NSE holiday list", due
+          ? `${have} - add ${due} to NSE_HOLIDAYS_BY_YEAR in main.py once NSE publishes it`
+          : `covers ${have}`, due ? "var(--warn)" : "");
+      })()
     + statRow("Running since", esc(sv.started || "—"))
     + statRow("Build", esc(sv.commit || "—"));
 }
@@ -6906,6 +6937,15 @@ def _btst_study():
 
 
 def main():
+    # Under launchd stdout is a file, not a terminal, so Python holds output
+    # back in a block buffer - the log sat unchanged for a day across several
+    # restarts. Line buffering writes each message as it happens.
+    import sys
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description="Serve the signal tool as a website.")
     ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
                     help="127.0.0.1 = this machine only (default). 0.0.0.0 = reachable from outside.")

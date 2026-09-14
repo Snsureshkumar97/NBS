@@ -491,12 +491,14 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
 
  <section>
   <div class="narrow prose">
-   <h2>Everything on one page</h2>
-   <p>There is no navigation inside the tool — no side rail, no tabs, no
-    settings screen to go and find. The three indices, the signal and its
-    ladder, the trend and confidence boxes, the chart, today's range, the
-    market map, the record and the full reasoning are all on one page, in that
-    order, and you reach any of them by scrolling.</p>
+   <h2>How it is laid out</h2>
+   <p>On a computer the sections sit in a rail down the left: Home and the
+    Signal, then the chart, the option chain, the market map, market pulse,
+    sector scope and momentum spikes, the analysis tabs, news and your record.
+    Your account and the date your access renews are at the foot of the rail.
+    On a phone the rail is a drawer behind the menu button at the top, and
+    Home, Signal, Chart and the option chain sit in a bar along the bottom
+    within reach of a thumb.</p>
    <p>The few things that are switches rather than places — index points
     against option premium, the lot count, whether the tool keeps running when
     the page is shut — sit beside what they affect instead of behind a menu.</p>
@@ -513,12 +515,32 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
        <code>MARKET CLOSED</code>.</td></tr>
     <tr><td>Entry / Now</td><td>the premium at issue, and the premium now. The
      rupee figure beside them is that difference across your chosen lots.</td></tr>
-    <tr><td>Reward : risk</td><td>the ratio computed at entry from ATR. Below
-     the floor it never became a ticket at all.</td></tr>
+    <tr><td>Reward : risk</td><td>how far the market has room to run, divided
+     by the distance to the stop. Below the floor it never became a ticket at
+     all. It is not what the exit pays &mdash; that is in the Risk and reward
+     panel.</td></tr>
     <tr><td>T1 / T2 / T3</td><td>the three targets, each with how far price has
      travelled toward it — a check mark and a timestamp once reached.</td></tr>
     <tr><td>Stop</td><td>with the same progress bar, which is the one you
      actually want to be watching.</td></tr>
+    <tr><td>The percentage beside each level</td><td>the chance of the index
+     touching it before the 15:30 close (on Bitcoin, within the next 24 hours),
+     from the option chain&rsquo;s implied volatility and calibrated against
+     past trades. The chances overlap &mdash; a trade can touch a target and
+     still hit the stop &mdash; so they do not add up to 100 and are not a win
+     rate.</td></tr>
+    <tr><td>Risk and reward</td><td>under the ladder: what the stop costs and
+     what each target makes, in rupees at your lot count after Zerodha&rsquo;s
+     charges, how many times the risk each target is, and the win rate the
+     trade needs to break even.</td></tr>
+    <tr><td>Skip cooldown</td><td>appears while a cooldown is the only thing
+     holding a ticket. It lifts the wait once; every other check still has to
+     pass, and a ticket issued that way is marked in the trade log.</td></tr>
+    <tr><td>Holding overnight</td><td>in the last hour, an open ticket shows
+     what carrying the position past the close would cost in time decay
+     before the next session &mdash; three nights over a weekend &mdash; and
+     what buying into the close did in a three-year test. The tool closes its
+     own ticket at the bell.</td></tr>
     <tr><td>Confidence</td><td>the dial, with every input that fed it listed
      underneath. A dash means that input abstained and was ignored rather than
      counted as neutral.</td></tr>

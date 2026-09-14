@@ -671,9 +671,14 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
     <code>120</code> seconds
     (<code>4</code> ticks) before anything is
     issued</td></tr>
-   <tr><td>COOLDOWN</td><td>the gap since the last ticket has not elapsed —
-    currently <code>0</code>
-    minutes</td></tr>
+   <tr><td>COOLDOWN</td><td>a second ticket the same way on an index waits
+    <code>20</code> minutes after its last entry
+    or exit, so a stop-out is not bought straight back. A gap between any two
+    tickets can also be set, currently
+    <code>0</code> minutes.
+    <b>Skip cooldown</b> on the signal card lifts the wait once &mdash; every
+    other check still applies, and the ticket is marked in the trade
+    log</td></tr>
    <tr><td>POSITION OPEN</td><td>a ticket is already running on this index and
     is left alone</td></tr>
    <tr><td>ALREADY TAKEN</td><td>this index was ticketed in this direction
