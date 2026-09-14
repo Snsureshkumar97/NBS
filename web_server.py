@@ -3406,10 +3406,16 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
  </div>
 
  <footer>
-  All figures are index points and exclude brokerage, STT, slippage and option time
-  decay — every one of which works against you. Past behaviour of a rule set does not
-  predict its future behaviour. Options can lose their entire value. Verify every
-  number with your own broker before risking money.
+  <!-- Said per kind of figure, because the tabs do not all count the same way:
+       "all figures exclude costs" stopped being true once the Risk and reward
+       panel took Zerodha's charges off and the overnight warning priced decay. -->
+  Levels and signals are in index points unless shown as an option premium. Ticket
+  P&amp;L, the session total and the Record are the premium move times the lot size,
+  <b>before</b> brokerage, STT, exchange charges, GST and slippage, all of which come off
+  what you actually keep. Figures marked &ldquo;after charges&rdquo; include Zerodha&rsquo;s
+  charges but not slippage. Crypto figures are in dollars, before Deribit&rsquo;s fees.
+  Past behaviour of a rule set does not predict its future behaviour. Options can lose
+  their entire value. Verify every number with your own broker before risking money.
  </footer>
 </div>
 </div>
