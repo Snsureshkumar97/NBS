@@ -1590,6 +1590,22 @@ def screen_page(user=None, record=None):
     check it against: what the rest of the market is doing, what the options are
     pricing, and what has happened before. None of them issues a ticket.</p>
 
+   <h3>Desk</h3>
+   <table class="tbl">
+    <tr><th>Section</th><th>What it shows</th></tr>
+    <tr><td>Signal</td><td>The call itself &mdash; BUY CE, BUY PE or no trade &mdash; with
+     its levels, the chance of reaching each, what the trade risks and pays, and every
+     reason behind it. Described in full above.</td></tr>
+    <tr><td>Journal</td><td>Your trading journal. A year of trading days as a heatmap
+     coloured by each day&rsquo;s profit or loss; a month calendar with each day&rsquo;s
+     P&amp;L and number of trades; and the statistics a journal is read for &mdash; win
+     rate, profit factor, average win and loss, best and worst day, deepest drawdown and
+     streaks, for the month or all time. Enter the trades you actually took, beside the
+     tickets the tool issued, and keep a note for each day. Charges on index options are
+     yours or estimated at Zerodha&rsquo;s rates, so it shows what was kept as well as what
+     was made, and the tool&rsquo;s own tickets are set against the backtest.</td></tr>
+   </table>
+
    <h3>Market</h3>
    <table class="tbl">
     <tr><th>Section</th><th>What it shows</th></tr>

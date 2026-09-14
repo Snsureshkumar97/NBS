@@ -312,6 +312,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_always_on(form)
             if path == "/api/admin":
                 return self._do_admin_api(form)
+            if path == "/api/journal":
+                return self._do_journal(form)
             if path == "/market":
                 return self._do_market(form)
             return self._send(nbs_site.result_page(
@@ -464,13 +466,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path == "/market":
                 return self._market_page()
             if path == "/review":
-                # Your own record against the backtest, for the market this
-                # login is in. Read-only; built from the ticket log on disk.
-                market = self._current_market()
-                if not market:
-                    return self._redirect("/market")
-                import review_page
-                return self._send(review_page.page(review_page.build(user, market)))
+                # The journal replaced this page: the same comparison with the
+                # backtest lives inside it, beside your own trades.
+                return self._redirect("/app#journal")
             if path == "/api/state":
                 return self._api_state(user)
             if path == "/api/tick":
@@ -485,6 +483,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_spikes(user, qs)
             if path == "/api/analytics":
                 return self._api_analytics(user, qs)
+            if path == "/api/journal":
+                return self._api_journal(user, qs)
             if path == "/api/greeks":
                 return self._api_greeks(user, qs)
             if path == "/api/admin/users":
@@ -971,6 +971,80 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "this feed carries no bid or ask, so an illiquid strike can "
                     "hold a stale reading. Time runs to the 15:30 close on "
                     "expiry day."}), "application/json")
+
+    def _api_journal(self, user, qs):
+        """The trading journal: your own trades and the tool's tickets by day,
+        the statistics, the day notes, and the comparison with the backtest
+        that the Review page used to make."""
+        import journal
+        import review_page
+        market = self._current_market()
+        if not market:
+            return self._send(json.dumps({"error": "Pick a market first."}),
+                              "application/json", code=400)
+        source = (qs.get("source") or ["all"])[0]
+        if source not in ("all", "mine", "tool"):
+            source = "all"
+        try:
+            lines = journal.entries(user, market, source)
+            summary = journal.summarize(lines)
+            notes = journal.load(user, market)["notes"]
+        except Exception:
+            return self._send(json.dumps({"error": "The journal could not be read just now."}),
+                              "application/json", code=500)
+        review = None
+        try:
+            data = review_page.build(user, market)
+            bench = None if config.MARKETS[market]["always_open"] else review_page.BENCHMARK
+            kind, text = review_page._verdict(data["all"], (bench or {}).get("all"))
+            review = {"all": data["all"], "bench": bench, "min_sample": review_page.MIN_SAMPLE,
+                      "verdict": {"kind": kind, "text": text},
+                      "groups": {title: [[str(k), v] for k, v in rows]
+                                 for title, rows in data["groups"].items()}}
+        except Exception:
+            review = None
+        insts = journal.instruments(market)
+        return self._send(json.dumps({
+            "market": market, "currency": config.MARKETS[market].get("currency", "INR"),
+            "source": source, "entries": lines, "days": summary["days"],
+            "stats": summary["stats"], "notes": notes, "instruments": insts,
+            "lot_sizes": {k: (config.INSTRUMENTS.get(k) or {}).get("lot_size") for k in insts},
+            "today": journal.today_ist().isoformat(), "review": review}, default=str),
+            "application/json")
+
+    def _do_journal(self, form):
+        """Add, change or delete one of your own journal trades, or save a day's
+        note. Only ever your own journal: the account comes from the session."""
+        def reply(ok, message, code=200, **extra):
+            return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra)),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        market = self._current_market()
+        if not market:
+            return reply(False, "Pick a market first.", 400)
+        import journal
+        action = (form.get("action") or "").strip()
+        try:
+            if action == "add":
+                return reply(True, "Added to your journal.", id=journal.add_trade(user, market, form))
+            if action == "update":
+                journal.update_trade(user, market, (form.get("id") or "").strip(), form)
+                return reply(True, "Trade updated.")
+            if action == "delete":
+                journal.delete_trade(user, market, (form.get("id") or "").strip())
+                return reply(True, "Trade deleted.")
+            if action == "note":
+                journal.set_note(user, market, (form.get("date") or "").strip(), form.get("text") or "")
+                return reply(True, "Note saved.")
+        except ValueError as exc:
+            return reply(False, str(exc), 400)
+        except Exception:
+            return reply(False, "The journal could not be saved just now.", 500)
+        return reply(False, "Unknown action.", 400)
 
     def _api_analytics(self, user, qs):
         """The analyst's numbers: volatility, levels, internals, strength,
@@ -2151,6 +2225,49 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .overnight{margin-top:12px;border:1px solid rgba(242,163,61,.42);background:rgba(242,163,61,.08);
   border-radius:12px;padding:10px 13px;font-size:12.5px;line-height:1.6;color:var(--ink-2)}
 .overnight b{color:var(--ink)}
+.jbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin:0 0 12px}
+.jsrc,.jscope{display:flex;flex-wrap:wrap;gap:6px}
+.jscope{margin:2px 0 10px}
+.jform select{background:var(--raised);border:1px solid var(--bd);color:var(--ink);border-radius:8px;
+  padding:7px 8px;font:inherit;font-size:13px;color-scheme:dark}
+.jform input[type=time]{color-scheme:dark}
+.jheatwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 6px}
+.jheat{display:inline-flex;flex-direction:column;gap:4px;min-width:max-content}
+.jhmonths{display:flex;gap:3px;margin-left:34px;height:14px;font-size:10.5px;color:var(--ink-3)}
+.jhmonths span{flex:none;white-space:nowrap;overflow:hidden}
+.jhgrid{display:flex;gap:3px}
+.jhdays{display:flex;flex-direction:column;gap:3px;width:31px;flex:none;font-size:10px;color:var(--ink-3)}
+.jhdays span{height:13px;line-height:13px}
+.jhcol{display:flex;flex-direction:column;gap:3px}
+.jhcol i{display:block;width:13px;height:13px;border-radius:3px;cursor:pointer}
+.jhcol i.fut{background:transparent!important;cursor:default}
+.jhcol i.sel{outline:2px solid var(--accent);outline-offset:1px}
+.jlegend{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap;font-size:11px;color:var(--ink-3);margin-top:8px}
+.jlegend i{display:inline-block;width:12px;height:12px;border-radius:3px}
+.jcalhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.jmonth{margin:0;font-size:15px;font-weight:700;color:var(--ink)}
+.jcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.jcal .wd{font-size:10.5px;color:var(--ink-3);text-align:center;padding:2px 0}
+.jcal .jd{min-height:62px;min-width:0;border-radius:9px;border:1px solid var(--bd-soft);padding:5px 6px;
+  display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;background:rgba(255,255,255,.02)}
+.jcal .jd.empty{border:0;background:transparent;cursor:default}
+.jcal .jd .n{font-size:11px;color:var(--ink-3)}
+.jcal .jd .v{font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jcal .jd .c{font-size:10px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jcal .jd.today .n{color:var(--accent);font-weight:700}
+.jcal .jd.sel{outline:2px solid var(--accent);outline-offset:1px}
+@media(max-width:600px){.jcal{gap:3px}.jcal .jd{min-height:46px;padding:3px 4px}.jcal .jd .c{display:none}.jcal .jd .v{font-size:9.5px}}
+.jnotes{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-3);margin-top:12px}
+.jnotes textarea{background:var(--raised);border:1px solid var(--bd);border-radius:10px;color:var(--ink);
+  padding:8px 10px;font:inherit;font-size:13px;resize:vertical;min-height:44px}
+.jactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.jmsg{font-size:12.5px}
+.jmuted{color:var(--ink-3);font-size:13px;margin:0}
+.jbadge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  border:1px solid var(--bd);border-radius:999px;padding:1px 7px;color:var(--ink-3)}
+.jbadge.mine{color:var(--accent);border-color:rgba(77,148,232,.45)}
+#jdaytbl td:nth-child(-n+3),#jdaytbl th:nth-child(-n+3),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
+#jdaytbl td.jnote{white-space:normal;min-width:180px;max-width:320px;color:var(--ink-2)}
 .rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
 .rrcard:empty{display:none}
 .rrsum{font-size:12.5px;color:var(--ink-2);line-height:1.65;margin:4px 0 10px}
@@ -2861,6 +2978,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab on" data-tab="home" role="tab" type="button"><i>&#127968;</i>Home</button>
   <p class="mgroup">Desk</p>
   <button class="tab" data-tab="signal" role="tab" type="button"><i>&#127919;</i>Signal</button>
+  <button class="tab" data-tab="journal" role="tab" type="button"><i>&#128211;</i>Journal</button>
   <p class="mgroup">Market</p>
   <button class="tab" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
@@ -2879,7 +2997,6 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab" data-tab="news" role="tab" type="button"><i>&#128240;</i>News</button>
   <button class="tab" data-tab="record" role="tab" type="button"><i>&#128188;</i>Record</button>
   <p class="mgroup">Account</p>
-  <a class="tab" href="/review"><i>&#128202;</i>Review</a>
   <a class="tab" href="/connect"><i>&#128279;</i>Zerodha</a>
   <a class="tab" href="/how-it-works"><i>&#10067;</i>How it works</a>
   <button class="tab" data-tab="admin" role="tab" type="button" hidden><i>&#128737;</i>Admin</button>
@@ -3332,6 +3449,82 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
    <p class="eyebrow">Opening gaps</p>
    <div class="pulse" id="sgap"></div>
   </div>
+ </section>
+
+ <section class="pane" data-pane="journal">
+  <div class="jbar">
+   <div class="jsrc" id="jsrc" role="group" aria-label="Which trades">
+    <button class="lbtn on" type="button" data-src="all">Everything</button>
+    <button class="lbtn" type="button" data-src="mine">My trades</button>
+    <button class="lbtn" type="button" data-src="tool">Tool tickets</button>
+   </div>
+   <button class="lbtn on" type="button" id="jaddbtn">+ Add a trade</button>
+  </div>
+  <div class="card" data-panel="jadd" id="jaddcard" style="display:none">
+   <p class="eyebrow" id="jaddtitle">Add a trade</p>
+   <div class="calcgrid jform">
+    <label>Date<input id="jf_date" type="date"></label>
+    <label>Time<input id="jf_time" type="time"></label>
+    <label>Instrument<select id="jf_inst"></select></label>
+    <label>Side<select id="jf_side"><option>CE</option><option>PE</option><option>FUT</option></select></label>
+    <label>Buy or sell<select id="jf_dir"><option value="buy">Buy</option><option value="sell">Sell</option></select></label>
+    <label>Strike<input id="jf_strike" inputmode="decimal" autocomplete="off"></label>
+    <label>Lots<input id="jf_lots" inputmode="decimal" autocomplete="off" value="1"></label>
+    <label>Lot size<input id="jf_lot" inputmode="decimal" autocomplete="off"></label>
+    <label>Entry price<input id="jf_entry" inputmode="decimal" autocomplete="off"></label>
+    <label>Exit price<input id="jf_exit" inputmode="decimal" autocomplete="off"></label>
+    <label>Charges<input id="jf_charges" inputmode="decimal" autocomplete="off" placeholder="blank = estimate"></label>
+   </div>
+   <label class="jnotes">Why you took it, and how it went
+    <textarea id="jf_notes" rows="2" maxlength="2000"></textarea></label>
+   <div class="jactions">
+    <button class="lbtn on" type="button" id="jf_save">Save trade</button>
+    <button class="lbtn" type="button" id="jf_cancel">Cancel</button>
+    <span class="jmsg" id="jf_msg"></span>
+   </div>
+  </div>
+  <div class="card" data-panel="jbook" id="jbookcard">
+   <p class="eyebrow">Tradebook &middot; <span id="jbookrange">the last twelve months</span></p>
+   <div class="jheatwrap"><div class="jheat" id="jheat"></div></div>
+   <div class="jlegend" id="jlegend"></div>
+  </div>
+  <div class="grid2">
+   <div class="card" data-panel="jcal" id="jcalcard">
+    <div class="jcalhead">
+     <button class="lbtn" type="button" id="jprev" aria-label="Previous month">&lsaquo;</button>
+     <p class="jmonth" id="jmonth">&mdash;</p>
+     <button class="lbtn" type="button" id="jnext" aria-label="Next month">&rsaquo;</button>
+    </div>
+    <div class="jcal" id="jcal"></div>
+   </div>
+   <div class="card" data-panel="jstats" id="jstatscard">
+    <p class="eyebrow">Statistics &middot; <span id="jstatscope">this month</span></p>
+    <div class="jscope" id="jscope" role="group" aria-label="Period">
+     <button class="lbtn on" type="button" data-scope="month">This month</button>
+     <button class="lbtn" type="button" data-scope="all">All time</button>
+    </div>
+    <div class="pulse" id="jstats"></div>
+   </div>
+  </div>
+  <div class="card" data-panel="jday" id="jdaycard" style="display:none">
+   <p class="eyebrow" id="jdaytitle">&mdash;</p>
+   <div class="scrwrap"><table class="scr" id="jdaytbl"></table></div>
+   <label class="jnotes">Note for the day
+    <textarea id="jdaynote" rows="3" maxlength="2000"
+     placeholder="What you saw, what you did, what you would do differently."></textarea></label>
+   <div class="jactions">
+    <button class="lbtn on" type="button" id="jnotesave">Save note</button>
+    <span class="jmsg" id="jnotemsg"></span>
+   </div>
+  </div>
+  <div class="card" data-panel="jreview" id="jreviewcard">
+   <p class="eyebrow">Against the backtest &middot; the tool&rsquo;s tickets, per lot</p>
+   <div id="jreview"></div>
+  </div>
+  <div class="gnote">Money is before costs unless a column says otherwise. Charges on
+   index options are the figure you typed, or an estimate at Zerodha&rsquo;s published
+   rates; slippage is not included. Tool tickets are the trades the rule set issued,
+   which are not necessarily the ones you took.</div>
  </section>
 
  <section class="pane" data-pane="admin">
@@ -3804,6 +3997,280 @@ function riskBox(r, tk, sess){
   }
   line.innerHTML = parts.filter(Boolean).join("<br>");
 }
+// ============================================================== journal
+// Your own trades beside the tool's tickets: a year as a heatmap, a month as a
+// calendar, the statistics a journal is read for, a note a day, and the
+// comparison with the backtest the Review page used to make.
+let JN = null, JN_SRC = "all", JN_MONTH = null, JN_DAY = null, JN_SCOPE = "month", JN_EDIT = null;
+const JN_M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const JN_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const jdate = iso => { const d = new Date(iso + "T00:00:00Z"); return `${d.getUTCDate()} ${JN_M[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+const jiso = d => d.toISOString().slice(0, 10);
+const jcol = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+function jshort(v, bare){   // bare: no symbol - a phone calendar cell is ~45px
+  const a = Math.abs(v), sg = v >= 0 ? "+" : "−";
+  const body = a >= 1e5 && CCY !== "USD" ? (a / 1e5).toFixed(a >= 1e6 ? 0 : 1) + "L"
+             : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k" : String(Math.round(a));
+  return sg + (bare ? "" : ccySym()) + body;
+}
+function jshade(v, maxAbs){
+  if(!v) return "rgba(255,255,255,.06)";
+  const k = 0.28 + 0.72 * Math.min(1, Math.abs(v) / (maxAbs || 1));
+  return v > 0 ? `rgba(43,224,138,${k.toFixed(2)})` : `rgba(239,85,112,${k.toFixed(2)})`;
+}
+function jstats(lines){
+  const sum = a => a.reduce((t, x) => t + x, 0);
+  const n = lines.length, p = lines.map(e => e.gross);
+  const wins = p.filter(x => x > 0), losses = p.filter(x => x < 0);
+  let eq = 0, peak = 0, dd = 0, cw = 0, cl = 0, bw = 0, bl = 0;
+  p.forEach(x => {
+    eq += x; peak = Math.max(peak, eq); dd = Math.max(dd, peak - eq);
+    if(x > 0){ cw++; cl = 0; } else if(x < 0){ cl++; cw = 0; } else { cw = cl = 0; }
+    bw = Math.max(bw, cw); bl = Math.max(bl, cl);
+  });
+  const days = {};
+  lines.forEach(e => { days[e.date] = (days[e.date] || 0) + e.gross; });
+  const dv = Object.entries(days).sort();
+  const nets = lines.filter(e => e.net != null);
+  return {n, gross: sum(p), net: n && nets.length === n ? sum(nets.map(e => e.net)) : null,
+    netKnown: nets.length, wins: wins.length, losses: losses.length,
+    winRate: n ? 100 * wins.length / n : null,
+    avgWin: wins.length ? sum(wins) / wins.length : null,
+    avgLoss: losses.length ? sum(losses) / losses.length : null,
+    exp: n ? sum(p) / n : null, pf: losses.length ? sum(wins) / -sum(losses) : null,
+    dd, bw, bl, green: dv.filter(([, v]) => v > 0).length, red: dv.filter(([, v]) => v < 0).length,
+    best: dv.length ? dv.reduce((a, b) => b[1] > a[1] ? b : a) : null,
+    worst: dv.length ? dv.reduce((a, b) => b[1] < a[1] ? b : a) : null};
+}
+async function journalFetch(){
+  try{
+    const r = await fetch("/api/journal?source=" + encodeURIComponent(JN_SRC), {cache: "no-store"});
+    JN = await r.json();
+  }catch(e){ JN = {error: "The journal could not be read just now."}; }
+  journalPaint();
+}
+async function jpost(fields){
+  try{
+    const r = await fetch("/api/journal", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams(fields)});
+    return await r.json();
+  }catch(e){ return {ok: false, message: "That could not be sent."}; }
+}
+function journalPaint(){
+  const d = JN || {};
+  if(d.error){ $("jheat").innerHTML = `<p class="jmuted">${esc(d.error)}</p>`; return; }
+  if(d.currency) CCY = d.currency;
+  const today = d.today || jiso(new Date());
+  if(!JN_MONTH) JN_MONTH = today.slice(0, 7);
+  document.querySelectorAll("#jsrc [data-src]").forEach(b => b.classList.toggle("on", b.dataset.src === JN_SRC));
+  document.querySelectorAll("#jscope [data-scope]").forEach(b => b.classList.toggle("on", b.dataset.scope === JN_SCOPE));
+  jheatPaint(d, today); jcalPaint(d, today); jstatsPaint(d); jdayPaint(d); jreviewPaint(d.review);
+}
+function jheatPaint(d, today){
+  const days = d.days || {}, crypto = d.market === "crypto";
+  const maxAbs = Math.max(1, ...Object.values(days).map(x => Math.abs(x.gross)));
+  const rows = crypto ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4];
+  const end = new Date(today + "T00:00:00Z"), endDow = (end.getUTCDay() + 6) % 7;
+  const start = new Date(end); start.setUTCDate(end.getUTCDate() - endDow - 52 * 7);
+  let cols = "";
+  const spans = [];                       // [label, weeks] - a label spans its month's columns
+  for(let w = 0; w < 53; w++){
+    const monday = new Date(start); monday.setUTCDate(start.getUTCDate() + w * 7);
+    const mo = monday.getUTCMonth();
+    if(!spans.length || spans[spans.length - 1][2] !== mo) spans.push([JN_M[mo], 1, mo]);
+    else spans[spans.length - 1][1]++;
+    cols += `<div class="jhcol">` + rows.map(r => {
+      const day = new Date(monday); day.setUTCDate(monday.getUTCDate() + r);
+      const iso = jiso(day);
+      if(iso > today) return `<i class="fut"></i>`;
+      const v = days[iso];
+      const tip = v ? `${jdate(iso)} · ${v.trades} trade${v.trades === 1 ? "" : "s"} · ${money(v.gross)}` : `${jdate(iso)} · no trades`;
+      return `<i data-day="${iso}" title="${esc(tip)}" class="${iso === JN_DAY ? "sel" : ""}" style="background:${jshade(v && v.gross, maxAbs)}"></i>`;
+    }).join("") + `</div>`;
+  }
+  const dayNames = crypto ? ["Mon", "", "Wed", "", "Fri", "", "Sun"] : ["Mon", "", "Wed", "", "Fri"];
+  const months = spans.map(([label, weeks]) =>
+    `<span style="width:${weeks * 16 - 3}px">${weeks >= 3 ? label : ""}</span>`).join("");
+  $("jheat").innerHTML = `<div class="jhmonths">${months}</div><div class="jhgrid"><div class="jhdays">`
+    + dayNames.map(n => `<span>${n}</span>`).join("") + `</div>${cols}</div>`;
+  // On a narrow screen the year scrolls sideways; open it on the latest weeks.
+  const wrap = document.querySelector("#jbookcard .jheatwrap");
+  if(wrap) wrap.scrollLeft = wrap.scrollWidth;
+  const vals = Object.values(days).map(x => x.gross);
+  const lo = vals.length ? Math.min(0, ...vals) : 0, hi = vals.length ? Math.max(0, ...vals) : 0;
+  const sw = v => `<i style="background:${jshade(v, maxAbs)}"></i>`;
+  $("jlegend").innerHTML = `<span>${lo < 0 ? "Worst day " + money(lo) : "Loss"}</span>`
+    + [-1, -0.66, -0.33].map(k => sw(k * maxAbs)).join("") + sw(0)
+    + [0.33, 0.66, 1].map(k => sw(k * maxAbs)).join("")
+    + `<span>${hi > 0 ? "Best day " + money(hi) : "Profit"}</span>`;
+  $("jbookrange").textContent = Object.keys(days).length
+    ? `${Object.keys(days).length} trading day${Object.keys(days).length === 1 ? "" : "s"} with trades` : "no trades yet";
+}
+function jcalPaint(d, today){
+  const days = d.days || {};
+  const [y, m] = JN_MONTH.split("-").map(Number);
+  $("jmonth").textContent = `${JN_MONTHS[m - 1]} ${y}`;
+  $("jnext").disabled = JN_MONTH >= today.slice(0, 7);
+  const first = new Date(Date.UTC(y, m - 1, 1)), lead = (first.getUTCDay() + 6) % 7;
+  const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const inMonth = Object.entries(days).filter(([k]) => k.startsWith(JN_MONTH));
+  const maxAbs = Math.max(1, ...inMonth.map(([, v]) => Math.abs(v.gross)));
+  let html = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(w => `<div class="wd">${w}</div>`).join("");
+  for(let i = 0; i < lead; i++) html += `<div class="jd empty"></div>`;
+  for(let dd = 1; dd <= count; dd++){
+    const iso = `${JN_MONTH}-${String(dd).padStart(2, "0")}`, v = days[iso];
+    const cls = ["jd", iso === today ? "today" : "", iso === JN_DAY ? "sel" : ""].join(" ");
+    const note = d.notes && d.notes[iso] ? " ✎" : "";
+    html += `<div class="${cls}" data-day="${iso}" style="${v ? `background:${jshade(v.gross, maxAbs)}` : ""}">`
+      + `<span class="n">${dd}${note}</span>`
+      + (v ? `<span class="v">${jshort(v.gross, innerWidth <= 600)}</span><span class="c">${v.trades} trade${v.trades === 1 ? "" : "s"}</span>` : "")
+      + `</div>`;
+  }
+  $("jcal").innerHTML = html;
+}
+function jstatsPaint(d){
+  const all = d.entries || [];
+  const lines = JN_SCOPE === "month" ? all.filter(e => e.date.startsWith(JN_MONTH)) : all;
+  const [y, m] = JN_MONTH.split("-").map(Number);
+  $("jstatscope").textContent = JN_SCOPE === "month" ? `${JN_MONTHS[m - 1]} ${y}` : "all time";
+  const s = jstats(lines), box = $("jstats");
+  if(!s.n){ box.innerHTML = `<p class="jmuted">No trades ${JN_SCOPE === "month" ? "this month" : "yet"}. Add one, or they appear here as the tool's tickets close.</p>`; return; }
+  const pct = v => v == null ? "—" : v.toFixed(0) + "%";
+  box.innerHTML =
+      statRow("Trades", `${s.n} &middot; ${s.wins} won, ${s.losses} lost`)
+    + statRow("P&L before costs", money(s.gross), jcol(s.gross))
+    + statRow("After charges", s.net != null ? money(s.net)
+        : s.netKnown ? `charges known for ${s.netKnown} of ${s.n}` : "—", s.net != null ? jcol(s.net) : "")
+    + statRow("Win rate", pct(s.winRate))
+    + statRow("Profit factor", s.pf == null ? (s.wins ? "no losses" : "—") : s.pf.toFixed(2))
+    + statRow("Average win / loss", `${s.avgWin == null ? "—" : money(s.avgWin)} / ${s.avgLoss == null ? "—" : money(s.avgLoss)}`)
+    + statRow("Per trade", money(s.exp), jcol(s.exp))
+    + statRow("Best day", s.best ? `${money(s.best[1])} &middot; ${jdate(s.best[0])}` : "—", s.best ? jcol(s.best[1]) : "")
+    + statRow("Worst day", s.worst ? `${money(s.worst[1])} &middot; ${jdate(s.worst[0])}` : "—", s.worst ? jcol(s.worst[1]) : "")
+    + statRow("Green / red days", `${s.green} / ${s.red}`)
+    + statRow("Deepest drawdown", s.dd ? money(-s.dd) : "none", s.dd ? "var(--down)" : "")
+    + statRow("Longest streak", `${s.bw} won &middot; ${s.bl} lost`);
+}
+function jdayPaint(d){
+  const card = $("jdaycard");
+  if(!JN_DAY){ card.style.display = "none"; return; }
+  card.style.display = "";
+  const lines = (d.entries || []).filter(e => e.date === JN_DAY);
+  const tot = lines.reduce((t, e) => t + e.gross, 0);
+  $("jdaytitle").textContent = `${jdate(JN_DAY)} · ` + (lines.length ? `${lines.length} trade${lines.length === 1 ? "" : "s"} · ${money(tot)}` : "no trades");
+  const dp = v => v == null ? "—" : num(v, 2);
+  $("jdaytbl").innerHTML = lines.length
+    ? `<thead><tr><th>Source</th><th>Time</th><th>Contract</th><th>Lots</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
+      + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : '<span class="jbadge">Tool</span>'}</td>`
+        + `<td>${esc(e.time || "")}</td>`
+        + `<td class="sym">${esc(e.instrument || "")} ${e.strike != null ? esc(String(e.strike)) : ""} ${esc(e.side || "")}${e.dir === "sell" ? " sold" : ""}</td>`
+        + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${dp(e.entry)}</td><td>${dp(e.exit)}</td>`
+        + `<td style="color:${jcol(e.gross)}">${money(e.gross)}</td>`
+        + `<td>${e.charges == null ? "—" : money(e.charges, false) + (e.charges_estimated ? " est." : "")}</td>`
+        + `<td style="color:${e.net == null ? "" : jcol(e.net)}">${e.net == null ? "—" : money(e.net)}</td>`
+        + `<td class="jnote">${esc(e.source === "mine" ? (e.notes || "") : (e.status || "").replace(/^CLOSED\s*[—-]\s*/, ""))}</td>`
+        + `<td>${e.source === "mine" ? `<button class="lbtn" type="button" data-jedit="${esc(e.id)}">Edit</button> <button class="lbtn" type="button" data-jdel="${esc(e.id)}">Delete</button>` : ""}</td></tr>`).join("")
+      + `</tbody>`
+    : `<tbody><tr><td class="jmuted" style="text-align:left">Nothing traded this day.</td></tr></tbody>`;
+  const note = $("jdaynote");
+  if(document.activeElement !== note) note.value = (d.notes || {})[JN_DAY] || "";
+}
+function jreviewPaint(rv){
+  const box = $("jreview");
+  if(!box) return;
+  if(!rv || !rv.all){
+    box.innerHTML = `<p class="jmuted">No finished tool tickets with a money figure yet, so there is nothing to set against the backtest.</p>`;
+    return;
+  }
+  const s = rv.all, b = rv.bench && rv.bench.all;
+  const pf = v => v == null ? "—" : Number(v).toFixed(2);
+  const vc = {ok: "var(--up)", warn: "var(--warn)", bad: "var(--down)"}[rv.verdict && rv.verdict.kind] || "var(--ink-2)";
+  let html = `<div class="rrsum" style="color:${vc}">${esc((rv.verdict || {}).text || "")}</div>`
+    + `<div class="scrwrap"><table class="scr"><thead><tr><th></th><th>Trades</th><th>Won</th><th>Per lot</th><th>Profit factor</th></tr></thead><tbody>`
+    + `<tr><td class="sym">The tool&rsquo;s tickets</td><td>${s.n}</td><td>${Math.round(s.win)}%</td><td style="color:${jcol(s.avg)}">${money(s.avg)}</td><td>${pf(s.pf)}</td></tr>`
+    + (b ? `<tr><td class="sym">Backtest, held-out year</td><td>${b.n}</td><td>${Math.round(b.win)}%</td><td>${money(b.avg)}</td><td>${pf(b.pf)}</td></tr>` : "")
+    + `</tbody></table></div>`;
+  if(s.lo != null && s.hi != null){
+    html += `<div class="gnote">With ${s.n} trades the true average per lot could plausibly sit anywhere from ${money(s.lo)} to ${money(s.hi)}. Under ${rv.min_sample} trades any result is mostly luck.</div>`;
+  }
+  for(const [title, rows] of Object.entries(rv.groups || {})){
+    const good = rows.filter(r => r[1]);
+    if(!good.length) continue;
+    html += `<p class="eyebrow" style="margin-top:14px">${esc(title)}</p><div class="scrwrap"><table class="scr"><thead><tr><th></th><th>Trades</th><th>Won</th><th>Per lot</th><th>Total</th></tr></thead><tbody>`
+      + good.map(([k, v]) => `<tr><td class="sym">${esc(k)}</td><td>${v.n}</td><td>${Math.round(v.win)}%</td><td style="color:${jcol(v.avg)}">${money(v.avg)}</td><td style="color:${jcol(v.total)}">${money(v.total)}</td></tr>`).join("")
+      + `</tbody></table></div>`;
+  }
+  box.innerHTML = html;
+}
+function jformOpen(trade){
+  const d = JN || {}, card = $("jaddcard");
+  JN_EDIT = trade ? trade.id : null;
+  $("jaddtitle").textContent = trade ? "Edit a trade" : "Add a trade";
+  const insts = (d.instruments || []).concat(["OTHER"]);
+  $("jf_inst").innerHTML = insts.map(i => `<option value="${esc(i)}">${esc(i === "OTHER" ? "Other" : i)}</option>`).join("");
+  const t = trade || {date: JN_DAY || d.today, time: "", instrument: insts[0], side: "CE", dir: "buy", lots: 1};
+  const set = (id, v) => { $(id).value = v == null ? "" : v; };
+  set("jf_date", t.date); set("jf_time", t.time); set("jf_inst", t.instrument); set("jf_side", t.side);
+  set("jf_dir", t.dir || "buy"); set("jf_strike", t.strike); set("jf_lots", t.lots);
+  set("jf_lot", trade ? t.lot_size : ""); set("jf_entry", t.entry); set("jf_exit", t.exit);
+  set("jf_charges", trade && !t.charges_estimated ? t.charges : ""); set("jf_notes", t.notes);
+  $("jf_lot").placeholder = String((d.lot_sizes || {})[$("jf_inst").value] || "");
+  $("jf_date").max = d.today || "";
+  $("jf_msg").textContent = "";
+  card.style.display = "";
+  card.scrollIntoView({block: "nearest", behavior: "smooth"});
+}
+document.addEventListener("change", e => {
+  if(e.target.id === "jf_inst") $("jf_lot").placeholder = String(((JN || {}).lot_sizes || {})[e.target.value] || "");
+});
+document.addEventListener("click", async e => {
+  if(!e.target.closest('[data-pane="journal"]')) return;
+  const src = e.target.closest("#jsrc [data-src]");
+  if(src){ JN_SRC = src.dataset.src; journalFetch(); return; }
+  const sc = e.target.closest("#jscope [data-scope]");
+  if(sc){ JN_SCOPE = sc.dataset.scope; journalPaint(); return; }
+  const day = e.target.closest("[data-day]");
+  if(day){ JN_DAY = day.dataset.day; JN_MONTH = JN_DAY.slice(0, 7); journalPaint();
+           $("jdaycard").scrollIntoView({block: "nearest", behavior: "smooth"}); return; }
+  if(e.target.closest("#jprev") || e.target.closest("#jnext")){
+    const [y, m] = JN_MONTH.split("-").map(Number);
+    const t = new Date(Date.UTC(y, m - 1 + (e.target.closest("#jnext") ? 1 : -1), 1));
+    JN_MONTH = jiso(t).slice(0, 7); journalPaint(); return;
+  }
+  if(e.target.closest("#jaddbtn")){ jformOpen(null); return; }
+  if(e.target.closest("#jf_cancel")){ $("jaddcard").style.display = "none"; JN_EDIT = null; return; }
+  const ed = e.target.closest("[data-jedit]");
+  if(ed){ jformOpen(((JN || {}).entries || []).find(x => x.source === "mine" && x.id === ed.dataset.jedit)); return; }
+  const del = e.target.closest("[data-jdel]");
+  if(del){
+    if(!confirm("Delete this trade from your journal? This cannot be undone.")) return;
+    const r = await jpost({action: "delete", id: del.dataset.jdel});
+    $("jnotemsg").textContent = r.message || ""; $("jnotemsg").style.color = r.ok ? "var(--up)" : "var(--down)";
+    if(r.ok) journalFetch();
+    return;
+  }
+  if(e.target.closest("#jf_save")){
+    const f = {action: JN_EDIT ? "update" : "add"};
+    if(JN_EDIT) f.id = JN_EDIT;
+    [["date","jf_date"],["time","jf_time"],["instrument","jf_inst"],["side","jf_side"],["dir","jf_dir"],["strike","jf_strike"],
+     ["lots","jf_lots"],["lot_size","jf_lot"],["entry","jf_entry"],["exit","jf_exit"],["charges","jf_charges"],["notes","jf_notes"]]
+      .forEach(([k, id]) => { f[k] = $(id).value; });
+    const r = await jpost(f);
+    $("jf_msg").textContent = r.message || ""; $("jf_msg").style.color = r.ok ? "var(--up)" : "var(--down)";
+    if(r.ok){
+      JN_DAY = f.date; JN_MONTH = f.date.slice(0, 7); JN_EDIT = null;
+      setTimeout(() => { $("jaddcard").style.display = "none"; }, 900);
+      journalFetch();
+    }
+    return;
+  }
+  if(e.target.closest("#jnotesave") && JN_DAY){
+    const r = await jpost({action: "note", date: JN_DAY, text: $("jdaynote").value});
+    $("jnotemsg").textContent = r.message || ""; $("jnotemsg").style.color = r.ok ? "var(--up)" : "var(--down)";
+    if(r.ok){ if(JN){ JN.notes = JN.notes || {}; const v = $("jdaynote").value.trim(); if(v) JN.notes[JN_DAY] = v; else delete JN.notes[JN_DAY]; } jcalPaint(JN, JN.today); }
+  }
+});
+
 // --------------------------------------------------------- risk & reward
 // How the trade on screen actually pays: what the stop costs, what each target
 // makes, how many times the risk that is, and the win rate it needs to break
@@ -5425,13 +5892,13 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin"];
+              "season", "news", "record", "admin", "journal"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
-                   season:"Seasonality", news:"News", record:"Record", admin:"Admin"};
+                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal"};
 // The phone menu. A drawer rather than a strip of pills, closed by picking a
 // section, tapping outside it, or Escape.
 function navOpen(){
@@ -5467,6 +5934,7 @@ function showTab(name, push){
   if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
   if(name === "greeks") gkFetch();
   if(name === "admin") adminFetch();
+  if(name === "journal") journalFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -6689,7 +7157,7 @@ function palItems(){
   Object.entries(TF_LABEL).forEach(([tf, label]) => out.push(
     {t:"Chart", label:"Show " + label, sub:CH.tf === tf ? "showing" : "",
      run:() => chartTF(tf)}));
-  out.push({t:"Go", label:"Review - your results so far", run:() => location.href="/review"});
+  out.push({t:"Go", label:"Journal - your trades and results", run:() => showTab("journal")});
   out.push({t:"Go", label:"How it works", run:() => location.href="/how-it-works"});
   out.push({t:"Go", label:"Zerodha connection", run:() => location.href="/connect"});
   out.push({t:"Go", label:"Results", run:() => location.href="/results"});
