@@ -202,3 +202,51 @@ def session_row(df15, daily=None, now=None):
            "ema20": ema20, "ema_days_used": int(len(closes))}
     row["signals"] = {rule: signal(rule, row) for rule in RULES}
     return row
+
+
+# ---------------------------------------------------------------------------
+# the overnight warning
+# ---------------------------------------------------------------------------
+# The study's one useful answer is to "should I carry this past the close?",
+# so that is where it is used: on a ticket still open in the last hour.
+WARN_FROM = (14, 30)
+WARN_UNTIL = (15, 40)
+
+
+def next_session_open(now):
+    """09:15 on the next NSE trading day after `now`'s date."""
+    import main
+    d = now.date() + _dt.timedelta(days=1)
+    while d.weekday() >= 5 or main.is_nse_holiday(d):
+        d += _dt.timedelta(days=1)
+    return _dt.datetime(d.year, d.month, d.day, 9, 15, tzinfo=now.tzinfo)
+
+
+def overnight(now, index, side, expiry, theta_day, study=None):
+    """What carrying an open index option past today's close would cost.
+
+    theta_day  the position's time decay per calendar day, in rupees (the
+               sign is ignored). Charged for every day until the next session
+               opens - a weekend is three, a holiday more - at today's rate,
+               which is the least it will be: decay speeds up toward expiry.
+    study      btst_study.py's saved results, for what buying into the close
+               actually did on this index and side in the held-out year.
+    """
+    import main
+    today = now.date()
+    trading_today = today.weekday() < 5 and not main.is_nse_holiday(today)
+    show = trading_today and WARN_FROM <= (now.hour, now.minute) <= WARN_UNTIL
+    nxt = next_session_open(now)
+    days = (nxt - now).total_seconds() / 86400.0
+    expires_today = str(expiry or "")[:10] == today.isoformat()
+    decay = (round(abs(theta_day) * days)
+             if theta_day is not None and not expires_today else None)
+    baseline = None
+    rule = "always_ce" if side == "CE" else "always_pe"
+    entry = ((((study or {}).get("results") or {}).get(index) or {}).get(rule) or {}).get(side)
+    if entry and entry.get("oos"):
+        o = entry["oos"]
+        baseline = {"avg": o["avg"], "n": o["n"], "win": o["win"]}
+    return {"show": bool(show), "next_open": nxt.strftime("%a %d %b, %H:%M"),
+            "days": round(days, 2), "calendar_nights": (nxt.date() - today).days,
+            "expires_today": expires_today, "decay": decay, "baseline": baseline}
