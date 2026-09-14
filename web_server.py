@@ -485,6 +485,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_spikes(user, qs)
             if path == "/api/analytics":
                 return self._api_analytics(user, qs)
+            if path == "/api/btst":
+                return self._api_btst(user)
             if path == "/api/greeks":
                 return self._api_greeks(user, qs)
             if path == "/api/admin/users":
@@ -961,6 +963,47 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "this feed carries no bid or ask, so an illiquid strike can "
                     "hold a stale reading. Time runs to the 15:30 close on "
                     "expiry day."}), "application/json")
+
+    def _api_btst(self, user):
+        """Buy Today, Sell Tomorrow on the Indian indices: tonight's reading,
+        and what three years of it earned after costs.
+
+        The reading comes from btst.py - the rules and the session row the
+        backtest itself ran on - and every setup that fires is sent with that
+        exact rule's tested result beside it, so one that failed the test
+        cannot be mistaken for one that passed. The study is btst_study.py's
+        saved output; nothing here re-fits anything.
+        """
+        market = self._current_market()
+        if market != "nse_index":
+            return self._send(json.dumps({
+                "market": market,
+                "note": "BTST here is for the Indian index options - Nifty, Bank Nifty "
+                        "and Sensex. It was tested on their sessions and their overnight "
+                        "gaps, and none of that applies to this market."}), "application/json")
+        import btst
+        now = now_ist()
+        study = _btst_study()
+        results = (study or {}).get("results") or {}
+        feed = feeds.for_user(user, market)
+        tonight = {}
+        for key in ("NIFTY", "BANKNIFTY", "SENSEX"):
+            try:
+                row = btst.session_row(feed.ohlc(key, "15m", days=5),
+                                       feed.ohlc(key, "1d", days=120), now=now)
+            except Exception:
+                row = None
+            if row:
+                tested = results.get(key) or {}
+                row["fired"] = [{"rule": r, "label": btst.RULES[r]["label"], "side": side,
+                                 "tested": (tested.get(r) or {}).get(side)}
+                                for r, side in row["signals"].items()
+                                if side and not r.startswith("always_")]
+            tonight[key] = row
+        return self._send(json.dumps({
+            "market": market, "now": now.strftime("%H:%M"),
+            "market_open": is_market_open(now, "NIFTY"),
+            "tonight": tonight, "study": study}, default=str), "application/json")
 
     def _api_analytics(self, user, qs):
         """The analyst's numbers: volatility, levels, internals, strength,
@@ -2138,6 +2181,24 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .riskctl input{width:130px}
 /* Not .rr - that name already styles the rows of another table as a
    five-column grid, and sharing it turned this panel into one. */
+.btstgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:4px}
+.btstcard{border:1px solid var(--bd);border-radius:12px;padding:12px 14px;background:rgba(255,255,255,.02);min-width:0}
+.btstcard.live{border-color:rgba(43,224,138,.45)}
+.btstcard .nm{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3)}
+.btstfacts{font-size:12px;color:var(--ink-2);margin:5px 0 8px;line-height:1.5}
+.btstfire{font-size:12.5px;color:var(--ink);padding:7px 0 2px;border-top:1px solid var(--bd-soft)}
+.btstfire b.up{color:var(--up)}
+.btstfire b.down{color:var(--down)}
+.btstsub{font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.45}
+.btstmuted{color:var(--ink-3);font-size:12.5px;margin:6px 0 0}
+.btsttag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  border:1px solid var(--bd);border-radius:999px;padding:1px 7px;margin-left:4px;color:var(--ink-3);white-space:nowrap}
+.btsttag.good{color:var(--up);border-color:rgba(43,224,138,.45)}
+.btsttag.ok{color:var(--warn);border-color:rgba(242,163,61,.45)}
+.btsttag.bad{color:var(--down);border-color:rgba(239,85,112,.45)}
+#btsttbl td:nth-child(-n+3),#btsttbl th:nth-child(-n+3),#btsttbl td:last-child,#btsttbl th:last-child{text-align:left}
+.btstrisk{margin:4px 0 0;padding-left:18px;color:var(--ink-2);font-size:12.5px;line-height:1.65}
+.btstrisk b{color:var(--ink)}
 .rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
 .rrcard:empty{display:none}
 .rrsum{font-size:12.5px;color:var(--ink-2);line-height:1.65;margin:4px 0 10px}
@@ -2848,6 +2909,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab on" data-tab="home" role="tab" type="button"><i>&#127968;</i>Home</button>
   <p class="mgroup">Desk</p>
   <button class="tab" data-tab="signal" role="tab" type="button"><i>&#127919;</i>Signal</button>
+  <button class="tab" data-tab="btst" role="tab" type="button"><i>&#127769;</i>BTST</button>
   <p class="mgroup">Market</p>
   <button class="tab" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
@@ -3320,6 +3382,35 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   </div>
  </section>
 
+ <section class="pane" data-pane="btst">
+  <div class="card" data-panel="btstnow" id="btstnowcard">
+   <p class="eyebrow">BTST tonight &middot; <span id="btstasof">&mdash;</span></p>
+   <div class="btstgrid" id="btstnow"></div>
+   <div class="gnote" id="btstnownote"></div>
+  </div>
+  <div class="card" data-panel="btststudy" id="btststudycard">
+   <p class="eyebrow">What three years say &middot; <span id="btstrange">&mdash;</span></p>
+   <div class="rrsum" id="btstverdict"></div>
+   <div class="scrwrap"><table class="scr rrtbl" id="btsttbl"></table></div>
+   <div class="gnote" id="btststudynote"></div>
+  </div>
+  <div class="card" data-panel="btstrisk" id="btstriskcard">
+   <p class="eyebrow">Before you hold overnight</p>
+   <ul class="btstrisk">
+    <li><b>The gap.</b> A stop cannot protect a position overnight. The market opens
+     where it opens, and the loss is whatever the gap makes it.</li>
+    <li><b>Time decay.</b> An option loses value every night it is held - three
+     nights over a weekend - whether the index moves or not. Buying into every close
+     lost money in the three-year test before any setup was applied.</li>
+    <li><b>Volatility easing by morning.</b> Implied volatility often falls overnight,
+     which takes more off the option's price. The test holds it constant, so real
+     results would be somewhat worse than the table.</li>
+    <li><b>Expiry.</b> On expiry day the contract is gone by morning; the test moves
+     to the next weekly, which costs more to buy.</li>
+   </ul>
+  </div>
+ </section>
+
  <section class="pane" data-pane="admin">
   <div class="card adm" data-panel="admusers" id="admuserscard">
    <p class="eyebrow">Accounts &middot; <span id="admcount">&mdash;</span></p>
@@ -3784,6 +3875,112 @@ function riskBox(r, tk, sess){
   }
   line.innerHTML = parts.filter(Boolean).join("<br>");
 }
+// ------------------------------------------------------------------ BTST
+// Tonight's reading beside what three years of the same rules earned. A setup
+// that failed the test is still shown when it fires - hiding it would hide
+// the evidence - but it is labelled as failed, never as a signal.
+let BTST = null, BTST_AT = 0;
+const BTST_NAMES = {NIFTY: "Nifty", BANKNIFTY: "Bank Nifty", SENSEX: "Sensex"};
+async function btstFetch(force){
+  if(!force && BTST && Date.now() - BTST_AT < 60000){ btstPaint(); return; }
+  try{
+    BTST = await (await fetch("/api/btst", {cache: "no-store"})).json();
+    BTST_AT = Date.now();
+  }catch(e){ BTST = {error: "could not be read"}; }
+  btstPaint();
+}
+function btstPaint(){
+  const d = BTST || {}, now = $("btstnow"), tbl = $("btsttbl");
+  if(!now || !tbl) return;
+  if(d.note || d.error){
+    now.innerHTML = `<p class="btstmuted">${esc(d.note || "The BTST reading could not be loaded right now.")}</p>`;
+    tbl.innerHTML = ""; $("btstverdict").textContent = ""; $("btstnownote").textContent = "";
+    $("btststudynote").textContent = ""; return;
+  }
+  const st = d.study, res = (st && st.results) || {};
+  const lab = r => ((st && st.rules && st.rules[r]) || {}).label || r;
+  const tag = t => !t ? `<span class="btsttag">not tested</span>`
+    : t.robust ? `<span class="btsttag good">passed · robust</span>`
+    : t.works ? `<span class="btsttag ok">passed</span>`
+    : `<span class="btsttag bad">failed the test</span>`;
+  const signed = v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(2) + "%";
+
+  const tn = d.tonight || {};
+  const rows = ["NIFTY", "BANKNIFTY", "SENSEX"].map(k => tn[k]).filter(Boolean);
+  const final = rows.length > 0 && rows.every(r => r.final);
+  now.innerHTML = ["NIFTY", "BANKNIFTY", "SENSEX"].map(k => {
+    const r = tn[k];
+    if(!r) return `<div class="btstcard"><div class="nm">${BTST_NAMES[k]}</div>`
+      + `<p class="btstmuted">No session data right now.</p></div>`;
+    const fired = r.fired || [];
+    const facts = `Close ${num(r.close, 0)} · day ${signed(r.ret)} · at ${Math.round(r.pos * 100)}% of its range`
+      + (r.last_hour == null ? "" : ` · last hour ${signed(r.last_hour)}`);
+    const list = fired.length ? fired.map(f => {
+        const o = f.tested && f.tested.oos;
+        return `<div class="btstfire"><b class="${f.side === "CE" ? "up" : "down"}">${f.side}</b> `
+          + `${esc(f.label)} ${tag(f.tested)}`
+          + (o ? `<div class="btstsub">Held-out year: ${o.n} trades, ${Math.round(o.win)}% won, `
+               + `${money(o.avg)} a trade per lot after costs.</div>` : "")
+          + `</div>`;
+      }).join("")
+      : `<p class="btstmuted">No BTST setup ${r.final ? "at this close" : "so far today"}.</p>`;
+    return `<div class="btstcard${fired.some(f => f.tested && f.tested.works) ? " live" : ""}">`
+      + `<div class="nm">${BTST_NAMES[k]} · ${esc(r.date)}</div><div class="btstfacts">${facts}</div>${list}</div>`;
+  }).join("");
+  $("btstasof").textContent = !rows.length ? "no data"
+    : final ? "read at the 15:30 close" : `provisional, as of ${rows[0].as_of}`;
+  $("btstnownote").textContent = !rows.length ? "" : final
+    ? "Read from the 15:30 close, the way the test read it. A setup that failed the test is shown so the evidence is not hidden - not as a reason to take it."
+    : "Provisional: the session is still trading, so the close, the range and the last hour are still moving. A setup showing now can be gone by 15:30, and one can appear. The test entered at the close.";
+
+  if(!st){
+    $("btstrange").textContent = "not run";
+    $("btstverdict").textContent = "The three-year test has not been run on this server yet (python3 btst_study.py), so nothing here has been measured.";
+    tbl.innerHTML = ""; $("btststudynote").textContent = ""; return;
+  }
+  $("btstrange").textContent = `${st.data_from} to ${st.data_to}`;
+  const all = [], passed = [];
+  for(const k of ["NIFTY", "BANKNIFTY", "SENSEX"]){
+    for(const [rule, sides] of Object.entries(res[k] || {})){
+      for(const [side, t] of Object.entries(sides)){
+        all.push({k, rule, side, t});
+        if(t.works) passed.push({k, rule, side, t});
+      }
+    }
+  }
+  const cells = s => !s ? `<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>`
+    : `<td>${s.n}</td><td>${Math.round(s.win)}%</td>`
+      + `<td style="color:${s.avg > 0 ? "var(--up)" : "var(--down)"}">${money(s.avg)}</td>`;
+  tbl.innerHTML = `<thead><tr><th>Index</th><th>Setup</th><th>Side</th>`
+    + `<th>2 yrs: trades</th><th>won</th><th>avg / lot</th>`
+    + `<th>Last yr: trades</th><th>won</th><th>avg / lot</th><th>Verdict</th></tr></thead><tbody>`
+    + all.map(x => `<tr${x.t.works ? ' class="exit"' : ""}><td class="sym">${BTST_NAMES[x.k]}</td>`
+      + `<td>${esc(lab(x.rule))}</td><td>${x.side}</td>${cells(x.t.is)}${cells(x.t.oos)}`
+      + `<td>${x.t.robust ? "passed · robust" : x.t.works ? "passed" : "failed"}</td></tr>`).join("")
+    + `</tbody>`;
+
+  const base = ["NIFTY", "BANKNIFTY", "SENSEX"].flatMap(k => [
+    (((res[k] || {}).always_ce || {}).CE || {}), (((res[k] || {}).always_pe || {}).PE || {})]);
+  const baseLost = base.length && base.every(b => b.is && b.oos && b.is.total < 0 && b.oos.total < 0);
+  $("btstverdict").innerHTML =
+    `Buying an option into <b>every</b> close ${baseLost ? "lost money on all three indices, in both periods" : "did not reliably pay"}`
+    + ` - that is the overnight time decay and the charges, before any setup. `
+    + `Of <b>${st.comparisons}</b> setup, side and index combinations, <b>${passed.length}</b> made money after costs `
+    + `in both the first two years and the held-out year`
+    + (passed.length
+        ? `: ${passed.map(p => `${esc(lab(p.rule))} ${p.side} on ${BTST_NAMES[p.k]}${p.t.robust ? " (held up in every sensitivity check)" : ""}`).join("; ")}. `
+          + `Their averages are small - ${passed.map(p => money(p.t.oos.avg)).join(" and ")} a trade per lot in the held-out year - `
+          + `and with ${st.comparisons} tries, about that many passes would turn up by chance. `
+          + `Read them as setups to watch, not a proven edge.`
+        : `. On this evidence none of these setups is an edge.`);
+  $("btststudynote").textContent =
+    `Each trade buys the at-the-money option at the 15:30 close and sells it at the next session's 09:30 close, `
+    + `priced from India VIX with the real overnight time decay (a weekend is three nights), Zerodha's charges and `
+    + `${(st.slippage_per_side * 100).toFixed(2)}% slippage a side. Money is per one lot. A setup passes only if both periods `
+    + `are positive after costs with at least ${st.min_oos_trades} trades in the held-out year (from ${st.split}). `
+    + `Rules fixed before the test was run; tested ${String(st.generated).replace("T", " ")}.`;
+}
+
 // --------------------------------------------------------- risk & reward
 // How the trade on screen actually pays: what the stop costs, what each target
 // makes, how many times the risk that is, and the win rate it needs to break
@@ -5382,13 +5579,13 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin"];
+              "season", "news", "record", "admin", "btst"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
-                   season:"Seasonality", news:"News", record:"Record", admin:"Admin"};
+                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", btst:"BTST"};
 // The phone menu. A drawer rather than a strip of pills, closed by picking a
 // section, tapping outside it, or Escape.
 function navOpen(){
@@ -5424,6 +5621,7 @@ function showTab(name, push){
   if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
   if(name === "greeks") gkFetch();
   if(name === "admin") adminFetch();
+  if(name === "btst") btstFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -5626,7 +5824,7 @@ function gateTabs(){
   const crypto = !!(LAST && LAST.market === "crypto");
   [["sector", crypto], ["market", crypto], ["vol", crypto], ["levels", crypto],
    ["internals", crypto], ["strength", crypto], ["season", crypto],
-   ["greeks", crypto]].forEach(([name, hide]) => {
+   ["greeks", crypto], ["btst", crypto]].forEach(([name, hide]) => {
     const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);
     if(btn) btn.hidden = hide;
     if(hide && TAB === name) showTab("home");
@@ -6839,6 +7037,22 @@ document.addEventListener("keydown", e => {
 # ---------------------------------------------------------------------------
 # LOGIN / SIGNUP PAGES
 # ---------------------------------------------------------------------------
+_BTST_CACHE = {"mtime": None, "data": None}
+
+
+def _btst_study():
+    """btst_study.py's saved results, re-read only when the file changes."""
+    path = os.path.join(trade_log.log_dir(), "btst_study.json")
+    try:
+        mtime = os.path.getmtime(path)
+        if _BTST_CACHE["mtime"] != mtime:
+            with open(path) as fh:
+                _BTST_CACHE.update(mtime=mtime, data=json.load(fh))
+    except (OSError, ValueError):
+        return None
+    return _BTST_CACHE["data"]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Serve the signal tool as a website.")
     ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
