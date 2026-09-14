@@ -464,7 +464,10 @@ class Feed:
         self.thread = None
         self.hist = {}            # name -> DataFrame, the deep chart window
         self._ohlc_cache = {}     # (name, interval) -> (fetched_at, DataFrame)
-        self._hist_cache = {}     # interval -> (fetched_at, {symbol: DataFrame})
+        self._hist_cache = {}     # interval -> (fetched_at, {symbol: DataFrame}, days)
+        self._hist_refreshing = set()
+        self._hist_refresh_lock = threading.Lock()
+        self._hist_warmed = False
         self.hist_at = 0.0
         # This user's own tickets, with their own trade log. A book per user
         # rather than one per server: the daily limits, the session total and
@@ -519,6 +522,7 @@ class Feed:
             self.thread = threading.Thread(target=self._run, daemon=True,
                                            name=f"feed:{self.key}")
             self.thread.start()
+            self.warm_history()
         # And the tick loop, the same way. Belt and braces: whatever stops it,
         # the next poll or supervisor pass brings the live prices back.
         if (self.streamer is not None
@@ -570,6 +574,11 @@ class Feed:
     # in front of it, not a nightly job. Held longer than the index series
     # because a breakout against 50 sessions does not change minute to minute.
     _HIST_TTL = {"day": 900, "5minute": 180, "minute": 120}
+    # How long past that a cached set may still be served, while a fresh one
+    # loads in the background, when the market is SHUT - the candles cannot
+    # change then, and a cold read is about twenty seconds of Zerodha calls.
+    # While it trades, the allowance is only twice the refresh time.
+    _HIST_STALE_OK = {"day": 6 * 3600, "5minute": 20 * 60, "minute": 10 * 60}
 
     def constituent_history(self, interval="day", days=90):
         """Candles for every index constituent, cached.
@@ -586,8 +595,58 @@ class Feed:
         if self.market != "nse_index":
             raise RuntimeError(f"no index constituents in the {self.market} market")
         hit = self._hist_cache.get(interval)
-        if hit and time.time() - hit[0] < self._HIST_TTL.get(interval, 300):
-            return hit[1]
+        # A cached set only answers a request it covers: the cache is keyed by
+        # interval, and one caller wants 120 days while another wants 400 - so
+        # whichever asked first used to decide how far back the other's
+        # 52-week highs could see.
+        if hit and hit[2] >= days:
+            age, ttl = time.time() - hit[0], self._HIST_TTL.get(interval, 300)
+            if age < ttl:
+                return hit[1]
+            shut = not is_market_open(now_ist(), self._ref())
+            if age < (self._HIST_STALE_OK.get(interval, 0) if shut else 2 * ttl):
+                self._refresh_history_later(interval, hit[2])
+                return hit[1]
+        return self._load_history(interval, days)
+
+    def _refresh_history_later(self, interval, days):
+        """Fetch a fresh set in the background, at most one per interval."""
+        with self._hist_refresh_lock:
+            if interval in self._hist_refreshing:
+                return
+            self._hist_refreshing.add(interval)
+
+        def run():
+            try:
+                self._load_history(interval, days)
+            except Exception:
+                pass
+            finally:
+                with self._hist_refresh_lock:
+                    self._hist_refreshing.discard(interval)
+        threading.Thread(target=run, daemon=True, name=f"hist:{interval}:{self.key}").start()
+
+    def warm_history(self):
+        """Read the constituent candles once, in the background, soon after a
+        feed starts - so the first person to open Analytics or Momentum spikes
+        after a restart is not the one who waits twenty seconds for them.
+        The longest window any caller asks for, so the cache covers them all."""
+        if self.market != "nse_index" or self._hist_warmed:
+            return
+        self._hist_warmed = True
+
+        def run():
+            time.sleep(15)                   # let the analysis loop get going first
+            for interval, days in (("day", 400), ("5minute", 5)):
+                if _stopping.is_set():
+                    return
+                try:
+                    self.constituent_history(interval, days=days)
+                except Exception:
+                    pass
+        threading.Thread(target=run, daemon=True, name=f"warm:{self.key}").start()
+
+    def _load_history(self, interval, days):
         token = user_kite.token_for(self.email)
         if not token:
             raise RuntimeError("no Zerodha token on this account")
@@ -626,7 +685,7 @@ class Feed:
         self._hist_last_error = first_error if failed else None
         self._hist_missing = failed
         if out:
-            self._hist_cache[interval] = (time.time(), out)
+            self._hist_cache[interval] = (time.time(), out, days)
         return out
 
     def crypto_pulse(self, name="BTC"):

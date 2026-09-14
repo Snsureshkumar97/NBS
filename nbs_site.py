@@ -71,22 +71,24 @@ NAV = [
 # from the app folder" are one path-traversal bug apart, and the app folder is
 # where .env used to live.
 SHOTS = {
-    "board":   ("web_board.png",  "The signal board",
-                "Sensex after the close: a Buy CE on the 74800 call, and a MARKET CLOSED badge saying exactly why no ticket was issued \u2014 the signal is still shown and explained, but nothing is taken outside 09:15\u201315:40. The expiry sits beside the contract, the ladder is in option premium with rupees per lot, and the risk box, filled in here with a sample \u20b92,00,000 account at 1%, shows one lot would risk \u20b92,464 \u2014 1.23% of it, more than the 1% chosen, and it says so. Reward to risk is 0.89 : 1, so in session this one would be held as LOW REWARD."),
-    "chart":   ("web_chart.png",  "The chart",
-                "Fifteen-minute candles with both EMAs and a VWAP weighted by the index future\u2019s real volume, and the same T1, T2, T3 and stop drawn as lines where they actually sit, their price tags kept apart so none hides another. Drag it to scroll back through earlier sessions; the right-hand candle is built from the live tick stream, so it moves before it closes."),
-    "trend":   ("web_trend.png",  "Trend, day move and confidence",
-                "Three readings the tool will not let you skip past. The trend box says NO CLEAR TREND, with the ADX and how far price has travelled in fourteen bars. The dial reads 100% and still labels it Medium, because all three inputs that voted agree but only three voted \u2014 High needs four. The number and the word are both shown, so one cannot flatter the other."),
+    "board":   ("web_board.png", "The signal board",
+                "Nifty after the close, with no trade and the reason in words: trend strength (ADX 19.4) is under the gate of 20, so the indicators agreeing is treated as noise. The nearest expiry is flagged as expiring today, the ladder is empty because there is no signal to price, the risk box shows the daily loss limit for a sample \u20b92,00,000 account, and the bars below show how each input voted and how far the index has room to run each way."),
+    "chart":   ("web_chart.png", "The chart",
+                "Fifteen-minute candles with the 20 and 50 EMAs and a VWAP weighted by the index future\u2019s real volume. Switch to five-minute or daily, zoom, and drag back through earlier sessions. When a signal is live, its T1, T2, T3 and stop are drawn as lines where they sit."),
+    "trend":   ("web_trend.png", "Trend, day move and confidence",
+                "Three readings side by side: the trend label with its ADX and how far price has actually travelled in ATR terms; the day\u2019s move, here the last session\u2019s because the market is shut; and the confidence dial, which reads N/A when there is no signal rather than showing a number it cannot stand behind."),
     "map":     ("web_map.png",    "The market map",
                 "Every index constituent sized by its weight and coloured by its move today, so you can see whether an index is being carried by two heavyweights or genuinely moving as a whole. Breadth is counted underneath \u2014 how many up, how many down, and how many are actually streaming right now."),
-    "why":     ("web_why.png",    "Why \u2014 every input, in full",
-                "The reasoning, in sentences, for every input including the ones that abstained. Each says what it measured, what the threshold was and which way it voted. Trend and PCR abstain here and say why. Nothing that fed the verdict is left off this list, and nothing on it is a number without an explanation."),
+    "why":     ("web_why.png", "Why \u2014 every input, in full",
+                "The reasoning in sentences for every input, including the ones that abstained: the averages not stacked, MACD, RSI and VWAP voting up, the put/call ratio neutral \u2014 and the ADX gate overruling all of them, which is why the verdict is no trade."),
     "connect": ("web_connect.png", "The connection page",
                 "What you land on after connecting, and what you check when something looks stale. It names the Zerodha user the token belongs to and when it was issued, and it says in as many words that no order is ever placed and that the token is cleared every morning."),
     "login":   ("web_login.png",  "Signing in",
                 "The door. Accounts are made by the owner rather than by signing up, so there is no registration form here and no email reset - a forgotten password is reset by hand."),
-    "full":    ("web_full.png",   "The whole screen",
-                "One page, one scroll: the three indices, the session total, the signal and its ladder, trend and confidence, the chart, today's range, the market map, the record, and the reasoning. There is no second tab and nothing is hidden behind a menu."),
+    "phone":   ("web_phone.png",  "On a phone",
+                "The same tool on a phone. The menu sits behind the button at the top, which names the section you are on; Home, Signal, Chart and the option chain are in a bar along the bottom, and the three indices share one row."),
+    "full":    ("web_full.png", "The whole screen",
+                "The desktop layout: every section in a rail down the left, the three indices and the session total across the top, and the signal below them. Nothing is more than one click away."),
 }
 
 
@@ -1494,14 +1496,15 @@ def how_page(user=None, record=None):
 def screen_page(user=None, record=None):
     body = _phead("The screen",
         "Every image below is the browser tool itself, captured at 2x from a "
-        "live session against a real Zerodha feed. Nothing here is a mockup "
-        "and nothing is retouched — the account name is masked, and that is "
-        "the only edit.") + f"""
+        "live session against a real Zerodha feed. Nothing here is a mockup. "
+        "The account name, email and Zerodha client ID are masked and the "
+        "owner-only Admin menu item is hidden; those are the only edits.") + f"""
 <div class="wrap">
  <section class="first">
   <div class="narrow prose" style="margin-bottom:44px">
    <p>They were taken after the close, so the header reads Market closed and
-    the day's total is zero. The signal, the levels and every indicator reading
+    the day's total is zero. The market map is the one exception: after the
+    close every member reads flat, so it is from an earlier live session. The signal, the levels and every indicator reading
     are the real ones from that session; nothing was put into a demo mode to be
     photographed.</p>
   </div>
@@ -1511,6 +1514,7 @@ def screen_page(user=None, record=None):
   {_figure("map")}
   {_figure("why")}
   {_figure("full")}
+  {_figure("phone")}
  </section>
 
  <section>
@@ -1574,6 +1578,95 @@ def screen_page(user=None, record=None):
     <tr><td>Session</td><td>everything closed today, in order, with the running
      total split into booked and open.</td></tr>
    </table>
+
+   <h2 style="margin-top:44px">Every section, and what it tells you</h2>
+   <p>The Signal is where a trade is decided. The other sections are there to
+    check it against: what the rest of the market is doing, what the options are
+    pricing, and what has happened before. None of them issues a ticket.</p>
+
+   <h3>Market</h3>
+   <table class="tbl">
+    <tr><th>Section</th><th>What it shows</th></tr>
+    <tr><td>Chart</td><td>Fifteen-minute candles, or five-minute and daily, with the
+     20 and 50 EMAs and a VWAP weighted by the index future&rsquo;s real volume.
+     A live signal&rsquo;s T1, T2, T3 and stop are drawn as lines. Beside it,
+     today&rsquo;s range: where price sits between the day&rsquo;s low and
+     high.</td></tr>
+    <tr><td>Option chain</td><td>The option clock: how open interest changed at each
+     strike within a time window you choose, read from the tool&rsquo;s own
+     recording of the chain. It is change within the window, not OI added today
+     &mdash; positions closing count as much as positions opening. Below it, the
+     chain around the money: last price, bid, ask, spread and open interest for
+     calls and puts.</td></tr>
+    <tr><td>Market</td><td>The index mover: how many index points each member added
+     or took away today, the five pushing hardest and the five dragging most.
+     Then every member with its sector, weight and move.</td></tr>
+    <tr><td>Market pulse</td><td>How many members are up against down, and four
+     screens across them: members breaking a 10-day high or low, a 50-day high or
+     low, trading on volume well above their 20-session average, and sitting
+     nearest their 50-day extreme. On Bitcoin, which has no members, it reads
+     open interest across the live option chain instead.</td></tr>
+    <tr><td>Sector scope</td><td>The market map &mdash; every member sized by its
+     weight and coloured by its move, so you can see whether an index is carried
+     by two heavyweights or moving as a whole &mdash; and each sector&rsquo;s
+     weighted move today.</td></tr>
+    <tr><td>Momentum spikes</td><td>The members that moved most over the last five
+     and ten minutes, with their volume against their own average for that time
+     of day. After the close it shows the session&rsquo;s final minutes, and says
+     so.</td></tr>
+   </table>
+
+   <h3>Analysis <small style="font-weight:500;color:var(--ink-3)">&middot; Indian indices only</small></h3>
+   <table class="tbl">
+    <tr><th>Section</th><th>What it shows</th></tr>
+    <tr><td>Volatility</td><td>India VIX against the volatility the index actually
+     delivered over 20 sessions. When implied sits above realised, options are
+     expensive for the movement they are getting &mdash; that favours the seller
+     and costs the buyer, and it says nothing about direction. Also: where VIX
+     sits in its year, the expected move over a day, a week and to expiry, how
+     often the index really stayed inside its one-day band, and a volatility cone
+     ranking each window against its own year.</td></tr>
+    <tr><td>Greeks &amp; IV</td><td>Implied volatility across the strikes &mdash; puts
+     usually dearer than calls, because protection costs more than upside. The
+     chain priced with delta, gamma, theta per day and vega, and where the
+     chain&rsquo;s gamma is concentrated once weighted by open interest. It shows
+     where that gamma sits, not who holds it: that is not visible from outside the
+     exchange, so it is not claimed.</td></tr>
+    <tr><td>Levels</td><td>Floor pivots &mdash; S2, S1, the pivot, R1, R2 &mdash;
+     from the previous session&rsquo;s high, low and close, with ATR(14): the
+     distance the index typically covers in a day, which is what a stop has to
+     survive. And the opening range, with whether price has closed above, below
+     or inside it.</td></tr>
+    <tr><td>Internals</td><td>What the index members are doing underneath the index:
+     how many are above their 20- and 50-day averages, advancing against
+     declining, at new highs or lows, and the advance/decline line over 20
+     sessions. An index can rise while most of its members fall; a falling line
+     under a steady index means fewer names are carrying it.</td></tr>
+    <tr><td>Relative strength</td><td>The members leading and lagging over the last
+     20 sessions. In a falling market the leader can still be down &mdash; it is
+     only falling least.</td></tr>
+    <tr><td>Seasonality</td><td>The average move by weekday, with how often each day
+     closed up, the spread and the number of sessions behind it. The spread is
+     wider than every average in the table, which is the point: these are
+     tendencies, not rules. And the opening gaps &mdash; how often the index opened
+     up, down or flat, and by how much.</td></tr>
+   </table>
+
+   <h3>Research</h3>
+   <table class="tbl">
+    <tr><th>Section</th><th>What it shows</th></tr>
+    <tr><td>News</td><td>Market headlines, gathered in one place so you can check
+     whether a move has a reason before you trade against it.</td></tr>
+    <tr><td>Record</td><td>A position calculator that turns your capital, your risk
+     per trade, the entry and the stop into a lot count; a recap of the session;
+     your track record &mdash; every ticket closed, wins and losses, from the
+     trade file, with nothing left out; and &ldquo;Why&rdquo;, every input behind
+     the current reading in full sentences.</td></tr>
+   </table>
+   <p>On Bitcoin the Chart, Option chain, Market pulse, Momentum spikes, News and
+    Record work the same way; the index-member and India VIX sections do not
+    apply to a market of one instrument, and are hidden rather than shown
+    empty.</p>
   </div>
  </section>
 

@@ -3972,7 +3972,11 @@ function expiryText(iso, short){
   if(!iso) return "";
   const d = new Date(String(iso).slice(0,10) + "T00:00:00");
   if(isNaN(d)) return "";
-  const today = new Date(); today.setHours(0,0,0,0);
+  // Counted in India time, where the contract expires. In the browser's own
+  // zone a laptop or phone set elsewhere read "1 day left" beside an
+  // "Expires today" note on the morning of expiry.
+  const ist = new Date(Date.now() + 330 * 60000);
+  const today = new Date(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
   const days = Math.round((d - today) / 86400000);
   const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const when = `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
@@ -6024,6 +6028,13 @@ function gkPaint(){
 let ANA = null, ANA_AT = 0;
 async function anaFetch(force){
   if(!force && ANA && Date.now() - ANA_AT < 600000){ anaPaint(); return; }
+  // The first read after a restart fetches candles for every index member,
+  // about twenty seconds - said while it happens, rather than empty cards.
+  if(!ANA){
+    const msg = `<p style="color:var(--ink-3);font-size:13px;margin:0">Reading candles for every `
+      + `index member - the first read after a restart can take about twenty seconds.</p>`;
+    ["volstats", "intstats", "sgap"].forEach(id => { const el = $(id); if(el && !el.innerHTML.trim()) el.innerHTML = msg; });
+  }
   try{
     ANA = await (await fetch("/api/analytics", {cache:"no-store"})).json();
     ANA_AT = Date.now();
