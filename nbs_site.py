@@ -27,9 +27,8 @@ WHY THE MEASURED RESULT IS NOT BURIED
     dishonestly: the winning days, a confidence dial, a running P&L in green.
     This site has all three, because they are what the app actually renders —
     so the measurement gets its own page in the main navigation, is linked from
-    the home page above the fold, and says plainly that across three years and
-    8,837 signals the rule set was roughly break-even before costs and negative
-    after them.
+    the home page above the fold, and says plainly what it found - including
+    how thin the result is, what it rests on, and what the test cannot show.
 
     India regulates investment advice. Publishing buy/sell calls can fall under
     SEBI's Research Analyst and Investment Adviser rules, and a disclaimer is
@@ -1091,11 +1090,14 @@ def _record_figs(record):
     sample, and averaging them would quietly let a good week improve a
     three-year result.
     """
+    # pro_study.py on history to 11 Sep 2026: the rules the tool runs now,
+    # priced as the options you would buy, per lot, after Zerodha's charges
+    # and 0.25% slippage a side. Held out from 15 Aug 2025.
     figs = [
-        ("8,837", "signals measured, on 15-minute candles"),
-        ("3 years", "of history the rule set was run across"),
-        ("~1 in 3", "of its targets were actually reached"),
-        ("negative", "expectancy once costs are counted"),
+        ("2,199", "trades on the current rules over three years"),
+        ("PF 1.25", "profit factor in the held-out year, after costs"),
+        ("\u20b91.06 lakh", "worst drawdown per lot in that year"),
+        ("modelled", "option prices, not real fills - unproven"),
     ]
     html = "".join(f'<div class="fig"><div class="n">{_esc(n)}</div>'
                    f'<div class="l">{_esc(l)}</div></div>' for n, l in figs)
@@ -1193,12 +1195,16 @@ def home_page(user=None, record=None):
  <section>
   <div class="callout warm reveal">
    <p class="kicker">What it measured</p>
-   <h2>It has been tested, and the result was not good</h2>
+   <h2>It has been tested, and the result is thin and unproven</h2>
    <p>This is the part a site like this normally leaves out, so it is on the
-    home page instead. The rule set was run across three years of 15-minute
-    candles — 8,837 signals — and came out roughly <b>break-even before costs
-    and negative after</b> brokerage, the option bid-ask and time decay. Its
-    targets are reached about <b>a third</b> of the time.</p>
+    home page instead. The current rules were run across three years of
+    15-minute candles and priced as the options you would buy, with
+    Zerodha&rsquo;s charges and slippage. On Nifty and Sensex they came out
+    <b>positive after costs</b> in both the first two years and the held-out
+    final year &mdash; but the option prices are <b>modelled, not real
+    fills</b>, most of the profit came on expiry days, and two of the rules were
+    chosen after that held-out year had been seen. Before costs the raw signal
+    averages about +0.02R a trade. Treat it as unproven.</p>
    {_record_figs(record)}
    <p>It is published so it can be checked, not because it is known to work.
     <a href="/results">The full measurement, and what the test did and did not
@@ -1684,43 +1690,107 @@ def screen_page(user=None, record=None):
 # RESULTS
 # ===========================================================================
 def results_page(user=None, record=None):
+    # Figures from backtest_intraday.py and pro_study.py on 15-minute history
+    # to 11 Sep 2026, and btst_study.py. Re-run them before changing a number.
     body = _phead("What it measured",
-        "The rule set on this site has been backtested. The result was not "
-        "good, and it is on its own page in the main navigation rather than "
-        "in small type at the bottom of another one.") + f"""
+        "The rule set on this site has been backtested, and the result is on its "
+        "own page in the main navigation, with what it rests on and what it "
+        "cannot show, rather than in small type at the bottom of another one.") + f"""
 <div class="wrap"><div class="narrow prose">
 
  <section class="first">
   <div class="callout warm reveal">
-   <h2 style="margin-top:0">Roughly break-even before costs. Negative after.</h2>
-   <p>Across three years of 15-minute candles and 8,837 signals, the rule set
-    described on this site measured approximately break-even <em>before</em>
-    trading costs, and <b>negative once brokerage, the option bid-ask spread
-    and time decay are counted</b>. Its targets are reached about a third of
-    the time.</p>
+   <h2 style="margin-top:0">A thin, modelled edge after costs. Not a proven one.</h2>
+   <p>The rules the tool runs today were replayed across three years of
+    15-minute candles and every trade was priced as the option you would have
+    bought, with Zerodha&rsquo;s charges and slippage taken off. On Nifty and
+    Sensex they came out <b>positive after costs in both the first two years and
+    the held-out final year</b>. Read the next section before reading anything
+    into that.</p>
    {_record_figs(record)}
   </div>
  </section>
 
  <section>
-  <h2>What the test did</h2>
+  <h2>Why it is not proven</h2>
   <ul>
-   <li>Ran the same <code>signal_engine</code> the app runs — not a
-    reimplementation of it, which is the usual way a backtest and a live tool
-    quietly stop agreeing.</li>
-   <li>Used 15-minute candles across all three indices, over three years.</li>
-   <li>Applied the same gates: the ADX floor, the reward-to-risk floor, the
-    confirmation window, the daily limits.</li>
-   <li>Counted a trade as closed when a target or the stop was reached, exactly
-    as the live tool logs it.</li>
+   <li><b>The option prices are modelled.</b> Each trade is priced with
+    Black-Scholes from India VIX, not from recorded option quotes, and
+    volatility is held constant through the trade. Real fills, a widening spread
+    and implied volatility falling after you buy all make real results worse.</li>
+   <li><b>Most of the profit came on expiry days.</b> On the rules before the
+    last two were added, Nifty made &#8377;1,35,017 per lot on its expiry days in
+    the first two years and &#8377;22,600 on every other day; in the held-out
+    year, &#8377;1,04,608 on expiry days and <b>lost &#8377;19,386</b> on the rest.
+    Expiry day is exactly where a constant-volatility model is least
+    trustworthy.</li>
+   <li><b>The held-out year is no longer clean.</b> Two of today&rsquo;s rules
+    &mdash; a floor on reward to risk, and Bank Nifty watch-only &mdash; were
+    adopted on 11 Sep 2026 after the held-out year had been looked at. A test you
+    have used to choose rules is no longer an independent test of them.</li>
+   <li><b>The drawdowns are large.</b> The worst run in the held-out year was
+    &#8377;1,06,038 per lot. An account sized so that a drawdown like that is
+    survivable is the only kind this should be run with.</li>
+   <li><b>There is no long live record.</b> The trades this server has logged
+    are a sample of weeks, not years.</li>
   </ul>
+ </section>
 
+ <section>
+  <h2>The two measurements</h2>
+  <h3>The current rules, priced as options</h3>
+  <p>Per lot, after Zerodha&rsquo;s charges and 0.25% slippage a side, on the
+   contract the tool would have suggested with the exchange&rsquo;s real expiry
+   dates. Nifty and Sensex are traded; Bank Nifty is watch-only.</p>
+  <table class="tbl">
+   <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>1,260</td><td>+&#8377;3,33,421</td><td>+&#8377;265</td><td>1.30</td><td>&#8377;57,950</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>939</td><td>+&#8377;2,21,110</td><td>+&#8377;235</td><td>1.25</td><td>&#8377;1,06,038</td></tr>
+  </table>
+  <p>A profit factor of 1.25 means &#8377;1.25 won for every &#8377;1 lost. It
+   is a small margin: a modest increase in real costs over the modelled ones
+   would take much of it.</p>
+
+  <h3>The raw signal, in index points</h3>
+  <p>Every signal the engine produced on all three indices, before the
+   opening-range rule, the reward floor and watch-only, measured in index points
+   against the stop and <b>before any cost</b>.</p>
+  <table class="tbl">
+   <tr><th></th><th>Signals</th><th>Reached T1</th><th>Reached T2</th><th>Reached T3</th><th>Stopped out</th><th>Average</th></tr>
+   <tr><td>Nifty</td><td>2,165</td><td>36%</td><td>19%</td><td>11%</td><td>33%</td><td>+0.041R</td></tr>
+   <tr><td>Bank Nifty</td><td>2,147</td><td>35%</td><td>18%</td><td>11%</td><td>32%</td><td>&minus;0.002R</td></tr>
+   <tr><td>Sensex</td><td>2,161</td><td>34%</td><td>18%</td><td>10%</td><td>32%</td><td>+0.026R</td></tr>
+  </table>
+  <p>About +0.02R a trade before costs across the three: the signal on its own
+   is close to nothing. What the options test measures is that signal with its
+   filters, its exit at T2 and the leverage of an option on the moves that do
+   come &mdash; which is why the two can differ, and why the options result
+   depends so heavily on its pricing assumptions.</p>
+ </section>
+
+ <section>
+  <h2>What was tested and dropped</h2>
+  <ul>
+   <li><b>Buy today, sell tomorrow.</b> Buying an option into the close and
+    selling it at the next morning&rsquo;s open lost money on all three indices
+    in both periods &mdash; about &#8377;700 to &#8377;900 a trade per lot in the
+    last year, mostly time decay and charges. Of 30 setup, side and index
+    combinations, three passed both periods, about what chance produces across
+    30 tries. It is not offered; an open ticket in the last hour instead shows
+    what holding it overnight would cost.</li>
+   <li><b>Other ideas, each pre-declared and tested the same way:</b> skipping
+    expiry day, skipping days when VIX is above 20, skipping big opening gaps,
+    rolling to the next expiry on expiry day, a two-hour time stop, taking half
+    at T1, and moving the stop to breakeven after T1. None improved both periods,
+    so none is used.</li>
+  </ul>
+ </section>
+
+ <section>
   <h2>What the test could not do</h2>
   <ul>
    <li><b>Fill you at the price on the screen.</b> Index options move in ticks
-    and spreads, and the spread is where a marginal edge goes to die. This is
-    the single biggest reason the before-costs and after-costs numbers differ
-    so much.</li>
+    and spreads, and the spread is where a marginal edge goes to die.</li>
    <li><b>Know your slippage.</b> Lot size, time of day and how far out of the
     money the strike sits all change it, and none of them are constant.</li>
    <li><b>Model your own behaviour.</b> A backtest takes every signal. Nobody
@@ -1731,17 +1801,17 @@ def results_page(user=None, record=None):
  </section>
 
  <section>
-  <h2>Why publish it anyway</h2>
+  <h2>Why publish it</h2>
   <p>Because a rule set you can inspect and measure is worth more than a tip
    you cannot. Everything on <a href="/how-it-works">the how-it-works page</a>
    is checkable line by line, the code is in one place with the reasoning
-   written beside it, and this page exists so that the measurement is as easy
-   to find as the screenshots.</p>
+   written beside it, and this page exists so that the measurement &mdash; and
+   everything that weakens it &mdash; is as easy to find as the screenshots.</p>
   <p>The useful version of this tool is as a <b>second opinion you can
-   interrogate</b> — a fast, consistent read of what the indicators currently
-   say, and an explicit statement when a setup does not clear its own bar. It
-   is good at that. It is not good at making money, and it has been measured
-   saying so.</p>
+   interrogate</b>: a fast, consistent read of what the indicators say, and an
+   explicit statement when a setup does not clear its own bar. Whether it makes
+   money is not settled by a backtest on modelled prices, and it is not claimed
+   here.</p>
   <p>Treat everything here as something to <b>examine</b>, never as something
    to act on. Options can lose their entire value.</p>
  </section>
@@ -1750,20 +1820,21 @@ def results_page(user=None, record=None):
   <h2>How the live record is kept</h2>
   <p>Every ticket this server issues is written to a trade file when it closes,
    whichever way it went, with the targets and stop that were frozen at entry.
-   The summary above is computed from that file — there is no separate
-   curated list, and nothing is excluded for having been a bad day.</p>
+   The live figures shown with the measurement are computed from that file
+   &mdash; there is no separate curated list, and nothing is excluded for having
+   been a bad day.</p>
   <p>A live record of a few dozen trades is a sample. It is shown because
-   hiding it would be worse, not because it settles anything; the three-year
-   figures are the measurement.</p>
+   hiding it would be worse, not because it settles anything.</p>
  </section>
 
  {_next(("/security", "Next", "Security and privacy"),
         ("/disclaimer", "Also", "The full disclaimer"))}
 </div></div>"""
     return shell("What it measured", body, user=user, active="/results",
-                 description=("The backtest behind TradePicker: 8,837 signals over "
-                              "three years, roughly break-even before costs and "
-                              "negative after them."))
+                 description=("The backtest behind TradePicker: the current rules priced "
+                              "as options after costs over three years - a thin, "
+                              "modelled edge, with what it rests on and what it cannot "
+                              "show."))
 
 
 # ===========================================================================
@@ -2340,12 +2411,13 @@ def disclaimer_page(user=None, record=None):
   </ul>
 
   <h2>What was measured</h2>
-  <p>The rule set on this site was backtested across three years of 15-minute
-   candles and 8,837 signals. It came out roughly break-even before trading
-   costs and <b>negative after</b> brokerage, the option bid-ask and time
-   decay. Its targets are reached about a third of the time.
-   <a href="/results">The full account is here.</a> It is published so that it
-   can be checked, not because it is known to work.</p>
+  <p>The current rules were backtested across three years of 15-minute candles
+   and priced as options after Zerodha&rsquo;s charges and slippage. They came
+   out positive after costs on Nifty and Sensex in both periods tested &mdash;
+   on modelled option prices, with most of the profit on expiry days, and with
+   two rules chosen after the held-out year was seen. That is a thin result,
+   not a proven one. <a href="/results">The full account is here.</a> It is
+   published so that it can be checked, not because it is known to work.</p>
 
   <h2>Data</h2>
   <p>Market data is read under your own broker session and is subject to your
@@ -2436,11 +2508,12 @@ def signup_page(error=None, email=""):
     set applied to Nifty, Bank Nifty and Sensex. It is <b>not advice</b>, and it
     does not come from a SEBI-registered research analyst or investment
     adviser.</p>
-   <p style="font-size:14px"><b>It has been tested, and the result was not
-    good.</b> Across three years and 8,837 signals on 15-minute candles it
-    measured roughly break-even before costs and <b>negative after</b>
-    brokerage, the option bid-ask and time decay. Its targets are reached about
-    a third of the time.</p>
+   <p style="font-size:14px"><b>It has been tested, and the result is thin
+    and unproven.</b> Priced as options after costs, the current rules came out
+    positive over three years on Nifty and Sensex &mdash; but on modelled prices
+    rather than real fills, with most of the profit on expiry days, and with a
+    worst drawdown of about &#8377;1 lakh per lot in the most recent year.
+    Nothing about a backtest says it will keep working.</p>
    <p style="font-size:14px">It is published so it can be checked, not because
     it is known to work. Options can lose their entire value.
     <a href="/results">The full measurement.</a></p>

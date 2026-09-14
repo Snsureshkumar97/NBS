@@ -891,7 +891,7 @@ WEB_REQUIRE_LOGIN = os.environ.get("WEB_REQUIRE_LOGIN", "0") not in ("0", "", "f
 # Let strangers create their own accounts. OFF by default, and that default is
 # deliberate: the moment people you don't know start acting on these signals,
 # two things become true that weren't before. Their money is at risk on a rule
-# set measured at roughly break-even before costs and negative after them; and
+# set whose measured edge after costs is thin, modelled and unproven; and
 # publishing buy/sell calls to the public moves you toward SEBI's Research
 # Analyst rules. Neither is a reason you can't do it — both are reasons it
 # should be a decision rather than a default.

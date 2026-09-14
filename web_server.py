@@ -5200,10 +5200,11 @@ function feedTag(live, age){
        : "No tick for " + Math.round(age) + "s \u2014 the socket is open but "
          + "nothing is arriving. The numbers on screen are the last ones sent.");
 }
-$("honest").innerHTML="A three-year backtest of this rule set on 15-minute candles "+
-  "measured roughly break-even before costs and negative after them, and its targets "+
-  "are reached about a third of the time. It is published so it can be checked, not "+
-  "because it is known to work. "+
+$("honest").innerHTML="A three-year backtest of the current rules, priced as options after "+
+  "Zerodha's charges and slippage, came out slightly positive on Nifty and Sensex - on "+
+  "modelled prices rather than real fills, with most of the profit on expiry days and a "+
+  "worst drawdown of about \u20b91 lakh per lot in the latest year. It is published so it "+
+  "can be checked, not because it is known to work. "+
   '<a href="/results" style="color:inherit;text-decoration:underline">The figures.</a>';
 tick(); setInterval(tick,3000);
 // Prices, four times a second. The server reads them straight out of the

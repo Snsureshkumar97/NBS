@@ -963,8 +963,8 @@ signal page to fail.
 Alongside the signal it shows the **blockers** when there's no trade, the full
 plain-English reasoning, and a **track record built from your actual trade log —
 wins and losses both**. It also states, at the top where nobody can miss it,
-that a three-year backtest measured this rule set as break-even before costs and
-negative after them.
+what a three-year backtest measured: on modelled option prices after costs, a
+thin edge on Nifty and Sensex that rests mostly on expiry days - not a proven one.
 
 That last part is not decoration. A signal page that shows only its current call
 and never its history is asking to be believed rather than checked. If you keep
@@ -1117,8 +1117,8 @@ page would leak every signal through the SVG.
 a half-finished reset flow is a way in, not a feature. Until then, resets are
 manual from `/admin`. No payments, no plans: read the SEBI section first.
 
-**The signup page states the measured result** — negative after costs, 8,837
-signals, targets reached about a third of the time — above the email field, with
+**The signup page states the measured result** — a thin, modelled edge after
+costs, mostly from expiry days, with drawdowns of about ₹1 lakh per lot — above the email field, with
 a checkbox to confirm it was read. Someone signing up cannot run your backtest.
 That page is the only place they will ever learn what they're looking at, so
 please leave it there.

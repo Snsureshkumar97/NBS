@@ -227,10 +227,13 @@ chain the tool reads are identical for every Kite user. His own app means his
 own token on his own machine, which is the right way to do it — but he is not
 getting anything you don't have.
 
-**The measured result is negative.** Backtested on 8,837 real signals over three
-years of 15-minute candles, the average trade was about +0.02R gross and roughly
-**−0.13R after brokerage, spread and theta**. Give him that number before he
-pays the ₹500, not after.
+**The measured result is thin and unproven.** Over three years of 15-minute
+candles the raw signal averages about +0.02R a trade before any cost. Priced as
+options after Zerodha's charges and slippage, the current rules came out slightly
+positive on Nifty and Sensex in both periods tested (profit factor 1.25 in the
+latest year) — but on modelled prices rather than real fills, mostly from expiry
+days, and with drawdowns of about ₹1 lakh per lot. Give him that before he pays
+the ₹500, not after.
 
 This tool never places an order. It shows a suggestion; every order is placed by
 hand in Zerodha. It is not SEBI-registered investment advice.
