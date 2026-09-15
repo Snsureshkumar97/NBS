@@ -454,6 +454,21 @@ class KiteDataProvider:
         cands.sort(key=lambda i: str(i.get("expiry")))
         return cands[0].get("instrument_token")
 
+    def chain_tokens(self, index_key: str, expiry):
+        """Every option contract of one expiry, as {(strike, "CE"/"PE"): token}.
+
+        One pass over the cached instrument list, so the option chain's strikes
+        can go on the live feed without a lookup per strike."""
+        _, opts = self._all_option_instruments(index_key)
+        out = {}
+        for i in opts:
+            if str(i.get("expiry")) != str(expiry):
+                continue
+            kind, tok = i.get("instrument_type"), i.get("instrument_token")
+            if kind in ("CE", "PE") and tok:
+                out[(float(i.get("strike") or 0), kind)] = int(tok)
+        return out
+
     def _all_option_instruments(self, index_key: str):
         meta = INSTRUMENTS[index_key]
         exchange = "BFO" if meta["kite_exchange"] == "BSE" else "NFO"
@@ -1146,6 +1161,10 @@ class KiteStreamer:
         self._kws = None
         self._subscribed = set()
         self._quote_tokens = set()
+        # FULL mode: open interest and the order book, which QUOTE mode does not
+        # carry for an F&O contract - wanted for the option chain's strikes.
+        self._full_tokens = set()
+        self._book = {}            # instrument_token -> {ltp, oi, bid, ask, at}
         self.connected = False
         self.last_error = None
         self.last_tick_at = None   # time.time() of the most recent tick
@@ -1208,6 +1227,7 @@ class KiteStreamer:
                         if lp < bar["l"]:
                             bar["l"] = lp
                         bar["c"] = lp
+                self._record_book(ticks, now)
                 self.last_tick_at = now
                 self.tick_count += len(ticks)
 
@@ -1216,8 +1236,11 @@ class KiteStreamer:
             self.last_error = None
             with self._lock:
                 toks = list(self._subscribed)
-                quote_toks = [t for t in toks if t in self._quote_tokens]
-                ltp_toks = [t for t in toks if t not in self._quote_tokens]
+                full_toks = [t for t in toks if t in self._full_tokens]
+                quote_toks = [t for t in toks
+                              if t in self._quote_tokens and t not in self._full_tokens]
+                ltp_toks = [t for t in toks
+                            if t not in self._quote_tokens and t not in self._full_tokens]
             if toks:
                 try:
                     ws.subscribe(toks)
@@ -1225,6 +1248,8 @@ class KiteStreamer:
                         ws.set_mode(ws.MODE_LTP, ltp_toks)
                     if quote_toks:
                         ws.set_mode(ws.MODE_QUOTE, quote_toks)
+                    if full_toks:
+                        ws.set_mode(ws.MODE_FULL, full_toks)
                 except Exception as e:
                     self.last_error = f"subscribe failed: {e}"
 
@@ -1251,34 +1276,71 @@ class KiteStreamer:
             return False
 
     # ------------------------------------------------------------------
-    def subscribe(self, tokens, quote: bool = False):
+    def subscribe(self, tokens, quote: bool = False, full: bool = False):
         """Add instrument tokens to the feed.
 
         quote=True asks for QUOTE mode, which includes the day's % change and
         OHLC — needed for the market heat map. LTP mode is lighter and is all
-        the index/option tracking needs."""
+        the index/option tracking needs. full=True asks for FULL mode, the only
+        one that carries an F&O contract's open interest and order book - the
+        option chain's streamed strikes. A token already in FULL mode is never
+        stepped down by a later LTP or QUOTE request for the same contract."""
         tokens = [int(t) for t in tokens if t]
         if not tokens:
             return
         with self._lock:
             fresh = [t for t in tokens if t not in self._subscribed]
+            upgrade = [t for t in tokens
+                       if full and t in self._subscribed and t not in self._full_tokens]
             self._subscribed.update(tokens)
             if quote:
                 self._quote_tokens.update(tokens)
-        # Always try the wire, rather than only when self.connected is already
-        # True. connect(threaded=True) returns before the socket is open, so a
-        # caller subscribing in that window used to be skipped here and left
-        # entirely to on_connect's replay - and if on_connect had just read
-        # _subscribed while it was still empty, nothing subscribed the tokens
-        # at all, silently and for good. Failing here is safe: the tokens stay
-        # in _subscribed and the next on_connect replays them.
-        if fresh and self._kws is not None:
-            try:
+            if full:
+                self._full_tokens.update(tokens)
+        if self._kws is None:
+            return
+        try:
+            if fresh:
                 self._kws.subscribe(fresh)
-                mode = self._kws.MODE_QUOTE if quote else self._kws.MODE_LTP
-                self._kws.set_mode(mode, fresh)
-            except Exception as e:
-                self.last_error = f"subscribe failed: {e}"
+                if full:
+                    self._kws.set_mode(self._kws.MODE_FULL, fresh)
+                else:
+                    mode = self._kws.MODE_QUOTE if quote else self._kws.MODE_LTP
+                    self._kws.set_mode(mode, fresh)
+            if upgrade:
+                self._kws.set_mode(self._kws.MODE_FULL, upgrade)
+        except Exception as e:
+            self.last_error = f"subscribe failed: {e}"
+
+    def _record_book(self, ticks, now):
+        """Keep the latest price, open interest and best bid/ask of every
+        FULL-mode token. Called from on_ticks with the lock already held."""
+        for t in ticks:
+            tok = t.get("instrument_token")
+            if tok is None or int(tok) not in self._full_tokens:
+                continue
+            tok = int(tok)
+            b = self._book.get(tok) or {}
+            if t.get("last_price") is not None:
+                b["ltp"] = float(t["last_price"])
+            if t.get("oi") is not None:
+                b["oi"] = int(t["oi"])
+            if t.get("depth"):
+                b["bid"], b["ask"] = _best_bid_ask(t["depth"])
+            b["at"] = now
+            self._book[tok] = b
+
+    def book(self, token, max_age=None):
+        """Latest streamed price, OI and best bid/ask of a FULL-mode token, or
+        None when nothing has arrived - or when it is older than max_age."""
+        if token is None:
+            return None
+        with self._lock:
+            b = self._book.get(int(token))
+            b = dict(b) if b else None
+        if b is None or (max_age is not None and time.time() - b.get("at", 0) > max_age):
+            return None
+        return b
 
     def price(self, token):
         """Latest streamed price for a token, or None if no tick yet."""

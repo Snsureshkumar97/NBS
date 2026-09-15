@@ -1583,16 +1583,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for k in [k for k in _OI_BASE if k[3] != day]:
                 _OI_BASE.pop(k, None); _OI_BASE_AT.pop(k, None)
 
+        # Strikes on the live feed with a recent tick: their price, book and
+        # open interest replace the snapshot's, which is only as fresh as the
+        # last analysis pass. PCR, max pain and the walls stay the snapshot's.
+        live = feed.chain_live(name) if hasattr(feed, "chain_live") else {}
+
         def side(s, kind):
             ltp, bid, ask = s.get(f"{kind}_ltp"), s.get(f"{kind}_bid"), s.get(f"{kind}_ask")
+            now = s.get(f"{kind}_oi")
+            b = live.get((float(s["strike"]), "CE" if kind == "call" else "PE"))
+            if b:
+                if b.get("ltp") is not None:
+                    ltp = b["ltp"]
+                if b.get("bid") is not None or b.get("ask") is not None:
+                    bid, ask = b.get("bid"), b.get("ask")
+                if b.get("oi") is not None:
+                    now = b["oi"]
             pct = None
             if bid and ask and ask >= bid:
                 pct = round((ask - bid) / ((ask + bid) / 2) * 100, 2)
             was = (base.get(s["strike"]) or (None, None))[0 if kind == "call" else 1]
-            now = s.get(f"{kind}_oi")
             chg = (now - was) if (was is not None and now is not None) else None
             return {"ltp": ltp, "bid": bid, "ask": ask,
-                    "oi": now, "oi_chg": chg, "spread": pct}
+                    "oi": now, "oi_chg": chg, "spread": pct, "live": bool(b)}
 
         rows = [{"strike": s["strike"], "ce": side(s, "call"), "pe": side(s, "put")}
                 for s in strikes]
@@ -1605,6 +1618,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "suggested": {"strike": rec.get("strike"), "type": rec.get("option_type")},
             "since": time.strftime("%H:%M", time.localtime(_OI_BASE_AT.get(bkey, time.time()))),
             "currency": "USD" if market == "crypto" else "INR",
+            "live": sum(1 for r in rows for k in ("ce", "pe") if r[k].get("live")),
+            "live_at": (_dt.datetime.fromtimestamp(
+                            max(b.get("at", 0) for b in live.values()),
+                            _dt.timezone(_dt.timedelta(hours=5, minutes=30))).strftime("%H:%M:%S")
+                        if live else None),
             "rows": rows}), "application/json")
 
     def _api_tick(self, user):
@@ -5915,6 +5933,9 @@ async function priceTick(){
   feedTag(t.live, t.age);
 
   if(changed) render(LAST);
+  // The chain's strikes stream as well. render() asks for the chain only when
+  // the index itself moved, so while its tab is open it is asked here too.
+  if(TAB === "chain") chainFetch();
 
   // A target reached on a tick changes more than a price — the ticket may
   // have closed and the day's totals moved with it, and only the full state
@@ -6109,19 +6130,26 @@ applyLayout(); wireDrag();
 // The chain the signal was computed from: calls left, puts right, strikes
 // down the middle, the money highlighted and the suggested contract ringed.
 // Nothing new is fetched from anywhere - the server already had this.
-let CHAIN_AT = 0, CHAIN_FOR = null, CHAIN_SCROLLED = null;
+let CHAIN_AT = 0, CHAIN_FOR = null, CHAIN_SCROLLED = null, CHAIN_LIVE = false, CHAIN_BUSY = false;
 const oiFmt = v => v == null ? "—" :
   new Intl.NumberFormat("en-IN", {notation:"compact", maximumFractionDigits:1}).format(v);
 async function chainFetch(force){
   const card = $("chaincard");
   if(!card || card.hidden || !CUR) return;
-  if(!force && CHAIN_FOR === CUR && Date.now() - CHAIN_AT < 20000) return;
-  CHAIN_AT = Date.now(); CHAIN_FOR = CUR;
+  // Once a second while its strikes stream - a memory read on the server - and
+  // the old twenty seconds when they do not, since a snapshot moves no faster.
+  if(!force && CHAIN_FOR === CUR && Date.now() - CHAIN_AT < (CHAIN_LIVE ? 1000 : 20000)) return;
+  if(CHAIN_BUSY && !force) return;
+  const want = CUR;
+  CHAIN_AT = Date.now(); CHAIN_FOR = want; CHAIN_BUSY = true;
   try{
-    const d = await (await fetch("/api/chain?index=" + encodeURIComponent(CUR),
+    const d = await (await fetch("/api/chain?index=" + encodeURIComponent(want),
                                  {cache:"no-store"})).json();
+    if(want !== CUR) return;                  // the index changed while it loaded
+    CHAIN_LIVE = !!(d && d.live);
     chainDraw(d);
   }catch(e){}
+  finally{ CHAIN_BUSY = false; }
 }
 function chainDraw(d){
   const t = $("chain"), bar = $("chainbar");
@@ -6165,7 +6193,11 @@ function chainDraw(d){
     + (d.call_wall != null ? `<span>Call wall <b>${num(d.call_wall,0)}</b></span>` : "")
     + (d.put_wall != null ? `<span>Put wall <b>${num(d.put_wall,0)}</b></span>` : "")
     + `<span>Prices in ${sym}, per unit of the contract. Spr = the bid-ask gap; `
-    + `over 3% and the tool holds the ticket.</span>`;
+    + `over 3% and the tool holds the ticket.</span>`
+    + (d.live ? `<span><b style="color:var(--up)">Live</b> - LTP, bid, ask and OI stream on `
+        + `${d.live} contracts` + (d.live_at ? `, last tick ${esc(d.live_at)} IST` : "")
+        + `. PCR, max pain and the walls move with each chain snapshot, about every 40 s.</span>`
+      : "");
   // Centre the money once per index, not on every refresh - otherwise the
   // table yanks itself back while you are reading a far strike.
   //

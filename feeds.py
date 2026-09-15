@@ -65,6 +65,12 @@ IDLE_SECONDS = 240
 # so silence this long is a broken connection, never a quiet market.
 STALL_SECONDS = 45
 
+# The option chain streamed live: this many strikes either side of the money
+# (what the chain tab shows), and a tick older than this is not shown as live -
+# the snapshot's own value stands instead.
+CHAIN_STREAM_SPAN = 12
+CHAIN_TICK_MAX_AGE = 20.0
+
 # Stands in for a tick socket on a venue that has none, so the loops can
 # tell "no stream yet" (None) apart from "this market never has one".
 _NO_STREAM = object()
@@ -491,6 +497,8 @@ class Feed:
         self.sug_px = {}          # index name -> that contract's live premium
         self.base_df = {}         # index name -> the completed REST candles
         self.base_oi = {}         # index name -> the last option-chain snapshot
+        self.chain_toks = {}      # index name -> {expiry, map (strike, CE/PE) -> token, streamed, on}
+        self._chain_tried = {}    # index name -> (expiry, when) of a lookup that has not succeeded
         self._last_live = 0.0     # when the live recompute last ran
         self.eq_tokens = {}       # tradingsymbol -> token, for the heat map
         self._eq_tried = False
@@ -1234,6 +1242,87 @@ class Feed:
             except Exception:
                 pass
 
+    def _subscribe_chain(self, name):
+        """Put the option chain's strikes around the money on the live feed.
+
+        The chain is a snapshot taken with each analysis pass - about every
+        forty seconds - so its prices stood still between passes while the
+        index moved under them. Its contracts are ordinary instruments on the
+        same socket: streamed in FULL mode, the one carrying open interest and
+        the order book, they move tick by tick like the index does.
+
+        Tokens come from one pass over the instrument list per expiry. The
+        window follows the money as spot drifts; a strike that falls out of it
+        keeps streaming, a few tokens against Zerodha's 3,000 a socket. A new
+        socket - a rebuild or a restart of the stream - is subscribed afresh.
+        """
+        st = self.streamer
+        if st is None or st is _NO_STREAM:
+            return
+        if config.market_for(name)["market_provider"] != "kite":
+            return
+        with self.lock:
+            chain = self.base_oi.get(name)
+        if not chain or not chain.get("strikes") or not chain.get("expiry"):
+            return
+        expiry = str(chain["expiry"])
+        have = self.chain_toks.get(name)
+        if not have or have.get("expiry") != expiry:
+            tried = self._chain_tried.get(name)
+            if tried and tried[0] == expiry and time.time() - tried[1] < 60.0:
+                return                  # this expiry's lookup failed a moment ago
+            self._chain_tried[name] = (expiry, time.time())
+            token = user_kite.token_for(self.email)
+            if not token:
+                return
+            try:
+                mp = KiteDataProvider(config.KITE_API_KEY, token).chain_tokens(name, expiry)
+            except Exception:
+                mp = {}
+            if not mp:
+                return
+            self._chain_tried.pop(name, None)   # the wait is for failures only
+            have = {"expiry": expiry, "map": mp, "streamed": set(), "on": st}
+            self.chain_toks[name] = have
+        if have.get("on") is not st:
+            have["streamed"], have["on"] = set(), st
+        spot = chain.get("spot")
+        if spot is None:
+            return
+        strikes = sorted(float(x["strike"]) for x in chain["strikes"])
+        step = (config.INSTRUMENTS.get(name) or {}).get("strike_step") or 50
+        atm = min(strikes, key=lambda k: abs(k - spot))
+        want = [have["map"].get((k, kind)) for k in strikes
+                if abs(k - atm) <= CHAIN_STREAM_SPAN * step for kind in ("CE", "PE")]
+        fresh = [t for t in want if t and t not in have["streamed"]]
+        if not fresh:
+            return
+        try:
+            st.subscribe(fresh, full=True)
+        except Exception:
+            return
+        have["streamed"].update(fresh)
+
+    def chain_live(self, name):
+        """{(strike, "CE"/"PE"): {ltp, oi, bid, ask, at}} for the chain's streamed
+        strikes that have a recent tick. Empty outside the session: after the
+        bell a socket keeps sending packets whose prices no longer move, and a
+        chain marked live over them would say something untrue."""
+        st = self.streamer
+        have = self.chain_toks.get(name)
+        if (st is None or st is _NO_STREAM or not have or have.get("on") is not st
+                or not hasattr(st, "book")):
+            return {}
+        if not is_market_open(now_ist(), name):
+            return {}
+        out = {}
+        for key, tok in list(have["map"].items()):
+            if tok in have["streamed"]:
+                b = st.book(tok, max_age=CHAIN_TICK_MAX_AGE)
+                if b:
+                    out[key] = b
+        return out
+
     def _subscribe_ticket(self, name):
         """Add an open ticket's own contract to the feed.
 
@@ -1568,6 +1657,7 @@ class Feed:
                             with self.lock:
                                 self.sug_px[name] = px
                     self._subscribe_ticket(name)
+                    self._subscribe_chain(name)
                     tok = self.opt_tokens.get(name)
                     if not tok:
                         continue
