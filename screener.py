@@ -1,7 +1,8 @@
 """
 screener.py - build your own screen over the index member stocks
 ================================================================================
-Pick conditions - RSI(14) below 30, close above EMA(50), volume above 1.5x its
+Pick conditions - RSI(14) below 30, CCI above 100, Williams %R below -80,
+price above its Parabolic SAR, close above EMA(50), volume above 1.5x its
 20-day average, a weekly close above a monthly moving average, MACD crossing
 its signal - and see which Nifty, Bank Nifty and Sensex members match right now.
 
@@ -45,14 +46,19 @@ INDICATORS = {
     "ema": ("EMA", [("period", 20, 1, 300)]),
     "wma": ("WMA", [("period", 20, 1, 300)]),
     "rsi": ("RSI", [("period", 14, 2, 100)]),
+    "cci": ("CCI", [("period", 20, 2, 200)]),
+    "williams_r": ("Williams %R", [("period", 14, 2, 200)]),
     "macd": ("MACD line", _MACD), "macd_signal": ("MACD signal", _MACD),
     "macd_hist": ("MACD histogram", _MACD),
     "adx": ("ADX", [("period", 14, 2, 100)]),
     "atr": ("ATR", [("period", 14, 2, 100)]),
     "bb_high": ("Bollinger upper", _BB), "bb_mid": ("Bollinger middle", _BB),
     "bb_low": ("Bollinger lower", _BB),
+    "psar": ("Parabolic SAR", [("step", 0.02, 0.005, 0.1), ("max_step", 0.2, 0.05, 0.5)]),
     "volume_sma": ("Volume SMA", [("period", 20, 1, 200)]),
 }
+# Settings that are fractions rather than bar counts.
+_FLOAT_PARAMS = {"stdev", "step", "max_step"}
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +98,9 @@ def _clean_operand(o, side):
     for key, default, lo, hi in INDICATORS[name][1]:
         raw = src.get(key, src.get(f"period_{key}"))
         v = default if raw in (None, "") else _num(raw, f"{label} {key}", lo, hi)
-        params[key] = float(v) if key == "stdev" else int(round(v))
+        params[key] = float(v) if key in _FLOAT_PARAMS else int(round(v))
+    if "step" in params and params["step"] > params["max_step"]:
+        raise ValueError("Parabolic SAR: the step cannot be larger than the maximum.")
     if "fast" in params and params["fast"] >= params["slow"]:
         raise ValueError("MACD: the fast period has to be shorter than the slow one.")
     out = {"type": "indicator", "name": name, "tf": tf, "params": params,
@@ -179,6 +187,19 @@ def _series(fr, o, cache):
         mid = c.rolling(p["period"]).mean()
         sd = c.rolling(p["period"]).std()
         s = {"bb_mid": mid, "bb_high": mid + p["stdev"] * sd, "bb_low": mid - p["stdev"] * sd}[n]
+    elif n == "cci":
+        # Lambert's CCI: typical price against its average, over 0.015 x the
+        # mean absolute deviation from that average.
+        tp = (df["High"] + df["Low"] + df["Close"]) / 3.0
+        sma = tp.rolling(p["period"]).mean()
+        mad = tp.rolling(p["period"]).apply(lambda x: float(np.mean(np.abs(x - x.mean()))), raw=True)
+        s = (tp - sma) / (0.015 * mad.replace(0, np.nan))
+    elif n == "williams_r":
+        hh = df["High"].rolling(p["period"]).max()
+        ll = df["Low"].rolling(p["period"]).min()
+        s = -100.0 * (hh - c) / (hh - ll).replace(0, np.nan)
+    elif n == "psar":
+        s, warm = _psar(df["High"], df["Low"], p["step"], p["max_step"]), 3
     elif n == "volume_sma":
         s = df["Volume"].rolling(p["period"]).mean()
     else:
@@ -190,6 +211,38 @@ def _series(fr, o, cache):
         s.iloc[:min(len(s), warm - 1)] = np.nan
     cache[key] = s
     return s
+
+
+def _psar(high, low, step, max_step):
+    """Wilder's Parabolic SAR. Below price in an uptrend, above it in a
+    downtrend; the acceleration factor starts at `step`, grows by `step` each
+    new extreme, is capped at `max_step`, and resets when the trend flips."""
+    h, l = high.to_numpy(dtype=float), low.to_numpy(dtype=float)
+    n = len(h)
+    out = np.full(n, np.nan)
+    if n < 3:
+        return pd.Series(out, index=high.index)
+    up = h[1] >= h[0]
+    ep = h[1] if up else l[1]
+    sar = l[0] if up else h[0]
+    af = step
+    out[1] = sar
+    for i in range(2, n):
+        sar = sar + af * (ep - sar)
+        if up:
+            sar = min(sar, l[i - 1], l[i - 2])
+            if l[i] < sar:
+                up, sar, ep, af = False, ep, l[i], step
+            elif h[i] > ep:
+                ep, af = h[i], min(af + step, max_step)
+        else:
+            sar = max(sar, h[i - 1], h[i - 2])
+            if h[i] > sar:
+                up, sar, ep, af = True, ep, h[i], step
+            elif l[i] < ep:
+                ep, af = l[i], min(af + step, max_step)
+        out[i] = sar
+    return pd.Series(out, index=high.index)
 
 
 def _value(fr, o, cache, back=0):

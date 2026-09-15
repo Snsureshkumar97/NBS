@@ -37,6 +37,49 @@ check("weekly candles end on Fridays with the week's last close", wk.index[-2].w
 check("monthly candles exist for the months covered", 12 <= len(fr["monthly"]) <= 14, len(fr["monthly"]))
 check("a smoothed indicator is 'not known' before it has enough bars", sc._series(sc.frames(daily(closes[:30])), sc._clean_operand(sc._i("ema", period=50), "lhs"), {}).isna().all())
 
+print("1b. CCI, WILLIAMS %R, PARABOLIC SAR")
+hi_, lo_ = fr["daily"]["High"], fr["daily"]["Low"]
+tp = ((hi_ + lo_ + d) / 3).iloc[-20:]
+cci_ref = (tp.iloc[-1] - tp.mean()) / (0.015 * np.mean(np.abs(tp - tp.mean())))
+check("CCI(20) = (typical price - its mean) / (0.015 x mean deviation)", abs(val(sc._i("cci", period=20)) - cci_ref) < 1e-9, round(cci_ref, 2))
+hh, ll = hi_.iloc[-14:].max(), lo_.iloc[-14:].min()
+check("Williams %R(14) = -100 x (highest high - close) / (range)", abs(val(sc._i("williams_r", period=14)) - (-100 * (hh - d.iloc[-1]) / (hh - ll))) < 1e-9)
+wr = val(sc._i("williams_r", period=14))
+check("Williams %R stays between -100 and 0", -100 <= wr <= 0, round(wr, 2))
+upt = sc.frames(daily(100 * np.cumprod(np.full(120, 1.004))))["daily"]
+ps = sc._psar(upt["High"], upt["Low"], 0.02, 0.2)
+check("Parabolic SAR sits below the lows in a steady uptrend", (ps.iloc[-100:] < upt["Low"].iloc[-100:]).all())
+
+
+def _ref_sar(h, l, step=0.02, mx=0.2):
+    # Written separately from the engine, straight from Wilder's rules.
+    out, bull, af, ep, sar = [np.nan] * len(h), True, step, h[0], l[0]
+    for i in range(1, len(h)):
+        sar = sar + af * (ep - sar)
+        if bull:
+            sar = min(sar, l[i - 1], l[max(i - 2, 0)])
+            if l[i] < sar: bull, sar, ep, af = False, ep, l[i], step
+            elif h[i] > ep: ep, af = h[i], min(af + step, mx)
+        else:
+            sar = max(sar, h[i - 1], h[max(i - 2, 0)])
+            if h[i] > sar: bull, sar, ep, af = True, ep, h[i], step
+            elif l[i] < ep: ep, af = l[i], min(af + step, mx)
+        out[i] = sar
+    return np.array(out)
+
+
+dh, dl = fr["daily"]["High"], fr["daily"]["Low"]
+check("SAR matches Wilder's rules bar for bar on choppy prices", np.nanmax(np.abs(sc._psar(dh, dl, 0.02, 0.2).to_numpy()[-200:] - _ref_sar(dh.to_numpy(), dl.to_numpy())[-200:])) < 1e-9)
+flip = daily(list(100 * np.cumprod(np.full(60, 1.004))) + list(100 * 1.004 ** 60 * np.cumprod(np.full(20, 0.985))))
+fd = sc.frames(flip)["daily"]
+pf = sc._psar(fd["High"], fd["Low"], 0.02, 0.2)
+check("and flips above the highs once the trend turns down", (pf.iloc[-5:] > fd["High"].iloc[-5:]).all() and (pf.iloc[55:60] < fd["Low"].iloc[55:60]).all())
+try:
+    sc.clean({"conditions": [{"lhs": sc._i("psar", step=0.08, max_step=0.06), "op": ">", "rhs": sc._v(0)}]}); check("SAR step above its maximum is refused", False)
+except ValueError as e:
+    check("SAR step above its maximum is refused", True, str(e))
+check("SAR settings keep their decimals", sc.clean({"conditions": [{"lhs": sc._i("close"), "op": ">", "rhs": sc._i("psar", step=0.025, max_step=0.25)}]})["conditions"][0]["rhs"]["params"] == {"step": 0.025, "max_step": 0.25})
+
 print("2. CROSSES")
 up = daily(list(np.linspace(100, 90, 60)) + [96])      # falling, then jumps back over its short average
 s = {"name": "x", "conditions": [{"lhs": sc._i("close"), "op": "crosses above", "rhs": sc._i("sma", period=5)}]}
