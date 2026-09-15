@@ -92,4 +92,35 @@ check("NIFTY recomputed: its fault is gone and the age is fresh",
 check("SENSEX still has too few candles, and still says so", "SENSEX" in st["errors"])
 check("the state was updated", g.state["indices"]["NIFTY"]["at"] != "00:00:00")
 
+print("4. ENOUGH CANDLES AFTER ANY HOLIDAY BREAK")
+import datetime as dt
+import inspect
+import config
+import main
+days = config.INTRADAY_LOOKBACK_DAYS
+need = max(60, config.EMA_SLOW + 5)
+bars_per_session = 24                 # 09:30 to 15:15 once the pre-open candle is dropped
+worst = None
+d = dt.date(2026, 1, 1)
+while d <= dt.date(2026, 12, 31):
+    if d.weekday() < 5 and not main.is_nse_holiday(d):
+        # The morning's first pass: today's range has barely begun, so count
+        # only the complete sessions inside the window before today.
+        sessions = sum(1 for k in range(1, days + 1)
+                       if (d - dt.timedelta(days=k)).weekday() < 5
+                       and not main.is_nse_holiday(d - dt.timedelta(days=k)))
+        if worst is None or sessions < worst[0]:
+            worst = (sessions, d)
+    d += dt.timedelta(days=1)
+check(f"{days} calendar days leave at least {need} candles on every 2026 trading morning",
+      worst[0] * bars_per_session >= need, f"worst: {worst[0]} sessions before {worst[1]}")
+five = min(sum(1 for k in range(1, 6) if (dd - dt.timedelta(days=k)).weekday() < 5
+               and not main.is_nse_holiday(dd - dt.timedelta(days=k)))
+           for dd in [dt.date(2026, 9, 15)])
+check("the old five days left too few on 15 Sep 2026 - the morning this was found",
+      five * bars_per_session < need, f"{five} sessions")
+src = inspect.getsource(feeds.Feed._run)
+check("the analysis pass asks for that many days for the Indian indices",
+      "INTRADAY_LOOKBACK_DAYS" in src and 'self.market == "nse_index"' in src)
+
 print("LIVE LOOP TEST PASSED" if not fails else f"LIVE LOOP TEST FAILED: {fails}")

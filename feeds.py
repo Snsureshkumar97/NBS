@@ -855,7 +855,13 @@ class Feed:
                         self.stage = f"analyse:{name}"
                         rec, notes = fetch_recommendation(
                             self._provider_for(name, provider),
-                            name, "15m", None, quiet=True,
+                            name, "15m",
+                            # Enough sessions to warm the indicators and feed the
+                            # per-second recompute after any holiday break;
+                            # crypto trades every day, so its default is plenty.
+                            (getattr(config, "INTRADAY_LOOKBACK_DAYS", None)
+                             if self.market == "nse_index" else None),
+                            quiet=True,
                             expiry=_settings["expiry"])
                         # The ticket engine sees every fresh reading — it is
                         # what decides whether this one becomes a ticket, and

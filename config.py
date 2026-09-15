@@ -175,6 +175,16 @@ INSTRUMENTS = {
 # ---------------------------------------------------------------------------
 EMA_FAST = 20
 EMA_SLOW = 50
+
+# How many calendar days of 15-minute candles the live feed fetches for the
+# Indian indices on each analysis pass. It was Zerodha's default of five: on
+# Tue 15 Sep 2026, after a weekend and a Monday holiday, that left 50 candles -
+# fewer than the 55 the indicators warn at (EMA_SLOW + 5), so the 50-candle EMA
+# was computed on 50 candles, and fewer than the 60 the per-second live
+# recompute needs, so it skipped every second and the page only moved once a
+# pass. Fifteen calendar days is at least eight sessions across any holiday
+# break in the NSE calendar - about 190 candles - so both always have enough.
+INTRADAY_LOOKBACK_DAYS = 15
 RSI_LENGTH = 14
 RSI_BULL_MIN = 50
 RSI_BEAR_MAX = 50
