@@ -978,6 +978,9 @@ REGIME_OR_BREAK = True
 # About the same money on ~70% more trades, less per trade and deeper worst
 # drawdowns in both periods. Chosen for more trades, knowing that. Set True to
 # require the break again.
+# (The drawdowns in this table were walked in index order - every Nifty trade, then Bank
+# Nifty, then Sensex - and understate the real pooled figure; pro_study.stats walks them
+# in time order from 15 Sep 2026. Totals and profit factors are unaffected.)
 REGIME_OR_REQUIRE_BREAK = False
 
 # ---------------------------------------------------------------------------
@@ -1015,6 +1018,9 @@ MIN_REWARD_RISK_T3 = 1.0
 # Better in both periods on both scopes, for about 2% fewer trades. Tested with
 # it: an ATR trailing stop after T1 (worse in both) and the 1-hour trend agreeing
 # (better in-sample, worse held-out) - neither used.
+# (The drawdowns in this table were walked in index order - every Nifty trade, then Bank
+# Nifty, then Sensex - and understate the real pooled figure; pro_study.stats walks them
+# in time order from 15 Sep 2026. Totals and profit factors are unaffected.)
 SKIP_RSI_DIVERGENCE = True
 
 # ---------------------------------------------------------------------------
@@ -1038,6 +1044,9 @@ SKIP_RSI_DIVERGENCE = True
 #   held-out year      -218k PF 0.80  DD 248k        +6k  PF 1.00  DD 365k
 #   (Nifty + Sensex alone: +341k and +223k, worst drawdown 86k and 147k)
 # Put "BANKNIFTY" back in the tuple to stop ticketing it.
+# (The drawdowns in this table were walked in index order - every Nifty trade, then Bank
+# Nifty, then Sensex - and understate the real pooled figure; pro_study.stats walks them
+# in time order from 15 Sep 2026. Totals and profit factors are unaffected.)
 WATCH_ONLY_INDICES = ()
 
 # ---------------------------------------------------------------------------

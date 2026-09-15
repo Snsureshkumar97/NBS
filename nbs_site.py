@@ -1102,7 +1102,7 @@ def _record_figs(record):
     figs = [
         ("5,613", "trades on the current rules over three years"),
         ("PF 1.01", "profit factor in the held-out year, after costs: about break-even"),
-        ("\u20b93.44 lakh", "worst drawdown per lot in that year"),
+        ("\u20b94.40 lakh", "worst drawdown per lot in that year"),
         ("modelled", "option prices, not real fills - unproven"),
     ]
     html = "".join(f'<div class="fig"><div class="n">{_esc(n)}</div>'
@@ -1770,10 +1770,17 @@ def results_page(user=None, record=None):
     RSI divergence. A test you have used to
     choose rules is no longer an independent test of them.</li>
    <li><b>The drawdowns are large.</b> The worst run in the held-out year was
-    &#8377;3,43,799 per lot. An account sized so that a drawdown like that is
+    &#8377;4,40,327 per lot, with the three indices&rsquo; trades taken in the
+    order they happened. An account sized so that a drawdown like that is
     survivable is the only kind this should be run with.</li>
    <li><b>There is no long live record.</b> The trades this server has logged
     are a sample of weeks, not years.</li>
+   <li><b>One input was measured inside the held-out year.</b> The VWAP vote
+    weights each quarter-hour by how much the index futures usually trade then,
+    measured from July to September 2026. With equal weights instead &mdash; no
+    measurement at all &mdash; the held-out year makes &#8377;14,044 less and the
+    first two years &#8377;22,387 less. Every other input the backtest decides
+    with was checked, candle by candle, to be known at the moment of entry.</li>
   </ul>
  </section>
 
@@ -1785,8 +1792,8 @@ def results_page(user=None, record=None):
    dates. All three indices are traded: Nifty, Bank Nifty and Sensex.</p>
   <table class="tbl">
    <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
-   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,233</td><td>+&#8377;3,59,660</td><td>+&#8377;111</td><td>1.10</td><td>&#8377;1,11,305</td></tr>
-   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,380</td><td>+&#8377;34,528</td><td>+&#8377;15</td><td>1.01</td><td>&#8377;3,43,799</td></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,233</td><td>+&#8377;3,59,660</td><td>+&#8377;111</td><td>1.10</td><td>&#8377;2,27,028</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,380</td><td>+&#8377;34,528</td><td>+&#8377;15</td><td>1.01</td><td>&#8377;4,40,327</td></tr>
   </table>
   <p>A profit factor of 1.01 means about &#8377;1.01 won for every &#8377;1 lost:
    the held-out year roughly broke even. A small increase in real costs over the
@@ -1847,6 +1854,10 @@ def results_page(user=None, record=None):
     and less in the held-out one. Neither is used. Skipping an entry that runs
     into an RSI divergence &mdash; a new closing high or low that RSI does not
     confirm &mdash; made more in both periods, and is now a rule.</li>
+   <li><b>One ticket per direction across the indices.</b> Nifty, Bank Nifty and
+    Sensex move together, so a second ticket the same way is close to the same bet
+    twice. Holding back a new ticket while another index had one open in the same
+    direction made less in both periods, so it is not used.</li>
   </ul>
  </section>
 

@@ -233,9 +233,19 @@ def extra_features(df, vix):
 def stats(rows):
     if not rows:
         return None
+    # In time order. The rows arrive index by index - every Nifty trade, then
+    # every Bank Nifty one, then Sensex - and a drawdown walked in that order
+    # never lets losing runs on different indices overlap, so every pooled
+    # "worst drawdown" before 15 Sep 2026 was understated (totals, profit factors
+    # and per-index drawdowns were not affected). Found by the look-ahead audit.
+    if all("when" in r for r in rows):
+        rows = sorted(rows, key=lambda r: r["when"])
     net = np.array([r["net"] for r in rows])
     eq = np.cumsum(net)
-    dd = float((np.maximum.accumulate(eq) - eq).max())
+    # From a starting balance of zero: measured from the first trade's result,
+    # a period that opened with losses never counted them as a drawdown.
+    peak = np.maximum.accumulate(np.concatenate(([0.0], eq)))[1:]
+    dd = float((peak - eq).max())
     w, l = net[net > 0].sum(), -net[net < 0].sum()
     return {"n": len(net), "win": float((net > 0).mean() * 100), "avg": float(net.mean()),
             "total": float(net.sum()), "pf": float(w / l) if l else float("inf"), "dd": dd}

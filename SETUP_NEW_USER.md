@@ -233,7 +233,7 @@ options after Zerodha's charges and slippage, the current rules (all three
 indices) came out positive in the first two years and about break-even in the
 latest year (profit factor 1.01: Nifty and Sensex made money, Bank Nifty lost,
 and all of that year's profit came on expiry days) —
-on modelled prices rather than real fills, and with drawdowns of up to ₹3.44 lakh
+on modelled prices rather than real fills, and with drawdowns of up to ₹4.40 lakh
 per lot. Give him that before he pays
 the ₹500, not after.
 
