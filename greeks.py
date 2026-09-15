@@ -119,3 +119,43 @@ def years_to_expiry(minutes):
     """Time in years from minutes remaining. Minutes because on expiry day the
     difference between morning and afternoon is most of the option's life."""
     return max(0.0, minutes) / MINUTES_A_YEAR
+
+
+def scenarios(spot, strike, t, sigma, kind, premium, qty=0, move_pct=0.5, vol_drop=2.0):
+    """The premium under a few plain what-ifs, repriced in full.
+
+    Delta and vega are straight lines; an option is not. A move of any size, a
+    volatility drop after an event, or a day off a short-dated contract comes
+    out here as the model prices it. The model is used only for the change,
+    which is added to the premium on screen, so a quote the model does not fit
+    exactly still starts from what the market shows.
+
+    Rows: the index `move_pct` up and down, volatility `vol_drop` points lower,
+    a day later with nothing moving (to the close when less than a day is
+    left), and all three against the position at once.
+    """
+    kind = (kind or "").upper()
+    if (kind not in ("CE", "PE") or not spot or not strike or not premium
+            or not sigma or sigma <= 0 or t is None or t <= 0):
+        return []
+    base = price(spot, strike, t, sigma, kind)
+    day = 1.0 / 365.0
+    later = t - day if t > day else 0.0
+    later_label = ("A day later, nothing moves" if t > day
+                   else "At the 15:30 expiry, nothing moves")
+    m = move_pct / 100.0
+    low_vol = max(sigma - vol_drop / 100.0, 0.01)
+    against = spot * (1 - m) if kind == "CE" else spot * (1 + m)
+    rows = (("up", f"Index up {move_pct:g}%", spot * (1 + m), t, sigma),
+            ("down", f"Index down {move_pct:g}%", spot * (1 - m), t, sigma),
+            ("vol", f"Volatility {vol_drop:g} points lower", spot, t, low_vol),
+            ("time", later_label, spot, later, sigma),
+            ("worst", "All three against you", against, later, low_vol))
+    out = []
+    for key, label, s_, t_, v_ in rows:
+        new = max(0.0, premium + price(s_, strike, t_, v_, kind) - base)
+        change = new - premium
+        out.append({"key": key, "label": label, "premium": round(new, 2),
+                    "change": round(change, 2),
+                    "rupees": round(change * qty, 2) if qty else None})
+    return out

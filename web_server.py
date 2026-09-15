@@ -749,6 +749,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "theta_day": round(g_["theta"] * qty, 2) if qty else None,
                 "per_100": round(g_["delta"] * 100 * qty, 2) if qty else None,
                 "vega_pt": round(g_["vega"] * qty, 2) if qty else None,
+                "whatif": gk.scenarios(spot, strike, t_yr, iv, kind, prem, qty),
                 "days": round((close - now).total_seconds() / 86400.0, 2),
                 "qty": qty,
                 # What carrying it past the close would cost - shown on the
@@ -2363,6 +2364,13 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .rrsum b{color:var(--ink)}
 .rrtbl td,.rrtbl th{white-space:nowrap}
 .rrtbl tr.exit td{background:rgba(255,255,255,.035)}
+.wiftbl td:first-child{white-space:normal;min-width:150px}
+@media (max-width:560px){
+  /* Premium and rupees are what matter on a phone; the per-unit change is the
+     difference of the two and would push the rupee column off the card. */
+  .wiftbl td:first-child{min-width:0}
+  .wiftbl th:nth-child(3),.wiftbl td:nth-child(3){display:none}
+}
 .riskline{font-size:12px;color:var(--ink-3);line-height:1.6;margin-top:8px}
 .riskline:empty{display:none}
 .riskline b{color:var(--ink-2)}
@@ -6512,12 +6520,28 @@ function posGreeks(s){
             theta == null ? "—" : "−" + money(Math.abs(theta), false), "var(--down)")
   + statRow("Per point of volatility",
             mine.vega_pt == null ? "—" : money(Math.abs(mine.vega_pt), false));
+  const wif = mine.whatif || [];
+  if(wif.length){
+    const signed = (v, fmt) => v == null ? "—" : (v >= 0 ? "+" : "−") + fmt(Math.abs(v));
+    const hue = v => v == null ? "" : ` style="color:${v >= 0 ? "var(--up)" : "var(--down)"}"`;
+    box.innerHTML += `<p class="eyebrow" style="margin:14px 0 4px">What if</p>`
+      + `<div class="scrwrap"><table class="scr rrtbl wiftbl"><thead><tr><th>If</th><th>Premium</th>`
+      + `<th>Change</th><th>${mine.qty} units</th></tr></thead><tbody>`
+      + wif.map(w => `<tr${w.key === "worst" ? ` class="exit"` : ""}><td>${esc(w.label)}</td>`
+          + `<td>${w.premium.toFixed(2)}</td><td${hue(w.change)}>${signed(w.change, x => x.toFixed(2))}</td>`
+          + `<td${hue(w.rupees)}>${signed(w.rupees, x => money(x, false))}</td></tr>`).join("")
+      + `</tbody></table></div>`;
+  }
   if(note) note.textContent =
     `On ${mine.qty} units, ${mine.days} days to expiry. Time decay is what `
     + `holding costs if nothing moves - it is charged every day, weekends `
     + `included, and it accelerates as expiry approaches. Delta is the move `
     + `per point of index, so the hundred-point figure is what the position `
-    + `gains or loses on a move that size, before volatility changes.`;
+    + `gains or loses on a move that size, before volatility changes.`
+    + (wif.length ? ` What if: the premium repriced in full with the same model - a move `
+      + `landing at once, the volatility drop that often follows an event, and a day of `
+      + `time decay alone; the last row puts all three against the position together. `
+      + `A model estimate, not a quote.` : "");
 }
 
 // ======================================================= account + admin
