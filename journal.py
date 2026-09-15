@@ -17,6 +17,8 @@ journal can show what was actually kept.
 """
 import datetime as dt
 import json
+import math
+import random
 import os
 import re
 import threading
@@ -333,4 +335,72 @@ def summarize(lines):
         "by_instrument": by_inst,
         "first": by_day[0][0] if by_day else None, "last": by_day[-1][0] if by_day else None,
     }
-    return {"days": days, "stats": stats}
+    return {"days": days, "stats": stats, "risk": risk(lines)}
+
+
+# ---------------------------------------------------------------------------
+# risk, from your own trades
+# ---------------------------------------------------------------------------
+# What a run of ordinary bad luck looks like on YOUR record: how rough a day
+# gets, and - by re-drawing the next hundred trades at random from the ones you
+# have already taken - the range the next stretch could plausibly land in. It
+# assumes the future resembles your past trades, which is the most it can
+# honestly assume, and it says so. Too few trades and it declines to guess.
+RISK_MIN_TRADES = 20
+MC_TRADES = 100
+MC_RUNS = 2000
+
+
+def _pct(sorted_vals, q):
+    """Linear-interpolated percentile of an already-sorted list, q in [0, 1]."""
+    if not sorted_vals:
+        return None
+    k = (len(sorted_vals) - 1) * q
+    lo, hi = math.floor(k), math.ceil(k)
+    if lo == hi:
+        return sorted_vals[int(k)]
+    return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * (k - lo)
+
+
+def risk(lines, seed=7):
+    pnls = [e["gross"] for e in lines]
+    n = len(pnls)
+    out = {"trades": n, "enough": n >= RISK_MIN_TRADES, "min_trades": RISK_MIN_TRADES}
+    if not out["enough"]:
+        return out
+    days = {}
+    for e in lines:
+        days[e["date"]] = days.get(e["date"], 0.0) + e["gross"]
+    daily = sorted(days.values())
+    m = sum(daily) / len(daily)
+    sd = math.sqrt(sum((x - m) ** 2 for x in daily) / (len(daily) - 1)) if len(daily) > 1 else 0.0
+    downside = [min(0.0, x) for x in daily]
+    dsd = math.sqrt(sum(x * x for x in downside) / len(downside)) if downside else 0.0
+    tail = daily[:max(1, int(math.ceil(len(daily) * 0.05)))]
+    out.update({
+        "days": len(daily),
+        "sharpe": round(m / sd * math.sqrt(252), 2) if sd > 0 else None,
+        "sortino": round(m / dsd * math.sqrt(252), 2) if dsd > 0 else None,
+        "var95_day": round(_pct(daily, 0.05), 2),
+        "es95_day": round(sum(tail) / len(tail), 2),
+    })
+    rnd = random.Random(seed)
+    totals, dds = [], []
+    for _ in range(MC_RUNS):
+        eq = peak = dd = 0.0
+        for _ in range(MC_TRADES):
+            eq += pnls[rnd.randrange(n)]
+            peak = max(peak, eq)
+            dd = max(dd, peak - eq)
+        totals.append(eq)
+        dds.append(dd)
+    totals.sort()
+    dds.sort()
+    out["monte_carlo"] = {
+        "trades": MC_TRADES, "runs": MC_RUNS,
+        "total_p5": round(_pct(totals, 0.05), 2), "total_median": round(_pct(totals, 0.5), 2),
+        "total_p95": round(_pct(totals, 0.95), 2),
+        "chance_down": round(100.0 * sum(1 for t in totals if t < 0) / MC_RUNS, 1),
+        "drawdown_median": round(_pct(dds, 0.5), 2), "drawdown_p95": round(_pct(dds, 0.95), 2),
+    }
+    return out

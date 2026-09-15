@@ -1007,7 +1007,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._send(json.dumps({
             "market": market, "currency": config.MARKETS[market].get("currency", "INR"),
             "source": source, "entries": lines, "days": summary["days"],
-            "stats": summary["stats"], "notes": notes, "instruments": insts,
+            "stats": summary["stats"], "risk": summary.get("risk"), "notes": notes, "instruments": insts,
             "lot_sizes": {k: (config.INSTRUMENTS.get(k) or {}).get("lot_size") for k in insts},
             "today": journal.today_ist().isoformat(), "review": review}, default=str),
             "application/json")
@@ -3517,6 +3517,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
     <span class="jmsg" id="jnotemsg"></span>
    </div>
   </div>
+  <div class="card" data-panel="jrisk" id="jriskcard">
+   <p class="eyebrow">Risk &middot; from your own trades</p>
+   <div class="pulse" id="jrisk"></div>
+   <div class="gnote" id="jrisknote"></div>
+  </div>
   <div class="card" data-panel="jreview" id="jreviewcard">
    <p class="eyebrow">Against the backtest &middot; the tool&rsquo;s tickets, per lot</p>
    <div id="jreview"></div>
@@ -4064,7 +4069,7 @@ function journalPaint(){
   if(!JN_MONTH) JN_MONTH = today.slice(0, 7);
   document.querySelectorAll("#jsrc [data-src]").forEach(b => b.classList.toggle("on", b.dataset.src === JN_SRC));
   document.querySelectorAll("#jscope [data-scope]").forEach(b => b.classList.toggle("on", b.dataset.scope === JN_SCOPE));
-  jheatPaint(d, today); jcalPaint(d, today); jstatsPaint(d); jdayPaint(d); jreviewPaint(d.review);
+  jheatPaint(d, today); jcalPaint(d, today); jstatsPaint(d); jdayPaint(d); jriskPaint(d.risk); jreviewPaint(d.review);
 }
 function jheatPaint(d, today){
   const days = d.days || {}, crypto = d.market === "crypto";
@@ -4175,6 +4180,34 @@ function jdayPaint(d){
   const note = $("jdaynote");
   if(document.activeElement !== note) note.value = (d.notes || {})[JN_DAY] || "";
 }
+// How rough ordinary bad luck gets on this record: the bad day, and the next
+// hundred trades re-drawn from the ones already taken.
+function jriskPaint(r){
+  const box = $("jrisk"), note = $("jrisknote");
+  if(!box) return;
+  if(!r || !r.enough){
+    box.innerHTML = `<p class="jmuted">Needs at least ${(r && r.min_trades) || 20} trades to estimate `
+      + `anything - ${(r && r.trades) || 0} so far. A risk figure from a handful of trades is noise.</p>`;
+    note.textContent = ""; return;
+  }
+  const mc = r.monte_carlo || {};
+  const ratio = v => v == null ? "\u2014" : v.toFixed(2);
+  box.innerHTML =
+      statRow("Sharpe ratio", ratio(r.sharpe), r.sharpe == null ? "" : jcol(r.sharpe))
+    + statRow("Sortino ratio", ratio(r.sortino), r.sortino == null ? "" : jcol(r.sortino))
+    + statRow("1 day in 20 loses at least", money(r.var95_day), jcol(r.var95_day))
+    + statRow("Those worst days average", money(r.es95_day), jcol(r.es95_day))
+    + statRow(`Next ${mc.trades} trades, likely range`, `${money(mc.total_p5)} to ${money(mc.total_p95)}`)
+    + statRow("Middle outcome", money(mc.total_median), jcol(mc.total_median))
+    + statRow("Chance of ending down", `${mc.chance_down}%`, mc.chance_down > 50 ? "var(--down)" : "")
+    + statRow("Drawdown along the way", `${money(-mc.drawdown_median)} typical &middot; ${money(-mc.drawdown_p95)} bad case`, "var(--down)");
+  note.textContent = `From ${r.trades} trades over ${r.days} trading days, before costs. Sharpe and Sortino are the `
+    + `average day against its swings (Sortino counts only the losing swings), scaled to a year. The range re-draws `
+    + `your next ${mc.trades} trades at random from the ${r.trades} you have taken, ${mc.runs} times; it assumes the `
+    + `future looks like your past, which is the most it can assume. Size so that the bad-case drawdown is one you `
+    + `would keep trading through.`;
+}
+
 function jreviewPaint(rv){
   const box = $("jreview");
   if(!box) return;

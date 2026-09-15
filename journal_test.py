@@ -95,6 +95,27 @@ check("the crypto journal is a different file", journal.load(EM, "crypto")["trad
 check("Bitcoin trades take BTC and have no rupee charges", journal.entries(EM, "crypto", "mine") == [] and journal.estimate_charges("BTC", 100, 110, 1) is None)
 check("the file sits in the account's private folder", os.sep + "users" + os.sep in journal._path(EM, MK))
 
+print("6. RISK FROM YOUR OWN TRADES")
+import math, statistics
+few = journal.risk([{"date": "2026-09-01", "gross": 100.0}] * 5)
+check("under 20 trades it declines to estimate", few["enough"] is False and "sharpe" not in few)
+rows, vals = [], [300, -200, 150, -400, 250, 100, -150, 500, -300, 200, 50, -100, 350, -250, 120, 80, -60, 400, -500, 220, 90, -180]
+for k, v in enumerate(vals):
+    rows.append({"date": f"2026-08-{k + 1:02d}", "gross": float(v)})       # one trade a day, so daily = per trade
+R = journal.risk(rows)
+m, sd = statistics.mean(vals), statistics.stdev(vals)
+check("Sharpe = mean / sd of daily P&L x sqrt(252)", R["sharpe"] == round(m / sd * math.sqrt(252), 2), R["sharpe"])
+srt = sorted(vals)
+k = (len(srt) - 1) * 0.05; lo = math.floor(k)
+check("1-in-20 bad day is the 5th percentile of days", R["var95_day"] == round(srt[lo] + (srt[lo + 1] - srt[lo]) * (k - lo), 2), R["var95_day"])
+check("the average of the worst 5% of days", R["es95_day"] == round(sum(srt[:math.ceil(len(srt) * .05)]) / math.ceil(len(srt) * .05), 2), R["es95_day"])
+mc = R["monte_carlo"]
+check("Monte Carlo range is ordered and centred near 100 x the average trade",
+      mc["total_p5"] < mc["total_median"] < mc["total_p95"] and abs(mc["total_median"] - 100 * m) < 3 * sd * 10 ** .5, mc)
+check("same trades, same answer (seeded)", journal.risk(rows)["monte_carlo"] == mc)
+check("drawdown estimates are positive and ordered", 0 < mc["drawdown_median"] <= mc["drawdown_p95"])
+check("summarize carries the risk block", "risk" in journal.summarize(rows))
+
 print()
 print("JOURNAL TEST PASSED" if not fails else f"JOURNAL TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

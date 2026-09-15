@@ -1799,6 +1799,13 @@ def results_page(user=None, record=None):
     rolling to the next expiry on expiry day, a two-hour time stop, taking half
     at T1, and moving the stop to breakeven after T1. None improved both periods,
     so none is used.</li>
+   <li><b>Two more indicators, at their standard settings:</b> not buying once
+    price has closed beyond its Bollinger Band (20, 2), and not buying when the
+    Stochastic (14, 3) is already above 80 for a call or below 20 for a put.
+    The Bollinger filter made more in the held-out year and cut the drawdown,
+    but made &#8377;64,909 less in the first two years; the Stochastic filter
+    made far less in both. Neither beat the current rules in both periods, so
+    neither is used &mdash; and neither was re-tuned to make it pass.</li>
   </ul>
  </section>
 

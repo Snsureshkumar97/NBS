@@ -187,6 +187,14 @@ def price(key, df, A, i, tr, legs, sigma, next_expiry_on_expiry_day=False):
 
 
 # ---------------------------------------------------------------- features
+def _side(r):
+    """CE or PE for a recommendation, whichever field carries it."""
+    side = r.get("option_type")
+    if side in ("CE", "PE"):
+        return side
+    return {"BULLISH": "CE", "BEARISH": "PE"}.get(r.get("bias"))
+
+
 def extra_features(df, vix):
     day = pd.Series(df.index.date, index=df.index)
     dc = rs.daily_close(df)
@@ -199,8 +207,16 @@ def extra_features(df, vix):
     # actually been doing. The absolute VIX filter tested here before said
     # nothing about that: 20 is cheap in a wild month and dear in a quiet one.
     rv = (np.log(dc).diff().rolling(20).std() * math.sqrt(252) * 100).shift(1)
+    # Bollinger (20, 2) and Stochastic %K (14, smoothed 3) on the 15-minute
+    # bars, read at the bar that makes the entry - the close the entry is at.
+    cl, hi, lo = df["Close"], df["High"], df["Low"]
+    mid, sdv = cl.rolling(20).mean(), cl.rolling(20).std()
+    ll, hh = lo.rolling(14).min(), hi.rolling(14).max()
+    stoch = (100 * (cl - ll) / (hh - ll)).rolling(3).mean()
     return {"gap": day.map(gap).to_numpy(), "vix": day.map(vprev).to_numpy(),
-            "rv": day.map(rv).to_numpy()}
+            "rv": day.map(rv).to_numpy(), "cl": cl.to_numpy(),
+            "bb_up": (mid + 2 * sdv).to_numpy(), "bb_lo": (mid - 2 * sdv).to_numpy(),
+            "stoch": stoch.to_numpy()}
 
 
 # ---------------------------------------------------------------- scoring
@@ -272,6 +288,27 @@ def main():
                                     (X[k]["vix"][i] == X[k]["vix"][i] and
                                      X[k]["rv"][i] == X[k]["rv"][i] and X[k]["rv"][i] > 0 and
                                      X[k]["vix"][i] >= 1.5 * X[k]["rv"][i])),
+        # PRE-DECLARED 15 Sep 2026, from reviewing the Jinni project: two textbook
+        # filters it uses that TradePicker does not, at their standard settings,
+        # not swept. Layered on the rules live today. Kept only if better than
+        # those in BOTH periods; otherwise reported failed and nothing changes.
+        # RESULT, history to 11 Sep 2026, per lot after costs, against the live rules
+        # (1,260 trades +333,421 PF 1.30 DD 57,950 | 939 +221,110 PF 1.25 DD 106,038):
+        #   Bollinger  1,094 +268,512 PF 1.28 DD 36,437 | 822 +234,414 PF 1.31 DD 73,326
+        #   Stochastic   424  +48,555 PF 1.12 DD 46,831 | 269  +60,812 PF 1.27 DD 45,898
+        # Bollinger made less in-sample (-64,909) though more held-out and with a
+        # shallower drawdown in both; Stochastic made far less in both. Neither is
+        # better in both periods, so neither is used. Not re-tuned after the fact.
+        "live + Bollinger, don't chase": lambda k: (lambda i, r, k=k:
+            entry_variants["R:R 1 + Bank Nifty watch-only"](k)(i, r) and not (
+                X[k]["bb_up"][i] == X[k]["bb_up"][i] and (
+                    (_side(r) == "CE" and X[k]["cl"][i] > X[k]["bb_up"][i]) or
+                    (_side(r) == "PE" and X[k]["cl"][i] < X[k]["bb_lo"][i])))),
+        "live + Stochastic, not exhausted": lambda k: (lambda i, r, k=k:
+            entry_variants["R:R 1 + Bank Nifty watch-only"](k)(i, r) and not (
+                X[k]["stoch"][i] == X[k]["stoch"][i] and (
+                    (_side(r) == "CE" and X[k]["stoch"][i] > 80) or
+                    (_side(r) == "PE" and X[k]["stoch"][i] < 20)))),
     }
     exit_variants = {
         "hold to T3/stop (live)": {},
@@ -355,7 +392,8 @@ def main():
     print(line("next expiry on expiry day", r))
     for name in ("skip expiry day", "skip VIX > 20", "skip gap > 1%",
                  "skip premium >= 1.5x realised", "min reward:risk 1 (T3)",
-                 "R:R 1 + Bank Nifty watch-only"):
+                 "R:R 1 + Bank Nifty watch-only",
+                 "live + Bollinger, don't chase", "live + Stochastic, not exhausted"):
         r, _ = evaluate(name, {}); out[name] = r; print(line(name, r))
     for name, kw in list(exit_variants.items())[1:]:
         r, _ = evaluate("LIVE RULES (OR break)", kw); out[name] = r; print(line(name, r))
