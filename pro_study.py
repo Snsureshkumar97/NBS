@@ -58,6 +58,8 @@ import math
 import numpy as np
 import pandas as pd
 
+import screener
+
 import backtest_intraday as bt
 import config
 import regime_study as rs
@@ -213,10 +215,18 @@ def extra_features(df, vix):
     mid, sdv = cl.rolling(20).mean(), cl.rolling(20).std()
     ll, hh = lo.rolling(14).min(), hi.rolling(14).max()
     stoch = (100 * (cl - ll) / (hh - ll)).rolling(3).mean()
+    # CCI (20), Williams %R (14) and Parabolic SAR (0.02, 0.2), the Screener's
+    # definitions, on the same bars and read at the same entry bar.
+    tp = (hi + lo + cl) / 3.0
+    mad = tp.rolling(20).apply(lambda x: float(np.mean(np.abs(x - x.mean()))), raw=True)
+    cci = (tp - tp.rolling(20).mean()) / (0.015 * mad.replace(0, np.nan))
+    wr = -100.0 * (hh - cl) / (hh - ll).replace(0, np.nan)
+    sar = screener._psar(hi, lo, 0.02, 0.2)
     return {"gap": day.map(gap).to_numpy(), "vix": day.map(vprev).to_numpy(),
             "rv": day.map(rv).to_numpy(), "cl": cl.to_numpy(),
             "bb_up": (mid + 2 * sdv).to_numpy(), "bb_lo": (mid - 2 * sdv).to_numpy(),
-            "stoch": stoch.to_numpy()}
+            "stoch": stoch.to_numpy(), "cci": cci.to_numpy(), "wr": wr.to_numpy(),
+            "sar": sar.to_numpy()}
 
 
 # ---------------------------------------------------------------- scoring
@@ -309,6 +319,38 @@ def main():
                 X[k]["stoch"][i] == X[k]["stoch"][i] and (
                     (_side(r) == "CE" and X[k]["stoch"][i] > 80) or
                     (_side(r) == "PE" and X[k]["stoch"][i] < 20)))),
+        # PRE-DECLARED 15 Sep 2026, before any result, from the indicators added to
+        # the Screener after reviewing lshariprasad/Stock-Trading-Agent. One
+        # textbook rule each at standard settings, not swept, layered on the rules
+        # live today, kept only if better in BOTH periods:
+        #   CCI(20)          calls only above +100, puts only below -100 (Lambert)
+        #   Williams %R(14)  no call above -20, no put below -80 (not exhausted)
+        #   Parabolic SAR    calls only above the SAR, puts only below it
+        # A bar with no reading yet is not held against the trade.
+        # RESULT, history to 11 Sep 2026, per lot after costs, against the live rules
+        # (1,260 trades +333,421 PF 1.30 DD 57,950 | 939 +221,110 PF 1.25 DD 106,038):
+        #   CCI         878 +206,538 PF 1.25 DD 41,594 | 661  +74,813 PF 1.11 DD 140,126
+        #   Williams    426  +23,322 PF 1.06 DD 62,262 | 279  +90,031 PF 1.44 DD  26,181
+        #   SAR       1,199 +310,822 PF 1.29 DD 46,689 | 906 +217,947 PF 1.25 DD 104,918
+        # All three made less in both periods. The SAR agreed with 95% of the live
+        # entries already - the momentum rule does its job - and the 94 it removed
+        # were worth money. Williams %R's held-out PF rests on 279 trades after a
+        # PF 1.06 in-sample year. None is used. Not re-tuned after the fact.
+        "live + CCI beyond 100": lambda k: (lambda i, r, k=k:
+            entry_variants["R:R 1 + Bank Nifty watch-only"](k)(i, r) and not (
+                X[k]["cci"][i] == X[k]["cci"][i] and (
+                    (_side(r) == "CE" and X[k]["cci"][i] <= 100) or
+                    (_side(r) == "PE" and X[k]["cci"][i] >= -100)))),
+        "live + Williams %R, not exhausted": lambda k: (lambda i, r, k=k:
+            entry_variants["R:R 1 + Bank Nifty watch-only"](k)(i, r) and not (
+                X[k]["wr"][i] == X[k]["wr"][i] and (
+                    (_side(r) == "CE" and X[k]["wr"][i] > -20) or
+                    (_side(r) == "PE" and X[k]["wr"][i] < -80)))),
+        "live + SAR agrees": lambda k: (lambda i, r, k=k:
+            entry_variants["R:R 1 + Bank Nifty watch-only"](k)(i, r) and not (
+                X[k]["sar"][i] == X[k]["sar"][i] and (
+                    (_side(r) == "CE" and X[k]["cl"][i] <= X[k]["sar"][i]) or
+                    (_side(r) == "PE" and X[k]["cl"][i] >= X[k]["sar"][i])))),
     }
     exit_variants = {
         "hold to T3/stop (live)": {},
@@ -393,7 +435,8 @@ def main():
     for name in ("skip expiry day", "skip VIX > 20", "skip gap > 1%",
                  "skip premium >= 1.5x realised", "min reward:risk 1 (T3)",
                  "R:R 1 + Bank Nifty watch-only",
-                 "live + Bollinger, don't chase", "live + Stochastic, not exhausted"):
+                 "live + Bollinger, don't chase", "live + Stochastic, not exhausted",
+                 "live + CCI beyond 100", "live + Williams %R, not exhausted", "live + SAR agrees"):
         r, _ = evaluate(name, {}); out[name] = r; print(line(name, r))
     for name, kw in list(exit_variants.items())[1:]:
         r, _ = evaluate("LIVE RULES (OR break)", kw); out[name] = r; print(line(name, r))
