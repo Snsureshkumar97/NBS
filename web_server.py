@@ -314,6 +314,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_admin_api(form)
             if path == "/api/journal":
                 return self._do_journal(form)
+            if path == "/api/customscreen":
+                return self._do_customscreen(form)
             if path == "/market":
                 return self._do_market(form)
             return self._send(nbs_site.result_page(
@@ -485,6 +487,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_analytics(user, qs)
             if path == "/api/journal":
                 return self._api_journal(user, qs)
+            if path == "/api/customscreen":
+                return self._api_customscreen(user)
             if path == "/api/greeks":
                 return self._api_greeks(user, qs)
             if path == "/api/admin/users":
@@ -971,6 +975,69 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "this feed carries no bid or ask, so an illiquid strike can "
                     "hold a stale reading. Time runs to the 15:30 close on "
                     "expiry day."}), "application/json")
+
+    def _api_customscreen(self, user):
+        """What the screen builder can use: presets, your saved screens, and the
+        indicators, timeframes and comparisons it accepts."""
+        import screener
+        if self._current_market() != "nse_index":
+            return self._send(json.dumps({
+                "note": "The screener runs on the Indian index member stocks - Nifty, Bank "
+                        "Nifty and Sensex. A market of one instrument has nothing to screen."}),
+                "application/json")
+        try:
+            saved = screener.saved(user)
+        except Exception:
+            saved = []
+        return self._send(json.dumps({
+            "presets": screener.PRESETS, "saved": saved,
+            "indicators": [{"name": k, "label": v[0],
+                            "params": [{"key": p[0], "default": p[1], "lo": p[2], "hi": p[3]} for p in v[1]]}
+                           for k, v in screener.INDICATORS.items()],
+            "timeframes": list(screener.TIMEFRAMES), "operators": list(screener.OPERATORS),
+            "max_conditions": screener.MAX_CONDITIONS, "max_offset": screener.MAX_OFFSET}),
+            "application/json")
+
+    def _do_customscreen(self, form):
+        """Run a screen over the index member stocks, or save or delete one of
+        your own. The screen is data checked against fixed lists - never code."""
+        def reply(ok, message, code=200, **extra):
+            return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra)),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        if self._current_market() != "nse_index":
+            return reply(False, "The screener runs on the Indian index member stocks.", 400)
+        import screener
+        action = (form.get("action") or "").strip()
+        strategy = None
+        if action in ("run", "save"):
+            try:
+                strategy = json.loads(form.get("strategy") or "")
+            except ValueError:
+                return reply(False, "That screen could not be read.", 400)
+        try:
+            if action == "run":
+                hist = feeds.for_user(user, "nse_index").constituent_history("day", days=400)
+                out = screener.run(hist, strategy, screener.members())
+                return reply(True, f"{len(out['matches'])} of {out['checked']} stocks match.",
+                             result=out, at=now_ist().strftime("%H:%M"))
+            if action == "save":
+                s = screener.save(user, strategy)
+                return reply(True, f"Saved \u201c{s['name']}\u201d.", saved=screener.saved(user), name=s["name"])
+            if action == "delete":
+                screener.delete(user, form.get("name") or "")
+                return reply(True, "Deleted.", saved=screener.saved(user))
+        except ValueError as exc:
+            return reply(False, str(exc), 400)
+        except RuntimeError as exc:
+            return reply(False, f"The stock data could not be read: {str(exc)[:160]}", 503)
+        except Exception:
+            return reply(False, "The screen could not be run just now.", 500)
+        return reply(False, "Unknown action.", 400)
 
     def _api_journal(self, user, qs):
         """The trading journal: your own trades and the tool's tickets by day,
@@ -2225,6 +2292,19 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .overnight{margin-top:12px;border:1px solid rgba(242,163,61,.42);background:rgba(242,163,61,.08);
   border-radius:12px;padding:10px 13px;font-size:12.5px;line-height:1.6;color:var(--ink-2)}
 .overnight b{color:var(--ink)}
+.scbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.scbar select,.scbar input,.sccond select,.sccond input{background:var(--raised);border:1px solid var(--bd);
+  color:var(--ink);border-radius:8px;padding:6px 8px;font:inherit;font-size:12.5px;color-scheme:dark;min-width:0}
+.scbar input{flex:1 1 200px}
+.scbar select{max-width:100%}
+.sccond{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 0;border-top:1px solid var(--bd-soft)}
+.sccond input.num{width:66px}
+.sccond .sep{font-size:11.5px;color:var(--ink-3)}
+.sccond select.op{font-weight:700}
+.sccond .scx{margin-left:auto}
+#scres td:nth-child(-n+3),#scres th:nth-child(-n+3){text-align:left}
+#scres td.scv{font-size:11.5px;color:var(--ink-2)}
+#scres td.scv b{color:var(--up)}
 .jbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin:0 0 12px}
 .jsrc,.jscope{display:flex;flex-wrap:wrap;gap:6px}
 .jscope{margin:2px 0 10px}
@@ -2984,6 +3064,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
   <button class="tab" data-tab="market" role="tab" type="button"><i>&#128506;</i>Market</button>
   <button class="tab" data-tab="pulse" role="tab" type="button"><i>&#128200;</i>Market pulse</button>
+  <button class="tab" data-tab="screener" role="tab" type="button"><i>&#128269;</i>Screener</button>
   <button class="tab" data-tab="sector" role="tab" type="button"><i>&#129518;</i>Sector scope</button>
   <button class="tab" data-tab="spikes" role="tab" type="button"><i>&#9889;</i>Momentum spikes</button>
   <p class="mgroup">Analysis</p>
@@ -3448,6 +3529,34 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="card" data-panel="sgap" id="sgapcard">
    <p class="eyebrow">Opening gaps</p>
    <div class="pulse" id="sgap"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="screener">
+  <div class="card" data-panel="scbuild" id="scbuildcard">
+   <p class="eyebrow">Build a screen &middot; the Nifty, Bank Nifty and Sensex member stocks</p>
+   <div class="scbar">
+    <select id="scpick" aria-label="Presets and saved screens"></select>
+    <button class="lbtn" type="button" id="scload">Load</button>
+    <input id="scname" maxlength="60" autocomplete="off" aria-label="Screen name">
+   </div>
+   <div id="scconds"></div>
+   <div class="jactions">
+    <button class="lbtn" type="button" id="scadd">+ Add a condition</button>
+    <button class="lbtn on" type="button" id="scrun">Run screen</button>
+    <button class="lbtn" type="button" id="scsave">Save</button>
+    <button class="lbtn" type="button" id="scdel" style="display:none">Delete this saved screen</button>
+    <span class="jmsg" id="scmsg"></span>
+   </div>
+  </div>
+  <div class="card" data-panel="scres" id="screscard">
+   <p class="eyebrow" id="screshead">Results &middot; run a screen to see them</p>
+   <div class="scrwrap"><table class="scr" id="scres"></table></div>
+   <div class="gnote">Daily candles for about the last thirteen months; weekly and monthly are
+    built from them. A screen shows what matches now &mdash; it does not say whether trading it
+    makes money. A stock without enough history for a condition is left out rather than
+    guessed. The condition format follows the open-source Indian-Stock-Market-Screener
+    project, and its strategy files use the same fields.</div>
   </div>
  </section>
 
@@ -4301,6 +4410,146 @@ document.addEventListener("click", async e => {
     const r = await jpost({action: "note", date: JN_DAY, text: $("jdaynote").value});
     $("jnotemsg").textContent = r.message || ""; $("jnotemsg").style.color = r.ok ? "var(--up)" : "var(--down)";
     if(r.ok){ if(JN){ JN.notes = JN.notes || {}; const v = $("jdaynote").value.trim(); if(v) JN.notes[JN_DAY] = v; else delete JN.notes[JN_DAY]; } jcalPaint(JN, JN.today); }
+  }
+});
+
+// ============================================================= screener
+// A screen is conditions over the index member stocks, built from fixed lists
+// the server hands out; the server checks every field again before running it.
+let SC = null, SC_ROWS = [];
+const SC_TF = {daily: "Daily", weekly: "Weekly", monthly: "Monthly"};
+const scInd = name => ((SC && SC.indicators) || []).find(x => x.name === name) || {label: name, params: []};
+function scDefault(name, rhs){
+  const params = {};
+  scInd(name).params.forEach(p => { params[p.key] = p.default; });
+  const o = {type: "indicator", name, tf: "daily", params, offset: 0};
+  if(rhs){ o.mult = 1; o.add = 0; }
+  return o;
+}
+async function scFetch(){
+  if(SC && !SC.note) return;
+  try{ SC = await (await fetch("/api/customscreen", {cache: "no-store"})).json(); }
+  catch(e){ SC = {note: "The screener could not be loaded just now."}; }
+  if(SC.note){ $("scconds").innerHTML = `<p class="jmuted">${esc(SC.note)}</p>`; return; }
+  scPickPaint(); scLoad(SC.presets[0], false);
+}
+function scPickPaint(){
+  $("scpick").innerHTML = `<optgroup label="Presets">` + SC.presets.map((s, i) => `<option value="p${i}">${esc(s.name)}</option>`).join("") + `</optgroup>`
+    + (SC.saved.length ? `<optgroup label="Your saved screens">` + SC.saved.map((s, i) => `<option value="s${i}">${esc(s.name)}</option>`).join("") + `</optgroup>` : "");
+}
+function scLoad(s, isSaved){
+  SC_ROWS = JSON.parse(JSON.stringify(s.conditions));
+  $("scname").value = isSaved ? s.name : "";
+  $("scname").placeholder = isSaved ? "Name this screen" : `${s.name} - name it to save your own`;
+  $("scdel").style.display = isSaved ? "" : "none";
+  $("scdel").dataset.name = isSaved ? s.name : "";
+  scRowsPaint();
+}
+function scOperand(o, i, side){
+  const tf = `<select data-f="${side}.tf" data-i="${i}" aria-label="Timeframe">` + SC.timeframes.map(t => `<option value="${t}"${o.tf === t ? " selected" : ""}>${SC_TF[t]}</option>`).join("") + `</select>`;
+  const nm = `<select data-f="${side}.name" data-i="${i}" aria-label="Indicator">` + SC.indicators.map(x => `<option value="${x.name}"${o.name === x.name ? " selected" : ""}>${esc(x.label)}</option>`).join("") + `</select>`;
+  const ps = scInd(o.name).params.map(p => `<input class="num" type="number" step="any" min="${p.lo}" max="${p.hi}" title="${esc(p.key)}" aria-label="${esc(p.key)}" data-f="${side}.params.${p.key}" data-i="${i}" value="${o.params[p.key] ?? p.default}">`).join("");
+  const off = `<span class="sep">bars ago</span><input class="num" type="number" min="0" max="${SC.max_offset}" aria-label="Bars ago" data-f="${side}.offset" data-i="${i}" value="${o.offset || 0}">`;
+  const extra = side === "rhs" ? `<span class="sep">&times;</span><input class="num" type="number" step="any" aria-label="Multiplier" data-f="rhs.mult" data-i="${i}" value="${o.mult ?? 1}"><span class="sep">+</span><input class="num" type="number" step="any" aria-label="Added amount" data-f="rhs.add" data-i="${i}" value="${o.add ?? 0}">` : "";
+  return tf + nm + (ps ? `<span class="sep">(</span>${ps}<span class="sep">)</span>` : "") + off + extra;
+}
+function scRowsPaint(){
+  $("scconds").innerHTML = SC_ROWS.length ? SC_ROWS.map((c, i) => {
+    const isVal = c.rhs.type === "value";
+    return `<div class="sccond">${scOperand(c.lhs, i, "lhs")}`
+      + `<select class="op" data-f="op" data-i="${i}" aria-label="Comparison">` + SC.operators.map(o => `<option${c.op === o ? " selected" : ""}>${o}</option>`).join("") + `</select>`
+      + `<select data-f="rhs.type" data-i="${i}" aria-label="Compare with"><option value="value"${isVal ? " selected" : ""}>a number</option><option value="indicator"${isVal ? "" : " selected"}>an indicator</option></select>`
+      + (isVal ? `<input class="num" type="number" step="any" aria-label="Number" data-f="rhs.value" data-i="${i}" value="${c.rhs.value}">` : scOperand(c.rhs, i, "rhs"))
+      + `<button class="lbtn scx" type="button" data-scx="${i}" aria-label="Remove this condition">&times;</button></div>`;
+  }).join("") : `<p class="jmuted">No conditions yet - add one.</p>`;
+  $("scadd").disabled = SC_ROWS.length >= SC.max_conditions;
+}
+function scText(o){
+  if(o.type === "value") return num(o.value, 2);
+  const m = scInd(o.name), ps = m.params.map(p => o.params[p.key]).join(",");
+  let t = (o.tf !== "daily" ? SC_TF[o.tf].toLowerCase() + " " : "") + m.label + (ps ? `(${ps})` : "");
+  if(o.offset) t += ` ${o.offset} bar${o.offset === 1 ? "" : "s"} ago`;
+  if(o.mult != null && Number(o.mult) !== 1) t += ` × ${o.mult}`;
+  if(o.add) t += ` ${o.add > 0 ? "+" : "−"} ${Math.abs(o.add)}`;
+  return t;
+}
+async function scPost(fields){
+  try{
+    const r = await fetch("/api/customscreen", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams(fields)});
+    return await r.json();
+  }catch(e){ return {ok: false, message: "That could not be sent."}; }
+}
+function scMsg(text, ok){ $("scmsg").textContent = text || ""; $("scmsg").style.color = ok ? "var(--up)" : "var(--down)"; }
+function scStrategy(){
+  const typed = $("scname").value.trim();
+  return {name: typed || $("scname").placeholder.replace(/ - name it to save your own$/, ""), conditions: SC_ROWS};
+}
+// Volumes run to lakhs; two decimals on them are noise.
+const scNum = v => v == null ? "\u2014" : num(v, Math.abs(v) >= 1000 ? 0 : 2);
+function scResults(r, at){
+  const st = r.strategy, rows = r.matches;
+  $("screshead").textContent = `${st.name} · ${rows.length} of ${r.checked} stocks match · ${at} IST`;
+  const heads = st.conditions.map(c => `<th title="${esc(scText(c.lhs) + " " + c.op + " " + scText(c.rhs))}">${esc(scText(c.lhs))} ${esc(c.op)} ${esc(scText(c.rhs))}</th>`).join("");
+  $("scres").innerHTML = rows.length
+    ? `<thead><tr><th>Stock</th><th>Index</th><th>Sector</th><th>Close</th><th>Day</th>${heads}</tr></thead><tbody>`
+      + rows.map(m => `<tr><td class="sym">${esc(m.sym)}</td><td>${esc((m.indices || []).join(", "))}</td><td>${esc(m.sector || "")}</td>`
+        + `<td>${num(m.close, 2)}</td><td style="color:${jcol(m.pct || 0)}">${m.pct == null ? "—" : (m.pct > 0 ? "+" : "") + m.pct.toFixed(2) + "%"}</td>`
+        + m.values.map(v => `<td class="scv"><b>${scNum(v.lhs)}</b> vs ${scNum(v.rhs)}</td>`).join("") + `</tr>`).join("") + `</tbody>`
+    : `<tbody><tr><td class="jmuted" style="text-align:left">No stock matches every condition right now.</td></tr></tbody>`;
+  const nh = (r.not_enough_history || []).length;
+  if(nh) $("scmsg").textContent += ` ${nh} had too little history for a condition and were left out.`;
+}
+document.addEventListener("change", e => {
+  const el = e.target.closest("#scconds [data-f]");
+  if(!el) return;
+  const c = SC_ROWS[Number(el.dataset.i)], path = el.dataset.f.split(".");
+  if(path[0] === "op"){ c.op = el.value; return; }
+  if(path[0] === "rhs" && path[1] === "type"){ c.rhs = el.value === "value" ? {type: "value", value: 0} : scDefault("close", true); scRowsPaint(); return; }
+  const side = c[path[0]];
+  if(path[1] === "name"){
+    const fresh = scDefault(el.value, path[0] === "rhs");
+    fresh.tf = side.tf; fresh.offset = side.offset;
+    if(path[0] === "rhs"){ fresh.mult = side.mult ?? 1; fresh.add = side.add ?? 0; }
+    c[path[0]] = fresh; scRowsPaint(); return;
+  }
+  if(path[1] === "params"){ side.params[path[2]] = Number(el.value); return; }
+  side[path[1]] = path[1] === "tf" ? el.value : Number(el.value);
+});
+document.addEventListener("click", async e => {
+  if(!e.target.closest('[data-pane="screener"]') || !SC || SC.note) return;
+  if(e.target.closest("#scload")){
+    const v = $("scpick").value, list = v[0] === "p" ? SC.presets : SC.saved, s = list[Number(v.slice(1))];
+    if(s){ scLoad(s, v[0] === "s"); scMsg(""); }
+    return;
+  }
+  if(e.target.closest("#scadd")){
+    SC_ROWS.push({lhs: scDefault("rsi", false), op: ">", rhs: {type: "value", value: 50}});
+    scRowsPaint(); return;
+  }
+  const x = e.target.closest("[data-scx]");
+  if(x){ SC_ROWS.splice(Number(x.dataset.scx), 1); scRowsPaint(); return; }
+  if(e.target.closest("#scrun")){
+    const b = $("scrun"); b.disabled = true; scMsg("Running over the member stocks…", true);
+    const r = await scPost({action: "run", strategy: JSON.stringify(scStrategy())});
+    b.disabled = false; scMsg(r.message, r.ok);
+    if(r.ok) scResults(r.result, r.at);
+    return;
+  }
+  if(e.target.closest("#scsave")){
+    if(!$("scname").value.trim()){ scMsg("Give the screen a name first.", false); $("scname").focus(); return; }
+    const r = await scPost({action: "save", strategy: JSON.stringify(scStrategy())});
+    scMsg(r.message, r.ok);
+    if(r.ok){ SC.saved = r.saved; scPickPaint(); const i = SC.saved.findIndex(s => s.name === r.name);
+      if(i >= 0){ $("scpick").value = "s" + i; scLoad(SC.saved[i], true); scMsg(r.message, true); } }
+    return;
+  }
+  if(e.target.closest("#scdel")){
+    const name = $("scdel").dataset.name;
+    if(!name || !confirm(`Delete the saved screen “${name}”?`)) return;
+    const r = await scPost({action: "delete", name});
+    scMsg(r.message, r.ok);
+    if(r.ok){ SC.saved = r.saved; scPickPaint(); scLoad(SC.presets[0], false); scMsg(r.message, true); }
   }
 });
 
@@ -5925,13 +6174,13 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin", "journal"];
+              "season", "news", "record", "admin", "journal", "screener"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
-                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal"};
+                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal", screener:"Screener"};
 // The phone menu. A drawer rather than a strip of pills, closed by picking a
 // section, tapping outside it, or Escape.
 function navOpen(){
@@ -5968,6 +6217,7 @@ function showTab(name, push){
   if(name === "greeks") gkFetch();
   if(name === "admin") adminFetch();
   if(name === "journal") journalFetch();
+  if(name === "screener") scFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
     if(cap && !cap.value){
@@ -6170,7 +6420,7 @@ function gateTabs(){
   const crypto = !!(LAST && LAST.market === "crypto");
   [["sector", crypto], ["market", crypto], ["vol", crypto], ["levels", crypto],
    ["internals", crypto], ["strength", crypto], ["season", crypto],
-   ["greeks", crypto]].forEach(([name, hide]) => {
+   ["greeks", crypto], ["screener", crypto]].forEach(([name, hide]) => {
     const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);
     if(btn) btn.hidden = hide;
     if(hide && TAB === name) showTab("home");
