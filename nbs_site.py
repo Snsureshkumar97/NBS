@@ -1865,6 +1865,13 @@ def results_page(user=None, record=None):
     price is still near that day's extreme, the room that way is now one more
     normal day's range. It made more in both periods and on every index, and is
     now a rule.</li>
+   <li><b>Two controls meant to cut the drawdown.</b> A circuit breaker that paper-traded
+    once the strategy was &#8377;1,00,000 below its high, until it had recovered to
+    within &#8377;50,000, cut the held-out year&rsquo;s worst drawdown from
+    &#8377;4,80,832 to &#8377;1,80,995 &mdash; but in the first two years it sat out
+    recoveries and made both profit and drawdown worse. Halving size when India VIX
+    was in the top quarter of its year made profit per unit of drawdown worse in both
+    periods. Neither is used.</li>
   </ul>
  </section>
 
