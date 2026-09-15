@@ -957,6 +957,19 @@ REENTRY_MIN_RR = 1.0
 # the part that earns its place. Kept for steadier results, not for more profit.
 REGIME_OR_BREAK = True
 
+# Whether that confirmation also needs the BREAK, or only the wait for the range.
+# Switched off on 15 Sep 2026 at the user's choice: the break cost trades - per
+# index, 1.48 a day with no ticket on 38% of days, against 2.58 a day and 20% -
+# without costing money. Measured with pro_study.py's pricing (per lot after
+# Zerodha's charges, exit at T2, with MIN_REWARD_RISK_T3, Nifty and Sensex):
+#                    wait only (this)             wait + break (before)
+#   in-sample        +341k  PF 1.16  DD  86k      +333k  PF 1.30  DD  58k
+#   held-out year    +223k  PF 1.12  DD 147k      +221k  PF 1.25  DD 106k
+# About the same money on ~70% more trades, less per trade and deeper worst
+# drawdowns in both periods. Chosen for more trades, knowing that. Set True to
+# require the break again.
+REGIME_OR_REQUIRE_BREAK = False
+
 # ---------------------------------------------------------------------------
 # ROOM TO RUN — at least what the stop risks
 # ---------------------------------------------------------------------------

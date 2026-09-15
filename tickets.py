@@ -655,7 +655,7 @@ class TicketBook:
         # stamp last_bias_signature: doing so marked the direction "already
         # ticketed", and a signal at 09:17 locked the index out for the day.)
 
-        # --- 6. the opening range has to be broken this way ----------------
+        # --- 6. the opening range has to be complete (and, if required, broken this way)
         # After the daily brake, so "market closed" and "closing auction" still
         # speak first. The confirm streak is left alone: once price does break,
         # the ticket goes at once rather than starting its 120 seconds again.
@@ -692,18 +692,23 @@ class TicketBook:
         return max(stamps) if stamps else None
 
     def _regime_hold(self, rec):
-        """Held until price has broken the opening range in the trade's
+        """Held until the opening range is complete and - when
+        REGIME_OR_REQUIRE_BREAK is on - until price has broken it in the trade's
         direction. Only for markets that have an opening; crypto has none."""
         if not _cfg("REGIME_OR_BREAK", False):
             return None
         if config.market_for(rec.get("index"))["always_open"]:
             return None
         orng = rec.get("opening_range") or {}
+        need_break = bool(_cfg("REGIME_OR_REQUIRE_BREAK", True))
         if not orng.get("ready"):
             return ("or_wait", "OPENING RANGE",
                     "The first half hour, 09:15 to 09:45, sets the opening range. "
-                    "Entries wait until it is complete, then need a break of it "
-                    "in the trade's direction.")
+                    + ("Entries wait until it is complete, then need a break of it "
+                       "in the trade's direction." if need_break else
+                       "Entries wait until it is complete."))
+        if not need_break:
+            return None
         spot, hi, lo = rec.get("spot"), orng.get("high"), orng.get("low")
         if spot is None or hi is None or lo is None:
             return None

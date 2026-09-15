@@ -81,8 +81,14 @@ ok, _ = book.skip_cooldown("NIFTY"); check("skip accepted", ok)
 check("not enough room: still held", not feed(rec(rr=0.5), n=5) and wait() == "reentry_no_room", str(wait()))
 check("wide spread: still held", not feed(rec(spread={"pct": 9.0, "bid": 90., "ask": 100.}), n=5)
       and wait() == "wide_spread", str(wait()))
-check("below the opening range: still held", not feed(rec(spot=24350.0), n=5) and wait() in ("or_break",), str(wait()))
-check("once they pass, the skipped ticket comes", len(feed(rec())) == 1 and trade()["cooldown_skipped"] is True)
+was_brk = getattr(config, "REGIME_OR_REQUIRE_BREAK", True)
+config.REGIME_OR_REQUIRE_BREAK = True
+check("inside the opening range while a break is required: still held",
+      not feed(rec(spot=24350.0), n=5) and wait() in ("or_break",), str(wait()))
+config.REGIME_OR_REQUIRE_BREAK = False
+check("with only the wait required, the same reading is taken - the skipped ticket comes",
+      len(feed(rec(spot=24350.0))) == 1 and trade()["cooldown_skipped"] is True, str(wait()))
+config.REGIME_OR_REQUIRE_BREAK = was_brk
 
 print("6. A COOLDOWN THAT RUNS OUT ON ITS OWN IS NOT MARKED")
 check("stopped out", stop_out())
