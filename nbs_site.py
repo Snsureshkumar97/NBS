@@ -1030,18 +1030,22 @@ def _first_rows():
     """The morning, as the entry rules actually run it.
 
     With the opening-range filter on, the first half hour forms the range and
-    nothing is issued; after it, a ticket needs a break of that range in its
-    own direction. Read from config so the page cannot promise 09:20 entries
-    that the server no longer takes.
+    nothing is issued; after it, a ticket may also need a break of that range
+    in its own direction (REGIME_OR_REQUIRE_BREAK). Read from config so the
+    page cannot promise entries - or conditions - the server no longer uses.
     """
     o, c = _session_open(), _cas_start()
     if getattr(config, "REGIME_OR_BREAK", False):
+        after = ('tickets, but only once price breaks the opening range in the '
+                 'trade&rsquo;s direction &mdash; above its high for a CE, below its '
+                 'low for a PE'
+                 if getattr(config, "REGIME_OR_REQUIRE_BREAK", True) else
+                 'tickets, once the opening range is complete &mdash; no break of '
+                 'it is required')
         return (f'<tr><td><code>{o}</code></td><td><code>09:45</code></td>'
                 '<td>analysing while the opening range forms &mdash; no entries</td></tr>'
                 f'<tr><td><code>09:45</code></td><td><code>{c}</code></td>'
-                '<td>tickets, but only once price breaks the opening range in the '
-                'trade&rsquo;s direction &mdash; above its high for a CE, below its '
-                'low for a PE</td></tr>')
+                f'<td>{after}</td></tr>')
     return (f'<tr><td><code>{o}</code></td><td><code>{c}</code></td>'
             '<td>the full session &mdash; analysing, and issuing tickets</td></tr>')
 
@@ -1090,13 +1094,14 @@ def _record_figs(record):
     sample, and averaging them would quietly let a good week improve a
     three-year result.
     """
-    # pro_study.py on history to 11 Sep 2026: the rules the tool runs now,
-    # priced as the options you would buy, per lot, after Zerodha's charges
-    # and 0.25% slippage a side. Held out from 15 Aug 2025.
+    # pro_study.py pricing on history to 11 Sep 2026: the rules live from
+    # 15 Sep 2026 (opening-range wait, T3 >= 1x stop, all three indices),
+    # priced as the options you would buy, per lot, after Zerodha's charges and
+    # 0.25% slippage a side. Held out from 15 Aug 2025.
     figs = [
-        ("2,199", "trades on the current rules over three years"),
-        ("PF 1.25", "profit factor in the held-out year, after costs"),
-        ("\u20b91.06 lakh", "worst drawdown per lot in that year"),
+        ("5,741", "trades on the current rules over three years"),
+        ("PF 1.00", "profit factor in the held-out year, after costs: break-even"),
+        ("\u20b93.65 lakh", "worst drawdown per lot in that year"),
         ("modelled", "option prices, not real fills - unproven"),
     ]
     html = "".join(f'<div class="fig"><div class="n">{_esc(n)}</div>'
@@ -1199,12 +1204,15 @@ def home_page(user=None, record=None):
    <p>This is the part a site like this normally leaves out, so it is on the
     home page instead. The current rules were run across three years of
     15-minute candles and priced as the options you would buy, with
-    Zerodha&rsquo;s charges and slippage. On Nifty and Sensex they came out
-    <b>positive after costs</b> in both the first two years and the held-out
-    final year &mdash; but the option prices are <b>modelled, not real
-    fills</b>, most of the profit came on expiry days, and two of the rules were
-    chosen after that held-out year had been seen. Before costs the raw signal
-    averages about +0.02R a trade. Treat it as unproven.</p>
+    Zerodha&rsquo;s charges and slippage. Across Nifty, Bank Nifty and Sensex
+    they came out <b>positive after costs in the first two years and about
+    break-even in the held-out final year</b> &mdash; Nifty and Sensex made
+    money in both, and Bank Nifty lost almost as much as they made in the final
+    year. All of that year&rsquo;s profit came on expiry days. The option prices
+    are <b>modelled, not real fills</b>, and several of
+    today&rsquo;s rules were chosen after that held-out year had been seen.
+    Before costs the raw signal averages about +0.02R a trade. Treat it as
+    unproven.</p>
    {_record_figs(record)}
    <p>It is published so it can be checked, not because it is known to work.
     <a href="/results">The full measurement, and what the test did and did not
@@ -1729,13 +1737,14 @@ def results_page(user=None, record=None):
 
  <section class="first">
   <div class="callout warm reveal">
-   <h2 style="margin-top:0">A thin, modelled edge after costs. Not a proven one.</h2>
+   <h2 style="margin-top:0">A thin, modelled result after costs &mdash; break-even in the last year.</h2>
    <p>The rules the tool runs today were replayed across three years of
     15-minute candles and every trade was priced as the option you would have
-    bought, with Zerodha&rsquo;s charges and slippage taken off. On Nifty and
-    Sensex they came out <b>positive after costs in both the first two years and
-    the held-out final year</b>. Read the next section before reading anything
-    into that.</p>
+    bought, with Zerodha&rsquo;s charges and slippage taken off. Across all three
+    indices they came out <b>positive after costs in the first two years and
+    about break-even in the held-out final year</b>: Nifty and Sensex made money
+    in both periods, and Bank Nifty lost almost as much as they made in the
+    final year. Read the next section before reading anything into that.</p>
    {_record_figs(record)}
   </div>
  </section>
@@ -1747,18 +1756,19 @@ def results_page(user=None, record=None):
     Black-Scholes from India VIX, not from recorded option quotes, and
     volatility is held constant through the trade. Real fills, a widening spread
     and implied volatility falling after you buy all make real results worse.</li>
-   <li><b>Most of the profit came on expiry days.</b> On the rules before the
-    last two were added, Nifty made &#8377;1,35,017 per lot on its expiry days in
-    the first two years and &#8377;22,600 on every other day; in the held-out
-    year, &#8377;1,04,608 on expiry days and <b>lost &#8377;19,386</b> on the rest.
-    Expiry day is exactly where a constant-volatility model is least
+   <li><b>All of the held-out year&rsquo;s profit came on expiry days.</b>
+    Across the three indices, trades on a contract&rsquo;s own expiry day made
+    &#8377;3,14,278 per lot in that year (369 trades, profit factor 1.95); every
+    other day together <b>lost &#8377;3,08,754</b> (2,067 trades, 0.88). Expiry
+    day is exactly where a constant-volatility model is least
     trustworthy.</li>
-   <li><b>The held-out year is no longer clean.</b> Two of today&rsquo;s rules
-    &mdash; a floor on reward to risk, and Bank Nifty watch-only &mdash; were
-    adopted on 11 Sep 2026 after the held-out year had been looked at. A test you
-    have used to choose rules is no longer an independent test of them.</li>
+   <li><b>The held-out year is no longer clean.</b> Several of today&rsquo;s
+    rules were chosen after the held-out year had been looked at &mdash; the
+    reward-to-risk floor on 11 Sep 2026, and on 15 Sep 2026 dropping the
+    opening-range break and trading Bank Nifty again. A test you have used to
+    choose rules is no longer an independent test of them.</li>
    <li><b>The drawdowns are large.</b> The worst run in the held-out year was
-    &#8377;1,06,038 per lot. An account sized so that a drawdown like that is
+    &#8377;3,64,906 per lot. An account sized so that a drawdown like that is
     survivable is the only kind this should be run with.</li>
    <li><b>There is no long live record.</b> The trades this server has logged
     are a sample of weeks, not years.</li>
@@ -1770,19 +1780,29 @@ def results_page(user=None, record=None):
   <h3>The current rules, priced as options</h3>
   <p>Per lot, after Zerodha&rsquo;s charges and 0.25% slippage a side, on the
    contract the tool would have suggested with the exchange&rsquo;s real expiry
-   dates. Nifty and Sensex are traded; Bank Nifty is watch-only.</p>
+   dates. All three indices are traded: Nifty, Bank Nifty and Sensex.</p>
   <table class="tbl">
    <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
-   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>1,260</td><td>+&#8377;3,33,421</td><td>+&#8377;265</td><td>1.30</td><td>&#8377;57,950</td></tr>
-   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>939</td><td>+&#8377;2,21,110</td><td>+&#8377;235</td><td>1.25</td><td>&#8377;1,06,038</td></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,305</td><td>+&#8377;3,39,871</td><td>+&#8377;103</td><td>1.10</td><td>&#8377;1,32,176</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,436</td><td>+&#8377;5,524</td><td>+&#8377;2</td><td>1.00</td><td>&#8377;3,64,906</td></tr>
   </table>
-  <p>A profit factor of 1.25 means &#8377;1.25 won for every &#8377;1 lost. It
-   is a small margin: a modest increase in real costs over the modelled ones
-   would take much of it.</p>
+  <p>A profit factor of 1.00 means &#8377;1 won for every &#8377;1 lost: the
+   held-out year broke even. Any increase in real costs over the modelled ones
+   turns it into a loss.</p>
+  <h3>By index</h3>
+  <table class="tbl">
+   <tr><th></th><th>First two years</th><th>PF</th><th>Held-out year</th><th>PF</th></tr>
+   <tr><td>Nifty</td><td>+&#8377;2,39,057</td><td>1.22</td><td>+&#8377;1,10,219</td><td>1.11</td></tr>
+   <tr><td>Bank Nifty</td><td>&minus;&#8377;1,049</td><td>1.00</td><td>&minus;&#8377;2,17,658</td><td>0.80</td></tr>
+   <tr><td>Sensex</td><td>+&#8377;1,01,863</td><td>1.10</td><td>+&#8377;1,12,963</td><td>1.14</td></tr>
+  </table>
+  <p>Bank Nifty has lost money under these rules since its weekly expiry ended
+   in November 2024. It is traded because that was chosen on 15 Sep 2026, not
+   because the test supports it.</p>
 
   <h3>The raw signal, in index points</h3>
   <p>Every signal the engine produced on all three indices, before the
-   opening-range rule, the reward floor and watch-only, measured in index points
+   opening-range wait and the reward floor, measured in index points
    against the stop and <b>before any cost</b>.</p>
   <table class="tbl">
    <tr><th></th><th>Signals</th><th>Reached T1</th><th>Reached T2</th><th>Reached T3</th><th>Stopped out</th><th>Average</th></tr>
@@ -2448,10 +2468,12 @@ def disclaimer_page(user=None, record=None):
 
   <h2>What was measured</h2>
   <p>The current rules were backtested across three years of 15-minute candles
-   and priced as options after Zerodha&rsquo;s charges and slippage. They came
-   out positive after costs on Nifty and Sensex in both periods tested &mdash;
-   on modelled option prices, with most of the profit on expiry days, and with
-   two rules chosen after the held-out year was seen. That is a thin result,
+   and priced as options after Zerodha&rsquo;s charges and slippage. Across all
+   three indices they came out positive after costs in the first two years and
+   about break-even in the held-out year (Bank Nifty lost; Nifty and Sensex
+   made money), with all of that year&rsquo;s profit on expiry days &mdash; on
+   modelled option prices, with several rules chosen
+   after the held-out year was seen. That is a thin result,
    not a proven one. <a href="/results">The full account is here.</a> It is
    published so that it can be checked, not because it is known to work.</p>
 

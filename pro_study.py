@@ -351,6 +351,15 @@ def main():
                 X[k]["sar"][i] == X[k]["sar"][i] and (
                     (_side(r) == "CE" and X[k]["cl"][i] <= X[k]["sar"][i]) or
                     (_side(r) == "PE" and X[k]["cl"][i] >= X[k]["sar"][i])))),
+        # LIVE FROM 15 Sep 2026, the user's choices after seeing each cost: wait
+        # for the opening range with no break (REGIME_OR_REQUIRE_BREAK False),
+        # T3 at least 1x the stop, and Bank Nifty traded. History to 11 Sep 2026:
+        #   3,305 trades +339,871 PF 1.10 DD 132,176 | 2,436 +5,524 PF 1.00 DD 364,906
+        # By index, held-out: Nifty +110,219, Sensex +112,963, Bank Nifty -217,658.
+        "LIVE 15 Sep: range wait + R:R 1, all three": lambda k: (lambda i, r, k=k:
+            bool(F[k]["or_ready"].iloc[i]) and bool(r.get("risk_points"))
+            and r["index_targets"][2] is not None
+            and abs(r["index_targets"][2] - r["spot"]) >= r["risk_points"]),
     }
     exit_variants = {
         "hold to T3/stop (live)": {},
@@ -436,7 +445,8 @@ def main():
                  "skip premium >= 1.5x realised", "min reward:risk 1 (T3)",
                  "R:R 1 + Bank Nifty watch-only",
                  "live + Bollinger, don't chase", "live + Stochastic, not exhausted",
-                 "live + CCI beyond 100", "live + Williams %R, not exhausted", "live + SAR agrees"):
+                 "live + CCI beyond 100", "live + Williams %R, not exhausted", "live + SAR agrees",
+                 "LIVE 15 Sep: range wait + R:R 1, all three"):
         r, _ = evaluate(name, {}); out[name] = r; print(line(name, r))
     for name, kw in list(exit_variants.items())[1:]:
         r, _ = evaluate("LIVE RULES (OR break)", kw); out[name] = r; print(line(name, r))
