@@ -125,9 +125,9 @@ def opening_range(df: pd.DataFrame) -> dict:
 
     ready only once the 09:30 bar is finished - i.e. a bar stamped 09:45 or
     later exists - so its high and low are final. This is the same range, and
-    the same readiness, that regime_study.py tested: the one filter that held
-    up out of sample was "take a CE only above this high, a PE only below
-    this low".
+    the same readiness, that regime_study.py tested and pro_study.py re-measured:
+    "take a CE only above this high, a PE only below this low" - about the
+    same money on far fewer trades, with a shallower worst drawdown.
     """
     out = {"ready": False, "high": None, "low": None}
     try:

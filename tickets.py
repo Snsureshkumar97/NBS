@@ -711,14 +711,14 @@ class TicketBook:
             return ("or_break", "WAITING FOR BREAK",
                     f"A CE here is taken only above the opening-range high of "
                     f"{hi:,.2f}. Price is {spot:,.2f}, {hi - spot:,.2f} below it. "
-                    f"Across three years this one condition was the difference "
-                    f"between losing and not.")
+                    f"Over three years this rule made about the same money on "
+                    f"nearly half the trades, with a smaller worst losing run.")
         if rec.get("option_type") == "PE" and spot >= lo:
             return ("or_break", "WAITING FOR BREAK",
                     f"A PE here is taken only below the opening-range low of "
                     f"{lo:,.2f}. Price is {spot:,.2f}, {spot - lo:,.2f} above it. "
-                    f"Across three years this one condition was the difference "
-                    f"between losing and not.")
+                    f"Over three years this rule made about the same money on "
+                    f"nearly half the trades, with a smaller worst losing run.")
         return None
 
     def _reward_hold(self, name, rec):

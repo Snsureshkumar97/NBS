@@ -939,13 +939,22 @@ REENTRY_MIN_RR = 1.0
 
 # Opening-range confirmation, Indian indices only. A CE is taken only once price
 # is above the high of 09:15-09:45, a PE only below its low; nothing before the
-# range is complete. From regime_study.py, three years, priced as ATM options
-# after Zerodha's charges: it was the only filter tested that improved the
-# in-sample result under every cost and expiry assumption and did not collapse
-# on the held-out year (pooled, default assumptions: -164k -> +253k in-sample,
-# +20k -> +66k out-of-sample, per lot). It takes about 45% fewer trades; in the
-# most favourable assumptions the unfiltered rules make more, in the
-# unfavourable ones they lose far more. Robustness was preferred to upside.
+# range is complete. Adopted from regime_study.py, whose simpler pricing (a fixed
+# days-to-expiry guess) showed it turning a loss into a profit (-164k -> +253k
+# in-sample, +20k -> +66k held-out, per lot).
+#
+# Re-measured 15 Sep 2026 with pro_study.py's pricing - real expiries, per lot
+# after Zerodha's charges, exit at T2, on top of MIN_REWARD_RISK_T3, Nifty and
+# Sensex, history to 11 Sep 2026 - it does not turn a loss into a profit:
+#                    without the rule             with it
+#   in-sample        +268k  PF 1.12  DD 128k      +333k  PF 1.30  DD  58k
+#   held-out year    +260k  PF 1.14  DD 141k      +221k  PF 1.25  DD 106k
+# About the same money on ~45% fewer trades, more per trade and a shallower
+# worst drawdown in both periods; in the held-out year the unfiltered rules made
+# more in total, with the deeper drawdown. Waiting out 09:15-09:45 WITHOUT
+# requiring the break was not consistent (+341k in-sample, +223k held-out), and
+# entries in that window lost in one period and won in the other - the break is
+# the part that earns its place. Kept for steadier results, not for more profit.
 REGIME_OR_BREAK = True
 
 # ---------------------------------------------------------------------------
