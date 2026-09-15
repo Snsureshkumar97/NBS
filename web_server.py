@@ -607,6 +607,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "feed": snap["feed"],
             "stale": snap["feed"] in ("missing", "stale", "expired"),
             "error": snap["error"],
+            # Why prices are not streaming, when they are not. The analysis
+            # keeps refreshing over REST regardless, so without this a dead
+            # tick socket looks like a working page.
+            "stream_error": snap.get("stream_error"),
             "kite": kite,
             "needs_connect": not kite["connected"],
             "indices": snap["indices"],
@@ -797,6 +801,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                   "accounts": len(rows),
                   "sessions": sum(r["sessions"] for r in rows),
                   "signup": bool(config.WEB_ALLOW_SIGNUP),
+                  # The tick engine, and every feed whose socket is not live.
+                  # Neither shows anywhere else, and a dead engine is fixed
+                  # only by a restart - which is the operator's call to make.
+                  "tick_engine": feeds.tick_engine_problem(),
+                  "streams": feeds.stream_problems(),
                   # Years the NSE holiday calendar covers. A year missing from
                   # it makes every holiday look like a trading day.
                   "holiday_years": sorted(__import__("main").NSE_HOLIDAYS_BY_YEAR)}
@@ -6693,6 +6702,11 @@ function adminPaint(){
     + statRow("Signed-in sessions", sv.sessions == null ? "—" : sv.sessions)
     + statRow("Live data feeds", sv.feeds == null ? "—" : sv.feeds)
     + statRow("Signup", sv.signup ? "open to anyone" : "closed - accounts are made here")
+    + statRow("Zerodha tick engine", sv.tick_engine
+        ? esc(`${sv.tick_engine} - restart the server to get live prices back (a restart closes open tickets)`)
+        : "no fault seen", sv.tick_engine ? "var(--warn)" : "")
+    + (sv.streams || []).map(s => statRow(`Tick socket · ${esc(s.market)}`,
+        esc(`${s.email}: ${s.error}`), "var(--warn)")).join("")
     + (() => {
         // Warn once the calendar runs out: the year itself missing, or from
         // mid-November the next year missing (NSE publishes it in December).

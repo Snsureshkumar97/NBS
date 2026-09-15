@@ -1131,6 +1131,93 @@ class DeribitStreamer:
 # =============================================================================
 # LIVE STREAMING (Kite WebSocket)
 # =============================================================================
+# KiteTicker runs on twisted, whose reactor is one per process and is not
+# thread-safe. KiteTicker.connect() schedules its socket with reactor.callLater
+# and starts the reactor only if it is not already running - so called from
+# any other thread once it IS running, the socket goes onto a list the reactor
+# thread reads only when something wakes it. A reactor with no socket open and
+# no timer pending sleeps in select() with no timeout at all, and callLater
+# does not wake it.
+#
+# That is what happened on 15 Sep. The day's first socket closed before the
+# open, the reactor went to sleep, and every socket made after it - the feed's
+# own and four watchdog rebuilds from 09:15 - never so much as opened a TCP
+# connection. Nothing was logged, because nothing ran. A restart fixed it
+# because a new process schedules its first socket before the reactor starts.
+#
+# reactor.callFromThread is the one call twisted makes safe from another
+# thread, and it writes the reactor's wake-up pipe. So the reactor is started
+# here, once, and everything that touches a ticker from outside it - connect,
+# subscribe, close - is handed over through that.
+_REACTOR_LOCK = threading.Lock()
+_reactor_thread = None
+
+KITE_ENGINE_RESTART = ("restart the server to get live prices back - "
+                       "a restart closes open tickets")
+
+
+def _run_reactor(ready):
+    from twisted.internet import reactor
+    reactor.callWhenRunning(ready.set)
+    reactor.run(installSignalHandlers=False)   # signals belong to the main thread
+
+
+def kite_reactor_problem(timeout=2.0, start=False):
+    """None while twisted's reactor is running and answering, else what is wrong.
+
+    A reactor that has stopped cannot be started again in the same process -
+    twisted forbids it - so anything this returns means no Zerodha socket will
+    work until the process is restarted. start=True brings the reactor up if
+    nothing has yet; the default only looks, so the operator page asking never
+    starts one on a server that has not opened a socket."""
+    global _reactor_thread
+    from twisted.internet import reactor
+    with _REACTOR_LOCK:
+        if _reactor_thread is None:
+            if not start:
+                return None
+            ready = threading.Event()
+            _reactor_thread = threading.Thread(target=_run_reactor, args=(ready,),
+                                               daemon=True, name="kite-reactor")
+            _reactor_thread.start()
+            if not ready.wait(10):
+                return "the Zerodha tick engine did not start"
+        thread = _reactor_thread
+    if not thread.is_alive() or not reactor.running:
+        return "the Zerodha tick engine has stopped"
+    if threading.current_thread() is thread:
+        return None
+    answered = threading.Event()
+    reactor.callFromThread(answered.set)
+    if not answered.wait(timeout):
+        return f"the Zerodha tick engine has not answered for {timeout:g}s"
+    return None
+
+
+def _on_reactor(fn, wait=None):
+    """Run fn on the reactor thread, waking it. wait=None hands it over and
+    returns; a number blocks up to that long and says whether fn finished.
+    fn catches its own exceptions - twisted would only log them, silently."""
+    from twisted.internet import reactor
+    if _reactor_thread is None or threading.current_thread() is _reactor_thread:
+        # No reactor in this process yet, so nothing of twisted's to race -
+        # or already on its thread.
+        fn()
+        return True
+    if wait is None:
+        reactor.callFromThread(fn)
+        return True
+    done = threading.Event()
+
+    def run():
+        try:
+            fn()
+        finally:
+            done.set()
+    reactor.callFromThread(run)
+    return done.wait(wait)
+
+
 class KiteStreamer:
     """Real-time price feed over Zerodha's WebSocket — the same mechanism the
     Kite app itself uses.
@@ -1178,6 +1265,13 @@ class KiteStreamer:
             from kiteconnect import KiteTicker
         except ImportError as e:
             self.last_error = f"kiteconnect not installed ({e})"
+            return False
+
+        # A reactor that cannot run gets a plain answer here, rather than a
+        # socket handed back that will never connect.
+        problem = kite_reactor_problem(start=True)
+        if problem:
+            self.last_error = f"{problem} - {KITE_ENGINE_RESTART}"
             return False
 
         try:
@@ -1232,6 +1326,16 @@ class KiteStreamer:
                 self.tick_count += len(ticks)
 
         def on_connect(ws, response):
+            if ws is not self._kws:
+                # Stopped, or given up on, before its handshake finished. There
+                # was no open socket then for stop() to close, so it closes
+                # itself now rather than live on as one of Zerodha's three
+                # connections per token.
+                try:
+                    ws.close()
+                except Exception:
+                    pass
+                return
             self.connected = True
             self.last_error = None
             with self._lock:
@@ -1266,14 +1370,26 @@ class KiteStreamer:
         kws.on_error = on_error
 
         self._kws = kws
-        try:
-            # threaded=True keeps the socket on its own thread so it never
-            # blocks the window.
-            kws.connect(threaded=True)
-            return True
-        except Exception as e:
-            self.last_error = f"connect failed: {e}"
+        failed = []
+
+        def connect():
+            try:
+                # On the reactor's own thread, where it is already running, so
+                # this only schedules the socket - see _on_reactor.
+                kws.connect(threaded=True)
+            except Exception as e:
+                failed.append(e)
+
+        if not _on_reactor(connect, wait=10):
+            self._kws = None             # should it connect later, on_connect closes it
+            self.last_error = ("the Zerodha tick engine did not take the new socket - "
+                               + KITE_ENGINE_RESTART)
             return False
+        if failed:
+            self._kws = None
+            self.last_error = f"connect failed: {failed[0]}"
+            return False
+        return True
 
     # ------------------------------------------------------------------
     def subscribe(self, tokens, quote: bool = False, full: bool = False):
@@ -1297,20 +1413,35 @@ class KiteStreamer:
                 self._quote_tokens.update(tokens)
             if full:
                 self._full_tokens.update(tokens)
-        if self._kws is None:
+        # The wire goes through the reactor thread, like everything else that
+        # touches the ticker - which also orders it against on_connect, since
+        # that runs there too. connect() returns before the socket is open, and
+        # on_connect used to be able to read _subscribed a moment before these
+        # tokens landed in it, leaving them unsubscribed silently and for good.
+        # Now a send that arrives before the socket is open is skipped, and
+        # on_connect's replay already holds the tokens in their modes; one that
+        # arrives after goes straight out. A send that fails is safe as well:
+        # the tokens stay in _subscribed and the next on_connect replays them.
+        kws = self._kws
+        if kws is None or not (fresh or upgrade):
             return
-        try:
-            if fresh:
-                self._kws.subscribe(fresh)
-                if full:
-                    self._kws.set_mode(self._kws.MODE_FULL, fresh)
-                else:
-                    mode = self._kws.MODE_QUOTE if quote else self._kws.MODE_LTP
-                    self._kws.set_mode(mode, fresh)
-            if upgrade:
-                self._kws.set_mode(self._kws.MODE_FULL, upgrade)
-        except Exception as e:
-            self.last_error = f"subscribe failed: {e}"
+
+        def send():
+            # A real ticker's ws stays None until its socket opens.
+            if kws is not self._kws or (hasattr(kws, "ws") and kws.ws is None):
+                return
+            try:
+                if fresh:
+                    kws.subscribe(fresh)
+                    if full:
+                        kws.set_mode(kws.MODE_FULL, fresh)
+                    else:
+                        kws.set_mode(kws.MODE_QUOTE if quote else kws.MODE_LTP, fresh)
+                if upgrade:
+                    kws.set_mode(kws.MODE_FULL, upgrade)
+            except Exception as e:
+                self.last_error = f"subscribe failed: {e}"
+        _on_reactor(send)
 
     def _record_book(self, ticks, now):
         """Keep the latest price, open interest and best bid/ask of every
@@ -1377,10 +1508,20 @@ class KiteStreamer:
         return time.time() - self.last_tick_at
 
     def stop(self):
+        """Close the socket and stop the library retrying it, on the reactor
+        thread. A socket still mid-handshake has nothing to close yet; letting
+        go of _kws first is what makes on_connect close it when it arrives."""
         self.connected = False
+        kws, self._kws = self._kws, None
+        if kws is None:
+            return
+
+        def close():
+            try:
+                kws.close()              # stop_retry, then the close handshake
+            except Exception:
+                pass
         try:
-            if self._kws is not None:
-                self._kws.close()
+            _on_reactor(close)
         except Exception:
             pass
-        self._kws = None

@@ -49,9 +49,10 @@ import market_map
 import signal_engine
 import tickets
 import user_kite
-from data_providers import (DeribitDataProvider, DeribitStreamer,
-                            FreeDataProvider, KiteDataProvider,
-                            KiteStreamer)
+from data_providers import (KITE_ENGINE_RESTART, DeribitDataProvider,
+                            DeribitStreamer, FreeDataProvider,
+                            KiteDataProvider, KiteStreamer,
+                            kite_reactor_problem)
 from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
 
 # A feed with nobody watching it is switched off after this long. Generous
@@ -1209,6 +1210,17 @@ class Feed:
         Resubscribing from the feed's own token maps rather than re-resolving
         them keeps this to one connection and no instrument-dump downloads.
         """
+        # There is no rebuilding out of a reactor that has died or stopped
+        # answering - each new socket would be one more that never connects -
+        # so say plainly that it takes a restart, once in the log and on the
+        # feed, where the page and the operator card can show it.
+        problem = kite_reactor_problem()
+        if problem:
+            msg = f"tick socket silent: {problem} - {KITE_ENGINE_RESTART}"
+            if self.stream_error != msg:
+                print(f"[stream] {now_ist():%Y-%m-%d %H:%M:%S} {msg}", flush=True)
+            self.stream_error = msg
+            return
         token = user_kite.token_for(self.email)
         if not token:
             self.stream_error = "tick socket silent and no Zerodha token to rebuild it"
@@ -1230,11 +1242,9 @@ class Feed:
         self.stream_error = (f"tick socket rebuilt at {now_ist():%H:%M:%S} "
                              "after it went silent")
         # Stop the old one retrying in the background, or Zerodha's limit of
-        # three connections per token fills up with zombies.
-        try:
-            old._kws.stop_retry()
-        except Exception:
-            pass
+        # three connections per token fills up with zombies. stop() does both
+        # the retry and the close, on the reactor thread; reaching into its
+        # ticker from here was one more twisted call made off that thread.
         try:
             old.stop()
         except Exception:
@@ -1871,6 +1881,9 @@ class Feed:
                 "updated": self.state["updated"],
                 "feed": self.state["feed"],
                 "error": self.state["error"],
+                # Why the tick socket is not live, when it is not - including a
+                # reactor that only a restart brings back.
+                "stream_error": self.stream_error,
                 "indices": {k: v["public"] for k, v in self.state["indices"].items()},
                 "why": {k: v["why"] for k, v in self.state["indices"].items()},
                 "tickets": self._tickets_with_odds(),
@@ -1929,6 +1942,21 @@ def wake(email):
 def active():
     with _lock:
         return sorted(_feeds)
+
+
+def stream_problems():
+    """Every running feed whose tick socket is in trouble, for the operator
+    page - a user's own page shows only their own."""
+    with _lock:
+        running = list(_feeds.values())
+    return [{"email": f.email, "market": f.market, "error": f.stream_error}
+            for f in running if getattr(f, "stream_error", None)]
+
+
+def tick_engine_problem():
+    """Why no Zerodha tick socket can work in this process, or None. Only
+    looks: it never starts the reactor."""
+    return kite_reactor_problem(timeout=1.0)
 
 
 def stop_all():
