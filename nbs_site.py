@@ -2164,7 +2164,7 @@ def kite_page(user=None, record=None):
 
  <section>
   <h2>Why this is a daily step</h2>
-  <p>Zerodha clears every access token each morning at around 07:30 IST,
+  <p>Zerodha clears every access token early each morning, between about 05:00 and 07:30 IST,
    whenever it was issued. That is their rule, not a choice made here, and no
    amount of uptime on this server avoids it: reconnecting needs your password
    and your second factor, which only you have.</p>
@@ -2251,7 +2251,7 @@ def access_page(user=None, record=None):
      filed against your account and used only for your data. This site never
      sees your Zerodha password — you type it on Zerodha's page, not on
      this one.</p>
-    <p>Zerodha clears every access token each morning around 07:30 IST
+    <p>Zerodha clears every access token early each morning, between about 05:00 and 07:30 IST
      regardless of when it was issued. That makes this a once-a-morning step
      rather than a once-ever one. Their rule, not this tool's.</p></li>
    <li><h3>The signals compute under your session</h3>
@@ -2323,7 +2323,7 @@ FAQ = [
      "a licence, which is one more reason nothing here should be acted on."),
     ("Why do I have to connect Zerodha every morning?",
      "Zerodha's rule, not this tool's. They clear every Kite access token each "
-     "morning around 07:30 IST regardless of when it was issued. Connect once "
+     "morning, between about 05:00 and 07:30 IST, regardless of when it was issued. Connect once "
        "after that and the tool has what it needs for the rest of the day. It "
        "runs while you have the page open, and with \u201cruns all session\u201d "
        "switched on it keeps running from 09:10 to the close whether the page "
@@ -2678,7 +2678,7 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
    account.</p>
   <p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">
    You type your password on Zerodha's own login page — this site never sees
-   it. Zerodha clears every access token each morning around 07:30 IST,
+   it. Zerodha clears every access token early each morning, between about 05:00 and 07:30 IST,
    whenever it was issued, so this is a step you repeat each morning rather
    than one you do once. <a href="/security">More on what is stored.</a></p>
  </div>

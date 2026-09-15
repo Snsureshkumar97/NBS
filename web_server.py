@@ -1034,7 +1034,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except ValueError as exc:
             return reply(False, str(exc), 400)
         except RuntimeError as exc:
-            return reply(False, f"The stock data could not be read: {str(exc)[:160]}", 503)
+            text = str(exc)
+            # Zerodha clears every token early each morning. Its own wording for
+            # that ("TokenException: Incorrect api_key or access_token") reads
+            # like a fault in the tool; the fix is a reconnect, so say that.
+            if ("TokenException" in text or "access_token" in text
+                    or "no Zerodha token" in text):
+                return reply(False, "Your Zerodha connection has expired for the day - Zerodha "
+                                    "clears it every morning. Reconnect on the Zerodha page, then "
+                                    "run the screen again.", 503, reconnect=True)
+            return reply(False, f"The stock data could not be read: {text[:160]}", 503)
         except Exception:
             return reply(False, "The screen could not be run just now.", 500)
         return reply(False, "Unknown action.", 400)
