@@ -1005,7 +1005,16 @@ MIN_REWARD_RISK_T3 = 1.0
 # The signal stays on screen so you can watch it, and so it is obvious the day
 # it starts working again; it just no longer issues tickets. Remove the name
 # from this tuple to trade it again.
-WATCH_ONLY_INDICES = ("BANKNIFTY",)
+#
+# 15 Sep 2026: emptied at the user's choice, after seeing this. Re-measured under
+# the rules live from that day (wait for the opening range, no break, T3 at
+# least 1x the stop), pro_study.py pricing, per lot after costs:
+#                      Bank Nifty                  all three together
+#   in-sample          -1k   PF 1.00  DD 132k      +340k  PF 1.10  DD 132k
+#   held-out year      -218k PF 0.80  DD 248k        +6k  PF 1.00  DD 365k
+#   (Nifty + Sensex alone: +341k and +223k, worst drawdown 86k and 147k)
+# Put "BANKNIFTY" back in the tuple to stop ticketing it.
+WATCH_ONLY_INDICES = ()
 
 # ---------------------------------------------------------------------------
 # MACD MUST AGREE WITH THE BIAS

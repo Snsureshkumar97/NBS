@@ -511,6 +511,10 @@ class Feed:
         self._crypto_at = 0.0     # when the crypto price poll last ran
         self._crypto_seen = 0.0   # when it last actually got a price
         self.ticker = None        # the fast loop that reads it
+        self._ticker_lock = threading.Lock()   # one tick loop per feed, however it is started
+        self.live_at = 0.0        # when the live recompute last updated an index
+        self.live_errors = {}     # "tick loop" or index name -> (what went wrong, when)
+        self._fault_said = {}     # (where, what) -> when it was last written to the log
         self.spots = {}           # index name -> newest streamed spot
         self.stream_error = None  # why the tick socket is not up, if it is not
         self.stage = "starting"   # where the analysis loop currently is
@@ -533,11 +537,8 @@ class Feed:
             self.warm_history()
         # And the tick loop, the same way. Belt and braces: whatever stops it,
         # the next poll or supervisor pass brings the live prices back.
-        if (self.streamer is not None
-                and (self.ticker is None or not self.ticker.is_alive())):
-            self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
-                                           name=f"ticks:{self.key}")
-            self.ticker.start()
+        if self.streamer is not None:
+            self._ensure_ticker()
 
     def instruments(self):
         """Only this feed's market. A crypto feed must never reach for NIFTY."""
@@ -967,9 +968,7 @@ class Feed:
             # single call below had fetched - frozen, with the age climbing.
             self.streamer = _NO_STREAM
             self._start_crypto_stream()
-            self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
-                                           name=f"ticks:{self.key}")
-            self.ticker.start()
+            self._ensure_ticker()
             return
         token = user_kite.token_for(self.email)
         if not token:
@@ -992,9 +991,50 @@ class Feed:
         self._stream_born = time.time()
         self.stream_error = None
         self._subscribe_indices()
-        self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
-                                       name=f"ticks:{self.key}")
-        self.ticker.start()
+        self._ensure_ticker()
+
+    def _ensure_ticker(self):
+        """Start the tick loop unless one is already running.
+
+        It is started from three places - the first stream, the crypto branch,
+        and a page poll through touch() - and touch() could see the socket set
+        a moment before _start_stream made its thread, start one of its own,
+        and have it overwritten: two loops on one feed, both reading the same
+        socket and checking the same ticket targets. Seen on 15 Sep 2026.
+        """
+        with self._ticker_lock:
+            if self.ticker is not None and self.ticker.is_alive():
+                return
+            self.ticker = threading.Thread(target=self._tick_loop, daemon=True,
+                                           name=f"ticks:{self.key}")
+            self.ticker.start()
+
+    def _note_fault(self, where, text):
+        """Remember what stopped the fast loop or the live recompute, and write
+        it to the log - once every five minutes for each distinct fault.
+
+        Both used to swallow every exception, so on 15 Sep 2026 the live
+        recompute stopped updating the page mid-session and nothing said why.
+        """
+        now = time.time()
+        self.live_errors[where] = (text, now)
+        key = (where, text)
+        if now - self._fault_said.get(key, 0.0) < 300.0:
+            return
+        self._fault_said[key] = now
+        import traceback as _tb
+        tb = _tb.format_exc()
+        print(f"[live] {now_ist():%Y-%m-%d %H:%M:%S} {self.market} {where}: {text}", flush=True)
+        if tb and not tb.startswith("NoneType: None"):
+            print(tb.rstrip(), flush=True)
+
+    def _live_status(self):
+        """How long since the live recompute last updated an index, and what
+        has recently stopped it - for /api/tick and for anyone checking."""
+        now = time.time()
+        return {"age": round(now - self.live_at, 1) if self.live_at else None,
+                "errors": {k: {"what": v[0], "age": round(now - v[1], 1)}
+                           for k, v in list(self.live_errors.items()) if now - v[1] < 600}}
 
     def _start_crypto_stream(self):
         """Open Deribit's socket and take the index for every instrument.
@@ -1462,6 +1502,9 @@ class Feed:
         for name in self.instruments():
             df = self._df_with_live_bar(name)
             if df is None or len(df) < 60:
+                if self.base_df.get(name) is not None:
+                    self._note_fault(name, f"only {0 if df is None else len(df)} candles "
+                                           "for the live recompute")
                 continue
             with self.lock:
                 oi = self.base_oi.get(name)
@@ -1487,12 +1530,14 @@ class Feed:
                     rec["trend"] = None
                 rec["candles"] = df
                 rec["opening_range"] = signal_engine.opening_range(df)
-            except Exception:
+            except Exception as exc:
+                self._note_fault(name, f"{type(exc).__name__}: {exc}")
                 continue
 
             try:
                 evs = self.tickets.update(name, rec)
-            except Exception:
+            except Exception as exc:
+                self._note_fault(f"{name} tickets", f"{type(exc).__name__}: {exc}")
                 evs = []
             with self.lock:
                 entry = self.state["indices"].get(name)
@@ -1502,6 +1547,8 @@ class Feed:
                 entry["public"] = _public(rec, name)
                 entry["why"] = explain.explain(rec)
                 entry["at"] = now_ist().strftime("%H:%M:%S")
+                self.live_at = time.time()
+                self.live_errors.pop(name, None)
                 for ev in evs:
                     ev["at"] = entry["at"]
                     self.events.insert(0, ev)
@@ -1634,8 +1681,8 @@ class Feed:
                     if time.time() - self._last_live > 1.0:
                         self._last_live = time.time()
                         self._live_analysis()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    self._note_fault("tick loop", f"{type(exc).__name__}: {exc}")
                 time.sleep(0.25)
                 continue
             try:
@@ -1681,8 +1728,8 @@ class Feed:
                 if time.time() - self._last_live > 1.0:
                     self._last_live = time.time()
                     self._live_analysis()
-            except Exception:
-                pass
+            except Exception as exc:
+                self._note_fault("tick loop", f"{type(exc).__name__}: {exc}")
             # A target reached is stamped at the moment this loop sees the
             # price, so this interval is also the worst-case error on every
             # "T1 hit at 11:44:09" written into the log.
@@ -1724,6 +1771,7 @@ class Feed:
                                       if self.dstream and not self.dstream.connected
                                       else None)),
                     "stage": self.stage,
+                    "live_analysis": self._live_status(),
                     "streamed": True}
         if st is not None:
             for name, tok in list(self.tokens.items()):
@@ -1756,7 +1804,8 @@ class Feed:
                             and is_market_open(now_ist(), self._ref())),
                "age": round(age, 1) if age is not None else None,
                "premium": {}, "ltp": sug, "bar": self.forming(),
-               "stream_error": self.stream_error, "stage": self.stage}
+               "stream_error": self.stream_error, "stage": self.stage,
+               "live_analysis": self._live_status()}
         if st is not None:
             for name, tok in list(self.opt_tokens.items()):
                 px = st.price(tok)
