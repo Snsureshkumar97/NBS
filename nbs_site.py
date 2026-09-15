@@ -2200,7 +2200,7 @@ def kite_page(user=None, record=None):
     redirect URL on the app does not match this server</td></tr>
    <tr><td>&ldquo;The site owner needs to set KITE_API_KEY&rdquo;</td><td>the
     server has no app credentials yet &mdash; part one is not done</td></tr>
-   <tr><td>Connected yesterday, nothing today</td><td>the daily 07:30 IST
+   <tr><td>Connected yesterday, nothing today</td><td>the early-morning (about 05:00 to 07:30 IST)
     clear-out; press Connect Zerodha again</td></tr>
    <tr><td>Connects, then says the feed is down</td><td>the Kite Connect
     subscription or the historical-data permission has lapsed</td></tr>
