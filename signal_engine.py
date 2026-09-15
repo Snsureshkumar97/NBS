@@ -389,6 +389,16 @@ def _atm_straddle(oi: dict, spot: float):
     return atm["strike"], straddle
 
 
+def _today_extremes(df: pd.DataFrame) -> tuple:
+    """(high, low) of the last date in df so far - live, today's candles to now."""
+    try:
+        today = df.index[-1].date()
+        day = df[[d == today for d in df.index.date]]
+        return float(day["High"].max()), float(day["Low"].min())
+    except Exception:
+        return None, None
+
+
 def _daily_range_stats(df: pd.DataFrame) -> tuple:
     """(typical full-day high-low range, how much of it today has used).
 
@@ -418,7 +428,7 @@ def _daily_range_stats(df: pd.DataFrame) -> tuple:
 
 def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.datetime,
                           adx: float = None, range_stats: tuple = None,
-                         index_key: str = None) -> dict:
+                         index_key: str = None, day_extremes: tuple = None) -> dict:
     """How far can this index REALISTICALLY travel from here, in each
     direction, before the session ends?
 
@@ -508,6 +518,34 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     if room_left is not None and em_remaining:
         room_left = max(room_left, 0.5 * em_remaining)
 
+    # ---- 3b. a trend day's room in its own direction --------------------
+    # On 15 Sep 2026 every index had used its whole normal range by 10:30 and
+    # went on to travel 2.5-3x it, while "what is left of a normal day" said
+    # there was no room. With TREND_DAY_ROOM on, a day that has used at least
+    # its normal range, with price still near that day's extreme, gets one more
+    # normal day's range IN THAT DIRECTION. The other direction is untouched.
+    # The day's high and low must be known at this moment: a backtest passes
+    # them in (day_extremes); without them and with range_stats handed in, the
+    # frame may be the whole history, so nothing is inferred from it.
+    room_up = room_down = room_left
+    label_up = label_down = "how much of a normal day's range is left"
+    if (getattr(config, "TREND_DAY_ROOM", False) and typical is not None and used is not None
+            and typical > 0 and used >= typical):
+        ext = day_extremes
+        if ext is None and range_stats is None:
+            ext = _today_extremes(df)
+        if ext and ext[0] is not None and ext[1] is not None and ext[0] > ext[1]:
+            hi_, lo_ = float(ext[0]), float(ext[1])
+            near = float(getattr(config, "TREND_DAY_NEAR_EXTREME", 0.20)) * (hi_ - lo_)
+            if spot <= lo_ + near:
+                room_down = max(room_down or 0.0, typical)
+                label_down = "a trend day: one more normal day's range"
+                out["trend_day"] = "down"
+            elif spot >= hi_ - near:
+                room_up = max(room_up or 0.0, typical)
+                label_up = "a trend day: one more normal day's range"
+                out["trend_day"] = "up"
+
     def tightest(limits):
         """limits: list of (distance, reason). Smallest positive wins."""
         valid = [(d, r) for d, r in limits if d is not None and d > 0]
@@ -532,12 +570,12 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     up_limits = [
         (em_remaining, "the option market's expected move for the time left"),
         (res_dist, f"the call-OI wall at {out['resistance']}"),
-        (room_left, "how much of a normal day's range is left"),
+        (room_up, label_up),
     ]
     down_limits = [
         (em_remaining, "the option market's expected move for the time left"),
         (sup_dist, f"the put-OI wall at {out['support']}"),
-        (room_left, "how much of a normal day's range is left"),
+        (room_down, label_down),
     ]
 
     out["reach_up"], out["cap_up"] = tightest(up_limits)

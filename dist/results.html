@@ -477,15 +477,15 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
 
  <section class="first">
   <div class="callout warm reveal">
-   <h2 style="margin-top:0">A thin, modelled result after costs &mdash; break-even in the last year.</h2>
+   <h2 style="margin-top:0">A thin, modelled result after costs &mdash; barely positive in the last year.</h2>
    <p>The rules the tool runs today were replayed across three years of
     15-minute candles and every trade was priced as the option you would have
     bought, with Zerodha&rsquo;s charges and slippage taken off. Across all three
     indices they came out <b>positive after costs in the first two years and
-    about break-even in the held-out final year</b>: Nifty and Sensex made money
-    in both periods, and Bank Nifty lost almost as much as they made in the
+    slightly positive in the held-out final year</b>: Nifty and Sensex made money
+    in both periods, and Bank Nifty lost about half of what they made in the
     final year. Read the next section before reading anything into that.</p>
-   <div class="figs"><div class="fig"><div class="n">5,613</div><div class="l">trades on the current rules over three years</div></div><div class="fig"><div class="n">PF 1.01</div><div class="l">profit factor in the held-out year, after costs: about break-even</div></div><div class="fig"><div class="n">₹4.40 lakh</div><div class="l">worst drawdown per lot in that year</div></div><div class="fig"><div class="n">modelled</div><div class="l">option prices, not real fills - unproven</div></div></div>
+   <div class="figs"><div class="fig"><div class="n">6,158</div><div class="l">trades on the current rules over three years</div></div><div class="fig"><div class="n">PF 1.05</div><div class="l">profit factor in the held-out year, after costs: slightly positive</div></div><div class="fig"><div class="n">₹4.81 lakh</div><div class="l">worst drawdown per lot in that year</div></div><div class="fig"><div class="n">modelled</div><div class="l">option prices, not real fills - unproven</div></div></div>
   </div>
  </section>
 
@@ -498,18 +498,18 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
     and implied volatility falling after you buy all make real results worse.</li>
    <li><b>All of the held-out year&rsquo;s profit came on expiry days.</b>
     Across the three indices, trades on a contract&rsquo;s own expiry day made
-    &#8377;3,22,072 per lot in that year (359 trades, profit factor 2.01); every
-    other day together <b>lost &#8377;2,87,544</b> (2,021 trades, 0.88). Expiry
+    &#8377;3,53,503 per lot in that year (379 trades, profit factor 2.06); every
+    other day together <b>lost &#8377;2,09,475</b> (2,141 trades, 0.92). Expiry
     day is exactly where a constant-volatility model is least
     trustworthy.</li>
    <li><b>The held-out year is no longer clean.</b> Several of today&rsquo;s
     rules were chosen after the held-out year had been looked at &mdash; the
     reward-to-risk floor on 11 Sep 2026, and on 15 Sep 2026 dropping the
     opening-range break, trading Bank Nifty again and skipping entries into an
-    RSI divergence. A test you have used to
+    RSI divergence, and on 16 Sep giving a trend day more room to run. A test you have used to
     choose rules is no longer an independent test of them.</li>
    <li><b>The drawdowns are large.</b> The worst run in the held-out year was
-    &#8377;4,40,327 per lot, with the three indices&rsquo; trades taken in the
+    &#8377;4,80,832 per lot, with the three indices&rsquo; trades taken in the
     order they happened. An account sized so that a drawdown like that is
     survivable is the only kind this should be run with.</li>
    <li><b>There is no long live record.</b> The trades this server has logged
@@ -517,8 +517,8 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
    <li><b>One input was measured inside the held-out year.</b> The VWAP vote
     weights each quarter-hour by how much the index futures usually trade then,
     measured from July to September 2026. With equal weights instead &mdash; no
-    measurement at all &mdash; the held-out year makes &#8377;14,044 less and the
-    first two years &#8377;22,387 less. Every other input the backtest decides
+    measurement at all &mdash; the held-out year made &#8377;14,044 less and the
+    first two years &#8377;22,387 less, measured before the trend-day rule. Every other input the backtest decides
     with was checked, candle by candle, to be known at the moment of entry.</li>
   </ul>
  </section>
@@ -531,18 +531,18 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
    dates. All three indices are traded: Nifty, Bank Nifty and Sensex.</p>
   <table class="tbl">
    <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
-   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,233</td><td>+&#8377;3,59,660</td><td>+&#8377;111</td><td>1.10</td><td>&#8377;2,27,028</td></tr>
-   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,380</td><td>+&#8377;34,528</td><td>+&#8377;15</td><td>1.01</td><td>&#8377;4,40,327</td></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,638</td><td>+&#8377;6,29,112</td><td>+&#8377;173</td><td>1.16</td><td>&#8377;1,74,098</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,520</td><td>+&#8377;1,44,028</td><td>+&#8377;57</td><td>1.05</td><td>&#8377;4,80,832</td></tr>
   </table>
-  <p>A profit factor of 1.01 means about &#8377;1.01 won for every &#8377;1 lost:
-   the held-out year roughly broke even. A small increase in real costs over the
-   modelled ones turns it into a loss.</p>
+  <p>A profit factor of 1.05 means about &#8377;1.05 won for every &#8377;1 lost:
+   a thin margin. A modest increase in real costs over the modelled ones would take
+   most of it.</p>
   <h3>By index</h3>
   <table class="tbl">
    <tr><th></th><th>First two years</th><th>PF</th><th>Held-out year</th><th>PF</th></tr>
-   <tr><td>Nifty</td><td>+&#8377;2,49,841</td><td>1.24</td><td>+&#8377;1,10,227</td><td>1.12</td></tr>
-   <tr><td>Bank Nifty</td><td>+&#8377;8,309</td><td>1.01</td><td>&minus;&#8377;2,04,297</td><td>0.80</td></tr>
-   <tr><td>Sensex</td><td>+&#8377;1,01,510</td><td>1.10</td><td>+&#8377;1,28,599</td><td>1.16</td></tr>
+   <tr><td>Nifty</td><td>+&#8377;3,76,779</td><td>1.32</td><td>+&#8377;1,25,558</td><td>1.13</td></tr>
+   <tr><td>Bank Nifty</td><td>+&#8377;19,143</td><td>1.01</td><td>&minus;&#8377;1,36,307</td><td>0.87</td></tr>
+   <tr><td>Sensex</td><td>+&#8377;2,33,189</td><td>1.20</td><td>+&#8377;1,54,777</td><td>1.19</td></tr>
   </table>
   <p>Bank Nifty has lost money under these rules since its weekly expiry ended
    in November 2024. It is traded because that was chosen on 15 Sep 2026, not
@@ -597,6 +597,13 @@ footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-fi
     Sensex move together, so a second ticket the same way is close to the same bet
     twice. Holding back a new ticket while another index had one open in the same
     direction made less in both periods, so it is not used.</li>
+   <li><b>More room to run on a trend day.</b> The room a trade needs is what is
+    left of a normal day's range; on 15 Sep 2026 every index had used all of it by
+    10:30 and went on to travel two and a half to three times it, while the tool
+    held its signals for "low reward". Once a day has used its normal range and
+    price is still near that day's extreme, the room that way is now one more
+    normal day's range. It made more in both periods and on every index, and is
+    now a rule.</li>
   </ul>
  </section>
 

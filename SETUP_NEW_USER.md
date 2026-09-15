@@ -230,10 +230,10 @@ getting anything you don't have.
 **The measured result is thin and unproven.** Over three years of 15-minute
 candles the raw signal averages about +0.02R a trade before any cost. Priced as
 options after Zerodha's charges and slippage, the current rules (all three
-indices) came out positive in the first two years and about break-even in the
-latest year (profit factor 1.01: Nifty and Sensex made money, Bank Nifty lost,
+indices) came out positive in the first two years and slightly positive in the
+latest year (profit factor 1.05: Nifty and Sensex made money, Bank Nifty lost,
 and all of that year's profit came on expiry days) —
-on modelled prices rather than real fills, and with drawdowns of up to ₹4.40 lakh
+on modelled prices rather than real fills, and with drawdowns of up to ₹4.81 lakh
 per lot. Give him that before he pays
 the ₹500, not after.
 

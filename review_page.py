@@ -23,19 +23,20 @@ import math
 import config
 import trade_log
 
-# The backtest this is measured against: the rules live from 15 Sep 2026
-# (wait for the opening range with no break, room to run >= 1x stop, no entry
-# into an RSI divergence, exit at T2, all three indices traded), pro_study.py
-# pricing - real expiries, after Zerodha's costs, per lot - on the held-out year
-# (15 Aug 2025 - 11 Sep 2026). Index options only - there is no comparable crypto
-# backtest priced as options, so crypto shows its own record.
+# The backtest this is measured against: the rules live from 16 Sep 2026
+# (wait for the opening range with no break, room to run >= 1x stop with more
+# room on a trend day, no entry into an RSI divergence, exit at T2, all three
+# indices traded), pro_study.py pricing - real expiries, after Zerodha's costs,
+# per lot - on the held-out year (15 Aug 2025 - 11 Sep 2026). Index options only -
+# there is no comparable crypto backtest priced as options, so crypto shows its
+# own record.
 BENCHMARK = {
-    "all":       {"n": 2380, "win": 43.2, "avg": 15, "pf": 1.01},
-    "NIFTY":     {"n": 818, "win": 43.2, "avg": 135, "pf": 1.12},
-    "BANKNIFTY": {"n": 751, "win": 42.7, "avg": -272, "pf": 0.8},
-    "SENSEX":    {"n": 811, "win": 43.5, "avg": 159, "pf": 1.16},
-    "expiry":    {"n": 359, "win": 43.5, "avg": 897, "pf": 2.01},
-    "other":     {"n": 2021, "win": 43.1, "avg": -142, "pf": 0.88},
+    "all":       {"n": 2520, "win": 43.8, "avg": 57, "pf": 1.05},
+    "NIFTY":     {"n": 858, "win": 43.6, "avg": 146, "pf": 1.13},
+    "BANKNIFTY": {"n": 809, "win": 43.9, "avg": -168, "pf": 0.87},
+    "SENSEX":    {"n": 853, "win": 44.0, "avg": 181, "pf": 1.19},
+    "expiry":    {"n": 379, "win": 43.3, "avg": 933, "pf": 2.06},
+    "other":     {"n": 2141, "win": 43.9, "avg": -98, "pf": 0.92},
 }
 MIN_SAMPLE = 30
 

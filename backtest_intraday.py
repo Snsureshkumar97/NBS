@@ -339,7 +339,9 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=Non
         reach = se.compute_reachability(
             tech["last_close"], no_chain, df, now, adx=tech["adx"],
             range_stats=(float(typical), float(pre["used_today"].iloc[i])),
-            index_key=index_key)
+            index_key=index_key,
+            # the day's high and low as they stood at this candle's close
+            day_extremes=(float(pre["day_high"].iloc[i]), float(pre["day_low"].iloc[i])))
         rec = se.build_recommendation(index_key, tech, no_chain, step, reach=reach)
 
         if rec["bias"] == "NEUTRAL":

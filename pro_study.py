@@ -370,6 +370,8 @@ def main():
         # variant D, better in both periods). With it, the live totals are
         #   3,233 trades +359,660 PF 1.10 DD 111,305 | 2,380 +34,528 PF 1.01 DD 343,799
         # This row stays as it was measured, without the filter.
+        # And on 16 Sep the trend-day room (trend_room_study.py, better in both periods):
+        #   3,638 trades +629,112 PF 1.10->1.16 | 2,520 +144,028 PF 1.05, DD in time order 174k | 481k
         "LIVE 15 Sep: range wait + R:R 1, all three": lambda k: (lambda i, r, k=k:
             bool(F[k]["or_ready"].iloc[i]) and bool(r.get("risk_points"))
             and r["index_targets"][2] is not None

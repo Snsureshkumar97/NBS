@@ -1023,6 +1023,22 @@ MIN_REWARD_RISK_T3 = 1.0
 # in time order from 15 Sep 2026. Totals and profit factors are unaffected.)
 SKIP_RSI_DIVERGENCE = True
 
+# Trend-day room. PRE-DECLARED 15 Sep 2026 and measured by trend_room_study.py
+# before it may be switched on: once a day has used at least its normal range
+# (after the ADX expansion) and price is within TREND_DAY_NEAR_EXTREME of the
+# day's range from its extreme, the room in that direction is one more normal
+# day's range instead of what is left of one. Other limits are unchanged.
+#
+# RESULT (trend_room_study.py, history to 11 Sep 2026, per lot after costs, the live
+# rules with and without it; drawdowns in time order):
+#                    without                              with
+#   first two years  3,233  +359,660 PF 1.10 DD 227k      3,638  +629,112 PF 1.16 DD 174k
+#   held-out year    2,380   +34,528 PF 1.01 DD 440k      2,520  +144,028 PF 1.05 DD 481k
+# Better in both periods and on every index (Bank Nifty's held-out loss 204k -> 136k),
+# for about 10% more trades; the held-out drawdown is 41k deeper. Switched on.
+TREND_DAY_ROOM = True
+TREND_DAY_NEAR_EXTREME = 0.20
+
 # ---------------------------------------------------------------------------
 # WATCH-ONLY INDICES — shown, explained, charted, never ticketed
 # ---------------------------------------------------------------------------

@@ -108,7 +108,8 @@ for key in ("NIFTY", "BANKNIFTY"):
                 now = d_.index[j].to_pydatetime()
                 reach = se.compute_reachability(tech["last_close"], no_chain, d_, now, adx=tech["adx"],
                                                 range_stats=(float(p_["typical"].iloc[j]), float(p_["used_today"].iloc[j])),
-                                                index_key=key)
+                                                index_key=key,
+                                                day_extremes=(float(p_["day_high"].iloc[j]), float(p_["day_low"].iloc[j])))
                 return se.build_recommendation(key, tech, no_chain, step, reach=reach)
             a, b = rec_of(df, pre, i), rec_of(dtr, ptr, len(dtr) - 1)
             recs += 1
