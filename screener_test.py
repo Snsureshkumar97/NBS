@@ -134,6 +134,23 @@ for p in sc.PRESETS:
         ok = str(e)
     check(f"preset runs: {p['name']}", ok is True, ok)
 
+print("5b. THE TREND TEMPLATE PRESET")
+tg = np.random.default_rng(21)
+riser = daily(100 * np.cumprod(1 + tg.normal(0.002, 0.004, 260)))   # a steady uptrend with ordinary noise
+fader = daily(np.r_[100 * np.cumprod(1 + tg.normal(0.0015, 0.008, 220)),
+                    100 * np.cumprod(1 + tg.normal(0.0015, 0.008, 220))[-1] * np.cumprod(np.full(40, 0.99))])
+young = daily(100 * np.cumprod(1 + tg.normal(0.0015, 0.008, 150)))
+tt = next(p for p in sc.PRESETS if p["name"].startswith("Trend template"))
+check("the preset is the seven-point template", len(tt["conditions"]) == 7)
+fr_ = sc.frames(riser)["daily"]["Close"]
+sma = lambda n, back=0: fr_.rolling(n).mean().iloc[-1 - back]
+check("fixture really is a stage-2 riser: close > 50 > 150 > 200, 200-day rising",
+      fr_.iloc[-1] > sma(50) > sma(150) > sma(200) > sma(200, 21), round(float(fr_.iloc[-1]), 1))
+res = sc.run({"RISER": riser, "FADER": fader, "YOUNG": young}, tt, sc.members())
+check("matches the riser only", [m["sym"] for m in res["matches"]] == ["RISER"], [m["sym"] for m in res["matches"]])
+check("a stock that has fallen under its 50-day is not in stage 2", "FADER" not in [m["sym"] for m in res["matches"]])
+check("150 sessions is not enough history for a rising 200-day average", "YOUNG" in res["not_enough_history"], res["not_enough_history"])
+
 print("6. SAVED SCREENS")
 EM = "screener-test@example.invalid"
 sc.save(EM, dict(sc.PRESETS[1], name="My oversold"))

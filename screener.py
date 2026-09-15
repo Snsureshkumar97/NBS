@@ -362,6 +362,18 @@ PRESETS = [clean(s) for s in (
                     {"lhs": _i("close", tf="monthly"), "op": ">", "rhs": _i("wma", tf="monthly", period=6)}]},
     {"name": "Breaking above the Bollinger Band",
      "conditions": [{"lhs": _i("close"), "op": "crosses above", "rhs": _i("bb_high", period=20, stdev=2)}]},
+    # Mark Minervini's trend template - a stock in a "stage 2" uptrend. His rule
+    # accepts 6 of the 7; a screen here needs every condition, so this is the
+    # strict 7-of-7 version. "Rising for a month" is the 200-day average above
+    # where it stood 21 sessions ago. Needs about 220 sessions of history.
+    {"name": "Trend template: stage 2 uptrend (Minervini)",
+     "conditions": [{"lhs": _i("close"), "op": ">", "rhs": _i("sma", period=50)},
+                    {"lhs": _i("close"), "op": ">", "rhs": _i("sma", period=150)},
+                    {"lhs": _i("close"), "op": ">", "rhs": _i("sma", period=200)},
+                    {"lhs": _i("sma", period=50), "op": ">", "rhs": _i("sma", period=150)},
+                    {"lhs": _i("sma", period=50), "op": ">", "rhs": _i("sma", period=200)},
+                    {"lhs": _i("sma", period=150), "op": ">", "rhs": _i("sma", period=200)},
+                    {"lhs": _i("sma", period=200), "op": ">", "rhs": _i("sma", period=200, offset=21)}]},
 )]
 
 
