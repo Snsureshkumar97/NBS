@@ -1003,6 +1003,20 @@ REGIME_OR_REQUIRE_BREAK = False
 # only because 11% fewer trades are taken. 0 switches it off.
 MIN_REWARD_RISK_T3 = 1.0
 
+# No entry into an RSI divergence, Indian indices. From skills_study.py variant D,
+# pre-declared 15 Sep 2026 with the skills installed that day: skip a CE when
+# the entry close is a new 20-bar closing high but RSI(14) is more than 2 points
+# under its value at the previous high (5-20 bars back); the mirror for a PE.
+# Layered on the rules live that day, per lot after costs, history to 11 Sep 2026:
+#                    live rules                       with this
+#   in-sample        3,305  +339,871 PF 1.10 DD 132k   3,233  +359,660 PF 1.10 DD 111k
+#   held-out year    2,436    +5,524 PF 1.00 DD 365k   2,380   +34,528 PF 1.01 DD 344k
+#   Nifty + Sensex   +340,920 | +223,182               +351,351 | +238,825
+# Better in both periods on both scopes, for about 2% fewer trades. Tested with
+# it: an ATR trailing stop after T1 (worse in both) and the 1-hour trend agreeing
+# (better in-sample, worse held-out) - neither used.
+SKIP_RSI_DIVERGENCE = True
+
 # ---------------------------------------------------------------------------
 # WATCH-ONLY INDICES — shown, explained, charted, never ticketed
 # ---------------------------------------------------------------------------

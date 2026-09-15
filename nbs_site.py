@@ -1095,13 +1095,14 @@ def _record_figs(record):
     three-year result.
     """
     # pro_study.py pricing on history to 11 Sep 2026: the rules live from
-    # 15 Sep 2026 (opening-range wait, T3 >= 1x stop, all three indices),
+    # 15 Sep 2026 (opening-range wait, T3 >= 1x stop, no entry into an RSI
+    # divergence, all three indices),
     # priced as the options you would buy, per lot, after Zerodha's charges and
     # 0.25% slippage a side. Held out from 15 Aug 2025.
     figs = [
-        ("5,741", "trades on the current rules over three years"),
-        ("PF 1.00", "profit factor in the held-out year, after costs: break-even"),
-        ("\u20b93.65 lakh", "worst drawdown per lot in that year"),
+        ("5,613", "trades on the current rules over three years"),
+        ("PF 1.01", "profit factor in the held-out year, after costs: about break-even"),
+        ("\u20b93.44 lakh", "worst drawdown per lot in that year"),
         ("modelled", "option prices, not real fills - unproven"),
     ]
     html = "".join(f'<div class="fig"><div class="n">{_esc(n)}</div>'
@@ -1758,17 +1759,18 @@ def results_page(user=None, record=None):
     and implied volatility falling after you buy all make real results worse.</li>
    <li><b>All of the held-out year&rsquo;s profit came on expiry days.</b>
     Across the three indices, trades on a contract&rsquo;s own expiry day made
-    &#8377;3,14,278 per lot in that year (369 trades, profit factor 1.95); every
-    other day together <b>lost &#8377;3,08,754</b> (2,067 trades, 0.88). Expiry
+    &#8377;3,22,072 per lot in that year (359 trades, profit factor 2.01); every
+    other day together <b>lost &#8377;2,87,544</b> (2,021 trades, 0.88). Expiry
     day is exactly where a constant-volatility model is least
     trustworthy.</li>
    <li><b>The held-out year is no longer clean.</b> Several of today&rsquo;s
     rules were chosen after the held-out year had been looked at &mdash; the
     reward-to-risk floor on 11 Sep 2026, and on 15 Sep 2026 dropping the
-    opening-range break and trading Bank Nifty again. A test you have used to
+    opening-range break, trading Bank Nifty again and skipping entries into an
+    RSI divergence. A test you have used to
     choose rules is no longer an independent test of them.</li>
    <li><b>The drawdowns are large.</b> The worst run in the held-out year was
-    &#8377;3,64,906 per lot. An account sized so that a drawdown like that is
+    &#8377;3,43,799 per lot. An account sized so that a drawdown like that is
     survivable is the only kind this should be run with.</li>
    <li><b>There is no long live record.</b> The trades this server has logged
     are a sample of weeks, not years.</li>
@@ -1783,18 +1785,18 @@ def results_page(user=None, record=None):
    dates. All three indices are traded: Nifty, Bank Nifty and Sensex.</p>
   <table class="tbl">
    <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
-   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,305</td><td>+&#8377;3,39,871</td><td>+&#8377;103</td><td>1.10</td><td>&#8377;1,32,176</td></tr>
-   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,436</td><td>+&#8377;5,524</td><td>+&#8377;2</td><td>1.00</td><td>&#8377;3,64,906</td></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,233</td><td>+&#8377;3,59,660</td><td>+&#8377;111</td><td>1.10</td><td>&#8377;1,11,305</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,380</td><td>+&#8377;34,528</td><td>+&#8377;15</td><td>1.01</td><td>&#8377;3,43,799</td></tr>
   </table>
-  <p>A profit factor of 1.00 means &#8377;1 won for every &#8377;1 lost: the
-   held-out year broke even. Any increase in real costs over the modelled ones
-   turns it into a loss.</p>
+  <p>A profit factor of 1.01 means about &#8377;1.01 won for every &#8377;1 lost:
+   the held-out year roughly broke even. A small increase in real costs over the
+   modelled ones turns it into a loss.</p>
   <h3>By index</h3>
   <table class="tbl">
    <tr><th></th><th>First two years</th><th>PF</th><th>Held-out year</th><th>PF</th></tr>
-   <tr><td>Nifty</td><td>+&#8377;2,39,057</td><td>1.22</td><td>+&#8377;1,10,219</td><td>1.11</td></tr>
-   <tr><td>Bank Nifty</td><td>&minus;&#8377;1,049</td><td>1.00</td><td>&minus;&#8377;2,17,658</td><td>0.80</td></tr>
-   <tr><td>Sensex</td><td>+&#8377;1,01,863</td><td>1.10</td><td>+&#8377;1,12,963</td><td>1.14</td></tr>
+   <tr><td>Nifty</td><td>+&#8377;2,49,841</td><td>1.24</td><td>+&#8377;1,10,227</td><td>1.12</td></tr>
+   <tr><td>Bank Nifty</td><td>+&#8377;8,309</td><td>1.01</td><td>&minus;&#8377;2,04,297</td><td>0.80</td></tr>
+   <tr><td>Sensex</td><td>+&#8377;1,01,510</td><td>1.10</td><td>+&#8377;1,28,599</td><td>1.16</td></tr>
   </table>
   <p>Bank Nifty has lost money under these rules since its weekly expiry ended
    in November 2024. It is traded because that was chosen on 15 Sep 2026, not
@@ -1839,6 +1841,12 @@ def results_page(user=None, record=None):
     but made &#8377;64,909 less in the first two years; the Stochastic filter
     made far less in both. Neither beat the current rules in both periods, so
     neither is used &mdash; and neither was re-tuned to make it pass.</li>
+   <li><b>Three ideas from trading-skill checklists, 15 Sep 2026:</b> a stop that
+    trails 1x ATR behind the best price once T1 is reached made less in both
+    periods; requiring the 1-hour trend to agree made more in the first two years
+    and less in the held-out one. Neither is used. Skipping an entry that runs
+    into an RSI divergence &mdash; a new closing high or low that RSI does not
+    confirm &mdash; made more in both periods, and is now a rule.</li>
   </ul>
  </section>
 

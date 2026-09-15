@@ -1255,6 +1255,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         # -------------------------------------------------------------- levels
         levels = []
+        from indicators import fib_retracements
         for key in config.instruments_in(market):
             try:
                 d = series(key, "1d", 60)
@@ -1275,7 +1276,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                        "r1": round(2*pivot - L, 2), "s1": round(2*pivot - H, 2),
                        "r2": round(pivot + (H - L), 2), "s2": round(pivot - (H - L), 2),
                        "atr": round(atr), "atr_lo": round(C - atr, 2),
-                       "atr_hi": round(C + atr, 2), "session": str(d.index[-1].date())}
+                       "atr_hi": round(C + atr, 2), "session": str(d.index[-1].date()),
+                       **{f"fib{k}": v for k, v in fib_retracements(H, L).items()}}
                 m = series(key, "5m", 5)
                 if m is not None and len(m) > 3:
                     day = m.index[-1].date()
@@ -3535,6 +3537,11 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
    <p class="eyebrow">Opening range &middot; first fifteen minutes</p>
    <div class="scrwrap"><table class="scr" id="lvlor"></table></div>
   </div>
+  <div class="card" data-panel="lvlfib" id="lvlfibcard">
+   <p class="eyebrow">Fibonacci &middot; the previous session&rsquo;s range</p>
+   <div class="scrwrap"><table class="scr" id="lvlfib"></table></div>
+   <div class="gnote" id="lvlfibnote"></div>
+  </div>
  </section>
 
  <section class="pane" data-pane="internals">
@@ -4089,20 +4096,27 @@ function riskBox(r, tk, sess){
 
   const unit = (r.lot_size || 1) > 1 ? "lot" : "contract";
   const parts = [];
-  let perLot = null, lots = LOTS, what = "this signal";
+  let perLot = null, lots = LOTS, what = "this signal", chg = null;
   if(tk && tk.open){
     if(tk.tracked_on === "premium" && tk.entry != null && tk.stop != null && tk.lot_size){
       perLot = (tk.entry - tk.stop) * tk.lot_size;
     }
-    lots = tk.lots || 1; what = "this ticket";
+    lots = tk.lots || 1; what = "this ticket"; chg = tk.charges || null;
   } else if(r.ltp != null && r.premium_stop != null && r.lot_size
             && r.bias && r.bias !== "NEUTRAL"){
     perLot = (r.ltp - r.premium_stop) * r.lot_size;
+    chg = r.charges || null;
   }
+  // What a stop-out really costs: the premium lost plus the charges on both
+  // orders - one flat part per trade, the rest per lot - the same figure the
+  // Risk and reward panel shows. Sizing on the premium alone let the suggested
+  // lots quietly exceed the risk budget by the charges.
+  const flat = (chg && chg.flat != null) ? chg.flat : 0;
+  const lotCost = (chg && chg.per_lot && chg.per_lot.stop != null) ? chg.per_lot.stop : 0;
   if(perLot != null && perLot > 0){
-    const total = perLot * lots;
+    const total = (perLot + lotCost) * lots + flat;
     let s = `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
-          + ` (${money(perLot,false)} per ${unit}, entry to stop)`;
+          + ` (${money(perLot,false)} per ${unit}, entry to stop${chg ? ", plus charges" : ""})`;
     if(cap){
       const pct = total / cap * 100;
       const cls = pct <= rp * 1.05 ? "ok" : pct <= rp * 2 ? "warn" : "bad";
@@ -4111,7 +4125,7 @@ function riskBox(r, tk, sess){
         // In the market's own step: whole lots, or tenths of a BTC contract.
         const ch = sess.lot_choices || [1];
         const step = ch[0] < 1 ? ch[0] : 1;
-        const raw = cap * rp / 100 / perLot;
+        const raw = (cap * rp / 100 - flat) / (perLot + lotCost);
         const fit = Math.round(Math.floor(raw / step + 1e-9) * step * 100) / 100;
         s += fit >= step
           ? ` At ${rp}% risk the account carries <b>${fit} ${unit}${fit!==1?"s":""}</b>.`
@@ -6981,6 +6995,18 @@ function anaPaint(){
      ["Closed", r => `<td style="color:${r.or_close === "above" ? "var(--up)"
         : r.or_close === "below" ? "var(--down)" : "var(--ink-2)"}">${esc(r.or_close)}</td>`]],
     "No intraday candles for the opening range.");
+  scrTable("lvlfib", L.filter(r => r.fib50 != null),
+    [["Index", r => `<td class="sym">${esc(r.index)}</td>`],
+     ["Low", r => `<td>${num(r.prev_low,2)}</td>`],
+     ["38.2%", r => `<td>${num(r.fib382,2)}</td>`],
+     ["50%", r => `<td style="color:var(--ink)">${num(r.fib50,2)}</td>`],
+     ["61.8%", r => `<td>${num(r.fib618,2)}</td>`],
+     ["High", r => `<td>${num(r.prev_high,2)}</td>`]],
+    "No levels yet.");
+  if($("lvlfibnote")) $("lvlfibnote").textContent =
+    "The previous session's range cut at 38.2%, 50% and 61.8%, measured up from its low - "
+    + "the same three prices as measured down from its high. Levels many traders watch for "
+    + "a pullback to stall; they are not part of the signal and this tool has not tested them.";
 
   const intern = d.internals || {};
   if($("intstats")){

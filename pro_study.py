@@ -356,6 +356,10 @@ def main():
         # T3 at least 1x the stop, and Bank Nifty traded. History to 11 Sep 2026:
         #   3,305 trades +339,871 PF 1.10 DD 132,176 | 2,436 +5,524 PF 1.00 DD 364,906
         # By index, held-out: Nifty +110,219, Sensex +112,963, Bank Nifty -217,658.
+        # Later that day the RSI-divergence entry filter was added (skills_study.py,
+        # variant D, better in both periods). With it, the live totals are
+        #   3,233 trades +359,660 PF 1.10 DD 111,305 | 2,380 +34,528 PF 1.01 DD 343,799
+        # This row stays as it was measured, without the filter.
         "LIVE 15 Sep: range wait + R:R 1, all three": lambda k: (lambda i, r, k=k:
             bool(F[k]["or_ready"].iloc[i]) and bool(r.get("risk_points"))
             and r["index_targets"][2] is not None

@@ -42,6 +42,7 @@ import threading
 import time
 
 import config
+import indicators
 import explain
 import signal_engine
 import trade_log
@@ -663,6 +664,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 6b. no entry into an RSI divergence (skills_study.py, variant D)
+        held = self._divergence_hold(rec)
+        if held is not None:
+            return hold(*held)
+
         # --- 7. worth taking: the final target pays at least the risk ------
         held = self._reward_hold(book.name, rec)
         if held is not None:
@@ -725,6 +731,32 @@ class TicketBook:
                     f"Over three years this rule made about the same money on "
                     f"nearly half the trades, with a smaller worst losing run.")
         return None
+
+    def _divergence_hold(self, rec):
+        """Held while the entry runs into an RSI divergence against it - a new
+        20-candle closing high for a CE (low for a PE) that RSI does not
+        confirm. Indian indices only: that is where it was tested."""
+        if not _cfg("SKIP_RSI_DIVERGENCE", False):
+            return None
+        if config.market_for(rec.get("index"))["always_open"]:
+            return None
+        df, side = rec.get("candles"), rec.get("option_type")
+        if df is None or side not in ("CE", "PE") or len(df) < 30:
+            return None
+        try:
+            closes = df["Close"]
+            if not indicators.rsi_divergence(closes.to_numpy(),
+                                             indicators.rsi(closes, 14).to_numpy(), side):
+                return None
+        except Exception:
+            return None
+        word = "high" if side == "CE" else "low"
+        return ("rsi_divergence", "RSI DIVERGENCE",
+                f"Price has just made a new 20-candle closing {word}, but RSI is more "
+                f"than 2 points weaker than it was at the previous {word}: momentum is "
+                f"not confirming the move. Over three years, skipping entries like this "
+                f"made more in both the tested years and the held-out one, with a "
+                f"shallower drawdown. Held until the divergence clears.")
 
     def _reward_hold(self, name, rec):
         """Watch-only indices, then reward:risk to T3. Last of the gates, so

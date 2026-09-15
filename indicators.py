@@ -183,3 +183,40 @@ def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
     signal_line = ema(macd_line, signal)
     histogram = macd_line - signal_line
     return macd_line, signal_line, histogram
+
+
+def fib_retracements(high: float, low: float) -> dict:
+    """A range cut at 38.2%, 50% and 61.8%, measured up from its low.
+
+    Measured down from the high the three prices are the same (38.2% down is
+    61.8% up), so one set serves a pullback in either direction.
+    """
+    span = float(high) - float(low)
+    return {k: round(float(low) + span * f, 2) for k, f in (("382", 0.382), ("50", 0.5), ("618", 0.618))}
+
+
+def rsi_divergence(closes, rsi_values, side, lookback=20, gap=2.0):
+    """True when the last close runs into an RSI divergence against `side`.
+
+    For a CE: the last close is a new `lookback`-bar closing high, above the
+    previous high (5 to `lookback` bars back), while RSI is more than `gap`
+    points under its value at that previous high - momentum not confirming the
+    move. The mirror for a PE. This is variant D of skills_study.py, the rule as
+    tested; divergence_test.py checks the two agree bar for bar.
+    """
+    import numpy as _np
+    c = _np.asarray(closes, float)
+    r = _np.asarray(rsi_values, float)
+    i = len(c) - 1
+    if i < lookback + 1 or not _np.isfinite(r[i]):
+        return False
+    lo_, hi_ = i - lookback, i - 4
+    if side == "CE":
+        j = lo_ + int(_np.argmax(c[lo_:hi_]))
+        return bool(c[i] >= c[i - lookback:i].max() and c[i] > c[j]
+                    and _np.isfinite(r[j]) and r[i] < r[j] - gap)
+    if side == "PE":
+        j = lo_ + int(_np.argmin(c[lo_:hi_]))
+        return bool(c[i] <= c[i - lookback:i].min() and c[i] < c[j]
+                    and _np.isfinite(r[j]) and r[i] > r[j] + gap)
+    return False

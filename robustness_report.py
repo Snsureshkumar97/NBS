@@ -23,6 +23,9 @@ slippage a side. Shown for all three indices and for Nifty + Sensex alone.
     python3 robustness_report.py
 
 RESULT, history to 11 Sep 2026 (per lot, after costs):
+  (Measured on the rules as they stood before the RSI-divergence filter was added
+  later on 15 Sep - skills_study.py variant D - which moved the live totals only
+  slightly: +359,660 and +34,528 against +339,871 and +5,524.)
 
   ALL THREE INDICES (the rules live today)
     first two years  3,305 trades  +339,871  t 2.08 (p 0.04)  day-bootstrap avg -115..+317
