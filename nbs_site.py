@@ -1943,7 +1943,7 @@ def security_page(user=None, record=None):
    <li>You can disconnect at any time from <a href="/connect">the connect
     page</a>, and revoke this app from Zerodha's own side independently.</li>
    <li>It dies every morning regardless. Zerodha clears every access token
-    around 07:30 IST, whenever it was issued.</li>
+    between about 05:00 and 07:30 IST, whenever it was issued.</li>
   </ul>
   <p>Your session is used only for your own data. Signals are computed under
    your token, on a feed that starts when you open the page and stops a few
