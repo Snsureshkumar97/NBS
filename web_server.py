@@ -5219,6 +5219,30 @@ function niceStep(range, want){
 
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
+// Text that can be read on whatever the tag behind it is painted with: black or
+// white, whichever contrasts more (WCAG relative luminance). The crosshair tag
+// is painted with --ink, which is nearly white, so the white price on it was
+// invisible until 16 Sep 2026; the bright mint --up of the dark theme was close
+// behind. Anything unparseable falls back to white, as before.
+function onColour(bg){
+  let r, g, b;
+  const s = (bg || "").trim();
+  if(s[0] === "#"){
+    const hx = s.length === 4 ? s.slice(1).split("").map(c => c + c).join("") : s.slice(1, 7);
+    if(hx.length < 6) return "#fff";
+    r = parseInt(hx.slice(0,2),16); g = parseInt(hx.slice(2,4),16); b = parseInt(hx.slice(4,6),16);
+  } else {
+    const m = s.match(/[\d.]+/g);
+    if(!m || m.length < 3) return "#fff";
+    r = +m[0]; g = +m[1]; b = +m[2];
+  }
+  if([r,g,b].some(v => !(v >= 0 && v <= 255))) return "#fff";
+  const lin = v => { v /= 255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+  const L = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  const onWhite = 1.05 / (L + 0.05), onBlack = (L + 0.05) / 0.05;
+  return onBlack >= onWhite ? "#0a0d14" : "#fff";
+}
+
 function chartDraw(){
   const {w,h} = chartSize();
   const C = {
@@ -5407,7 +5431,7 @@ function chartDraw(){
     cx.save();
     cx.fillStyle = a.colour;
     cx.fillRect(w-PAD.r, a.ty-8, PAD.r, 16);
-    cx.fillStyle = "#fff"; cx.font = "10px -apple-system,sans-serif";
+    cx.fillStyle = onColour(a.colour); cx.font = "10px -apple-system,sans-serif";
     cx.textAlign = "left"; cx.textBaseline = "middle";
     cx.fillText(a.label + " " + Math.round(a.v).toLocaleString("en-IN"), w-PAD.r+4, a.ty);
     cx.restore();
@@ -5422,9 +5446,10 @@ function chartDraw(){
     cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
     cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
     cx.setLineDash([]);
-    cx.fillStyle = last[4] >= last[1] ? C.up : C.down;
+    const lastBg = last[4] >= last[1] ? C.up : C.down;
+    cx.fillStyle = lastBg;
     cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
-    cx.fillStyle = "#fff"; cx.font = "600 11px -apple-system,sans-serif";
+    cx.fillStyle = onColour(lastBg); cx.font = "600 11px -apple-system,sans-serif";
     cx.textAlign = "left"; cx.textBaseline = "middle";
     cx.fillText(last[4].toLocaleString("en-IN",{maximumFractionDigits:2}),
                 w-PAD.r+5, y);
@@ -5448,7 +5473,7 @@ function chartDraw(){
     // price under the pointer, on the axis
     const pv = hi - (y - PAD.t) / plotH * span;
     cx.fillStyle = C.ink; cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
-    cx.fillStyle = "#fff"; cx.font = "11px -apple-system,sans-serif";
+    cx.fillStyle = onColour(C.ink); cx.font = "11px -apple-system,sans-serif";
     cx.textAlign = "left"; cx.textBaseline = "middle";
     cx.fillText(pv.toLocaleString("en-IN",{maximumFractionDigits:2}), w-PAD.r+5, y);
     // time under the pointer, on the bottom axis
@@ -5457,7 +5482,7 @@ function chartDraw(){
     const tw = cx.measureText(lbl).width + 12;
     cx.fillStyle = C.ink;
     cx.fillRect(Math.min(w-PAD.r-tw/2, Math.max(tw/2, x))-tw/2, PAD.t+plotH+2, tw, 17);
-    cx.fillStyle = "#fff"; cx.textBaseline = "top";
+    cx.fillStyle = onColour(C.ink); cx.textBaseline = "top";
     cx.fillText(lbl, Math.min(w-PAD.r-tw/2, Math.max(tw/2, x)), PAD.t+plotH+6);
     cx.restore();
   }
