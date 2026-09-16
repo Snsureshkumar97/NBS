@@ -3228,7 +3228,67 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   .herocard,.wrap > .herocard{animation:none;padding:20px}
   .herocard .hero .v{font-size:34px}
 }
-</style></head><body>
+
+/* =====================================================================
+   THE TERMINAL LOOK - the default from 16 Sep 2026; the glass look above is
+   one click away (Home > Look, or the command palette).
+   A screen you trade from is read in glances, often while the price moves.
+   Everything here is in service of that: solid surfaces instead of glass (no
+   scene showing through a number), no drifting particles, no tilt or sway on
+   the card that carries the verdict, no glow. Colour is kept for meaning - up,
+   down, the signal an index carries - and every grey clears WCAG AA on the
+   surface it actually sits on (terminal_look_test.py checks the arithmetic).
+   ===================================================================== */
+:root[data-look="terminal"]{
+  --bg:#0b0e14; --surface:#121722; --raised:#182030; --sunken:#0d1119;
+  --bd:#232b3a; --bd-soft:#1b2230;
+  --ink:#e6eaf2; --ink-2:#a9b1c1; --ink-3:#8a93a3;
+  --up:#2be08a; --down:#ef5570; --warn:#f2a33d; --accent:#4d94e8;
+  --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
+  --r:12px; --r-sm:8px;
+}
+:root[data-look="terminal"] body{background:var(--bg);background-image:none}
+:root[data-look="terminal"] #bg3d{display:none}
+:root[data-look="terminal"] .wrap{perspective:none}
+:root[data-look="terminal"] header{background:var(--bg);border-bottom:1px solid var(--bd-soft)}
+:root[data-look="terminal"] .ticker{background:var(--sunken);backdrop-filter:none;-webkit-backdrop-filter:none}
+:root[data-look="terminal"] :is(.card,.mkt,.session,.notice.stale){
+  background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
+  backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
+:root[data-look="terminal"] .notice.risk{backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:var(--r-sm)}
+:root[data-look="terminal"] :is(.tile,.risk,.tstat){background:var(--raised);border-radius:var(--r-sm)}
+/* the index cards: a coloured top edge says which way the signal points */
+:root[data-look="terminal"] :is(.mkt,.top3 .card,.tiles .tile){transform:none !important;
+  transition:border-color .15s ease,background-color .15s ease}
+:root[data-look="terminal"] .mkt:hover{background:var(--raised)}
+:root[data-look="terminal"] .mkt.bull{border-color:rgba(43,224,138,.5);box-shadow:inset 0 2px 0 var(--up)}
+:root[data-look="terminal"] .mkt.bear{border-color:rgba(239,85,112,.5);box-shadow:inset 0 2px 0 var(--down)}
+:root[data-look="terminal"] .mkt[aria-selected="true"]{background:var(--raised)}
+:root[data-look="terminal"] .mkt[aria-selected="true"]::before{background:var(--accent)}
+/* the signal card: still, with a bar in the signal's colour instead of a glow */
+:root[data-look="terminal"] :is(.herocard,.wrap > *,.wrap > .herocard){animation:none}
+:root[data-look="terminal"] .herocard{transform:none;border-radius:var(--r)}
+:root[data-look="terminal"] .herocard[data-bias="up"]{border-color:rgba(43,224,138,.45);box-shadow:inset 3px 0 0 var(--up)}
+:root[data-look="terminal"] .herocard[data-bias="down"]{border-color:rgba(239,85,112,.45);box-shadow:inset 3px 0 0 var(--down)}
+:root[data-look="terminal"] .herocard #bias{text-shadow:none}
+/* flat bars and gauges - depth effects read as texture behind the numbers */
+:root[data-look="terminal"] :is(.rung .bar,.gauge .gt){background:var(--sunken);box-shadow:none}
+:root[data-look="terminal"] :is(.rung .bar i,.gauge .gt i){background-image:none !important;box-shadow:none}
+:root[data-look="terminal"] :is(.ringarc,.ring svg){filter:none}
+:root[data-look="terminal"] .lbtn.on{background:var(--accent);border-color:var(--accent)}
+:root[data-look="terminal"] table.chain th{background:#10151f}
+/* figures that update in place keep their width, so the eye is not chasing jitter */
+:root[data-look="terminal"] :is(.mkt .px,.gmk .q .p,.gmk .q .c,.tile,.tstat,.session .n,.rung .n,.ticker){
+  font-variant-numeric:tabular-nums}
+/* a focus ring you can actually see, for anyone driving this from a keyboard */
+:root[data-look="terminal"] :is(button,a,select,input,summary):focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<script>
+// The look is set before anything paints, so the page never flashes the other one.
+try{ document.documentElement.dataset.look = localStorage.getItem("nbs.look.v1") || "terminal"; }
+catch(e){ document.documentElement.dataset.look = "terminal"; }
+</script></head><body>
 <canvas id="bg3d" aria-hidden="true"></canvas>
 <div class="pal" id="pal" hidden>
  <div class="palbox" role="dialog" aria-label="Command palette">
@@ -3405,6 +3465,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <a class="lbtn" href="/how-it-works">How it works</a>
   <a class="lbtn" href="/connect">Zerodha</a>
   <a class="lbtn" href="/results">Results</a>
+  <button class="lbtn" type="button" id="lookbtn">Look: terminal</button>
   </div>
   </div>
   <div class="hsec">
@@ -7930,6 +7991,13 @@ async function newsFetch(force){
 }
 
 // ============================================================ palette
+// Terminal (the default) or glass. Kept per browser; switching reloads, because
+// the scene and the card tilt decide at load whether to run at all.
+const LOOK = document.documentElement.dataset.look === "glass" ? "glass" : "terminal";
+function setLook(v){ try{ localStorage.setItem("nbs.look.v1", v); }catch(e){} location.reload(); }
+{ const lb = document.getElementById("lookbtn");
+  if(lb){ lb.textContent = "Look: " + LOOK;
+    lb.addEventListener("click", () => setLook(LOOK === "terminal" ? "glass" : "terminal")); } }
 const PAL = {items: [], sel: 0};
 function palItems(){
   const out = [];
@@ -7958,6 +8026,8 @@ function palItems(){
             run:() => { const c = $("capital"); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }});
   out.push({t:"Do", label:"Clear the open ticket",
             run:() => { const b = $("tclear"); if(b && b.style.display !== "none") b.click(); }});
+  out.push({t:"Do", label: LOOK === "terminal" ? "Switch to the glass look" : "Switch to the terminal look",
+            sub:"now " + LOOK, run:() => setLook(LOOK === "terminal" ? "glass" : "terminal")});
   out.push({t:"Do", label:"Log out", run:() => location.href="/logout"});
   return out;
 }
@@ -8026,6 +8096,8 @@ document.addEventListener("keydown", e => {
 (function(){
   const cv = document.getElementById("bg3d");
   if(!cv || !cv.getContext) return;
+  // The terminal look has no scene: nothing drawn, nothing animating, no CPU spent.
+  if(document.documentElement.dataset.look === "terminal") return;
   const ctx = cv.getContext("2d");
   const still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   let W = 0, H = 0;
@@ -8166,6 +8238,8 @@ document.addEventListener("keydown", e => {
 // document because the tiles are rebuilt on every refresh. Not on touch, not
 // for reduced motion, and never on the chart, the map or anything with inputs.
 (function(){
+  // Cards stay still in the terminal look.
+  if(document.documentElement.dataset.look === "terminal") return;
   if(window.matchMedia && (matchMedia("(prefers-reduced-motion: reduce)").matches
      || matchMedia("(hover: none)").matches)) return;
   const SEL = ".mkt, .top3 .card, .tiles .tile";
