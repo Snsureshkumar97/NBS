@@ -1,6 +1,8 @@
 """Portfolio strip: every index's money in one place, booked + live."""
 import sys, os, csv, tempfile, datetime as dt
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, gui, trade_log, theme as T
 
 # The portfolio asks the log about TODAY, so the test has to agree on what
@@ -76,19 +78,19 @@ sk = app.bridge.skin
 app.bridge.flush()
 assert sk.state["portfolio"]["net"] == 6020.0
 for W, H in [(1180,720),(1440,900),(1570,1002),(1920,1080),(2560,1440)]:
-    sk.canvas._w, sk.canvas._h = W, H
+    fake_size(sk.canvas, W, H)
     app.bridge._painted = False
     app.bridge.flush()
-    txt = [str(i.opts.get("text","")) for i in sk.canvas._items if i.kind=="text"]
+    txt = [str(i.opts.get("text","")) for i in items(sk.canvas) if i.kind=="text"]
     assert any("+Rs.6,020" in t for t in txt), f"{W}x{H}: no combined total"
     assert any(t == "TODAY" for t in txt), f"{W}x{H}: no TODAY label"
-    for i in sk.canvas._items:
+    for i in items(sk.canvas):
         if i.kind == "text" and "Rs.6,020" in str(i.opts.get("text","")):
             assert i.coords[0] <= W, f"{W}x{H}: total drawn off-screen"
     chips = [t for t in txt if t.startswith(("NIFTY ","BANKNIFTY ","SENSEX "))]
     print(f"   {W}x{H}: total shown, {len(chips)} index chip(s)")
 assert any(t.startswith("NIFTY ") for t in
-           [str(i.opts.get("text","")) for i in sk.canvas._items if i.kind=="text"]), \
+           [str(i.opts.get("text","")) for i in items(sk.canvas) if i.kind=="text"]), \
     "wide window should fit the per-index chips"
 
 # --- a flat day must not claim a profit ---------------------------------

@@ -1,5 +1,7 @@
 import sys
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, skin
 
 cb = {k: (lambda *a: None) for k in
@@ -14,7 +16,7 @@ for W,H in sizes:
     for rail in rails:
         for view in views:
             root = tk.Tk(); s = skin.Skin(root, cb)
-            s.canvas._w, s.canvas._h = W, H
+            fake_size(s.canvas, W, H)
             s.state["rail"] = rail; s.state["view"] = view
             s.repaint()
             # no duplicate zone keys hiding items from redraw
@@ -47,8 +49,7 @@ _fc = {}
 def _pil(text, px, bold=False):
     f = _fc.get((px, bool(bold)))
     if f is None:
-        f = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"
-                               % ("-Bold" if bold else ""), int(px))
+        f = pil_font(int(px), bold)
         _fc[(px, bool(bold))] = f
     return f.getbbox(text)[2]
 skin.install_measurer(_pil)     # real widths, so truncation is actually exercised
@@ -56,10 +57,10 @@ skin.install_measurer(_pil)     # real widths, so truncation is actually exercis
 LONG = "MARKET CLOSED · BANKNIFTY · last data 18 Aug 15:15  ·  LIVE 24,391.85 (-0.64%)"
 for W,H in sizes:
     root = tk.Tk(); s = skin.Skin(root, cb)
-    s.canvas._w, s.canvas._h = W, H
+    fake_size(s.canvas, W, H)
     s.state["status"] = LONG
     s.repaint()
-    texts = [i for i in s.canvas._items if i.kind == "text"
+    texts = [i for i in items(s.canvas) if i.kind == "text"
              and str(i.opts.get("text","")).startswith("MARKET CLOSED")]
     assert texts, f"{W}x{H}: status line vanished"
     it = texts[0]
@@ -76,10 +77,10 @@ print("STATUS LINE FITS AT EVERY WIDTH")
 HUGE = ("MARKET CLOSED · BANKNIFTY · last data 18 Aug 15:15 · LIVE 24,391.85 "
         "· session net +1,240 · 3 trades · token ok · feed healthy · nothing pending")
 root = tk.Tk(); s = skin.Skin(root, cb)
-s.canvas._w, s.canvas._h = 1180, 720
+fake_size(s.canvas, 1180, 720)
 s.state["status"] = HUGE
 s.repaint()
-it = [i for i in s.canvas._items if i.kind == "text"
+it = [i for i in items(s.canvas) if i.kind == "text"
       and str(i.opts.get("text","")).startswith("MARKET CLOSED")][0]
 shown = it.opts["text"]
 assert shown != HUGE, "an over-long status was not shortened"

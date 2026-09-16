@@ -1,25 +1,27 @@
 """Why does the ladder appear for a second and then go back to cards?"""
 import sys
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, gui, skin
 from PIL import ImageFont
 _fc={}
 def _pil(t,px,b=False):
     f=_fc.get((px,bool(b)))
     if f is None:
-        f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"%("-Bold" if b else ""),int(px)); _fc[(px,bool(b))]=f
+        f=pil_font(int(px), b); _fc[(px,bool(b))]=f
     return f.getbbox(t)[2]
 skin.install_measurer(_pil)
 
 root=tk.Tk(); app=gui.SignalApp(root); app.popup_var.set(False); root.bell=lambda:None
 sk=app.bridge.skin
-sk.canvas._w, sk.canvas._h = 1570, 1002
+fake_size(sk.canvas, 1570, 1002)
 
 def form():
     app.bridge._painted=False
     app.bridge.flush()
     t=sk.state["ticket"]
-    txt=[str(i.opts.get("text","")) for i in sk.canvas._items if i.kind=="text"]
+    txt=[str(i.opts.get("text","")) for i in items(sk.canvas) if i.kind=="text"]
     tags=[x for x in txt if x.startswith(("T1  ","T2  ","T3  ","STOP  "))]
     skeleton=any("Levels appear here" in x for x in txt)
     box=getattr(sk,"_levels_box",(0,0))

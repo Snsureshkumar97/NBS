@@ -2135,7 +2135,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 <style>body{{background:#0b0d12;color:#eef1f6;font:14px/1.6 -apple-system,sans-serif;
 padding:28px;max-width:900px;margin:0 auto}}table{{border-collapse:collapse;width:100%}}
 td,th{{padding:7px 10px;border-bottom:1px solid #2a3141;vertical-align:middle;text-align:left}}
-th{{font-size:11px;color:#657189;text-transform:uppercase;letter-spacing:.5px}}
+th{{font-size:12px;color:#657189;text-transform:uppercase;letter-spacing:.5px}}
 button,input{{background:#1c2330;color:#eef1f6;border:1px solid #2a3141;border-radius:6px;
 padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit}}
 input{{cursor:text}} button:hover{{border-color:#387ed1}}
@@ -2257,7 +2257,7 @@ PAGE = r"""<!doctype html>
      them looking pasted on. Ink and signal colours are unchanged. */
   --bg:#0a0d14; --surface:#10141d; --raised:#161b26; --sunken:#0c1018;
   --bd:#222938; --bd-soft:#1a2030;
-  --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#6f6f7b;
+  --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#82828e;
   --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --ema-fast:#4d94e8; --ema-slow:#f6a500; --vwap:#b07ad4;
   --r:3px; --r-sm:3px;
@@ -2303,7 +2303,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .hd .status{flex:0 0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px}
 .brand svg{display:block}
-.brand small{display:block;font-weight:500;font-size:11px;color:var(--ink-3);
+.brand small{display:block;font-weight:500;font-size:12px;color:var(--ink-3);
   letter-spacing:.3px;text-transform:uppercase}
 .pill{display:inline-flex;align-items:center;gap:7px;background:var(--raised);
   border:1px solid var(--bd);border-radius:999px;padding:5px 12px;
@@ -2313,11 +2313,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
    questions - the market can be open while the feed is dead - and sharing one
    pill meant two timers overwriting each other four times a second, which read
    as a flicker between the clock and the word "live". */
-.lbtn.ao{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600}
+.lbtn.ao{font-size:12px;padding:2px 9px;border-radius:999px;font-weight:600}
 .lbtn.ao.on{color:var(--up);border-color:rgba(76,175,80,.4);
   background:rgba(76,175,80,.12)}
 .room{margin-top:14px;border-top:1px solid var(--bd-soft);padding-top:12px}
-.rr-h{font-size:10.5px;font-weight:700;letter-spacing:.9px;color:var(--ink-3);
+.rr-h{font-size:12px;font-weight:700;letter-spacing:.9px;color:var(--ink-3);
   text-transform:uppercase;margin:0 0 6px}
 .rr{display:grid;grid-template-columns:78px 86px 118px 1fr auto;gap:10px;
   align-items:center;padding:7px 10px;border-radius:6px;font-size:13px;
@@ -2328,12 +2328,12 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .rr-to{color:var(--ink-2)}
 .rr-to b{color:var(--ink);font-weight:650}
 .rr-c{color:var(--ink-3);font-size:12px}
-.rr-tag{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+.rr-tag{font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
   color:var(--accent);border:1px solid rgba(77,148,232,.4);border-radius:999px;
   padding:1px 8px}
 @media(max-width:640px){.rr{grid-template-columns:72px 1fr 1fr}
   .rr-c,.rr-tag{grid-column:1/-1}}
-.feedtag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+.feedtag{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);background:var(--sunken);border:1px solid var(--bd-soft);
   border-radius:3px;padding:1px 5px;flex:none}
 .feedtag.on{color:var(--up);background:rgba(76,175,80,.12);
@@ -2354,6 +2354,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .notice.risk summary{cursor:pointer;list-style:none;font-size:13px;
   line-height:1.6}
 .notice.risk summary::-webkit-details-marker{display:none}
+@media(max-width:720px){
+  /* One line on a phone, the rest a tap away. Wrapped, it was three lines (~170px)
+     that pushed the signal below the fold on every page. */
+  #riskbox:not([open]) > summary{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
 .notice.risk .more{color:#ff8a65;font-weight:650;white-space:nowrap}
 .notice.risk[open] .more{display:none}
 .notice.risk #honest{font-size:13px;line-height:1.65;margin-top:9px;
@@ -2371,12 +2376,12 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .mkt[aria-selected="true"]{border-color:var(--accent);background:var(--raised)}
 .mkt[aria-selected="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;
   width:3px;background:var(--accent)}
-.mkt .nm{font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--ink-3);
+.mkt .nm{font-size:12px;font-weight:700;letter-spacing:.8px;color:var(--ink-3);
   text-transform:uppercase}
 .mkt .px{font-size:20px;font-weight:650;letter-spacing:-.4px;margin-top:3px}
-.mkt .ex{font-size:11px;color:var(--ink-3);margin-top:3px;white-space:nowrap}
+.mkt .ex{font-size:12px;color:var(--ink-3);margin-top:3px;white-space:nowrap}
 .mkt .ex.today{color:var(--warn);font-weight:650}
-.mkt .st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+.mkt .st{display:inline-flex;align-items:center;gap:5px;font-size:12px;
   font-weight:650;margin-top:3px}
 .swatch{display:inline-block;width:7px;height:7px;border-radius:2px;flex:none}
 
@@ -2390,7 +2395,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .card{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
   padding:18px 20px}
 .card + .card{margin-top:14px}
-.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.9px;color:var(--ink-3);
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.9px;color:var(--ink-3);
   text-transform:uppercase;margin:0 0 10px}
 
 /* ---------- hero ---------- */
@@ -2398,7 +2403,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .hero .v{font-size:46px;font-weight:700;letter-spacing:-1.6px;line-height:1.05}
 .hero .sub{color:var(--ink-2);font-size:13.5px;margin-top:9px;line-height:1.6}
 .tag{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
-  padding:4px 11px;font-size:11.5px;font-weight:700;letter-spacing:.3px;
+  padding:4px 11px;font-size:12px;font-weight:700;letter-spacing:.3px;
   border:1px solid transparent}
 .tag.up{background:rgba(76,175,80,.12);color:#3d8b40;border-color:rgba(76,175,80,.35)}
 .tag.down{background:rgba(255,87,34,.11);color:#d84315;border-color:rgba(255,87,34,.3)}
@@ -2409,9 +2414,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
 .tile{background:var(--sunken);border:1px solid var(--bd-soft);border-radius:var(--r-sm);
   padding:11px 13px}
-.tile .l{font-size:10.5px;color:var(--ink-3);font-weight:600;letter-spacing:.3px}
+.tile .l{font-size:12px;color:var(--ink-3);font-weight:600;letter-spacing:.3px}
 .tile .v{font-size:18px;font-weight:650;letter-spacing:-.4px;margin-top:2px}
-.tile .d{font-size:11px;color:var(--ink-3);margin-top:1px}
+.tile .d{font-size:12px;color:var(--ink-3);margin-top:1px}
 
 /* ---------- levels ---------- */
 /* The index/premium switch above the ladder. Two buttons rather than a
@@ -2447,11 +2452,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .scbar select{max-width:100%}
 .sccond{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 0;border-top:1px solid var(--bd-soft)}
 .sccond input.num{width:66px}
-.sccond .sep{font-size:11.5px;color:var(--ink-3)}
+.sccond .sep{font-size:12px;color:var(--ink-3)}
 .sccond select.op{font-weight:700}
 .sccond .scx{margin-left:auto}
 #scres td:nth-child(-n+3),#scres th:nth-child(-n+3){text-align:left}
-#scres td.scv{font-size:11.5px;color:var(--ink-2)}
+#scres td.scv{font-size:12px;color:var(--ink-2)}
 #scres td.scv b{color:var(--up)}
 .jbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin:0 0 12px}
 .jsrc,.jscope{display:flex;flex-wrap:wrap;gap:6px}
@@ -2461,37 +2466,37 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .jform input[type=time]{color-scheme:dark}
 .jheatwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0 6px}
 .jheat{display:inline-flex;flex-direction:column;gap:4px;min-width:max-content}
-.jhmonths{display:flex;gap:3px;margin-left:34px;height:14px;font-size:10.5px;color:var(--ink-3)}
+.jhmonths{display:flex;gap:3px;margin-left:34px;height:14px;font-size:12px;color:var(--ink-3)}
 .jhmonths span{flex:none;white-space:nowrap;overflow:hidden}
 .jhgrid{display:flex;gap:3px}
-.jhdays{display:flex;flex-direction:column;gap:3px;width:31px;flex:none;font-size:10px;color:var(--ink-3)}
+.jhdays{display:flex;flex-direction:column;gap:3px;width:31px;flex:none;font-size:12px;color:var(--ink-3)}
 .jhdays span{height:13px;line-height:13px}
 .jhcol{display:flex;flex-direction:column;gap:3px}
 .jhcol i{display:block;width:13px;height:13px;border-radius:3px;cursor:pointer}
 .jhcol i.fut{background:transparent!important;cursor:default}
 .jhcol i.sel{outline:2px solid var(--accent);outline-offset:1px}
-.jlegend{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap;font-size:11px;color:var(--ink-3);margin-top:8px}
+.jlegend{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);margin-top:8px}
 .jlegend i{display:inline-block;width:12px;height:12px;border-radius:3px}
 .jcalhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .jmonth{margin:0;font-size:15px;font-weight:700;color:var(--ink)}
 .jcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-.jcal .wd{font-size:10.5px;color:var(--ink-3);text-align:center;padding:2px 0}
+.jcal .wd{font-size:12px;color:var(--ink-3);text-align:center;padding:2px 0}
 .jcal .jd{min-height:62px;min-width:0;border-radius:9px;border:1px solid var(--bd-soft);padding:5px 6px;
   display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;background:rgba(255,255,255,.02)}
 .jcal .jd.empty{border:0;background:transparent;cursor:default}
-.jcal .jd .n{font-size:11px;color:var(--ink-3)}
-.jcal .jd .v{font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.jcal .jd .c{font-size:10px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jcal .jd .n{font-size:12px;color:var(--ink-3)}
+.jcal .jd .v{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jcal .jd .c{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jcal .jd.today .n{color:var(--accent);font-weight:700}
 .jcal .jd.sel{outline:2px solid var(--accent);outline-offset:1px}
-@media(max-width:600px){.jcal{gap:3px}.jcal .jd{min-height:46px;padding:3px 4px}.jcal .jd .c{display:none}.jcal .jd .v{font-size:9.5px}}
+@media(max-width:600px){.jcal{gap:3px}.jcal .jd{min-height:46px;padding:3px 4px}.jcal .jd .c{display:none}.jcal .jd .v{font-size:12px}}
 .jnotes{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-3);margin-top:12px}
 .jnotes textarea{background:var(--raised);border:1px solid var(--bd);border-radius:10px;color:var(--ink);
   padding:8px 10px;font:inherit;font-size:13px;resize:vertical;min-height:44px}
 .jactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .jmsg{font-size:12.5px}
 .jmuted{color:var(--ink-3);font-size:13px;margin:0}
-.jbadge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+.jbadge{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
   border:1px solid var(--bd);border-radius:999px;padding:1px 7px;color:var(--ink-3)}
 .jbadge.mine{color:var(--accent);border-color:rgba(77,148,232,.45)}
 #jdaytbl td:nth-child(-n+3),#jdaytbl th:nth-child(-n+3),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
@@ -2513,7 +2518,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .riskline:empty{display:none}
 .riskline b{color:var(--ink-2)}
 .riskline .ok{color:var(--up)} .riskline .warn{color:var(--warn)} .riskline .bad{color:var(--down)}
-.xday{display:inline-block;margin-top:8px;font-size:11.5px;font-weight:650;color:var(--warn);
+.xday{display:inline-block;margin-top:8px;font-size:12px;font-weight:650;color:var(--warn);
   border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:999px;padding:3px 10px}
 
 /* The lots selector. Nothing here places an order, so this only scales the
@@ -2538,7 +2543,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   background:var(--bd);transform:translateX(-.5px)}
 .gauge .gv{text-align:right;font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums}
-.gnote{color:var(--ink-3);font-size:11.5px;margin-top:9px}
+.gnote{color:var(--ink-3);font-size:12px;margin-top:9px}
 
 /* The three boxes across the top: where the market is, what it has done
    today, and how much of the rule set agrees. */
@@ -2553,18 +2558,18 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .mtile{position:absolute;overflow:hidden;border:1px solid rgba(0,0,0,.35);
   display:flex;flex-direction:column;justify-content:center;align-items:center;
   padding:2px;transition:background-color .4s ease}
-.mtile b{font-size:11px;font-weight:700;line-height:1.15;letter-spacing:-.2px;
+.mtile b{font-size:12px;font-weight:700;line-height:1.15;letter-spacing:-.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.mtile i{font-size:10px;font-style:normal;font-variant-numeric:tabular-nums;
+.mtile i{font-size:12px;font-style:normal;font-variant-numeric:tabular-nums;
   line-height:1.2;opacity:.92}
-.mtile.tiny b{font-size:9px} .mtile.tiny i{display:none}
+.mtile.tiny b{font-size:12px} .mtile.tiny i{display:none}
 .mtile.mini b{display:none} .mtile.mini i{display:none}
 .mapbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
   font-size:12px;color:var(--ink-3);margin-top:10px}
 .mapbar b{color:var(--ink-2);font-weight:650}
 .mapbar .w{font-variant-numeric:tabular-nums;font-weight:700}
 .maplegend{display:flex;align-items:center;gap:6px;margin-left:auto}
-.maplegend span{font-size:10.5px}
+.maplegend span{font-size:12px}
 .maplegend .sw{width:52px;height:8px;border-radius:2px;
   background:linear-gradient(90deg,#ef5570,#242429,#2be08a)}
 
@@ -2591,11 +2596,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   font-size:12.5px;white-space:nowrap;border-right:1px solid var(--bd-soft)}
 .tk .n{color:var(--ink-2);font-weight:650;letter-spacing:.2px}
 .tk .p{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
-.tk .c{font-size:11.5px;font-variant-numeric:tabular-nums;font-weight:600}
+.tk .c{font-size:12px;font-variant-numeric:tabular-nums;font-weight:600}
 .tk .dot{width:5px;height:5px;border-radius:50%;flex:none;align-self:center}
 /* Marks where the Indian block ends and the world block begins, so the strip
    reads as two lists rather than one long undifferentiated one. */
-.tk-sep{display:inline-flex;align-items:center;padding:0 16px;font-size:10px;
+.tk-sep{display:inline-flex;align-items:center;padding:0 16px;font-size:12px;
   font-weight:800;letter-spacing:1.2px;color:var(--ink-3);white-space:nowrap;
   border-right:1px solid var(--bd-soft)}
 
@@ -2614,7 +2619,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .top3 .card{padding:16px 18px 18px}
 @media(max-width:900px){.top3{grid-template-columns:1fr}}
 .spark{width:100%;height:64px;display:block;margin-top:8px}
-.sparkrange{display:flex;justify-content:space-between;font-size:11px;
+.sparkrange{display:flex;justify-content:space-between;font-size:12px;
   color:var(--ink-3);font-variant-numeric:tabular-nums;margin-top:2px}
 .daymove{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
 .daymove .big{font-size:25px;font-weight:700;letter-spacing:-.6px;
@@ -2623,7 +2628,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .ring{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:4px}
 .ring svg{display:block}
 .ring .lab{font-size:12px;color:var(--ink-3)}
-.ring .sub2{font-size:11.5px;color:var(--ink-3);text-align:center}
+.ring .sub2{font-size:12px;color:var(--ink-3);text-align:center}
 .ringtxt{font-size:22px;font-weight:700;fill:var(--ink);
   font-variant-numeric:tabular-nums}
 /* The arc grows into place rather than snapping, so a change of confidence
@@ -2633,7 +2638,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 /* ---------- the ticket ---------- */
 .thead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px}
 .thead .eyebrow{margin:0}
-.badge{font-size:10.5px;font-weight:800;letter-spacing:.7px;padding:4px 10px;
+.badge{font-size:12px;font-weight:800;letter-spacing:.7px;padding:4px 10px;
   border-radius:999px;border:1px solid transparent;white-space:nowrap}
 .badge.open{background:#122017;border-color:#1f4a2c;color:#7ed492}
 .badge.hold{background:#1c1710;border-color:#3a2f18;color:#e0a93a}
@@ -2646,7 +2651,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .tstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
   gap:14px;margin-top:14px;padding:13px 0;border-top:1px solid var(--bd-soft);
   border-bottom:1px solid var(--bd-soft)}
-.tstat .l{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+.tstat .l{font-size:12px;letter-spacing:.6px;text-transform:uppercase;
   color:var(--ink-3);font-weight:700}
 .tstat .v{font-size:19px;font-weight:700;letter-spacing:-.4px;margin-top:3px;
   font-variant-numeric:tabular-nums}
@@ -2660,7 +2665,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .session{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   margin-top:14px;padding:14px 16px;background:var(--surface);
   border:1px solid var(--bd);border-radius:var(--r)}
-.session .lbl{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;
+.session .lbl{font-size:12px;letter-spacing:.7px;text-transform:uppercase;
   color:var(--ink-3);font-weight:700;flex:none}
 .chips{display:flex;gap:7px;flex-wrap:wrap;flex:1}
 .chip2{font-size:12px;font-weight:650;padding:4px 11px;border-radius:999px;
@@ -2672,7 +2677,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .today{text-align:right;flex:none}
 .today .n{font-size:22px;font-weight:700;letter-spacing:-.5px;
   font-variant-numeric:tabular-nums}
-.today .d{font-size:11px;color:var(--ink-3);margin-top:1px}
+.today .d{font-size:12px;color:var(--ink-3);margin-top:1px}
 .feedline{font-size:12px;color:var(--ink-3);margin-top:9px;
   display:flex;flex-wrap:wrap;gap:0 14px}
 .feedline span{white-space:nowrap}
@@ -2683,7 +2688,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .rung{display:flex;align-items:center;gap:12px;padding:7px 0;
   border-bottom:1px solid var(--bd-soft)}
 .rung:last-child{border-bottom:0}
-.rung .k{width:88px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ink-3)}
+.rung .k{width:88px;font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--ink-3)}
 .rung .bar{flex:1;height:4px;border-radius:2px;background:var(--bd-soft);overflow:hidden}
 .rung .bar i{display:block;height:100%;border-radius:2px;
   transition:width .45s ease-out}
@@ -2700,7 +2705,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   border-radius:var(--r-sm);margin-top:4px;overflow:hidden}
 .chartbar{display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding:7px 10px;border-bottom:1px solid var(--bd-soft);flex-wrap:wrap}
-.chartlegend{display:flex;gap:13px;font-size:11.5px;color:var(--ink-3);
+.chartlegend{display:flex;gap:13px;font-size:12px;color:var(--ink-3);
   flex-wrap:wrap;font-variant-numeric:tabular-nums;align-items:center}
 .chartlegend b{color:var(--ink);font-weight:650}
 .chartlegend .o{color:var(--ink-2)}
@@ -2708,7 +2713,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .chartctl .lbtn{padding:3px 10px;font-size:12px;line-height:1.5}
 #cv{display:block;width:100%;height:430px;cursor:crosshair;touch-action:none}
 @media(max-width:640px){#cv{height:330px}}
-.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:11px;font-size:11.5px;
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:11px;font-size:12px;
   color:var(--ink-2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .key{width:15px;height:2.5px;border-radius:2px;flex:none}
@@ -2744,7 +2749,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   .hd{padding:11px 14px;gap:10px}
   /* The strapline wrapped onto two lines and shoved the logo off-centre. */
   .brand small{display:none}
-  .pill{padding:5px 10px;font-size:11.5px}
+  .pill{padding:5px 10px;font-size:12px}
 }
 
 /* ---------- screener, sectors, recap ---------- */
@@ -2757,7 +2762,7 @@ footer{color:var(--ink-3);font-size:12px;line-height:1.75;margin-top:22px;
   background:rgba(6,8,12,.55)}
 table.scr{width:100%;border-collapse:collapse;font-size:12.5px;
   font-variant-numeric:tabular-nums}
-table.scr th{position:sticky;top:0;background:rgba(10,12,18,.97);font-size:10px;
+table.scr th{position:sticky;top:0;background:rgba(10,12,18,.97);font-size:12px;
   letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);font-weight:700;
   padding:7px 8px;text-align:right;cursor:pointer;white-space:nowrap}
 table.scr th:first-child,table.scr td:first-child{text-align:left}
@@ -2765,7 +2770,7 @@ table.scr th.on{color:var(--ink-2)}
 table.scr td{padding:6px 8px;text-align:right;border-top:1px solid var(--bd-soft);
   color:var(--ink-2);white-space:nowrap}
 table.scr td.sym{color:var(--ink);font-weight:650}
-table.scr td.sec{color:var(--ink-3);font-size:11.5px}
+table.scr td.sec{color:var(--ink-3);font-size:12px}
 .sect{display:grid;gap:7px}
 .sectrow{display:grid;grid-template-columns:104px 1fr 62px;gap:10px;align-items:center;
   font-size:12.5px;color:var(--ink-2)}
@@ -2776,7 +2781,7 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .sectval{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
 .recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
 .recap .r{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
-.recap .r .l{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+.recap .r .l{font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
 .recap .r .v{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
 .recaplist{margin-top:10px;font-size:12.5px;color:var(--ink-3)}
 .recaplist div{padding:5px 0;border-top:1px solid var(--bd-soft)}
@@ -2788,9 +2793,9 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .news a:last-child{border-bottom:0}
 .news a:hover{color:var(--ink)}
 .news .m{display:flex;gap:8px;align-items:center;margin-top:3px;
-  font-size:11px;color:var(--ink-3)}
+  font-size:12px;color:var(--ink-3)}
 .news .src{border:1px solid var(--bd);border-radius:999px;padding:1px 7px}
-.newsnote{color:var(--ink-3);font-size:11.5px;margin-top:9px}
+.newsnote{color:var(--ink-3);font-size:12px;margin-top:9px}
 .newsnote:empty{display:none}
 
 /* ---------- sections ----------
@@ -2809,7 +2814,7 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .gmk{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px}
 .gmk .q{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),
   rgba(9,11,17,.72);border:1px solid var(--bd);border-radius:14px;padding:12px 14px}
-.gmk .q .n{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+.gmk .q .n{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
   font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gmk .q .p{font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
 .gmk .q .c{font-size:12px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
@@ -2833,12 +2838,12 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .mvbar i{position:absolute;top:0;height:100%;border-radius:5px}
 .mvbar u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--bd)}
 .mvval{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
-.pulse .ph{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);
+.pulse .ph{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);
   font-weight:700;margin-top:6px}
 .pulse .pr{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
   color:var(--ink-2);padding:3px 0;font-variant-numeric:tabular-nums}
 .calcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-.calcgrid label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--ink-3)}
+.calcgrid label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-3)}
 .calcgrid input{background:var(--raised);border:1px solid var(--bd);border-radius:9px;
   padding:8px 10px;color:var(--ink);font:inherit;font-size:13.5px}
 .calcout{margin-top:12px;font-size:13px;color:var(--ink-2);line-height:1.7}
@@ -2865,12 +2870,12 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 @media(max-width:900px){.acct span{display:none}}
 
 .admmsg{font-size:12.5px;min-height:18px;margin:2px 0 8px}
-.admbadge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+.admbadge{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.4px;
   text-transform:uppercase;border:1px solid;border-radius:999px;padding:1px 8px}
-.admyou{font-size:10.5px;color:var(--ink-3);margin-left:7px}
+.admyou{font-size:12px;color:var(--ink-3);margin-left:7px}
 .admbox{display:flex;flex-direction:column;gap:9px;padding:8px 2px;text-align:left}
 .admline{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.admline span{font-size:11.5px;color:var(--ink-3);min-width:98px}
+.admline span{font-size:12px;color:var(--ink-3);min-width:98px}
 .admline input{background:var(--raised);border:1px solid var(--bd);border-radius:9px;
   color:var(--ink);padding:5px 9px;font:inherit;font-size:12.5px;color-scheme:dark}
 .admquick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -2886,14 +2891,14 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
   .admline span{min-width:0;width:100%}
 }
 .adm [hidden],.menu .tab[hidden]{display:none!important}
-.sidefoot .su small{font-size:10.5px;color:var(--ink-3);margin-top:2px;
+.sidefoot .su small{font-size:12px;color:var(--ink-3);margin-top:2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .adwrap{margin-top:4px}
 .adwrap canvas{display:block;width:100%;max-width:100%}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   gap:14px;margin-top:14px;align-items:start}
 .spkbar{font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
-.spkbar .lv{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;
+.spkbar .lv{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.5px;
   text-transform:uppercase;border:1px solid var(--bd);border-radius:999px;
   padding:2px 8px;margin-right:6px;color:var(--ink-3)}
 .spkbar .lv.on{color:var(--up);border-color:rgba(43,224,138,.45)}
@@ -2912,10 +2917,10 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 .main{margin-left:236px;min-width:0}
 .sbrand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px;
   padding:6px 8px 16px}
-.sbrand small{display:block;font-weight:500;font-size:10px;color:var(--ink-3);
+.sbrand small{display:block;font-weight:500;font-size:12px;color:var(--ink-3);
   letter-spacing:.3px;text-transform:uppercase;margin-top:2px}
 .menu{display:flex;flex-direction:column;gap:2px}
-.mgroup{font-size:10.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+.mgroup{font-size:12px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
   color:var(--ink-3);margin:14px 0 6px;padding-left:10px}
 .menu .tab{display:flex;align-items:center;gap:10px;background:transparent;
   border:1px solid transparent;color:var(--ink-2);border-radius:10px;padding:9px 11px;
@@ -2961,7 +2966,7 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
     background:rgba(8,10,16,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border-top:1px solid var(--bd)}
   .botnav button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;
-    background:transparent;border:0;color:var(--ink-3);font:inherit;font-size:10.5px;font-weight:650;
+    background:transparent;border:0;color:var(--ink-3);font:inherit;font-size:12px;font-weight:650;
     padding:6px 2px;border-radius:10px;cursor:pointer}
   .botnav button i{font-style:normal;font-size:18px;line-height:1}
   .botnav button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -2995,7 +3000,7 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 [data-panel]{position:relative}
 .grip{position:absolute;top:9px;right:9px;z-index:4;width:24px;height:22px;
   border-radius:7px;border:1px solid var(--bd);background:rgba(255,255,255,.06);
-  color:var(--ink-3);font-size:11px;line-height:1;display:flex;align-items:center;
+  color:var(--ink-3);font-size:12px;line-height:1;display:flex;align-items:center;
   justify-content:center;cursor:grab;opacity:0;transition:opacity .15s}
 [data-panel]:hover > .grip,.grip:focus{opacity:1}
 .grip:active{cursor:grabbing}
@@ -3019,10 +3024,23 @@ table.scr td.sec{color:var(--ink-3);font-size:11.5px}
 table.chain{width:100%;border-collapse:collapse;font-size:12px;
   font-variant-numeric:tabular-nums;font-family:"SF Mono",Consolas,monospace}
 table.chain th{position:sticky;top:0;z-index:1;background:rgba(10,12,18,.97);
-  font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+  font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
   font-weight:700;padding:7px 6px;text-align:right}
 table.chain th.k,table.chain td.k{text-align:center;color:var(--ink-2);font-weight:700}
 table.chain th.ce{color:var(--up)} table.chain th.pe{color:var(--down)}
+/* Both header rows were sticky at top:0, so on scroll "Calls" and "Strike" printed
+   over the column names. Only the column names stick now. */
+table.chain thead tr:first-child th{position:static}
+@media(max-width:720px){
+  /* The strike is what the whole row is about, and on a phone it sat at the far
+     right edge, clipped. Sticky on both sides keeps it on screen whichever way the
+     ten columns are scrolled. */
+  table.chain th.k,table.chain td.k{position:sticky;left:0;right:0;z-index:2;background:#0b0d13}
+  table.chain thead th.k{z-index:3}
+  table.chain tr.atm td.k{background:#1b1e26}
+  table.chain td{font-size:13px}
+  .gmk .q .c{font-size:13px}
+}
 table.chain td{padding:5px 6px;text-align:right;color:var(--ink-3);
   border-top:1px solid var(--bd-soft);white-space:nowrap}
 table.chain td.px{color:var(--ink-2)}
@@ -3050,7 +3068,7 @@ table.chain .wide{color:var(--down)}
 .ochd .sp{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
 .occv{display:block;width:100%;height:330px;background:var(--bg);cursor:crosshair}
 .ocnote{padding:9px 14px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--bd)}
-.lbtn.ocbtn{font-size:11px;padding:3px 10px;border-radius:999px;font-weight:650}
+.lbtn.ocbtn{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:650}
 @media(max-width:720px){.occv{height:250px}.ochd{padding:10px}}
 
 .pal{position:fixed;inset:0;z-index:60;background:rgba(3,4,7,.6);
@@ -3063,13 +3081,13 @@ table.chain .wide{color:var(--down)}
 .pallist{max-height:52vh;overflow:auto;padding:6px}
 .palrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
   cursor:pointer;font-size:14px;color:var(--ink-2)}
-.palrow .t{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+.palrow .t{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
   border:1px solid var(--bd);border-radius:999px;padding:1px 8px;flex:none}
 .palrow .s{color:var(--ink-3);font-size:12px;margin-left:auto;white-space:nowrap}
 .palrow.on{background:rgba(77,148,232,.18);color:var(--ink)}
-.palhint{border-top:1px solid var(--bd);padding:8px 14px;font-size:11.5px;color:var(--ink-3);
+.palhint{border-top:1px solid var(--bd);padding:8px 14px;font-size:12px;color:var(--ink-3);
   display:flex;gap:14px}
-.palhint kbd{font:inherit;font-size:11px;background:rgba(255,255,255,.07);
+.palhint kbd{font:inherit;font-size:12px;background:rgba(255,255,255,.07);
   border:1px solid var(--bd);border-radius:5px;padding:1px 5px}
 
 /* =====================================================================
@@ -3087,7 +3105,7 @@ table.chain .wide{color:var(--down)}
 :root{
   --bg:#05060a; --surface:rgba(255,255,255,.035); --raised:rgba(255,255,255,.065);
   --sunken:rgba(6,8,12,.62); --bd:rgba(255,255,255,.09); --bd-soft:rgba(255,255,255,.06);
-  --ink:#f0f2f6; --ink-2:#a3aabb; --ink-3:#6b7282;
+  --ink:#f0f2f6; --ink-2:#a3aabb; --ink-3:#7c8494;
   --up:#2be08a; --down:#ef5570; --warn:#f2a33d;
   --glow-up:rgba(43,224,138,.45); --glow-down:rgba(239,85,112,.40); --glow-warn:rgba(242,163,61,.35);
   --r:16px; --r-sm:12px;
@@ -3139,10 +3157,10 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 }
 @media(max-width:600px){
   .mkt{padding:10px 10px 9px}
-  .mkt .nm{font-size:10px;letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mkt .nm{font-size:12px;letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mkt .px{font-size:17px;letter-spacing:-.3px;margin-top:2px}
-  .mkt .ex{font-size:10px;overflow:hidden;text-overflow:ellipsis}
-  .mkt .st{display:flex;align-items:flex-start;font-size:10.5px;line-height:1.25;margin-top:4px}
+  .mkt .ex{font-size:12px;overflow:hidden;text-overflow:ellipsis}
+  .mkt .st{display:flex;align-items:flex-start;font-size:12px;line-height:1.25;margin-top:4px}
   .mkt .st .swatch{margin-top:3px}
 }
 
@@ -6490,12 +6508,29 @@ function wireDrag(){
       if(!src || src === el || src.parentElement !== el.parentElement) return;
       const r = el.getBoundingClientRect();
       el.parentElement.insertBefore(src, e.clientY < r.top + r.height / 2 ? el : el.nextSibling);
+      pinSignalFirst();
       saveLayout();
       try{ chartDraw(); }catch(err){}
     });
   });
 }
-applyLayout(); wireDrag();
+// The verdict comes first on the Signal page. The session tally and the feed
+// line used to sit above it, which put "Buy CE / No trade" halfway down a laptop
+// screen and below most of a phone's. A saved layout re-appends panels in its own
+// order, so this runs after it rather than trusting the markup order.
+function pinSignalFirst(){
+  const pane = document.querySelector('.pane[data-pane="signal"]'), sig = $("sigcard");
+  if(!pane || !sig || sig.parentElement !== pane) return;
+  pane.insertBefore(sig, pane.firstElementChild);
+  let after = sig;
+  const pos = $("posgkcard");
+  if(pos && pos.parentElement === pane){ after.after(pos); after = pos; }
+  ["session", "sfeed"].forEach(id => {
+    const el = $(id);
+    if(el && el.parentElement === pane){ after.after(el); after = el; }
+  });
+}
+applyLayout(); pinSignalFirst(); wireDrag();
 
 // ============================================================ option chain
 // The chain the signal was computed from: calls left, puts right, strikes
@@ -6581,6 +6616,12 @@ function chainDraw(d){
     if(row && box){
       const rb = row.getBoundingClientRect(), bb = box.getBoundingClientRect();
       box.scrollTop += (rb.top - bb.top) - (bb.height / 2 - rb.height / 2);
+      // On a phone the columns scroll sideways too: start with the strike in
+      // the middle, so calls and puts are both in view.
+      const kc = row.querySelector("td.k");
+      if(kc && box.scrollWidth > box.clientWidth + 1){
+        box.scrollLeft = kc.offsetLeft - (box.clientWidth - kc.offsetWidth) / 2;
+      }
     }
   }
 }
@@ -6669,7 +6710,21 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
   if(!TABS.includes(start)){
     try{ start = localStorage.getItem("nbs.tab.v1") || "home"; }catch(e){ start = "home"; }
   }
-  showTab(start, false);
+  // The loaders a page runs on the way in live further down this page - the
+  // option clock's OI, greeks' GK, the analysis pages' ANA. Called from here, a
+  // reload landing straight on one of those pages reached them before that
+  // state existed: "Cannot access 'OI' before initialization", thrown inside an
+  // async function where nobody saw it, and the page stayed empty. So the page
+  // is shown at once and entered only when every script has been read.
+  if(!TABS.includes(start)) start = "home";
+  if(document.readyState === "loading"){
+    TAB = start;
+    document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === start));
+    document.addEventListener("DOMContentLoaded",
+      () => { try{ showTab(TAB, false); }catch(e){} }, {once: true});
+  } else {
+    showTab(start, false);
+  }
 })();
 
 

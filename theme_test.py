@@ -1,20 +1,22 @@
 """Light mode must be a palette swap, not a second app."""
 import sys, subprocess
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, gui, skin, theme as T
 from PIL import ImageFont
 _fc={}
 def _pil(t,px,b=False):
     f=_fc.get((px,bool(b)))
     if f is None:
-        f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"%("-Bold" if b else ""),int(px)); _fc[(px,bool(b))]=f
+        f=pil_font(int(px), b); _fc[(px,bool(b))]=f
     return f.getbbox(t)[2]
 skin.install_measurer(_pil)
 
 # --- the palette itself has to clear the same bar as the dark one -------
 for args in (["--surface", "#ffffff", "--pairs", "#16a34a,#dc2626,#7d8494"],
              ["--surface", "#ffffff", "--ordinal", "#173f9e,#2f62c6,#4a80da"]):
-    r = subprocess.run([sys.executable, "/home/claude/trading-tool/validate_palette.py"] + args,
+    r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "validate_palette.py")] + args,
                        capture_output=True, text=True)
     assert "ALL CHECKS PASS" in r.stdout, r.stdout
 print("palette: contrast, CVD and ordinal checks all pass on white")
@@ -22,14 +24,14 @@ print("palette: contrast, CVD and ordinal checks all pass on white")
 root = tk.Tk(); app = gui.SignalApp(root); root.bell = lambda: None
 gui._load_demo(app)
 sk = app.bridge.skin
-sk.canvas._w, sk.canvas._h = 1570, 1002
+fake_size(sk.canvas, 1570, 1002)
 
 def paint(mode):
     T.use(mode)
     sk.state["theme"] = mode
     app.bridge._painted = False
     app.bridge.flush()
-    return [i for i in sk.canvas._items]
+    return [i for i in items(sk.canvas)]
 
 dark = paint("dark")
 light = paint("light")
