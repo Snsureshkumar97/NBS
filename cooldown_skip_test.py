@@ -81,7 +81,11 @@ ok, _ = book.skip_cooldown("NIFTY"); check("skip accepted", ok)
 check("not enough room: still held", not feed(rec(rr=0.5), n=5) and wait() == "reentry_no_room", str(wait()))
 check("wide spread: still held", not feed(rec(spread={"pct": 9.0, "bid": 90., "ask": 100.}), n=5)
       and wait() == "wide_spread", str(wait()))
+# The opening-range confirmation is off in live config from 16 Sep 2026, so these
+# two cases switch the mechanism on themselves - they test the hold, not the setting.
 was_brk = getattr(config, "REGIME_OR_REQUIRE_BREAK", True)
+was_or = getattr(config, "REGIME_OR_BREAK", False)
+config.REGIME_OR_BREAK = True
 config.REGIME_OR_REQUIRE_BREAK = True
 check("inside the opening range while a break is required: still held",
       not feed(rec(spot=24350.0), n=5) and wait() in ("or_break",), str(wait()))
@@ -89,6 +93,10 @@ config.REGIME_OR_REQUIRE_BREAK = False
 check("with only the wait required, the same reading is taken - the skipped ticket comes",
       len(feed(rec(spot=24350.0))) == 1 and trade()["cooldown_skipped"] is True, str(wait()))
 config.REGIME_OR_REQUIRE_BREAK = was_brk
+config.REGIME_OR_BREAK = was_or
+check("with the confirmation off entirely (live from 16 Sep 2026), nothing is held for the range",
+      tickets.TicketBook()._regime_hold({"index": "NIFTY", "spot": 24350.0, "option_type": "CE",
+                                         "opening_range": {"ready": False}}) is None)
 
 print("6. A COOLDOWN THAT RUNS OUT ON ITS OWN IS NOT MARKED")
 check("stopped out", stop_out())

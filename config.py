@@ -965,7 +965,24 @@ REENTRY_MIN_RR = 1.0
 # requiring the break was not consistent (+341k in-sample, +223k held-out), and
 # entries in that window lost in one period and won in the other - the break is
 # the part that earns its place. Kept for steadier results, not for more profit.
-REGIME_OR_BREAK = True
+#
+# SWITCHED OFF 16 Sep 2026 at the user's choice, who wanted more trades. False
+# here removes the confirmation entirely - no wait for 09:15-09:45 and no break -
+# so entries may be issued from the first bar of the day. REGIME_OR_REQUIRE_BREAK
+# below has no effect while this is False.
+# RESULT (open_and_rr_study.py, pre-declared, on the rest of the live rules -
+# trend-day room, no entry into an RSI divergence, T3 >= 1x, all three indices;
+# per lot after costs, drawdowns in time order):
+#                    with the wait (before)          no wait (this)
+#   first two years  3,638 +629,112 PF 1.16 DD 174k  3,726 +573,879 PF 1.14 DD 196k
+#   held-out year    2,520 +144,028 PF 1.05 DD 481k  2,570 +207,933 PF 1.07 DD 426k
+# Mixed, and it does NOT pass the usual "better in both periods" bar: 55k worse
+# in the first two years, 64k better in the held-out year with a 55k shallower
+# drawdown. It also buys far fewer trades than it looks like it should - 138 out
+# of 6,158, about 2% - because the 4-bar gap between entries and the daily cap
+# refill the day anyway, so dropping the wait mostly moves entries earlier
+# rather than adding them. Chosen knowing that. True waits out the range again.
+REGIME_OR_BREAK = False
 
 # Whether that confirmation also needs the BREAK, or only the wait for the range.
 # Switched off on 15 Sep 2026 at the user's choice: the break cost trades - per
