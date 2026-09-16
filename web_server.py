@@ -3229,6 +3229,51 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   .herocard .hero .v{font-size:34px}
 }
 
+
+/* ---------- screen audit 5-11, 16 Sep 2026 - both looks ---------- */
+/* 5. line icons in place of emoji: they take the text colour and the active state */
+.ico{display:block;width:18px;height:18px;flex:none}
+.menu .tab i{display:flex;align-items:center;justify-content:center;width:20px;opacity:.85}
+.menu .tab.on i{opacity:1;color:var(--accent)}
+.botnav button i{display:flex;justify-content:center}
+.botnav button .ico{width:20px;height:20px}
+.navbtn .ico{width:16px;height:16px}
+.dcard .i{display:block;color:var(--accent)}
+.dcard .i .ico{width:22px;height:22px}
+.sout{display:inline-flex;align-items:center}
+.sout .ico{width:15px;height:15px}
+/* 6. sidebar groups that fold away */
+.mgrp,.mgrp-items{display:flex;flex-direction:column;gap:2px}
+button.mgroup{display:flex;align-items:center;justify-content:space-between;width:100%;
+  background:none;border:0;border-radius:8px;cursor:pointer;font-family:inherit;text-align:left;
+  padding:6px 10px;margin:10px 0 2px}
+button.mgroup:hover{color:var(--ink-2)}
+.mgroup .chev .ico{width:14px;height:14px;transition:transform .15s ease}
+.mgrp[data-open="false"] .mgrp-items{display:none}
+.mgrp[data-open="false"] .chev .ico{transform:rotate(-90deg)}
+/* 7. a thumb needs 44px; drag handles do nothing on touch, so they go */
+@media(hover:none){.grip{display:none}}
+@media(max-width:900px){
+  :is(button,.lbtn,select,.menu .tab,.navbtn,.hd .chip,input:not([type=checkbox]):not([type=radio])){min-height:44px}
+  .lbtn{padding-top:10px;padding-bottom:10px}
+  .honestlink{display:inline-block;padding:14px 4px;margin:-14px 0}
+}
+/* 8. the chart gets the width and most of the height; today's range is a strip above */
+.pane[data-pane="chart"] .grid{grid-template-columns:1fr}
+.pane[data-pane="chart"] #colR{order:-1}
+.pane[data-pane="chart"] #trendtiles{grid-template-columns:repeat(auto-fit,minmax(220px,1fr)) !important}
+.pane[data-pane="chart"] #cv{height:clamp(380px,58vh,760px)}
+@media(max-width:640px){.pane[data-pane="chart"] #cv{height:330px}}
+/* 9. no signal: one sentence instead of four empty rows */
+.ladempty{margin:8px 0 2px;padding:12px 14px;border:1px dashed var(--bd);border-radius:var(--r-sm);
+  color:var(--ink-2);font-size:13px;line-height:1.5}
+/* 11. keyboard: a way past the menu, and a focus ring in either look */
+.skip{position:fixed;left:12px;top:-64px;z-index:200;background:var(--accent);color:#fff;
+  padding:10px 16px;border-radius:10px;font-weight:700;text-decoration:none;transition:top .15s ease}
+.skip:focus{top:12px}
+#main:focus{outline:none}
+:is(button,a,select,input,summary,[tabindex]):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 /* =====================================================================
    THE TERMINAL LOOK - the default from 16 Sep 2026; the glass look above is
    one click away (Home > Look, or the command palette).
@@ -3290,6 +3335,7 @@ try{ document.documentElement.dataset.look = localStorage.getItem("nbs.look.v1")
 catch(e){ document.documentElement.dataset.look = "terminal"; }
 </script></head><body>
 <canvas id="bg3d" aria-hidden="true"></canvas>
+<a class="skip" href="#main">Skip to content</a>
 <div class="pal" id="pal" hidden>
  <div class="palbox" role="dialog" aria-label="Command palette">
   <input id="palq" placeholder="Jump to an index, a panel or a page&hellip;"
@@ -3324,51 +3370,63 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
  </a>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
-  <button class="tab on" data-tab="home" role="tab" type="button"><i>&#127968;</i>Home</button>
+  <button class="tab on" data-tab="home" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i>Home</button>
   <p class="mgroup">Desk</p>
-  <button class="tab" data-tab="signal" role="tab" type="button"><i>&#127919;</i>Signal</button>
-  <button class="tab" data-tab="journal" role="tab" type="button"><i>&#128211;</i>Journal</button>
-  <p class="mgroup">Market</p>
-  <button class="tab" data-tab="chart" role="tab" type="button"><i>&#128200;</i>Chart</button>
-  <button class="tab" data-tab="chain" role="tab" type="button"><i>&#9939;</i>Option chain</button>
-  <button class="tab" data-tab="market" role="tab" type="button"><i>&#128506;</i>Market</button>
-  <button class="tab" data-tab="pulse" role="tab" type="button"><i>&#128200;</i>Market pulse</button>
-  <button class="tab" data-tab="screener" role="tab" type="button"><i>&#128269;</i>Screener</button>
-  <button class="tab" data-tab="sector" role="tab" type="button"><i>&#129518;</i>Sector scope</button>
-  <button class="tab" data-tab="spikes" role="tab" type="button"><i>&#9889;</i>Momentum spikes</button>
-  <p class="mgroup">Analysis</p>
-  <button class="tab" data-tab="vol" role="tab" type="button"><i>&#127786;</i>Volatility</button>
-  <button class="tab" data-tab="greeks" role="tab" type="button"><i>&#120491;</i>Greeks &amp; IV</button>
-  <button class="tab" data-tab="levels" role="tab" type="button"><i>&#128207;</i>Levels</button>
-  <button class="tab" data-tab="internals" role="tab" type="button"><i>&#128202;</i>Internals</button>
-  <button class="tab" data-tab="strength" role="tab" type="button"><i>&#127947;</i>Relative strength</button>
-  <button class="tab" data-tab="season" role="tab" type="button"><i>&#128197;</i>Seasonality</button>
-  <p class="mgroup">Research</p>
-  <button class="tab" data-tab="news" role="tab" type="button"><i>&#128240;</i>News</button>
-  <button class="tab" data-tab="record" role="tab" type="button"><i>&#128188;</i>Record</button>
+  <button class="tab" data-tab="signal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i>Signal</button>
+  <button class="tab" data-tab="chart" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i>Chart</button>
+  <button class="tab" data-tab="chain" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i>Option chain</button>
+  <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
+  <div class="mgrp" data-grp="market">
+   <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+   <div class="mgrp-items">
+    <button class="tab" data-tab="market" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></i>Market</button>
+    <button class="tab" data-tab="pulse" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></i>Market pulse</button>
+    <button class="tab" data-tab="screener" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i>Screener</button>
+    <button class="tab" data-tab="sector" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9h9"/><path d="M20.5 15A9 9 0 1112 3"/></svg></i>Sector scope</button>
+    <button class="tab" data-tab="spikes" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 13h6l-1 8 8-10h-6z"/></svg></i>Momentum spikes</button>
+   </div>
+  </div>
+  <div class="mgrp" data-grp="analysis">
+   <button class="mgroup mtoggle" type="button" aria-expanded="true">Analysis<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+   <div class="mgrp-items">
+    <button class="tab" data-tab="vol" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M3 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg></i>Volatility</button>
+    <button class="tab" data-tab="greeks" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4L4 20h16z"/></svg></i>Greeks &amp; IV</button>
+    <button class="tab" data-tab="levels" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h16"/></svg></i>Levels</button>
+    <button class="tab" data-tab="internals" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M10 20V5M15 20v-7M20 20v-4"/></svg></i>Internals</button>
+    <button class="tab" data-tab="strength" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6 4 4 6-7"/><path d="M15 8h5v5"/></svg></i>Relative strength</button>
+    <button class="tab" data-tab="season" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></i>Seasonality</button>
+   </div>
+  </div>
+  <div class="mgrp" data-grp="research">
+   <button class="mgroup mtoggle" type="button" aria-expanded="true">Research<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+   <div class="mgrp-items">
+    <button class="tab" data-tab="news" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h8M8 16h5"/></svg></i>News</button>
+    <button class="tab" data-tab="record" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg></i>Record</button>
+   </div>
+  </div>
   <p class="mgroup">Account</p>
-  <a class="tab" href="/connect"><i>&#128279;</i>Zerodha</a>
-  <a class="tab" href="/how-it-works"><i>&#10067;</i>How it works</a>
-  <button class="tab" data-tab="admin" role="tab" type="button" hidden><i>&#128737;</i>Admin</button>
- </nav>
+  <a class="tab" href="/connect"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg></i>Zerodha</a>
+  <a class="tab" href="/how-it-works"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 2-2.5 2-2.5 4"/><path d="M12 17h.01"/></svg></i>How it works</a>
+  <button class="tab" data-tab="admin" role="tab" type="button" hidden><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></i>Admin</button>
+</nav>
  <div class="sidefoot">
   <div class="su">Signed in<b id="sideuser">&mdash;</b><small id="siderenew"></small></div>
-  <a class="sout" href="/logout" title="Sign out">&#9211;</a>
+  <a class="sout" href="/logout" title="Sign out" aria-label="Sign out"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1011.4 0"/></svg></a>
  </div>
 </aside>
 <div class="navscrim" id="navscrim"></div>
 <nav class="botnav" id="botnav" aria-label="Main sections">
- <button class="tab" data-tab="home" type="button"><i>&#127968;</i><span>Home</span></button>
- <button class="tab" data-tab="signal" type="button"><i>&#127919;</i><span>Signal</span></button>
- <button class="tab" data-tab="chart" type="button"><i>&#128200;</i><span>Chart</span></button>
- <button class="tab" data-tab="chain" type="button"><i>&#9939;</i><span>Chain</span></button>
- <button id="bnmore" type="button" aria-controls="side" aria-expanded="false"><i>&#9776;</i><span>More</span></button>
+ <button class="tab" data-tab="home" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i><span>Home</span></button>
+ <button class="tab" data-tab="signal" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i><span>Signal</span></button>
+ <button class="tab" data-tab="chart" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i><span>Chart</span></button>
+ <button class="tab" data-tab="chain" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i><span>Chain</span></button>
+ <button id="bnmore" type="button" aria-controls="side" aria-expanded="false"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></i><span>More</span></button>
 </nav>
 
-<div class="main">
+<div class="main" id="main" tabindex="-1">
 <header><div class="hd">
   <button class="navbtn" id="navbtn" type="button" aria-controls="side"
-    aria-expanded="false" aria-label="Open the menu"><i>&#9776;</i><span id="navtitle">Home</span></button>
+    aria-expanded="false" aria-label="Open the menu"><i><svg class="ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></i><span id="navtitle">Home</span></button>
   <!-- The brand sits in the sidebar now; printing it again here was the same
        words twice across the top of the screen. -->
   <!-- One status strip rather than three pills that each said a different
@@ -3456,7 +3514,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
   <div class="welcome">
   <div>
-  <p class="eyebrow">Overview</p>
+  <p class="eyebrow" role="heading" aria-level="2">Overview</p>
   <h1>Welcome, <span class="who" id="who">—</span></h1>
   <p class="said" id="said">Nifty, Bank Nifty and Sensex — one screen for the session.</p>
   <p class="said" id="renewline"></p>
@@ -3469,11 +3527,11 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
   </div>
   <div class="hsec">
-   <p class="eyebrow">Today</p>
+   <p class="eyebrow" role="heading" aria-level="2">Today</p>
    <div class="recap" id="htoday"></div>
   </div>
   <div class="hsec">
-   <p class="eyebrow">Your desk</p>
+   <p class="eyebrow" role="heading" aria-level="2">Your desk</p>
    <div class="dgrid" id="dgrid"></div>
   </div>
  </section>
@@ -3490,13 +3548,13 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <div class="feedline" id="sfeed"></div>
 
   <div class="card" data-panel="posgk" id="posgkcard" hidden style="margin-top:14px">
-   <p class="eyebrow">This position &middot; what it is exposed to</p>
+   <p class="eyebrow" role="heading" aria-level="2">This position &middot; what it is exposed to</p>
    <div class="pulse" id="posgk"></div>
    <div class="gnote" id="posgknote"></div>
   </div>
   <div class="card herocard" id="sigcard" data-panel="signal" style="margin-top:14px">
   <div class="thead">
-  <p class="eyebrow" id="teyebrow">Signal</p>
+  <p class="eyebrow" role="heading" aria-level="2" id="teyebrow">Signal</p>
   <span class="badge prev" id="tbadge" style="display:none"></span>
   <button class="lbtn tclear" id="tclear" type="button"
   style="display:none">Clear ticket</button>
@@ -3544,13 +3602,13 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
   <div class="top3" data-panel="trend">
   <div class="card">
-  <p class="eyebrow">Market trend</p>
+  <p class="eyebrow" role="heading" aria-level="2">Market trend</p>
   <div class="hero"><div class="v" id="trend"
   style="font-size:23px;letter-spacing:-.5px">—</div></div>
   <div class="sub" id="trendsub" style="margin-top:5px"></div>
   </div>
   <div class="card">
-  <p class="eyebrow">Day move</p>
+  <p class="eyebrow" role="heading" aria-level="2">Day move</p>
   <div class="daymove">
   <span class="big" id="dmv">—</span><span class="pct" id="dmp"></span>
   </div>
@@ -3558,7 +3616,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <div class="sparkrange"><span id="dmlo"></span><span id="dmhi"></span></div>
   </div>
   <div class="card">
-  <p class="eyebrow">Confidence</p>
+  <p class="eyebrow" role="heading" aria-level="2">Confidence</p>
   <div class="ring" id="ring"></div>
   </div>
   </div>
@@ -3574,7 +3632,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <div class="grid">
    <div id="colL">
     <div class="card" data-panel="chart">
-    <p class="eyebrow">Price &middot; <span id="tflabel">15-minute candles</span></p>
+    <p class="eyebrow" role="heading" aria-level="2">Price &middot; <span id="tflabel">15-minute candles</span></p>
     <div class="chartwrap">
     <div class="chartbar">
     <div class="chartlegend" id="cvlegend"></div>
@@ -3601,7 +3659,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    </div>
    <div id="colR">
     <div class="card" data-panel="range">
-    <p class="eyebrow">Today's range</p>
+    <p class="eyebrow" role="heading" aria-level="2">Today's range</p>
     <div class="tiles" style="grid-template-columns:1fr" id="trendtiles"></div>
     </div>
     
@@ -3611,7 +3669,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="chain">
   <div class="card" data-panel="clock" id="clockcard">
-   <p class="eyebrow">Option clock &middot; open interest change in the window</p>
+   <p class="eyebrow" role="heading" aria-level="2">Option clock &middot; open interest change in the window</p>
    <div class="clockbar">
     <select id="oiday" aria-label="Day"></select>
     <select id="oiexp" aria-label="Expiry"></select>
@@ -3624,7 +3682,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div class="gnote" id="clocknote"></div>
   </div>
   <div class="card" data-panel="chain" id="chaincard">
-  <p class="eyebrow">Option chain &middot; <span id="chainhead">&mdash;</span></p>
+  <p class="eyebrow" role="heading" aria-level="2">Option chain &middot; <span id="chainhead">&mdash;</span></p>
   <div class="chainwrap"><table class="chain" id="chain"></table></div>
   <div class="chainbar" id="chainbar"></div>
   </div>
@@ -3633,12 +3691,12 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
  <section class="pane" data-pane="market">
   <div id="colM2">
    <div class="card" data-panel="mover" id="movercard">
-    <p class="eyebrow">Index mover &middot; who is pushing <span id="movidx">&mdash;</span></p>
+    <p class="eyebrow" role="heading" aria-level="2">Index mover &middot; who is pushing <span id="movidx">&mdash;</span></p>
     <div class="mover" id="mover"></div>
     <div class="gnote" id="movernote"></div>
    </div>
    <div class="card" data-panel="screen" id="screencard">
-    <p class="eyebrow">Constituents &middot; <span id="scrcount">&mdash;</span></p>
+    <p class="eyebrow" role="heading" aria-level="2">Constituents &middot; <span id="scrcount">&mdash;</span></p>
     <div class="scrctl">
      <input id="scrq" placeholder="filter" autocomplete="off" spellcheck="false">
      <select id="scrsec"><option value="">all sectors</option></select>
@@ -3654,24 +3712,24 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
       constituents this tool knows - not the whole exchange, and it says so. -->
  <section class="pane" data-pane="pulse">
   <div class="card" data-panel="pulse" id="pulsecard">
-   <p class="eyebrow">Market pulse &middot; up against down</p>
+   <p class="eyebrow" role="heading" aria-level="2">Market pulse &middot; up against down</p>
    <div class="pulse" id="pulse"></div>
   </div>
   <div class="grid2">
    <div class="card" data-panel="bo10" id="bo10card">
-    <p class="eyebrow">Breakout beacon &middot; 10-day high or low</p>
+    <p class="eyebrow" role="heading" aria-level="2">Breakout beacon &middot; 10-day high or low</p>
     <div class="scrwrap"><table class="scr" id="bo10"></table></div>
    </div>
    <div class="card" data-panel="bo50" id="bo50card">
-    <p class="eyebrow">Swing spectrum &middot; 50-day high or low</p>
+    <p class="eyebrow" role="heading" aria-level="2">Swing spectrum &middot; 50-day high or low</p>
     <div class="scrwrap"><table class="scr" id="bo50"></table></div>
    </div>
    <div class="card" data-panel="boost" id="boostcard">
-    <p class="eyebrow">Intraday boost &middot; volume against its 20-session average</p>
+    <p class="eyebrow" role="heading" aria-level="2">Intraday boost &middot; volume against its 20-session average</p>
     <div class="scrwrap"><table class="scr" id="boost"></table></div>
    </div>
    <div class="card" data-panel="levels" id="levelscard">
-    <p class="eyebrow">Top and low level &middot; nearest its 50-day extreme</p>
+    <p class="eyebrow" role="heading" aria-level="2">Top and low level &middot; nearest its 50-day extreme</p>
     <div class="scrwrap"><table class="scr" id="levels"></table></div>
    </div>
   </div>
@@ -3682,7 +3740,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
       Market tab rather than drawn a second time. -->
  <section class="pane" data-pane="sector">
   <div class="card" data-panel="map" id="mapcard">
-   <p class="eyebrow">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
+   <p class="eyebrow" role="heading" aria-level="2">Market map &middot; <span id="mapidx">&mdash;</span> constituents</p>
    <div class="mapwrap" id="mapwrap"></div>
    <div class="mapbar">
     <span id="mapbreadth">loading&hellip;</span>
@@ -3690,7 +3748,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    </div>
   </div>
   <div class="card" data-panel="sectors" id="sectorcard">
-   <p class="eyebrow">Sectors &middot; weighted move today</p>
+   <p class="eyebrow" role="heading" aria-level="2">Sectors &middot; weighted move today</p>
    <div class="sect" id="sectors"></div>
   </div>
  </section>
@@ -3699,12 +3757,12 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
       not insider anything, and it is not called that here. -->
  <section class="pane" data-pane="spikes">
   <div class="card" data-panel="spk5" id="spk5card">
-   <p class="eyebrow">Momentum spikes &middot; <span id="spkhead">last five minutes</span></p>
+   <p class="eyebrow" role="heading" aria-level="2">Momentum spikes &middot; <span id="spkhead">last five minutes</span></p>
    <div class="spkbar" id="spkbar"></div>
    <div class="scrwrap"><table class="scr" id="spk5"></table></div>
   </div>
   <div class="card" data-panel="spk10" id="spk10card">
-   <p class="eyebrow">Over the last ten minutes</p>
+   <p class="eyebrow" role="heading" aria-level="2">Over the last ten minutes</p>
    <div class="scrwrap"><table class="scr" id="spk10"></table></div>
   </div>
   <div class="gnote" id="spknote"></div>
@@ -3712,23 +3770,23 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="vol">
   <div class="card" data-panel="volhead" id="volheadcard">
-   <p class="eyebrow">Volatility &middot; what the market is paying for movement</p>
+   <p class="eyebrow" role="heading" aria-level="2">Volatility &middot; what the market is paying for movement</p>
    <div class="pulse" id="volstats"></div>
    <div class="gnote" id="volnote"></div>
   </div>
   <div class="grid2">
    <div class="card" data-panel="volem" id="volemcard">
-    <p class="eyebrow">Expected move &middot; from implied volatility</p>
+    <p class="eyebrow" role="heading" aria-level="2">Expected move &middot; from implied volatility</p>
     <div class="scrwrap"><table class="scr" id="volem"></table></div>
     <div class="gnote" id="volemnote"></div>
    </div>
    <div class="card" data-panel="volrv" id="volrvcard">
-    <p class="eyebrow">Realised volatility &middot; what it actually did</p>
+    <p class="eyebrow" role="heading" aria-level="2">Realised volatility &middot; what it actually did</p>
     <div class="scrwrap"><table class="scr" id="volrv"></table></div>
    </div>
   </div>
   <div class="card" data-panel="volcone" id="volconecard">
-   <p class="eyebrow">Volatility cone &middot; today against its own year</p>
+   <p class="eyebrow" role="heading" aria-level="2">Volatility cone &middot; today against its own year</p>
    <div class="scrwrap"><table class="scr" id="volcone"></table></div>
    <div class="gnote" id="volconenote"></div>
   </div>
@@ -3736,17 +3794,17 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="greeks">
   <div class="card" data-panel="gkhead" id="gkheadcard">
-   <p class="eyebrow">Implied volatility &middot; <span id="gkhead">&mdash;</span></p>
+   <p class="eyebrow" role="heading" aria-level="2">Implied volatility &middot; <span id="gkhead">&mdash;</span></p>
    <div class="pulse" id="gkstats"></div>
    <div class="gnote" id="gknote"></div>
   </div>
   <div class="card" data-panel="gkchain" id="gkchaincard">
-   <p class="eyebrow">The chain, priced &middot; implied volatility and sensitivities</p>
+   <p class="eyebrow" role="heading" aria-level="2">The chain, priced &middot; implied volatility and sensitivities</p>
    <div class="scrwrap"><table class="scr" id="gkchain"></table></div>
    <div class="gnote" id="gkchainnote"></div>
   </div>
   <div class="card" data-panel="gkconc" id="gkconccard">
-   <p class="eyebrow">Gamma concentration &middot; open interest weighted</p>
+   <p class="eyebrow" role="heading" aria-level="2">Gamma concentration &middot; open interest weighted</p>
    <div class="scrwrap"><table class="scr" id="gkconc"></table></div>
    <div class="gnote" id="gkconcnote"></div>
   </div>
@@ -3754,16 +3812,16 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="levels">
   <div class="card" data-panel="lvl" id="lvlcard">
-   <p class="eyebrow">Levels &middot; <span id="lvlsess">&mdash;</span></p>
+   <p class="eyebrow" role="heading" aria-level="2">Levels &middot; <span id="lvlsess">&mdash;</span></p>
    <div class="scrwrap"><table class="scr" id="lvl"></table></div>
    <div class="gnote" id="lvlnote"></div>
   </div>
   <div class="card" data-panel="lvlor" id="lvlorcard">
-   <p class="eyebrow">Opening range &middot; first fifteen minutes</p>
+   <p class="eyebrow" role="heading" aria-level="2">Opening range &middot; first fifteen minutes</p>
    <div class="scrwrap"><table class="scr" id="lvlor"></table></div>
   </div>
   <div class="card" data-panel="lvlfib" id="lvlfibcard">
-   <p class="eyebrow">Fibonacci &middot; the previous session&rsquo;s range</p>
+   <p class="eyebrow" role="heading" aria-level="2">Fibonacci &middot; the previous session&rsquo;s range</p>
    <div class="scrwrap"><table class="scr" id="lvlfib"></table></div>
    <div class="gnote" id="lvlfibnote"></div>
   </div>
@@ -3771,12 +3829,12 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="internals">
   <div class="card" data-panel="intn" id="intncard">
-   <p class="eyebrow">Market internals &middot; what the members are doing</p>
+   <p class="eyebrow" role="heading" aria-level="2">Market internals &middot; what the members are doing</p>
    <div class="pulse" id="intstats"></div>
    <div class="gnote" id="intnote"></div>
   </div>
   <div class="card" data-panel="intad" id="intadcard">
-   <p class="eyebrow">Advance/decline line &middot; last 20 sessions</p>
+   <p class="eyebrow" role="heading" aria-level="2">Advance/decline line &middot; last 20 sessions</p>
    <div class="adwrap"><canvas id="adline" height="150"></canvas></div>
    <div class="gnote" id="adnote"></div>
   </div>
@@ -3785,11 +3843,11 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
  <section class="pane" data-pane="strength">
   <div class="grid2">
    <div class="card" data-panel="rsl" id="rslcard">
-    <p class="eyebrow">Leaders &middot; <span id="rswin">20</span>-day return</p>
+    <p class="eyebrow" role="heading" aria-level="2">Leaders &middot; <span id="rswin">20</span>-day return</p>
     <div class="scrwrap"><table class="scr" id="rslead"></table></div>
    </div>
    <div class="card" data-panel="rsg" id="rsgcard">
-    <p class="eyebrow">Laggards</p>
+    <p class="eyebrow" role="heading" aria-level="2">Laggards</p>
     <div class="scrwrap"><table class="scr" id="rslag"></table></div>
    </div>
   </div>
@@ -3798,19 +3856,19 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="season">
   <div class="card" data-panel="sdow" id="sdowcard">
-   <p class="eyebrow">By weekday &middot; <span id="seasn">&mdash;</span> sessions</p>
+   <p class="eyebrow" role="heading" aria-level="2">By weekday &middot; <span id="seasn">&mdash;</span> sessions</p>
    <div class="scrwrap"><table class="scr" id="sdow"></table></div>
    <div class="gnote" id="sdownote"></div>
   </div>
   <div class="card" data-panel="sgap" id="sgapcard">
-   <p class="eyebrow">Opening gaps</p>
+   <p class="eyebrow" role="heading" aria-level="2">Opening gaps</p>
    <div class="pulse" id="sgap"></div>
   </div>
  </section>
 
  <section class="pane" data-pane="screener">
   <div class="card" data-panel="scbuild" id="scbuildcard">
-   <p class="eyebrow">Build a screen &middot; the Nifty, Bank Nifty and Sensex member stocks</p>
+   <p class="eyebrow" role="heading" aria-level="2">Build a screen &middot; the Nifty, Bank Nifty and Sensex member stocks</p>
    <div class="scbar">
     <select id="scpick" aria-label="Presets and saved screens"></select>
     <button class="lbtn" type="button" id="scload">Load</button>
@@ -3826,7 +3884,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    </div>
   </div>
   <div class="card" data-panel="scres" id="screscard">
-   <p class="eyebrow" id="screshead">Results &middot; run a screen to see them</p>
+   <p class="eyebrow" role="heading" aria-level="2" id="screshead">Results &middot; run a screen to see them</p>
    <div class="scrwrap"><table class="scr" id="scres"></table></div>
    <div class="gnote">Daily candles for about the last thirteen months; weekly and monthly are
     built from them. A screen shows what matches now &mdash; it does not say whether trading it
@@ -3846,7 +3904,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <button class="lbtn on" type="button" id="jaddbtn">+ Add a trade</button>
   </div>
   <div class="card" data-panel="jadd" id="jaddcard" style="display:none">
-   <p class="eyebrow" id="jaddtitle">Add a trade</p>
+   <p class="eyebrow" role="heading" aria-level="2" id="jaddtitle">Add a trade</p>
    <div class="calcgrid jform">
     <label>Date<input id="jf_date" type="date"></label>
     <label>Time<input id="jf_time" type="time"></label>
@@ -3869,7 +3927,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    </div>
   </div>
   <div class="card" data-panel="jbook" id="jbookcard">
-   <p class="eyebrow">Tradebook &middot; <span id="jbookrange">the last twelve months</span></p>
+   <p class="eyebrow" role="heading" aria-level="2">Tradebook &middot; <span id="jbookrange">the last twelve months</span></p>
    <div class="jheatwrap"><div class="jheat" id="jheat"></div></div>
    <div class="jlegend" id="jlegend"></div>
   </div>
@@ -3883,7 +3941,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
     <div class="jcal" id="jcal"></div>
    </div>
    <div class="card" data-panel="jstats" id="jstatscard">
-    <p class="eyebrow">Statistics &middot; <span id="jstatscope">this month</span></p>
+    <p class="eyebrow" role="heading" aria-level="2">Statistics &middot; <span id="jstatscope">this month</span></p>
     <div class="jscope" id="jscope" role="group" aria-label="Period">
      <button class="lbtn on" type="button" data-scope="month">This month</button>
      <button class="lbtn" type="button" data-scope="all">All time</button>
@@ -3892,7 +3950,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    </div>
   </div>
   <div class="card" data-panel="jday" id="jdaycard" style="display:none">
-   <p class="eyebrow" id="jdaytitle">&mdash;</p>
+   <p class="eyebrow" role="heading" aria-level="2" id="jdaytitle">&mdash;</p>
    <div class="scrwrap"><table class="scr" id="jdaytbl"></table></div>
    <label class="jnotes">Note for the day
     <textarea id="jdaynote" rows="3" maxlength="2000"
@@ -3903,12 +3961,12 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    </div>
   </div>
   <div class="card" data-panel="jrisk" id="jriskcard">
-   <p class="eyebrow">Risk &middot; from your own trades</p>
+   <p class="eyebrow" role="heading" aria-level="2">Risk &middot; from your own trades</p>
    <div class="pulse" id="jrisk"></div>
    <div class="gnote" id="jrisknote"></div>
   </div>
   <div class="card" data-panel="jreview" id="jreviewcard">
-   <p class="eyebrow">Against the backtest &middot; the tool&rsquo;s tickets, per lot</p>
+   <p class="eyebrow" role="heading" aria-level="2">Against the backtest &middot; the tool&rsquo;s tickets, per lot</p>
    <div id="jreview"></div>
   </div>
   <div class="gnote">Money is before costs unless a column says otherwise. Charges on
@@ -3919,7 +3977,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="admin">
   <div class="card adm" data-panel="admusers" id="admuserscard">
-   <p class="eyebrow">Accounts &middot; <span id="admcount">&mdash;</span></p>
+   <p class="eyebrow" role="heading" aria-level="2">Accounts &middot; <span id="admcount">&mdash;</span></p>
    <div class="admmsg" id="admmsg"></div>
    <div class="scrwrap"><table class="scr admtbl" id="admusers"></table></div>
    <div class="gnote">Access runs through the end of the expiry date, India time.
@@ -3929,7 +3987,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
   <div class="grid2">
    <div class="card adm" data-panel="admcreate" id="admcreatecard">
-    <p class="eyebrow">Create an account</p>
+    <p class="eyebrow" role="heading" aria-level="2">Create an account</p>
     <div class="calcgrid">
      <label>Email<input id="ac_email" type="email" autocomplete="off" spellcheck="false"></label>
      <label>Password<input id="ac_pass" type="text" autocomplete="off" spellcheck="false"></label>
@@ -3947,7 +4005,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
      to treat it as temporary.</div>
    </div>
    <div class="card adm" data-panel="admserver" id="admservercard">
-    <p class="eyebrow">Server</p>
+    <p class="eyebrow" role="heading" aria-level="2">Server</p>
     <div class="pulse" id="admserver"></div>
    </div>
   </div>
@@ -3955,7 +4013,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="news">
   <div class="card" data-panel="news" id="newscard">
-  <p class="eyebrow">Headlines &middot; <span id="newshead">market news</span></p>
+  <p class="eyebrow" role="heading" aria-level="2">Headlines &middot; <span id="newshead">market news</span></p>
   <div class="news" id="news"></div>
   <div class="newsnote" id="newsnote"></div>
   </div>
@@ -3963,7 +4021,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="record">
   <div class="card" data-panel="calc" id="calccard">
-   <p class="eyebrow">Position calculator</p>
+   <p class="eyebrow" role="heading" aria-level="2">Position calculator</p>
    <div class="calcgrid">
     <label>Capital<input id="c_cap" inputmode="decimal" autocomplete="off"></label>
     <label>Risk %<input id="c_risk" inputmode="decimal" autocomplete="off"></label>
@@ -3974,17 +4032,17 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div class="calcout" id="calcout"></div>
   </div>
   <div class="card" data-panel="recap" id="recapcard">
-  <p class="eyebrow">Session recap</p>
+  <p class="eyebrow" role="heading" aria-level="2">Session recap</p>
   <div class="recap" id="recap"></div>
   <div class="recaplist" id="recaplist"></div>
   </div>
   <div class="card" id="reccard" data-panel="record">
-  <p class="eyebrow">Track record &middot; wins and losses</p>
+  <p class="eyebrow" role="heading" aria-level="2">Track record &middot; wins and losses</p>
   <div id="record"><p style="color:var(--ink-3);font-size:13px;margin:0">
   No completed trades recorded yet.</p></div>
   </div>
   <div class="card" data-panel="why" style="margin-top:14px">
-  <p class="eyebrow">Why — every input, in full</p>
+  <p class="eyebrow" role="heading" aria-level="2">Why — every input, in full</p>
   <div class="why" id="why"></div>
   </div>
  </section>
@@ -4017,12 +4075,12 @@ let MAPDATA = null;       // the constituent payload the map fetched
 let TAB = "home";         // the section on screen
 let GATED_FOR = null;     // which market the tabs were last gated for
 const DESK = [
-  ["signal", "&#127919;", "Signal", "The call, its strike, the ladder and what is holding it back."],
-  ["chart", "&#128200;", "Chart", "Candles with both EMAs and VWAP, at 5m, 15m or daily."],
-  ["chain", "&#9939;", "Option chain", "Calls and puts around the money, with the spread you would pay."],
-  ["market", "&#128506;", "Market", "The map, sector strength, the constituents and who is moving the index."],
-  ["news", "&#128240;", "News", "Headlines from several sources, de-duplicated."],
-  ["record", "&#128188;", "Record", "This session, your track record, and the full reasoning."],
+  ["signal", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='4'/><circle cx='12' cy='12' r='1'/></svg>", "Signal", "The call, its strike, the ladder and what is holding it back."],
+  ["chart", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 19h16'/><path d='M5 15l4-4 3 3 6-7'/></svg>", "Chart", "Candles with both EMAs and VWAP, at 5m, 15m or daily."],
+  ["chain", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M12 4v16M4 10h16M4 15h16'/></svg>", "Option chain", "Calls and puts around the money, with the spread you would pay."],
+  ["market", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='4' y='4' width='7' height='7' rx='1'/><rect x='13' y='4' width='7' height='7' rx='1'/><rect x='4' y='13' width='7' height='7' rx='1'/><rect x='13' y='13' width='7' height='7' rx='1'/></svg>", "Market", "The map, sector strength, the constituents and who is moving the index."],
+  ["news", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='4' y='5' width='16' height='14' rx='2'/><path d='M8 9h8M8 13h8M8 16h5'/></svg>", "News", "Headlines from several sources, de-duplicated."],
+  ["record", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='6' y='4' width='12' height='17' rx='2'/><path d='M9 4h6v3H9z'/><path d='M9 14l2 2 4-4'/></svg>", "Record", "This session, your track record, and the full reasoning."],
 ];
 var SCENE_BIAS = "";      // the 3D background's glow colour; read by the scene script
 const $=id=>document.getElementById(id);
@@ -4253,6 +4311,15 @@ function ladder(r, tk){
         + `reads a few points high on T3 and the stop. The calibration was fitted `
         + `on a VIX-derived volatility and is fed the chain's implied volatility here.`
         + (o.year_minutes === 525600 ? " On BTC none of that validation applies - it was fitted on Nifty, so read these as rough." : "");
+  }
+  // No signal, no levels. Four rows of dashes and empty bars said nothing a
+  // sentence could not, and pushed the gauges and the risk box a screen down.
+  if(!rungs.some(x => x[1] != null)){
+    const open = !!(LAST && LAST.market_open);
+    $("ladder").innerHTML = `<div class="ladempty">No targets or stop while there is no signal. `
+      + (open ? "It is re-checked with every reading while the market is open."
+              : "Checking resumes when the market opens.") + `</div>`;
+    if(ladderNote) ladderNote.textContent = "";
   }
 
   // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
@@ -4621,7 +4688,7 @@ function jreviewPaint(rv){
   for(const [title, rows] of Object.entries(rv.groups || {})){
     const good = rows.filter(r => r[1]);
     if(!good.length) continue;
-    html += `<p class="eyebrow" style="margin-top:14px">${esc(title)}</p><div class="scrwrap"><table class="scr"><thead><tr><th></th><th>Trades</th><th>Won</th><th>Per lot</th><th>Total</th></tr></thead><tbody>`
+    html += `<p class="eyebrow" role="heading" aria-level="2" style="margin-top:14px">${esc(title)}</p><div class="scrwrap"><table class="scr"><thead><tr><th></th><th>Trades</th><th>Won</th><th>Per lot</th><th>Total</th></tr></thead><tbody>`
       + good.map(([k, v]) => `<tr><td class="sym">${esc(k)}</td><td>${v.n}</td><td>${Math.round(v.win)}%</td><td style="color:${jcol(v.avg)}">${money(v.avg)}</td><td style="color:${jcol(v.total)}">${money(v.total)}</td></tr>`).join("")
       + `</tbody></table></div>`;
   }
@@ -4924,7 +4991,7 @@ function rrBox(r, tk){
            + `a different number: how far the market has room to run against the stop - the check that decides `
            + `whether a trade is issued at all - not what the exit pays.`);
 
-  el.innerHTML = `<p class="eyebrow">Risk and reward on this ${open ? "ticket" : "trade"}</p>`
+  el.innerHTML = `<p class="eyebrow" role="heading" aria-level="2">Risk and reward on this ${open ? "ticket" : "trade"}</p>`
     + (sum ? `<div class="rrsum">${sum}</div>` : "")
     + `<div class="scrwrap"><table class="scr rrtbl">${head}<tbody>${body}</tbody></table></div>`
     + `<div class="gnote">${notes.join(" ")}</div>`;
@@ -6300,7 +6367,7 @@ function greet(s){
     return;
   }
   $("said").textContent = k.connected
-    ? (k.user_id ? `Connected to Zerodha as ${k.user_id}. Nifty, Bank Nifty and `
+    ? (k.user_id ? `Connected to Zerodha as ${"\u2022\u2022\u2022\u2022" + String(k.user_id).slice(-2)}. Nifty, Bank Nifty and `
                  + `Sensex — one screen for the session.`
                  : "Connected to Zerodha. Nifty, Bank Nifty and Sensex — one "
                  + "screen for the session.")
@@ -6442,7 +6509,7 @@ $("honest").innerHTML="A three-year backtest of the current rules, priced as opt
   "modelled prices rather than real fills, with most of the profit on expiry days and a "+
   "worst drawdown of about \u20b91 lakh per lot in the latest year. It is published so it "+
   "can be checked, not because it is known to work. "+
-  '<a href="/results" style="color:inherit;text-decoration:underline">The figures.</a>';
+  '<a class="honestlink" href="/results" style="color:inherit;text-decoration:underline">The figures.</a>';
 tick(); setInterval(tick,3000);
 // Prices, four times a second. The server reads them straight out of the
 // tick socket and answers in ~20ms, so the poll interval was the only
@@ -6715,11 +6782,39 @@ function navClose(){
   ["navbtn", "bnmore"].forEach(id => { const b = $(id); if(b) b.setAttribute("aria-expanded", "false"); });
 }
 
+// Sidebar groups fold away, kept per browser. Market starts open, Analysis and
+// Research folded; whichever group holds the page you are on always opens, so
+// the highlighted item is never hidden inside a closed group.
+const GKEY = "nbs.navgroups.v1", GDEF = {market: true, analysis: false, research: false};
+let NAVG = {};
+try{ NAVG = JSON.parse(localStorage.getItem(GKEY) || "{}"); }catch(e){}
+function navGroup(el, open){
+  el.dataset.open = open ? "true" : "false";
+  const b = el.querySelector(".mtoggle");
+  if(b) b.setAttribute("aria-expanded", open ? "true" : "false");
+}
+document.querySelectorAll(".mgrp").forEach(g => {
+  const k = g.dataset.grp;
+  navGroup(g, k in NAVG ? !!NAVG[k] : GDEF[k] !== false);
+  g.querySelector(".mtoggle").addEventListener("click", () => {
+    const open = g.dataset.open !== "true";
+    navGroup(g, open); NAVG[k] = open;
+    try{ localStorage.setItem(GKEY, JSON.stringify(NAVG)); }catch(e){}
+  });
+});
+
 function showTab(name, push){
   if(!TABS.includes(name)) name = "home";
   TAB = name;
   document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === name));
-  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll(".tab").forEach(b => {
+    b.classList.toggle("on", b.dataset.tab === name);
+    // 11. a screen reader hears which section is selected, not just sees it
+    if(b.getAttribute("role") === "tab") b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+  });
+  { const act = document.querySelector(`.menu .tab[data-tab="${name}"]`);
+    const g = act && act.closest(".mgrp");
+    if(g) navGroup(g, true); }
   { const nt = $("navtitle"); if(nt) nt.textContent = TAB_LABEL[name] || "Menu"; }
   { const bm = $("bnmore"); if(bm) bm.classList.toggle("on", !["home", "signal", "chart", "chain"].includes(name)); }
   navClose();
@@ -7043,7 +7138,7 @@ function posGreeks(s){
   if(wif.length){
     const signed = (v, fmt) => v == null ? "—" : (v >= 0 ? "+" : "−") + fmt(Math.abs(v));
     const hue = v => v == null ? "" : ` style="color:${v >= 0 ? "var(--up)" : "var(--down)"}"`;
-    box.innerHTML += `<p class="eyebrow" style="margin:14px 0 4px">What if</p>`
+    box.innerHTML += `<p class="eyebrow" role="heading" aria-level="2" style="margin:14px 0 4px">What if</p>`
       + `<div class="scrwrap"><table class="scr rrtbl wiftbl"><thead><tr><th>If</th><th>Premium</th>`
       + `<th>Change</th><th>${mine.qty} units</th></tr></thead><tbody>`
       + wif.map(w => `<tr${w.key === "worst" ? ` class="exit"` : ""}><td>${esc(w.label)}</td>`
