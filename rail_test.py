@@ -9,8 +9,9 @@ smallest window the app allows and at 4K.
 """
 import sys
 
-sys.path.insert(0, "/tmp/tkstub")
-sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 
 import tkinter as tk
 import gui
@@ -23,9 +24,7 @@ _fc = {}
 def _pil(t, px, bold=False):
     f = _fc.get((px, bool(bold)))
     if f is None:
-        f = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"
-            % ("-Bold" if bold else ""), int(px))
+        f = pil_font(int(px), bold)
         _fc[(px, bool(bold))] = f
     return f.getbbox(t)[2]
 
@@ -46,7 +45,7 @@ SIZES = [("MacBook Air 13 window", 1180, 720), ("very short", 1600, 700),
 
 fails = []
 for name, W, H in SIZES:
-    sk.canvas._w, sk.canvas._h = W, H
+    fake_size(sk.canvas, W, H)
     app.bridge._painted = False
     app.bridge.flush()
 

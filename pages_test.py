@@ -5,15 +5,16 @@ NameError in it reached the user as 'UNKNOWN - name app is not defined'
 printed calmly on screen where the token status belongs.
 """
 import sys, os, csv, tempfile, datetime as dt
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, gui, skin, theme as T, trade_log
 from PIL import ImageFont
 _fc = {}
 def _pil(t, px, b=False):
     f = _fc.get((px, bool(b)))
     if f is None:
-        f = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"
-                               % ("-Bold" if b else ""), int(px))
+        f = pil_font(int(px), b)
         _fc[(px, bool(b))] = f
     return f.getbbox(t)[2]
 skin.install_measurer(_pil)
@@ -31,7 +32,7 @@ SMELLS = ("not defined", "Traceback", "NoneType", "KeyError", "AttributeError",
 
 root = tk.Tk(); app = gui.SignalApp(root); root.bell = lambda: None
 sk = app.bridge.skin
-sk.canvas._w, sk.canvas._h = 1570, 1002
+fake_size(sk.canvas, 1570, 1002)
 
 bad = []
 for mode in ("dark", "light"):
@@ -40,7 +41,7 @@ for mode in ("dark", "light"):
         app.bridge._rail(page)                  # exactly what a rail click does
         app.bridge._painted = False
         app.bridge.flush()
-        texts = [str(i.opts.get("text", "")) for i in sk.canvas._items
+        texts = [str(i.opts.get("text", "")) for i in items(sk.canvas)
                  if i.kind == "text"]
         for t in texts:
             for smell in SMELLS:
@@ -61,7 +62,7 @@ app._token_state, app._token_detail = "ok", "valid until the morning flush"
 app.bridge._rail("settings")
 app.bridge._painted = False
 app.bridge.flush()
-texts = [str(i.opts.get("text", "")) for i in sk.canvas._items if i.kind == "text"]
+texts = [str(i.opts.get("text", "")) for i in items(sk.canvas) if i.kind == "text"]
 assert any("OK — valid until" in t for t in texts), \
     f"settings did not show the real token state: {[t for t in texts if 'token' in t.lower() or '—' in t][:4]}"
 print("\n  settings reports the cached token state correctly")

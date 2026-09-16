@@ -1,14 +1,15 @@
 """Where do the level cards actually end up, across real screen sizes?"""
 import sys
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, gui, skin
 from PIL import ImageFont
 _fc = {}
 def _pil(t, px, bold=False):
     f = _fc.get((px, bool(bold)))
     if f is None:
-        f = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"
-                               % ("-Bold" if bold else ""), int(px))
+        f = pil_font(int(px), bold)
         _fc[(px, bool(bold))] = f
     return f.getbbox(t)[2]
 skin.install_measurer(_pil)
@@ -42,12 +43,12 @@ SIZES = [
 ]
 bad = []
 for name, W, H in SIZES:
-    sk.canvas._w, sk.canvas._h = W, H
+    fake_size(sk.canvas, W, H)
     app.bridge._painted = False
     app.bridge.flush()
     g = sk.geom()
     # find the four level cards: the widest run of same-y rounded cards
-    texts = [(i.opts.get("text"), i.coords) for i in sk.canvas._items if i.kind == "text"]
+    texts = [(i.opts.get("text"), i.coords) for i in items(sk.canvas) if i.kind == "text"]
     # The ladder layout prints "T3  357.84" on one line rather than a bare
     # "T3", so match on the prefix. Matching exactly used to report every
     # tall window as MISSING while all four levels were on screen.

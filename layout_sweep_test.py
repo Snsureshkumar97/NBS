@@ -1,12 +1,14 @@
 import sys
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_font
 import tkinter as tk, gui, skin
 from PIL import ImageFont
 _fc={}
 def _pil(t,px,b=False):
     f=_fc.get((px,bool(b)))
     if f is None:
-        f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf"%("-Bold" if b else ""),int(px)); _fc[(px,bool(b))]=f
+        f=pil_font(int(px), b); _fc[(px,bool(b))]=f
     return f.getbbox(t)[2]
 skin.install_measurer(_pil)
 root=tk.Tk(); app=gui.SignalApp(root); app.popup_var.set(False); root.bell=lambda:None
@@ -22,7 +24,7 @@ bad=[]; n=0
 for W in range(1080, 3900, 40):
     for H in range(560, 2200, 20):
         n+=1
-        sk.canvas._w, sk.canvas._h = W, H
+        fake_size(sk.canvas, W, H)
         app.bridge._painted=False
         try: app.bridge.flush()
         except Exception as e: bad.append((W,H,"CRASH "+str(e)[:50])); continue
@@ -31,12 +33,12 @@ for W in range(1080, 3900, 40):
         ly,ly1=box
         if ly1-ly < 40: bad.append((W,H,f"band {ly1-ly:.0f}px")); continue
         if ly1 > H: bad.append((W,H,f"band bottom {ly1:.0f} > H {H}")); continue
-        items=sk.canvas._items
+        drawn=items(sk.canvas)
         # all four level names present and on-screen
         # The panel draws EITHER four cards or the ladder, depending on the
         # room available. Both are correct; what matters is that all four
         # levels are named exactly once, whichever form they take.
-        labs=[i for i in items if i.kind=="text" and
+        labs=[i for i in drawn if i.kind=="text" and
               (str(i.opts.get("text")) in ("T2","T3","STOP")
                or str(i.opts.get("text","")).startswith("T1")
                or str(i.opts.get("text","")).startswith(("T1  ","T2  ","T3  ","STOP  ")))]
@@ -48,7 +50,7 @@ for W in range(1080, 3900, 40):
             # the stats numbers must not sit on top of the cards
             # Only the numbers ABOVE the band. The ladder's live-price marker
             # sits inside it and carries the same text as the NOW column.
-            stats=[i for i in items if i.kind=="text" and i.coords[1] < ly - 4
+            stats=[i for i in drawn if i.kind=="text" and i.coords[1] < ly - 4
                    and str(i.opts.get("text")) in ("196.95","294.50","+1,951")]
             if stats and max(i.coords[1] for i in stats) > ly - 2:
                 bad.append((W,H,"stats overlap the cards"))

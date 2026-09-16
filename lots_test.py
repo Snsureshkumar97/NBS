@@ -1,6 +1,8 @@
 """Lots: scales the money, never the signal, and freezes at entry."""
 import sys
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_measurer
 import tkinter as tk, gui, config, skin
 
 root = tk.Tk(); app = gui.SignalApp(root)
@@ -76,7 +78,7 @@ print("clamp :  0->1, 9->%d, junk->%d" % (config.MAX_LOTS, config.DEFAULT_LOTS))
 app.lots_var.set("3")
 sk = app.bridge.skin
 for W, H in [(1180,720),(1440,900),(1570,1002),(1920,1080),(2560,1440)]:
-    sk.canvas._w, sk.canvas._h = W, H
+    fake_size(sk.canvas, W, H)
     app.bridge._painted = False
     app.bridge.flush()
     keys = [h[4] for h in sk._hits]
@@ -87,7 +89,7 @@ for W, H in [(1180,720),(1440,900),(1570,1002),(1920,1080),(2560,1440)]:
     others = [h for h in sk._hits if h[4] != ("sel","lots") and abs(h[1]-box[1]) < 20]
     for o in others:
         assert o[2] <= box[0] or o[0] >= box[2], f"{W}x{H}: Lots overlaps {o[4]}"
-    txt = [str(i.opts.get("text")) for i in sk.canvas._items if i.kind == "text"]
+    txt = [str(i.opts.get("text")) for i in items(sk.canvas) if i.kind == "text"]
     assert "3" in txt, f"{W}x{H}: selector does not show its value"
 print("layout:  present, on-screen and non-overlapping at 5 widths")
 

@@ -1,6 +1,8 @@
 """A hit target must be visible on the card, not just in a popup."""
 import sys, datetime as dt
-sys.path.insert(0, "/tmp/tkstub"); sys.path.insert(0, "/home/claude/trading-tool")
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from canvas_items import items, fake_size, pil_measurer
 import tkinter as tk, gui, theme as T
 
 root = tk.Tk()
@@ -52,11 +54,11 @@ print("a hit stays hit even if price retraces")
 # --- it survives being painted at every window size ---------------------
 sk = app.bridge.skin
 for W, H in [(1180,720),(1440,900),(1570,1002),(1920,1080)]:
-    sk.canvas._w, sk.canvas._h = W, H
+    fake_size(sk.canvas, W, H)
     sk.repaint()
-    texts = [str(i.opts.get("text","")) for i in sk.canvas._items if i.kind == "text"]
+    texts = [str(i.opts.get("text","")) for i in items(sk.canvas) if i.kind == "text"]
     assert any("✓" in t for t in texts), f"{W}x{H}: the tick vanished"
-    for i in sk.canvas._items:
+    for i in items(sk.canvas):
         if i.kind == "text" and "✓" in str(i.opts.get("text","")):
             assert i.coords[0] < W, f"{W}x{H}: tick drawn off-screen"
 print("tick renders at every window size")
