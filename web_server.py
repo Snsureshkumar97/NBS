@@ -513,6 +513,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._chart(user, path[len("/chart/"):-len(".svg")], qs)
             if path.startswith("/api/candles/"):
                 return self._candles(user, path[len("/api/candles/"):], qs)
+            if path.startswith("/api/option_candles/"):
+                return self._option_candles(user, path[len("/api/option_candles/"):], qs)
             if path.startswith("/api/map/"):
                 return self._heat_map(user, path[len("/api/map/"):], qs)
 
@@ -1794,6 +1796,113 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     _TIMEFRAMES = ("5m", "15m", "1d")
 
+    # One contract's candles are asked for repeatedly while a popup is open and
+    # Kite allows three historical calls a second across the whole server, so a
+    # short cache keeps a chart that refreshes every 20s from ever being the
+    # reason a signal's own data fetch is throttled.
+    _OPT_CACHE = {}
+    _OPT_CACHE_S = 15
+    _OPT_INTERVAL = {"1m": ("minute", 2), "5m": ("5minute", 5),
+                     "15m": ("15minute", 12), "1d": ("day", 120)}
+
+    def _option_candles(self, user, rest, qs=None):
+        """Candles for ONE option contract - the strike a signal or ticket names.
+
+        The chart on the page is the index's. This is the thing you would
+        actually buy, and its premium moves for reasons the index chart cannot
+        show you - time decay, and a spread that widens when it matters. Read
+        only: it asks Kite for history and places nothing.
+        """
+        parts = [p for p in (rest or "").split("/") if p]
+        if len(parts) < 3:
+            return self._send(json.dumps({"candles": [], "error": "bad request"}),
+                              "application/json", 400)
+        key, side = parts[0].upper(), parts[2].upper()
+        expiry = ((qs or {}).get("expiry") or [None])[0]
+        try:
+            strike = float(parts[1])
+        except ValueError:
+            return self._send(json.dumps({"candles": [], "error": "bad strike"}),
+                              "application/json", 400)
+        if side not in ("CE", "PE"):
+            return self._send(json.dumps({"candles": [], "error": "bad option type"}),
+                              "application/json", 400)
+        tf = ((qs or {}).get("tf") or ["5m"])[0]
+        interval, days = self._OPT_INTERVAL.get(tf, self._OPT_INTERVAL["5m"])
+
+        market = self._current_market()
+        if config.MARKETS.get(market, {}).get("market_provider") != "kite":
+            # Deribit has no equivalent history call wired up here, so say so
+            # rather than drawing an empty box the user has to interpret.
+            return self._send(json.dumps({
+                "candles": [], "index": key, "strike": strike, "option_type": side,
+                "error": "Contract charts are available for the Indian indices only."}),
+                "application/json")
+
+        ck = (key, strike, side, str(expiry), tf)
+        hit = self._OPT_CACHE.get(ck)
+        if hit and time.time() - hit[0] < self._OPT_CACHE_S:
+            return self._send(json.dumps(hit[1]), "application/json")
+
+        feed = feeds.for_user(user, market)
+        provider, state, detail = feed._provider()
+        if provider is None:
+            return self._send(json.dumps({
+                "candles": [], "index": key, "strike": strike, "option_type": side,
+                "error": detail or "Zerodha is not connected."}), "application/json")
+        try:
+            token = provider.option_token(key, strike, side, expiry)
+        except Exception as exc:
+            token = None
+            detail = str(exc)
+        if not token:
+            return self._send(json.dumps({
+                "candles": [], "index": key, "strike": strike, "option_type": side,
+                "error": "No contract found for that strike and expiry."}),
+                "application/json")
+        try:
+            df = provider.candles_for_token(int(token), interval=interval, days=days)
+        except Exception as exc:
+            return self._send(json.dumps({
+                "candles": [], "index": key, "strike": strike, "option_type": side,
+                "error": f"Zerodha did not return this contract's history: {exc}"}),
+                "application/json")
+
+        bars = []
+        for row in (df.itertuples(index=False) if df is not None and len(df) else []):
+            try:
+                o, h, l, c = float(row.open), float(row.high), float(row.low), float(row.close)
+            except (TypeError, ValueError):
+                continue
+            if any(v != v for v in (o, h, l, c)):
+                continue
+            ts = row.ts
+            bars.append([ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
+                         o, h, l, c, (float(row.volume) if getattr(row, "volume", None) is not None else None)])
+
+        payload = {"index": key, "strike": strike, "option_type": side,
+                   "expiry": expiry, "interval": tf, "candles": bars,
+                   "token": int(token)}
+        # If the open ticket IS this contract, its frozen premium levels belong
+        # on the chart - that is what the trade is actually being judged against.
+        try:
+            t = (feed.tickets.public(key) or {}).get("ticket") or {}
+            if (t.get("open") and str(t.get("strike")) == str(parts[1])
+                    and (t.get("option_type") or "").upper() == side
+                    and t.get("tracked_on") == "premium"):
+                tg = t.get("targets") or []
+                payload["levels"] = {"t1": tg[0] if len(tg) > 0 else None,
+                                     "t2": tg[1] if len(tg) > 1 else None,
+                                     "t3": tg[2] if len(tg) > 2 else None,
+                                     "stop": t.get("stop"), "entry": t.get("entry")}
+        except Exception:
+            pass
+        self._OPT_CACHE[ck] = (time.time(), payload)
+        if len(self._OPT_CACHE) > 64:
+            for k, _v in sorted(self._OPT_CACHE.items(), key=lambda kv: kv[1][0])[:32]:
+                self._OPT_CACHE.pop(k, None)
+        return self._send(json.dumps(payload), "application/json")
+
     def _candles(self, user, key, qs=None):
         """The bars themselves, as JSON, for the interactive chart.
 
@@ -2926,6 +3035,24 @@ table.chain .wide{color:var(--down)}
 .chainbar b{color:var(--ink-2)}
 
 /* ---------- the command palette ---------- */
+/* One contract's own chart, over the page. It lives at the same depth as the
+   command palette and OUTSIDE .wrap on purpose: the 3D layer gives the cards a
+   transform, and a fixed box inside a transformed card is positioned against
+   the card instead of the window. */
+.oc{position:fixed;inset:0;z-index:61;background:rgba(3,4,7,.66);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:16px}
+.ocbox{width:min(880px,96vw);background:rgba(12,15,22,.98);border:1px solid var(--bd);
+  border-radius:16px;box-shadow:0 40px 90px -30px rgba(0,0,0,.9);overflow:hidden}
+.ochd{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--bd)}
+.ochd .t{font-weight:700;font-size:14px;color:var(--ink)}
+.ochd .s{font-size:12px;color:var(--ink-3);margin-top:2px}
+.ochd .sp{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
+.occv{display:block;width:100%;height:330px;background:var(--bg);cursor:crosshair}
+.ocnote{padding:9px 14px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--bd)}
+.lbtn.ocbtn{font-size:11px;padding:3px 10px;border-radius:999px;font-weight:650}
+@media(max-width:720px){.occv{height:250px}.ochd{padding:10px}}
+
 .pal{position:fixed;inset:0;z-index:60;background:rgba(3,4,7,.6);
   backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
   display:flex;align-items:flex-start;justify-content:center;padding-top:12vh}
@@ -3092,6 +3219,24 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="pallist" id="pallist"></div>
   <div class="palhint"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span>
    <span><kbd>&crarr;</kbd> run</span><span><kbd>esc</kbd> close</span></div>
+ </div>
+</div>
+
+<div class="oc" id="oc" hidden>
+ <div class="ocbox" role="dialog" aria-modal="true" aria-label="Contract chart">
+  <div class="ochd">
+   <div style="min-width:0">
+    <div class="t" id="octitle">&mdash;</div>
+    <div class="s" id="ocsub"></div>
+   </div>
+   <div class="sp">
+    <button class="lbtn ocbtn otf" data-otf="5m" type="button">5m</button>
+    <button class="lbtn ocbtn otf" data-otf="15m" type="button">15m</button>
+    <button class="lbtn ocbtn" id="occlose" type="button">Close</button>
+   </div>
+  </div>
+  <canvas class="occv" id="occv"></canvas>
+  <div class="ocnote" id="ocnote"></div>
  </div>
 </div>
 
@@ -3283,6 +3428,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
   <div class="v" id="bias">—</div>
   <span class="tag flat" id="conftag" style="display:none"></span>
   <span class="tag flat" id="exptag" style="display:none"></span>
+  <button class="lbtn ocbtn" id="ocopen" type="button" style="display:none">View chart</button>
   </div>
   <div class="contract" id="tcontract" style="display:none"></div>
   <div class="issued" id="tissued" style="display:none"></div>
@@ -4826,7 +4972,10 @@ function ticketBox(r, state){
     const ex = expiryText(tk.expiry);
     c.innerHTML = `<b>${esc(tk.index)} ${esc(String(tk.strike))} ${esc(tk.option_type)}</b>`
                 + (ex ? ` · expiry <b>${esc(ex)}</b>` : "")
-                + ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`;
+                + ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`
+                + ` <button class="lbtn ocbtn" type="button" data-k="${esc(String(tk.index))}"`
+                + ` data-strike="${esc(String(tk.strike))}" data-side="${esc(String(tk.option_type))}"`
+                + ` data-expiry="${esc(String(tk.expiry || ""))}" onclick="ocOpenFrom(this)">View chart</button>`;
     $("tissued").style.display = "";
     $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`
       + (tk.cooldown_skipped ? " · cooldown skipped by you" : "");
@@ -5174,6 +5323,165 @@ function chartTF(tf){
   CH.pinned = true;
   chartWant(CUR);
 }
+// ---------------------------------------------------------------------------
+// ONE CONTRACT'S CHART
+// The chart on the page is the index. This is the option you would actually
+// buy: its premium, from Zerodha's own history for that instrument, refreshed
+// while the box is open. Read-only, like everything else here.
+// ---------------------------------------------------------------------------
+const OC = {open:false, k:null, strike:null, side:null, expiry:"", tf:"5m",
+            data:null, timer:null, hover:null};
+
+function ocOpenFrom(el){
+  if(!el) return;
+  ocOpen(el.dataset.k, el.dataset.strike, el.dataset.side, el.dataset.expiry || "");
+}
+
+function ocOpen(k, strike, side, expiry){
+  if(!k || strike == null || !side) return;
+  OC.open = true; OC.k = k; OC.strike = String(strike); OC.side = side;
+  OC.expiry = expiry || ""; OC.data = null; OC.hover = null;
+  $("oc").hidden = false;
+  $("octitle").textContent = `${k} ${strike} ${side === "CE" ? "Call" : "Put"}`;
+  $("ocsub").textContent = "Loading this contract's own candles…";
+  $("ocnote").textContent = "";
+  document.querySelectorAll(".lbtn.otf").forEach(b => b.classList.toggle("on", b.dataset.otf === OC.tf));
+  ocDraw();
+  ocFetch();
+  if(OC.timer) clearInterval(OC.timer);
+  OC.timer = setInterval(ocFetch, 20000);   // the cache on the server is 15s
+}
+
+function ocClose(){
+  OC.open = false;
+  $("oc").hidden = true;
+  if(OC.timer){ clearInterval(OC.timer); OC.timer = null; }
+}
+
+function ocTF(tf){
+  if(tf === OC.tf) return;
+  OC.tf = tf; OC.data = null;
+  document.querySelectorAll(".lbtn.otf").forEach(b => b.classList.toggle("on", b.dataset.otf === tf));
+  ocDraw(); ocFetch();
+}
+
+function ocFetch(){
+  if(!OC.open) return;
+  const k = OC.k, s = OC.strike, side = OC.side, tf = OC.tf;
+  fetch(`/api/option_candles/${encodeURIComponent(k)}/${encodeURIComponent(s)}/${encodeURIComponent(side)}`
+        + `?tf=${encodeURIComponent(tf)}&expiry=${encodeURIComponent(OC.expiry || "")}`,
+        {cache:"no-store"})
+    .then(r => r.json())
+    .then(d => {
+      if(!OC.open || OC.k !== k || OC.strike !== s || OC.side !== side || OC.tf !== tf) return;
+      OC.data = d;
+      const n = (d.candles || []).length;
+      $("ocsub").textContent = d.expiry ? `Expiry ${d.expiry}` : "";
+      $("ocnote").textContent = d.error ? d.error
+        : n ? `${n} ${tf === "5m" ? "five" : "fifteen"}-minute candles of this contract's premium, from Zerodha. `
+              + "Updates every 20 seconds while this is open."
+            : "No candles for this contract yet.";
+      ocDraw();
+    })
+    .catch(() => { $("ocnote").textContent = "Could not load this contract's chart."; });
+}
+
+function ocDraw(){
+  const cv2 = $("occv");
+  if(!cv2) return;
+  const box = cv2.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(240, Math.floor(box.width)), h = Math.max(160, Math.floor(box.height));
+  cv2.width = w * dpr; cv2.height = h * dpr;
+  const g = cv2.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const C2 = {bg: css("--bg"), ink: css("--ink"), ink3: css("--ink-3"),
+              up: css("--up"), down: css("--down"), bd: css("--bd"), warn: css("--warn")};
+  g.fillStyle = C2.bg; g.fillRect(0, 0, w, h);
+
+  const bars = ((OC.data || {}).candles) || [];
+  if(!bars.length){
+    g.fillStyle = C2.ink3; g.font = "13px -apple-system,sans-serif"; g.textAlign = "center";
+    g.fillText((OC.data && OC.data.error) ? "No chart for this contract" : "loading…", w/2, h/2);
+    return;
+  }
+  const P = {l:0, r:62, t:10, b:20};
+  const plotW = w - P.l - P.r, plotH = h - P.t - P.b;
+  const lv = ((OC.data || {}).levels) || {};
+  let hi = -Infinity, lo = Infinity;
+  for(const b of bars){ hi = Math.max(hi, b[2]); lo = Math.min(lo, b[3]); }
+  for(const v of [lv.t1, lv.t2, lv.t3, lv.stop, lv.entry]){
+    if(v != null){ hi = Math.max(hi, v); lo = Math.min(lo, v); }
+  }
+  const span = (hi - lo) || 1;
+  hi += span * 0.06; lo -= span * 0.06;
+  const Y = v => P.t + (hi - v) / (hi - lo) * plotH;
+  const bw = plotW / bars.length;
+
+  // the frozen levels of an open ticket on this very contract
+  const rung = [[lv.t1,"T1",C2.up],[lv.t2,"T2",C2.up],[lv.t3,"T3",C2.up],
+                [lv.stop,"SL",C2.down],[lv.entry,"Entry",C2.warn]];
+  for(const [v, label, colour] of rung){
+    if(v == null) continue;
+    const y = Y(v);
+    if(y < P.t || y > P.t + plotH) continue;
+    g.save();
+    g.strokeStyle = colour; g.setLineDash([5,4]); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(P.l, Math.round(y)+0.5); g.lineTo(w-P.r, Math.round(y)+0.5); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = colour; g.fillRect(w-P.r, y-8, P.r, 16);
+    g.fillStyle = onColour(colour); g.font = "10px -apple-system,sans-serif";
+    g.textAlign = "left"; g.textBaseline = "middle";
+    g.fillText(`${label} ${Number(v).toFixed(1)}`, w-P.r+4, y);
+    g.restore();
+  }
+
+  for(let i = 0; i < bars.length; i++){
+    const [, o, hg, lw, c] = bars[i];
+    const x = P.l + i * bw + bw/2;
+    const up = c >= o, colour = up ? C2.up : C2.down;
+    g.strokeStyle = colour; g.fillStyle = colour; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(Math.round(x)+0.5, Y(hg)); g.lineTo(Math.round(x)+0.5, Y(lw)); g.stroke();
+    const body = Math.max(1, Math.min(bw * 0.62, bw - 1));
+    const top = Math.min(Y(o), Y(c)), tall = Math.max(1, Math.abs(Y(c) - Y(o)));
+    if(bw < 2.2){ g.fillRect(Math.round(x), top, 1, tall); }
+    else if(up){
+      g.fillStyle = C2.bg; g.fillRect(x-body/2, top, body, tall);
+      g.strokeRect(Math.round(x-body/2)+0.5, Math.round(top)+0.5, Math.round(body), Math.round(tall));
+    } else { g.fillRect(x-body/2, top, body, tall); }
+  }
+
+  // last premium, on the axis
+  const last = bars[bars.length-1];
+  const y = Y(last[4]);
+  g.save();
+  g.strokeStyle = C2.ink3; g.setLineDash([2,3]); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(P.l, Math.round(y)+0.5); g.lineTo(w-P.r, Math.round(y)+0.5); g.stroke();
+  g.setLineDash([]);
+  const bg = last[4] >= last[1] ? C2.up : C2.down;
+  g.fillStyle = bg; g.fillRect(w-P.r, y-9, P.r, 18);
+  g.fillStyle = onColour(bg); g.font = "600 11px -apple-system,sans-serif";
+  g.textAlign = "left"; g.textBaseline = "middle";
+  g.fillText(Number(last[4]).toFixed(2), w-P.r+5, y);
+  g.restore();
+
+  // the time the last candle belongs to, bottom left
+  g.fillStyle = C2.ink3; g.font = "10px -apple-system,sans-serif";
+  g.textAlign = "left"; g.textBaseline = "top";
+  const t0 = String(bars[0][0] || "").slice(11,16), t1 = String(last[0] || "").slice(11,16);
+  g.fillText(`${t0} → ${t1} IST`, 2, P.t + plotH + 4);
+}
+
+document.addEventListener("click", e => {
+  const ob = e.target && e.target.closest ? e.target.closest("#ocopen") : null;
+  if(ob){ ocOpenFrom(ob); return; }
+  const tf = e.target && e.target.closest ? e.target.closest(".lbtn.otf") : null;
+  if(tf){ ocTF(tf.dataset.otf); return; }
+  if(e.target && (e.target.id === "occlose" || e.target.id === "oc")) ocClose();
+});
+document.addEventListener("keydown", e => { if(e.key === "Escape" && OC.open) ocClose(); });
+window.addEventListener("resize", () => { if(OC.open) ocDraw(); });
+
 function chartWant(key){
   const stale = Date.now() - CH.at > 30000;
   if(key === CH.key && !stale){ chartDraw(); return; }
@@ -5636,6 +5944,21 @@ function render(s){
     $("conftag").className="tag "+(bull?"up":bear?"down":"flat");
     $("conftag").textContent=(bull||bear? r.strike+" "+(r.option_type==="CE"?"Call":"Put")+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";
+
+  // The contract this signal names, on the button that opens its own chart.
+  {
+    const ob = $("ocopen");
+    if(ob){
+      const has = (bull || bear) && r.strike != null && !!r.option_type;
+      ob.style.display = has ? "" : "none";
+      if(has){
+        ob.dataset.k = CUR;
+        ob.dataset.strike = String(r.strike);
+        ob.dataset.side = r.option_type;
+        ob.dataset.expiry = r.expiry || "";
+      }
+    }
+  }
 
   // The expiry of the contract in play - the open ticket's own when one is
   // running, since that is the contract actually being tracked.
