@@ -71,7 +71,10 @@ _vwap_gap were only added to the log on 17 Sep 2026: a trade closed before that 
 for them - null there means "not recorded for this trade", not "read it and it was zero" - say so \
 plainly rather than guessing or inferring one from the outcome. The tool has never recorded, for any \
 trade, WHICH indicators individually agreed or dissented (only the total agreement score) - that \
-stays genuinely unavailable, past or future, and no amount of asking differently will produce it.
+stays genuinely unavailable, past or future, and no amount of asking differently will produce it. \
+For the OPEN ticket the same entry-time reading is open_ticket_entry_reading (adx, rsi, macd_hist, \
+vwap_gap, confidence, score, reward_risk), to set against the live values in selected when asked \
+whether the trade is weakening; the same null rule applies.
 
 session_today.per_index gives each traded index's own net result for today, in this market - so the \
 session-wide tallies (issued, wins, stops, net) can be reconciled against the selected index's own \
@@ -235,6 +238,26 @@ def _recent_trades(user, market, index):
     return out[:RECENT_TRADES_MAX]
 
 
+def _open_entry_reading(user, market, index):
+    """The signal as it read when the OPEN ticket on this index was taken - its
+    OPEN row in the log, the newest one on this index with no CLOSE yet."""
+    if not user:
+        return None
+    import trade_log
+    try:
+        rows = trade_log._read_rows(trade_log.user_log_path(user, market))
+    except Exception:
+        return None
+    closed = {r.get("trade_id") for r in rows if r.get("event") == "CLOSE"}
+    for r in reversed(rows):
+        if r.get("event") == "OPEN" and r.get("index") == index and r.get("trade_id") not in closed:
+            return {"adx": _num(r.get("adx")), "rsi": _num(r.get("rsi")),
+                    "macd_hist": _num(r.get("macd_hist")), "vwap_gap": _num(r.get("vwap_gap")),
+                    "confidence": r.get("confidence") or None, "score": _num(r.get("score")),
+                    "reward_risk": _num(r.get("reward_risk"))}
+    return None
+
+
 def _pick(d, fields):
     return {k: d[k] for k in fields if isinstance(d, dict) and d.get(k) is not None}
 
@@ -267,6 +290,8 @@ def build_context(snap, market, index, now=None, user=None):
         "reasoning": why,
         "hold_reason": tk.get("wait"),
         "open_ticket": ticket if ticket and ticket.get("open") else None,
+        "open_ticket_entry_reading": (_open_entry_reading(user, market, index)
+                                      if ticket and ticket.get("open") else None),
         "last_ticket_if_closed": ticket if ticket and not ticket.get("open") else None,
         "recent_trades_this_index": _recent_trades(user, market, index),
         "other_indices_in_this_market": {k: _pick(v or {}, PEER_FIELDS)
@@ -318,24 +343,48 @@ def clean_history(raw):
 # ---------------------------------------------------------------- asking
 def ask(question, history, context, client=None):
     """(answer, meta). Raises BotError with a message fit to show the user."""
-    import anthropic
     q = (question or "").strip()
     if not q:
         raise BotError("Ask a question first.", 400)
     if len(q) > MAX_QUESTION:
         raise BotError(f"Keep the question under {MAX_QUESTION} characters.", 400)
-    if client is None:
-        client = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=2)
     messages = list(history) + [{
         "role": "user",
         "content": f"<market_snapshot>\n{context}\n</market_snapshot>\n\n{scrub(q)}",
     }]
+    return _create(messages, client, EFFORT, MAX_TOKENS)
+
+
+AUTO_EFFORT = "low"            # a short status note on numbers already worked out
+AUTO_MAX_TOKENS = 4000
+AUTO_INSTRUCTION = """This is not a question from the user. The tool is watching their open ticket \
+on {index} and something just changed - <watch> says what and when. Write a short automatic update, \
+under about 120 words: what just happened, in plain words; where the ticket stands now (price against \
+entry, the stop and the exit target, live P&L, any target already hit); whether trend and momentum \
+have weakened since entry (open_ticket_entry_reading against the live values in selected, where both \
+are given); and what the rules say from here. Do not repeat what previous_updates_for_this_ticket \
+already said unless it has changed. If open_ticket is null the ticket has already closed: say so in \
+one line and stop."""
+
+
+def auto_update(index, context, watch, client=None):
+    """(text, meta) for one automatic update on an open ticket. Raises BotError."""
+    content = (f"<market_snapshot>\n{context}\n</market_snapshot>\n\n"
+               f"<watch>\n{scrub(json.dumps(watch, default=str, separators=(',', ':')))}\n</watch>\n\n"
+               + AUTO_INSTRUCTION.format(index=index))
+    return _create([{"role": "user", "content": content}], client, AUTO_EFFORT, AUTO_MAX_TOKENS)
+
+
+def _create(messages, client, effort, max_tokens):
+    import anthropic
+    if client is None:
+        client = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=2)
     try:
         resp = client.messages.create(
             model=MODEL,
-            max_tokens=MAX_TOKENS,
+            max_tokens=max_tokens,
             system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
-            output_config={"effort": EFFORT},
+            output_config={"effort": effort},
             messages=messages,
             # A declined request is re-run server-side on Anthropic's recommended
             # fallback model instead of coming back empty.

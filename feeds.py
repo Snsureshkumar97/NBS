@@ -47,6 +47,7 @@ import config
 import explain
 import market_map
 import signal_engine
+import ticket_watch
 import tickets
 import user_kite
 from data_providers import (KITE_ENGINE_RESTART, DeribitDataProvider,
@@ -484,6 +485,10 @@ class Feed:
             email if key != SHARED else None, market=self.market)
         self.events = []          # what just happened, newest first
         self.bell_closed = False  # whether today's tickets were squared up
+        # The Market Bot's automatic updates on an open ticket - off until the
+        # account switches them on, and never on the shared free-mode feed.
+        self.watch = (ticket_watch.Watch(self.tickets.path + ".botwatch.json")
+                      if self.tickets.path else None)
 
         # The live price feed. Polling REST every thirty seconds can only ever
         # show a snapshot up to thirty seconds stale, and asking faster gets
@@ -895,6 +900,7 @@ class Feed:
                     time.sleep(1.0)
                 self._set(market_open=open_now, feed="ok",
                           updated=now_ist().strftime("%H:%M:%S"))
+                self._bot_watch()
                 # An intraday ticket does not survive the session. Squaring up
                 # once at the close, rather than leaving rows marked OPEN
                 # forever, is the difference between a record and a gap.
@@ -1569,6 +1575,52 @@ class Feed:
                     ev["at"] = entry["at"]
                     self.events.insert(0, ev)
                 del self.events[30:]
+        self._bot_watch()
+
+    def _bot_watch(self):
+        """Check open tickets for the events the Market Bot reports on, and
+        start writing an update when one is due. Free unless one is due."""
+        w = self.watch
+        if w is None or not w.on:
+            return
+        try:
+            import market_bot
+            now = time.time()
+            gate = config.strictness().get("adx")
+            open_ids = set()
+            for name in self.instruments():
+                with self.tickets.lock:
+                    book = self.tickets.books.get(name)
+                    trade = book.trade if book else None
+                    if trade is None or trade["status"] != "OPEN":
+                        continue
+                    tid = trade.get("trade_id")
+                    pub = self.tickets.public(name).get("ticket")
+                with self.lock:
+                    idx = (self.state["indices"].get(name) or {}).get("public")
+                open_ids.add(tid)
+                w.observe(name, tid, pub, idx, gate, now)
+            w.forget_except(open_ids)
+            if not w.has_pending() or not market_bot.key_present():
+                return
+            due = w.take_due(now)
+            if due:
+                threading.Thread(target=self._bot_write, args=(due,), daemon=True,
+                                 name=f"botwatch:{self.key}").start()
+        except Exception as exc:
+            self._note_fault("bot watch", f"{type(exc).__name__}: {exc}")
+
+    def _bot_write(self, due):
+        import market_bot
+        try:
+            ctx = market_bot.build_context(self.snapshot(), self.market, due["index"],
+                                           user=self.email)
+            text, _meta = market_bot.auto_update(due["index"], ctx, due["watch"])
+            self.watch.finish(due, text=text)
+        except market_bot.BotError as exc:
+            self.watch.finish(due, error=str(exc))
+        except Exception as exc:
+            self.watch.finish(due, error=f"Unexpected error: {type(exc).__name__}")
 
     def forming(self):
         """The in-progress candle per index, so the chart's last bar can move

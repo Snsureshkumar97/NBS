@@ -134,6 +134,13 @@ pip3 install anthropic
 It never sends his name, email or Zerodha ID — only the selected market's
 signal and open ticket. It never places, changes or cancels an order.
 
+**Auto updates** (the button at the top of the Market Bot tab, off by default):
+while a ticket is open, the bot writes an update by itself when T1 is hit, the
+price gives back half the move after T1, the price is halfway to the stop, ADX
+drops below the trend gate, MACD turns against the trade, or 30 minutes pass
+with no progress. At most 6 per ticket, 5 minutes apart and 30 a day, each
+billed like a question. It is set per market.
+
 ---
 
 ## If something goes wrong

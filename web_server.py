@@ -628,6 +628,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "tickets": snap.get("tickets") or {},
             "session": snap.get("session") or {},
             "events": snap.get("events") or [],
+            # Only whether it is on and a counter - the page fetches the updates
+            # themselves from /api/marketbot when the counter moves.
+            "bot_watch": feed.watch.public() if getattr(feed, "watch", None) else None,
             "record": track_record(user, market),
             # Only this market's instruments. Returning all of them put NIFTY
             # cards on a crypto screen with no data behind them, because the
@@ -1188,7 +1191,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                       + os.path.join(config.home_config_dir(), ".env")
                       + " on this machine, then reload this page - the tool notices "
                       "without a restart.")
-        return self._send(json.dumps({"available": has_key, "reason": reason}),
+        market = self._current_market()
+        feed = feeds.for_user(user, market) if market else None
+        w = getattr(feed, "watch", None)
+        watch = w.public(full=True) if w is not None else None
+        return self._send(json.dumps({"available": has_key, "reason": reason, "watch": watch}),
                           "application/json")
 
     def _do_marketbot(self, form):
@@ -1206,6 +1213,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not market:
             return reply(False, "Pick a market first.", 400)
         import market_bot
+        if (form.get("action") or "") == "watch":
+            w = getattr(feeds.for_user(user, market), "watch", None)
+            if w is None:
+                return reply(False, "Automatic updates need a signed-in account.", 400)
+            on = (form.get("on") or "") in ("1", "true", "on")
+            if on and not market_bot.key_present():
+                return reply(False, "No Anthropic API key is configured for this tool.", 503)
+            try:
+                w.set_on(on)
+            except OSError:
+                return reply(False, "Could not save that setting on this machine.", 500)
+            return reply(True, "Automatic updates are on." if on else "Automatic updates are off.",
+                         watch=w.public(full=True))
         if not market_bot.key_present():
             return reply(False, "No Anthropic API key is configured for this tool.", 503)
         ok, msg = market_bot.allow(user)
@@ -3216,6 +3236,15 @@ table.chain .wide{color:var(--down)}
 .botnote{color:var(--ink-3);font-size:12px;margin-top:8px;line-height:1.5}
 .botnote.warn{color:var(--warn)}
 .botcap{font-size:12px;color:var(--ink-3);margin-top:4px}
+.botwatch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
+.botwatch .lbtn{flex:none}
+.botwatchnote{flex:1 1 260px;min-width:0;font-size:12px;color:var(--ink-3);line-height:1.5}
+.bmsg.auto{align-self:flex-start;background:var(--raised);border:1px solid rgba(77,148,232,.55);
+  color:var(--ink);border-radius:14px 14px 14px 4px}
+.bmsg .bhead{display:block;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;
+  white-space:normal}
+.menu .tab .botdot{width:8px;height:8px;border-radius:50%;background:var(--accent);
+  margin-left:auto;flex:none}
 
 /* The watchlist star in each chain price cell. Deliberately not held to the 44px
    phone floor: a 44px button in every price cell would double the height of the
@@ -3566,7 +3595,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <button class="tab" data-tab="chain" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i>Option chain</button>
   <button class="tab" data-tab="watchlist" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg></i>Watchlist</button>
   <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
-  <button class="tab" data-tab="marketbot" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></i>Market Bot</button>
+  <button class="tab" data-tab="marketbot" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></i>Market Bot<b class="botdot" id="botdot" hidden></b></button>
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
    <div class="mgrp-items">
@@ -3890,6 +3919,13 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
  <section class="pane" data-pane="marketbot">
   <div class="card" data-panel="marketbot" id="marketbotcard">
    <p class="eyebrow" role="heading" aria-level="2">Market Bot &middot; <span id="botidx">&mdash;</span></p>
+   <div class="botwatch">
+    <button class="lbtn" id="botwatch" type="button" aria-pressed="false">Auto updates: off</button>
+    <span class="botwatchnote" id="botwatchnote">While a ticket is open in this market, the bot writes an
+     update when T1 is hit, the price gives back half the move after T1, it is halfway to the stop,
+     ADX drops below the trend gate, MACD turns against the trade, or 30 minutes pass with no progress.
+     At most 6 per ticket, 5 minutes apart, 30 a day - each billed to your Anthropic key like a question.</span>
+   </div>
    <div class="botwrap">
     <div class="botlog" id="botlog"></div>
     <div class="botrow">
@@ -6314,6 +6350,7 @@ function render(s){
   // signal under another index's name.
   if(!CUR || !(s.order||[]).includes(CUR)) CUR=(s.order||[])[0];
   markets(s);
+  if(typeof botWatchTick === "function") botWatchTick(s.bot_watch);
   greet(s);
   if(s.market === "crypto"){
     const strip = document.querySelector(".ticker");
@@ -7388,7 +7425,90 @@ setInterval(() => { if(TAB === "watchlist" && !document.hidden) watchFetch(); },
 // every question. Conversation lives in memory only (not localStorage, not the
 // server) and clears when you switch index - a reply about NIFTY should never
 // be read as if it were about SENSEX.
-const BOT = {history: [], busy: false, available: null, idx: null, statusChecked: false};
+const BOT = {history: [], busy: false, available: null, idx: null, statusChecked: false,
+             watch: {on: false, seq: 0, updates: [], shown: new Set(), synced: false, fetching: false}};
+
+function botWatchRender(w){
+  if(!w) return;
+  BOT.watch.on = !!w.on;
+  const b = $("botwatch");
+  if(b){
+    b.classList.toggle("on", BOT.watch.on);
+    b.setAttribute("aria-pressed", String(BOT.watch.on));
+    b.textContent = "Auto updates: " + (BOT.watch.on ? "on" : "off");
+    b.disabled = BOT.available === false && !BOT.watch.on;
+  }
+  if(Array.isArray(w.updates)){
+    BOT.watch.updates = w.updates;
+    if(typeof w.seq === "number") BOT.watch.seq = w.seq;
+  }
+}
+
+function botAppendAuto(u){
+  const log = $("botlog");
+  if(!log) return;
+  const div = document.createElement("div");
+  div.className = "bmsg " + (u.error ? "err" : "auto");
+  const head = document.createElement("span");
+  head.className = "bhead";
+  head.textContent = `Auto update · ${u.at} · ${(u.events || []).join(", ")}`;
+  div.appendChild(head);
+  div.appendChild(document.createTextNode(u.error ? "This update could not be written: " + u.error : u.text));
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function botShowUpdates(){
+  if(BOT.idx !== CUR) botOnIndexChange();
+  const fresh = BOT.watch.updates.filter(u => u.index === CUR && !BOT.watch.shown.has(u.id)).reverse();
+  for(const u of fresh){
+    BOT.watch.shown.add(u.id);
+    botAppendAuto(u);
+    if(u.text){
+      // A follow-up question ("why?") should know what the update said.
+      BOT.history.push({role: "user", text: "(automatic update on the open ticket)"});
+      BOT.history.push({role: "assistant", text: u.text});
+      if(BOT.history.length > 12) BOT.history = BOT.history.slice(-12);
+    }
+  }
+}
+
+function botDot(on){ const d = $("botdot"); if(d) d.hidden = !on; }
+
+function botWatchTick(bw){
+  if(!bw) return;
+  if(!!bw.on !== BOT.watch.on) botWatchRender({on: bw.on});
+  if(BOT.watch.fetching) return;
+  if(!BOT.watch.synced && !bw.seq){ BOT.watch.synced = true; return; }
+  if(BOT.watch.synced && bw.seq <= BOT.watch.seq) return;
+  const before = BOT.watch.synced ? BOT.watch.seq : Infinity;
+  BOT.watch.fetching = true;
+  fetch("/api/marketbot", {cache: "no-store"}).then(r => r.json()).then(d => {
+    if(!d.watch) return;
+    botWatchRender(d.watch);
+    BOT.watch.synced = true;
+    if(TAB !== "marketbot" && BOT.watch.updates.some(u => u.id > before)) botDot(true);
+    botShowUpdates();
+  }).catch(() => {}).finally(() => { BOT.watch.fetching = false; });
+}
+
+async function botWatchToggle(){
+  const b = $("botwatch");
+  if(!b || b.disabled) return;
+  b.disabled = true;
+  try{
+    const r = await fetch("/api/marketbot", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: new URLSearchParams({action: "watch", on: BOT.watch.on ? "0" : "1"})});
+    const d = await r.json();
+    if(d.watch) botWatchRender(d.watch);
+    botSystemNote(d.message || "That could not be changed.");
+  }catch(e){
+    botSystemNote("Could not reach this tool's own server.");
+  }finally{
+    b.disabled = BOT.available === false && !BOT.watch.on;
+  }
+}
 
 function botAppend(role, text){
   const log = $("botlog");
@@ -7405,18 +7525,21 @@ function botSystemNote(text){ botAppend("sys", text); }
 function botOnIndexChange(){
   if(BOT.idx !== null && BOT.idx !== CUR){
     BOT.history = [];
+    BOT.watch.shown = new Set();
     const log = $("botlog");
     if(log) log.innerHTML = "";
     if(TAB === "marketbot") botSystemNote(`Switched to ${CUR} - new conversation.`);
   }
   BOT.idx = CUR;
   const bi = $("botidx"); if(bi) bi.textContent = CUR || "—";
+  if(BOT.watch.updates.length) botShowUpdates();
 }
 
 async function botStatus(){
   try{
     const d = await (await fetch("/api/marketbot", {cache: "no-store"})).json();
     BOT.available = !!d.available;
+    if(d.watch){ botWatchRender(d.watch); BOT.watch.synced = true; botShowUpdates(); }
     const note = $("botnote"), send = $("botsend"), q = $("botq");
     if(!BOT.available){
       note.textContent = d.reason || "The Market Bot is not available right now.";
@@ -7437,6 +7560,7 @@ async function botStatus(){
 }
 
 function botOnShow(){
+  botDot(false);
   botOnIndexChange();
   if(!BOT.statusChecked) botStatus();
   const q = $("botq");
@@ -7481,8 +7605,9 @@ async function botSend(){
   }
 }
 
-{ const q = $("botq"), send = $("botsend"), clear = $("botclear");
+{ const q = $("botq"), send = $("botsend"), clear = $("botclear"), watch = $("botwatch");
   if(send) send.addEventListener("click", botSend);
+  if(watch) watch.addEventListener("click", botWatchToggle);
   if(q) q.addEventListener("keydown", e => {
     if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); botSend(); }
   });
