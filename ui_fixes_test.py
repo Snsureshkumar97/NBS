@@ -59,7 +59,21 @@ under = sorted({float(s) for s in small if float(s) < 12})
 check("no font-size under 12px anywhere on the page", not under, under)
 
 print("3. THE OPTION CHAIN")
-check("only the column-name header row sticks", "table.chain thead tr:first-child th{position:static}" in SRC)
+check("the two header rows cannot print over each other: the second sits under the first",
+      "table.chain thead tr:nth-child(2) th{top:var(--chead,33px);z-index:3}" in SRC
+      and 't.style.setProperty("--chead", h1.getBoundingClientRect().height + "px")' in SRC)
+# 17 Sep 2026: making the top row static lost "Calls"/"Puts" entirely, because the
+# chain opens scrolled to the money. It must stay sticky, and say which side is which.
+check("Calls and Puts stay on screen however far the chain is scrolled",
+      "table.chain thead tr:first-child th{top:0;z-index:3}" in SRC
+      and "table.chain thead tr:first-child th{position:static}" not in SRC)
+check("the strike headers are never painted over by the sticky strike column",
+      "table.chain thead tr:first-child th.k,table.chain thead tr:nth-child(2) th.k{z-index:4}" in SRC)
+check("on a phone each side label pins to the visible edge of its half",
+      "table.chain th.ce .grp{position:sticky;left:10px;display:inline-block}" in SRC
+      and "table.chain th.pe .grp{position:sticky;right:10px;display:inline-block}" in SRC)
+check("each side is labelled in words and colour", "Calls &middot; CE" in SRC and "Puts &middot; PE" in SRC
+      and "table.chain thead th.ce{box-shadow:inset 0 -2px 0 var(--up)}" in SRC)
 check("the strike column is sticky on a phone",
       "table.chain th.k,table.chain td.k{position:sticky;left:0;right:0;z-index:2;background:#0b0d13}" in SRC)
 check("the ATM strike keeps its highlight when stuck", "table.chain tr.atm td.k{background:#1b1e26}" in SRC)

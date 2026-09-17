@@ -3098,9 +3098,25 @@ table.chain th{position:sticky;top:0;z-index:1;background:rgba(10,12,18,.97);
   font-weight:700;padding:7px 6px;text-align:right}
 table.chain th.k,table.chain td.k{text-align:center;color:var(--ink-2);font-weight:700}
 table.chain th.ce{color:var(--up)} table.chain th.pe{color:var(--down)}
-/* Both header rows were sticky at top:0, so on scroll "Calls" and "Strike" printed
-   over the column names. Only the column names stick now. */
-table.chain thead tr:first-child th{position:static}
+/* Both header rows stick, stacked: Calls / Strike / Puts on top, the column names
+   under it. Both used to stick at top:0 and printed over each other. Making the top
+   row static (16 Sep) fixed the overlap but lost the row: the chain opens scrolled
+   to the money, which left "Calls" and "Puts" ~230px above view, so nothing said
+   which side was which. The second row now sits at the first row's measured height
+   (--chead, set when the table is drawn). */
+table.chain thead tr:first-child th{top:0;z-index:3}
+table.chain thead tr:nth-child(2) th{top:var(--chead,33px);z-index:3}
+/* The strike headers sit above everything: on a phone the strike column is sticky
+   too, and at an equal layer its price cells painted over "Strike" as it scrolled. */
+table.chain thead tr:first-child th.k,table.chain thead tr:nth-child(2) th.k{z-index:4}
+@media(max-width:720px){
+  /* Each side label is centred in a five-column cell that is mostly off-screen once
+     the chain centres on the strike; pin it to the visible edge of its own half. */
+  table.chain th.ce .grp{position:sticky;left:10px;display:inline-block}
+  table.chain th.pe .grp{position:sticky;right:10px;display:inline-block}
+}
+table.chain thead th.ce{box-shadow:inset 0 -2px 0 var(--up)}
+table.chain thead th.pe{box-shadow:inset 0 -2px 0 var(--down)}
 @media(max-width:720px){
   /* The strike is what the whole row is about, and on a phone it sat at the far
      right edge, clipped. Sticky on both sides keeps it on screen whichever way the
@@ -6813,9 +6829,9 @@ function chainDraw(d){
          + `<td class="${wall?"wall":""}">${oiFmt(o.oi)}</td>`;
   };
   t.innerHTML =
-    `<thead><tr><th colspan="5" class="ce" style="text-align:center">Calls</th>`
+    `<thead><tr><th colspan="5" class="ce" style="text-align:center"><span class="grp">Calls &middot; CE</span></th>`
     + `<th class="k">Strike</th>`
-    + `<th colspan="5" class="pe" style="text-align:center">Puts</th></tr>`
+    + `<th colspan="5" class="pe" style="text-align:center"><span class="grp">Puts &middot; PE</span></th></tr>`
     + `<tr><th>LTP</th><th>Bid</th><th>Ask</th><th>Spr</th><th>OI</th><th class="k"></th>`
     + `<th>LTP</th><th>Bid</th><th>Ask</th><th>Spr</th><th>OI</th></tr></thead><tbody>`
     + d.rows.map(r => {
@@ -6825,6 +6841,8 @@ function chainDraw(d){
              + `<td class="k">${num(r.strike,0)}</td>`
              + cell(r.pe, "pe", r.strike) + `</tr>`;
       }).join("") + `</tbody>`;
+  { const h1 = t.querySelector("thead tr");
+    if(h1) t.style.setProperty("--chead", h1.getBoundingClientRect().height + "px"); }
   const sym = d.currency === "USD" ? "$" : "₹";
   bar.innerHTML =
     `<span>Spot <b>${d.spot == null ? "—" : num(d.spot,2)}</b></span>`
