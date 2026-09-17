@@ -46,7 +46,7 @@ import indicators
 import explain
 import signal_engine
 import trade_log
-from main import is_market_open, now_ist
+from main import is_market_open, is_nse_holiday, now_ist
 
 TARGET_KEYS = ("T1", "T2", "T3")
 
@@ -370,10 +370,23 @@ class TicketBook:
         # hit a gate belonging to a different exchange.
         ref = self._ref_key()
         if not is_market_open(now, ref):
+            # Before the open is not "the session is over". That sentence, shown
+            # at 08:52 with "09:15-15:40" in it, was read as the opening-range
+            # wait that had been switched off the day before (17 Sep 2026).
+            m = config.market_for(ref)
+            o, c = m.get("open"), m.get("close")
+            trading_day = not ((not m.get("weekends") and now.weekday() >= 5)
+                               or (m.get("holidays") and is_nse_holiday(now.date())))
+            if trading_day and o and (now.hour, now.minute) < tuple(o):
+                return ("closed", "BEFORE THE OPEN",
+                        f"The market opens at {o[0]:02d}:{o[1]:02d}. The signal is already "
+                        "being worked out from the latest candles, and a ticket can be "
+                        "issued from the open.")
+            hours = (f"{o[0]:02d}:{o[1]:02d} to {c[0]:02d}:{c[1]:02d}" if o and c
+                     else "market hours")
             return ("closed", "MARKET CLOSED",
-                    "The session is over. The analysis keeps running so you can "
-                    "see where things ended, but nothing is issued outside "
-                    "09:15-15:40.")
+                    "The session is over. The analysis keeps running so you can see "
+                    f"where things ended, but tickets are only issued from {hours}.")
 
         # The closing auction. The market is open and the premium is still
         # moving, so every check below would pass - but from 15:15 the index
