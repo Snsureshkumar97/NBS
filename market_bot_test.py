@@ -195,6 +195,7 @@ SNAP_OPEN = {
                                                "why": "The indicators do not agree yet."}},
     },
     "session": {"issued": 3, "closed_today": 1, "wins": 1, "stops": 0, "net": 210.5,
+               "per_index": {"NIFTY": 90.0, "BANKNIFTY": 120.5},
                "max_trades": 4, "limits": False, "capital": 200000, "risk_pct": 2.0},
     "market_open": True, "closing_auction": False, "feed": "ok",
     "user": "me@example.invalid", "account": {"expires": "2027-01-01"},
@@ -219,6 +220,15 @@ check("the rules block matches config", ctx["rules"]["exit_target"] == config.EX
       and ctx["rules"]["trend_gate_adx"] == config.strictness()["adx"])
 check("the trend measure is reported per index (fast on NSE, since 17 Sep 2026)",
       "3 candles" in ctx["rules"]["trend_measure"])
+# 17 Sep 2026: session_today had no per-index breakdown, so a day when more than
+# one index traded left the bot unable to reconcile its own session tally against
+# the selected index's own trades - it correctly said so rather than guessing,
+# but the gap was real. per_index is numbers only (each index's own net for
+# today), never another index's strike, entry or exit.
+check("each traded index's own net for today is visible, not just the market-wide total",
+      ctx["session_today"]["per_index"] == {"NIFTY": 90.0, "BANKNIFTY": 120.5})
+check("account-level session fields still never appear",
+      "capital" not in ctx["session_today"] and "risk_pct" not in ctx["session_today"])
 
 SNAP_CLOSED = json.loads(json.dumps(SNAP_OPEN))
 SNAP_CLOSED["tickets"]["NIFTY"]["ticket"]["open"] = False

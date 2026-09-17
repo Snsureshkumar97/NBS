@@ -63,6 +63,13 @@ live state - so entry, exit and result for a past trade come only from recent_tr
 before saying you have no information; if it is genuinely not in that list either, say so rather \
 than guessing.
 
+session_today.per_index gives each traded index's own net result for today, in this market - so the \
+session-wide tallies (issued, wins, stops, net) can be reconciled against the selected index's own \
+trades without inventing another index's strike, entry or exit, which you were not given and must \
+not guess at. If the numbers do not add up to the selected index alone, that is normal and expected \
+on a day when more than one index traded - say which other index accounts for the difference and its \
+net for the day, not as a gap in what you were given but as something outside this index's own detail.
+
 What you are asked for, and how to answer:
 - The market: what the selected index is doing now - direction, trend strength (ADX), where price sits \
 against VWAP and the day's range, and how the other indices in the same market compare.
@@ -143,8 +150,8 @@ TICKET_FIELDS = ("index", "strike", "expiry", "option_type", "status", "open", "
                  "entry", "now", "pnl", "tracked_on", "lots", "lot_size", "targets", "stop",
                  "hit", "hit_time", "sl_hit", "sl_hit_time", "exit_at", "index_targets",
                  "index_stop", "entry_spot")
-SESSION_FIELDS = ("issued", "closed_today", "wins", "stops", "net", "max_trades", "limits",
-                  "loss_limit_pct", "open")
+SESSION_FIELDS = ("issued", "closed_today", "wins", "stops", "net", "per_index", "max_trades",
+                  "limits", "loss_limit_pct", "open")
 RECENT_TRADES_MAX = 5
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 _CLIENT_ID = re.compile(r"\b[A-Z]{2,4}\d{3,6}\b")
