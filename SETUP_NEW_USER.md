@@ -109,6 +109,33 @@ secret are already saved; only the daily token is refreshed.
 
 ---
 
+## Step 6 — Optional: turn on the Market Bot
+
+A chat panel in the tool that explains the selected market, the signal, and
+whether an open ticket should be held or exited — from the tool's own rules,
+not a view of its own. Skip this step entirely and the rest of the tool works
+exactly the same; the tab just says it needs a key.
+
+```
+pip3 install anthropic
+```
+
+1. Get his own key at **https://console.anthropic.com** (a separate account
+   from Zerodha — billed there, not through Kite). Anthropic, not Zerodha,
+   charges for this: a few rupees per question.
+2. Open `~/.trading-tool/.env` in a text editor (create it if Step 4 hasn't
+   run yet) and add a line:
+
+       ANTHROPIC_API_KEY=sk-ant-...
+
+3. Reload the tool's page in the browser — no restart needed; it looks for the
+   key again on the next question.
+
+It never sends his name, email or Zerodha ID — only the selected market's
+signal and open ticket. It never places, changes or cancels an order.
+
+---
+
 ## If something goes wrong
 
 Run:

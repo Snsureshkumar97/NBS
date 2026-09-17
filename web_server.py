@@ -316,6 +316,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_journal(form)
             if path == "/api/watchlist":
                 return self._do_watchlist(form)
+            if path == "/api/marketbot":
+                return self._do_marketbot(form)
             if path == "/api/customscreen":
                 return self._do_customscreen(form)
             if path == "/market":
@@ -491,6 +493,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_journal(user, qs)
             if path == "/api/watchlist":
                 return self._api_watchlist(user)
+            if path == "/api/marketbot":
+                return self._api_marketbot(user)
             if path == "/api/customscreen":
                 return self._api_customscreen(user)
             if path == "/api/greeks":
@@ -1169,6 +1173,61 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except ValueError as exc:
             return reply(False, str(exc), 400)
         return reply(False, "Unknown action.", 400)
+
+    # ------------------------------------------------------------ market bot
+    def _api_marketbot(self, user):
+        """Whether the Market Bot can answer right now."""
+        import market_bot
+        if not user:
+            return self._send(json.dumps({"available": False, "reason": "Sign in first."}),
+                              "application/json")
+        has_key = market_bot.key_present()
+        reason = None
+        if not has_key:
+            reason = ("No Anthropic API key found. Add ANTHROPIC_API_KEY to "
+                      + os.path.join(config.home_config_dir(), ".env")
+                      + " on this machine, then reload this page - the tool notices "
+                      "without a restart.")
+        return self._send(json.dumps({"available": has_key, "reason": reason}),
+                          "application/json")
+
+    def _do_marketbot(self, form):
+        """Ask the Market Bot about the selected market, the signal, or an open
+        ticket. Never places, changes or cancels anything."""
+        def reply(ok, message="", code=200, **extra):
+            return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra)),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        market = self._current_market()
+        if not market:
+            return reply(False, "Pick a market first.", 400)
+        import market_bot
+        if not market_bot.key_present():
+            return reply(False, "No Anthropic API key is configured for this tool.", 503)
+        ok, msg = market_bot.allow(user)
+        if not ok:
+            return reply(False, msg, 429)
+        index = (form.get("index") or "").strip().upper()
+        if index not in config.instruments_in(market):
+            return reply(False, "Pick an index in this market first.", 400)
+        feed = feeds.for_user(user, market)
+        snap = feed.snapshot()
+        try:
+            context = market_bot.build_context(snap, market, index)
+        except Exception as exc:
+            return reply(False, f"Could not build the market snapshot: {type(exc).__name__}", 500)
+        history = market_bot.clean_history(form.get("history"))
+        try:
+            answer, meta = market_bot.ask(form.get("question"), history, context)
+        except market_bot.BotError as exc:
+            return reply(False, str(exc), exc.code)
+        except Exception as exc:
+            return reply(False, f"Unexpected error: {type(exc).__name__}", 500)
+        return reply(True, answer=answer, meta=meta)
 
     def _do_journal(self, form):
         """Add, change or delete one of your own journal trades, or save a day's
@@ -3135,6 +3194,29 @@ table.chain tr.atm td{color:var(--ink-2)} table.chain tr.atm td.k{color:var(--in
 table.chain td.mine{outline:1px solid rgba(77,148,232,.55);border-radius:4px;color:var(--ink)}
 table.chain .wall{color:var(--warn);font-weight:700}
 table.chain .wide{color:var(--down)}
+/* ---------- Market Bot ---------- */
+.botwrap{display:flex;flex-direction:column;height:min(62vh,560px);min-height:280px}
+.botlog{flex:1 1 auto;overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+  padding:4px 2px 8px}
+.bmsg{max-width:88%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.5;
+  white-space:pre-wrap;word-wrap:break-word}
+.bmsg.user{align-self:flex-end;background:var(--accent);color:#fff;border-radius:14px 14px 4px 14px}
+.bmsg.bot{align-self:flex-start;background:var(--raised);border:1px solid var(--bd);
+  color:var(--ink);border-radius:14px 14px 14px 4px}
+.bmsg.err{align-self:flex-start;background:rgba(239,85,112,.12);border:1px solid rgba(239,85,112,.35);
+  color:var(--down);border-radius:14px}
+.bmsg.sys{align-self:center;background:transparent;color:var(--ink-3);font-size:12px;padding:2px 8px}
+.botrow{display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--bd-soft);
+  padding-top:10px;margin-top:2px}
+.botrow textarea{flex:1 1 auto;resize:none;min-height:38px;max-height:120px;
+  background:var(--sunken);color:var(--ink);border:1px solid var(--bd);border-radius:10px;
+  padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.4}
+.botrow textarea:focus{outline:none;border-color:var(--accent)}
+.botrow .lbtn{flex:none}
+.botnote{color:var(--ink-3);font-size:12px;margin-top:8px;line-height:1.5}
+.botnote.warn{color:var(--warn)}
+.botcap{font-size:12px;color:var(--ink-3);margin-top:4px}
+
 /* The watchlist star in each chain price cell. Deliberately not held to the 44px
    phone floor: a 44px button in every price cell would double the height of the
    chain, and the star is a convenience next to a number, not the way to trade. */
@@ -3484,6 +3566,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <button class="tab" data-tab="chain" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i>Option chain</button>
   <button class="tab" data-tab="watchlist" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg></i>Watchlist</button>
   <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
+  <button class="tab" data-tab="marketbot" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></i>Market Bot</button>
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
    <div class="mgrp-items">
@@ -3801,6 +3884,25 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <p class="eyebrow" role="heading" aria-level="2">Watchlist &middot; <span id="watchcount">&mdash;</span></p>
    <div class="watchwrap"><table class="watch" id="watchtbl"></table></div>
    <div class="gnote" id="watchnote">Loading your watchlist&hellip;</div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="marketbot">
+  <div class="card" data-panel="marketbot" id="marketbotcard">
+   <p class="eyebrow" role="heading" aria-level="2">Market Bot &middot; <span id="botidx">&mdash;</span></p>
+   <div class="botwrap">
+    <div class="botlog" id="botlog"></div>
+    <div class="botrow">
+     <textarea id="botq" placeholder="Ask about this market, the signal, or your open ticket&hellip;"
+       rows="1" maxlength="800"></textarea>
+     <button class="lbtn" id="botsend" type="button">Ask</button>
+     <button class="lbtn" id="botclear" type="button" title="Start a new conversation">New chat</button>
+    </div>
+   </div>
+   <div class="botnote" id="botnote"></div>
+   <div class="botcap">Not advice - explains the tool's own mechanical rules and its own data.
+    Never places, changes or cancels an order. Sends this market's signal and your open ticket
+    to Anthropic; never your name, email or broker ID.</div>
   </div>
  </section>
 
@@ -4182,6 +4284,14 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
 <script>
 let CUR=null, LAST=null;
+// One place that changes CUR, so anything that must react to the market you are
+// LOOKING AT (not just re-rendering the same one) has a single hook to use.
+function selectIndex(k){
+  const changed = k !== CUR;
+  CUR = k;
+  render(LAST);
+  if(changed && typeof botOnIndexChange === "function") botOnIndexChange();
+}
 // These are declared here, with the other page globals, because the code in
 // this block runs BEFORE the blocks that define the sections, the map and the
 // home screen - and a const or let reached before its own declaration throws
@@ -4222,7 +4332,7 @@ function markets(s){
     let el=w.children[i];
     if(!el){ el=document.createElement("button"); el.className="mkt"; el.type="button";
              el.setAttribute("role","tab"); w.appendChild(el);
-             el.addEventListener("click",()=>{CUR=k;render(LAST);}); }
+             el.addEventListener("click",()=>{ selectIndex(k); }); }
     el.setAttribute("aria-selected", k===CUR?"true":"false");
     el.classList.toggle("bull", !!(r && r.bias==="BULLISH"));
     el.classList.toggle("bear", !!(r && r.bias==="BEARISH"));
@@ -6947,10 +7057,10 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["home", "signal", "chart", "chain", "watchlist", "market", "pulse", "sector",
+const TABS = ["home", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
               "season", "news", "record", "admin", "journal", "screener"];
-const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist",
+const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Market Bot",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
@@ -7036,6 +7146,7 @@ function showTab(name, push){
   }
   if(name === "chain"){ chainFetch(true); oiFetch(); watchFetch(true); }
   if(name === "watchlist") watchFetch(true);
+  if(name === "marketbot") botOnShow();
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
   gateTabs();
@@ -7271,6 +7382,119 @@ document.addEventListener("click", async e => {
   if(rm){ rm.disabled = true; await watchPost({action: "remove", id: rm.dataset.id}); watchFetch(true); }
 });
 setInterval(() => { if(TAB === "watchlist" && !document.hidden) watchFetch(); }, 5000);
+
+// ============================================================ Market Bot
+// A chat backed by Claude, given a fresh snapshot of the selected market on
+// every question. Conversation lives in memory only (not localStorage, not the
+// server) and clears when you switch index - a reply about NIFTY should never
+// be read as if it were about SENSEX.
+const BOT = {history: [], busy: false, available: null, idx: null, statusChecked: false};
+
+function botAppend(role, text){
+  const log = $("botlog");
+  if(!log) return;
+  const div = document.createElement("div");
+  div.className = "bmsg " + role;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function botSystemNote(text){ botAppend("sys", text); }
+
+function botOnIndexChange(){
+  if(BOT.idx !== null && BOT.idx !== CUR){
+    BOT.history = [];
+    const log = $("botlog");
+    if(log) log.innerHTML = "";
+    if(TAB === "marketbot") botSystemNote(`Switched to ${CUR} - new conversation.`);
+  }
+  BOT.idx = CUR;
+  const bi = $("botidx"); if(bi) bi.textContent = CUR || "—";
+}
+
+async function botStatus(){
+  try{
+    const d = await (await fetch("/api/marketbot", {cache: "no-store"})).json();
+    BOT.available = !!d.available;
+    const note = $("botnote"), send = $("botsend"), q = $("botq");
+    if(!BOT.available){
+      note.textContent = d.reason || "The Market Bot is not available right now.";
+      note.classList.add("warn");
+      if(send) send.disabled = true;
+      if(q) q.disabled = true;
+    } else {
+      note.textContent = "";
+      note.classList.remove("warn");
+      if(send) send.disabled = false;
+      if(q) q.disabled = false;
+    }
+  }catch(e){
+    const note = $("botnote");
+    if(note){ note.textContent = "Could not reach this tool's own server to check."; note.classList.add("warn"); }
+  }
+  BOT.statusChecked = true;
+}
+
+function botOnShow(){
+  botOnIndexChange();
+  if(!BOT.statusChecked) botStatus();
+  const q = $("botq");
+  if(q && !BOT.busy) q.focus();
+}
+
+async function botSend(){
+  const q = $("botq");
+  const text = (q.value || "").trim();
+  if(!text || BOT.busy || BOT.available === false) return;
+  botAppend("user", text);
+  q.value = "";
+  q.style.height = "auto";
+  BOT.busy = true;
+  $("botsend").disabled = true;
+  const thinking = document.createElement("div");
+  thinking.className = "bmsg bot"; thinking.textContent = "Thinking…";
+  $("botlog").appendChild(thinking);
+  $("botlog").scrollTop = $("botlog").scrollHeight;
+  try{
+    const r = await fetch("/api/marketbot", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: new URLSearchParams({action: "ask", index: CUR || "", question: text,
+                                 history: JSON.stringify(BOT.history)})});
+    const d = await r.json();
+    thinking.remove();
+    if(d.ok){
+      botAppend("bot", d.answer);
+      BOT.history.push({role: "user", text: text});
+      BOT.history.push({role: "assistant", text: d.answer});
+      if(BOT.history.length > 12) BOT.history = BOT.history.slice(-12);
+    } else {
+      botAppend("err", d.message || "That could not be answered.");
+    }
+  }catch(e){
+    thinking.remove();
+    botAppend("err", "Could not reach this tool's own server.");
+  }finally{
+    BOT.busy = false;
+    if(BOT.available !== false) $("botsend").disabled = false;
+    if(q) q.focus();
+  }
+}
+
+{ const q = $("botq"), send = $("botsend"), clear = $("botclear");
+  if(send) send.addEventListener("click", botSend);
+  if(q) q.addEventListener("keydown", e => {
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); botSend(); }
+  });
+  if(q) q.addEventListener("input", () => {
+    q.style.height = "auto"; q.style.height = Math.min(120, q.scrollHeight) + "px";
+  });
+  if(clear) clear.addEventListener("click", () => {
+    BOT.history = [];
+    const log = $("botlog"); if(log) log.innerHTML = "";
+    botSystemNote("New conversation.");
+  });
+}
 
 // ============================================================ option clock
 // Open interest is a running total, so the number that matters intraday is
@@ -8380,7 +8604,7 @@ const PAL = {items: [], sel: 0};
 function palItems(){
   const out = [];
   ((LAST && LAST.order) || []).forEach(k => out.push(
-    {t:"Index", label:k, sub:"show this index", run:() => { CUR = k; render(LAST); chainFetch(true); }}));
+    {t:"Index", label:k, sub:"show this index", run:() => { selectIndex(k); chainFetch(true); }}));
   if(((LAST && LAST.markets) || []).length > 1)
     out.push({t:"Market", label:"Switch market", sub:"Indian indices / crypto",
               run:() => location.href = "/market"});
