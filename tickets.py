@@ -103,10 +103,12 @@ class TicketBook:
     that wants the shared desktop log.
     """
 
-    def __init__(self, owner=None, market=None):
+    def __init__(self, owner=None, market=None, path=None):
         self.owner = owner
         self.market = market or config.DEFAULT_MARKET
-        self.path = trade_log.user_log_path(owner, self.market) if owner else None
+        # `path` gives a second book its own log - the AI desk's paper tickets,
+        # which must never be counted in the rule tickets' record or limits.
+        self.path = path or (trade_log.user_log_path(owner, self.market) if owner else None)
         self.lock = threading.RLock()
         self.books = {name: IndexBook(name)
                       for name in config.instruments_in(self.market)}
@@ -480,6 +482,19 @@ class TicketBook:
             events += self._track(book, rec)
             events += self._consider(book, rec)
             return events
+
+    def track(self, name, rec):
+        """Check an open ticket against a fresh reading, and nothing else - no
+        new ticket is ever issued from here. For a book whose tickets are not
+        the rules' own (the AI desk's): keep auto_rearm off on such a book."""
+        if not rec:
+            return []
+        with self.lock:
+            book = self.books.get(name)
+            if book is None:
+                return []
+            book.last_rec = rec
+            return self._track(book, rec)
 
     # ------------------------------------------------------------- tracking
     def _price_for(self, trade, rec):
@@ -1019,6 +1034,7 @@ class TicketBook:
         except Exception:
             pass
         self._day_cache = None
+        self._booked_cache = None        # a close changes today's booked P&L - the loss limit must see it now
         book.last_close_at = now_ist()
         row = {
             "index": trade["index"], "strike": trade["strike"],

@@ -259,6 +259,10 @@ def _record(ctx, args):
     return web_server.track_record(ctx.user, ctx.market)
 
 
+def _ai_trades(ctx, args):
+    return _page_call(ctx, "_api_ai", ctx.user)
+
+
 def _world(ctx, args):
     import market_ticker
     rows = market_ticker.rows()
@@ -351,6 +355,11 @@ SOURCES = [
      "description": "The Record tab: the tool's own ticket record in this market - how its tickets have actually done, "
                     "by index and over time.",
      "params": {}},
+    {"name": "get_ai_trades", "tabs": ("aidesk",), "routes": ("/api/ai",), "fn": _ai_trades,
+     "description": "The AI trades tab: the AI desk's own paper tickets in this market (open ones with live P&L, "
+                    "its reason for each), its recent enter / wait / hold / exit decisions and why, any proposal "
+                    "the tool rejected and why, its closed-trade record, and today's limits and decision count.",
+     "params": {}},
     {"name": "get_world_markets", "tabs": ("home",), "routes": ("/api/markets",), "fn": _world,
      "description": "The market strip at the top of the page: world indices, Indian sectors and currencies (on the "
                     "Bitcoin screen, the world block only).",
@@ -363,7 +372,7 @@ LABELS = {"get_signal": "Signal", "get_chart": "Chart", "get_option_chart": "Opt
           "get_journal": "Journal", "get_market_map": "Market map", "get_constituents": "Constituents",
           "get_momentum_spikes": "Momentum spikes", "run_stock_screener": "Screener",
           "get_analytics": "Analysis", "get_greeks": "Greeks & IV", "get_news": "News",
-          "get_record": "Record", "get_world_markets": "World markets"}
+          "get_record": "Record", "get_ai_trades": "AI trades", "get_world_markets": "World markets"}
 
 
 def tool_specs():

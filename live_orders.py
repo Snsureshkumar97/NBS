@@ -617,7 +617,11 @@ class Executor:
                 elif state == "placing":
                     self._recover_placing(pos)
             except Exception as exc:
-                self._note(pos["index"], f"Could not check the order: {self._why(exc)}", "error", pos)
+                msg = f"Could not check the order: {self._why(exc)}"
+                last = pos.get("last_err") or ["", 0]
+                if msg != last[0] or self.clock() - last[1] >= 60:
+                    pos["last_err"] = [msg, self.clock()]
+                    self._note(pos["index"], msg, "error", pos)
         self._save()
 
     def _recover_placing(self, pos):

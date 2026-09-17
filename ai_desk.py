@@ -1,0 +1,483 @@
+"""
+ai_desk.py — Ask TradePicker trading on paper, alongside the rules
+================================================================================
+Asked for by the user on 17 Sep 2026: with every section of the tool readable,
+let the bot pick its own entries, targets and stops - the other rules the same -
+and see how it does.
+
+WHAT THE USER CHOSE
+    Paper only: AI tickets are never sent to Zerodha. One decision per index at
+    each 15-minute candle close. Alongside the rule tickets, with a separate
+    record. Indian indices and Bitcoin. No overtrading, and no second entry in
+    a contract already traded that day (a real account averages the two buys
+    into one price, which hides what each trade did).
+
+HOW A DECISION HAPPENS
+    Each index, once per closed 15-minute candle, and only while the switch is
+    on and the market is open:
+      * no AI ticket open  -> if every limit below allows an entry, the bot is
+        asked "enter or wait"; otherwise it is not asked at all (no cost).
+      * AI ticket open     -> the bot is asked "hold or exit". Its target and
+        stop are checked on every tick regardless, like any ticket's.
+    The bot may look anything up (bot_data.py) before it answers.
+
+WHAT THE TOOL ENFORCES, WHATEVER THE BOT SAYS
+    The same session gates as rule tickets (market hours, the opening wait, the
+    closing auction, the daily loss limit on the rule book's capital), plus:
+    MAX_ENTRIES_PER_DAY per market and MAX_ENTRIES_PER_INDEX per index, a
+    COOLDOWN_MIN wait after an AI exit on that index, no Indian-index entry
+    after NO_ENTRY_AFTER, one AI ticket per index, MAX_DECISIONS_PER_DAY model
+    calls, and no contract twice in a day. An entry must name a strike in the
+    live chain within STRIKE_STEPS of the money, with a live premium, a spread
+    under MAX_SPREAD_PCT, a stop below and a target above that premium, and at
+    least MIN_REWARD_RISK. The entry is the live premium, never the bot's number.
+    Lots are the user's own lots setting.
+
+*** PAPER ONLY. Nothing here places an order: this book has no listeners.
+"""
+import datetime as dt
+import json
+import os
+import threading
+import time
+
+import config
+import signal_engine
+import tickets
+import trade_log
+from main import is_market_open, now_ist
+
+CANDLE_MIN = 15
+DECISION_DELAY_S = 45          # one REST pass (every 30s) has fetched the finished candle
+STALE_S = 180                  # analysis older than this is not decided on
+MAX_ENTRIES_PER_DAY = 4
+MAX_ENTRIES_PER_INDEX = 2
+COOLDOWN_MIN = 30
+NO_ENTRY_AFTER = (15, 10)
+MAX_DECISIONS_PER_DAY = {"nse_index": 90, "crypto": 100}
+STRIKE_STEPS = 6
+MIN_REWARD_RISK = 1.0
+RECENT_KEPT = 60
+LOOP_S = 15
+
+
+class AIDesk:
+    def __init__(self, feed, now=None, clock=None, start=True):
+        self.feed = feed
+        self.market = feed.market
+        self.now = now or now_ist
+        self.clock = clock or time.time
+        base = os.path.dirname(trade_log.user_log_path(feed.email, feed.market))
+        self.state_path = os.path.join(base, "ai_desk.json")
+        self.decisions_path = os.path.join(base, "ai_decisions.jsonl")
+        self.book = tickets.TicketBook(feed.email, feed.market, path=os.path.join(base, "ai_trades.csv"))
+        self.book.auto_rearm = False
+        self.lock = threading.RLock()
+        self.on = False
+        self.day = None
+        self.decisions_today = 0
+        self.tokens_today = {"input": 0, "output": 0}
+        self.entries = {}            # index -> entries today
+        self.contracts = []          # "NIFTY|25000|CE|2026-09-22" traded today
+        self.last_candle = {}        # index -> iso of the candle close last decided on
+        self.last_exit = {}          # index -> epoch of the last AI exit
+        self.recent = []             # newest first
+        self.busy = None
+        self._tok = {}               # trade_id -> streamed contract handle
+        self._tok_tried = {}
+        self._load()
+        self.thread = None
+        self._thread_lock = threading.Lock()
+        if start:
+            self.ensure_running()
+
+    def ensure_running(self):
+        """Start the decision loop if it is not running. Called from the feed's
+        touch(), once the feed is registered - a loop started earlier would
+        find no feed of its own and stop at once."""
+        with self._thread_lock:
+            if self.thread is None or not self.thread.is_alive():
+                self.thread = threading.Thread(target=self._loop, daemon=True, name=f"ai:{self.feed.key}")
+                self.thread.start()
+
+    # ------------------------------------------------------------ disk
+    def _load(self):
+        try:
+            with open(self.state_path) as fh:
+                s = json.load(fh)
+        except Exception:
+            return
+        self.on = bool(s.get("on"))
+        self.day = s.get("day")
+        self.decisions_today = int(s.get("decisions_today") or 0)
+        self.tokens_today = s.get("tokens_today") or self.tokens_today
+        self.entries = s.get("entries") or {}
+        self.contracts = s.get("contracts") or []
+        self.last_candle = s.get("last_candle") or {}
+        self.last_exit = s.get("last_exit") or {}
+        self.recent = s.get("recent") or []
+
+    def _save(self):
+        with self.lock:
+            data = {"on": self.on, "day": self.day, "decisions_today": self.decisions_today,
+                    "tokens_today": self.tokens_today, "entries": self.entries, "contracts": self.contracts,
+                    "last_candle": self.last_candle, "last_exit": self.last_exit,
+                    "recent": self.recent[:RECENT_KEPT]}
+            tmp = self.state_path + ".tmp"
+            with open(tmp, "w") as fh:
+                json.dump(data, fh, default=str)
+            os.replace(tmp, self.state_path)
+
+    def _roll_day(self):
+        today = self.now().strftime("%Y-%m-%d")
+        if self.day != today:
+            self.day, self.decisions_today = today, 0
+            self.tokens_today = {"input": 0, "output": 0}
+            self.entries, self.contracts = {}, []
+
+    def set_on(self, on):
+        with self.lock:
+            self.on = bool(on)
+            self._save()
+        return self.on
+
+    def _record(self, index, kind, action, reason, extra=None):
+        entry = {"at": self.now().strftime("%Y-%m-%d %H:%M:%S"), "index": index, "kind": kind,
+                 "action": action, "reason": reason}
+        entry.update(extra or {})
+        with self.lock:
+            self.recent.insert(0, entry)
+            del self.recent[RECENT_KEPT:]
+        try:
+            with open(self.decisions_path, "a") as fh:
+                fh.write(json.dumps(entry, default=str) + "\n")
+        except OSError:
+            pass
+        return entry
+
+    # ------------------------------------------------------------ the loop
+    def _alive(self):
+        import feeds
+        with feeds._lock:
+            return feeds._feeds.get(self.feed.key) is self.feed
+
+    def _loop(self):
+        import feeds
+        while not feeds._stopping.is_set() and self._alive():
+            try:
+                self.step()
+            except Exception as exc:
+                self.feed._note_fault("ai desk", f"{type(exc).__name__}: {exc}")
+            time.sleep(LOOP_S)
+
+    def _candle_close(self, now):
+        return now.replace(minute=now.minute - now.minute % CANDLE_MIN, second=0, microsecond=0)
+
+    def step(self, client=None):
+        """Decide for every index whose latest 15-minute candle has not been decided on."""
+        import market_bot
+        if not self.on:
+            return
+        self._roll_day()
+        now = self.now()
+        for name in self.feed.instruments():
+            if not is_market_open(now, name):
+                continue
+            close = self._candle_close(now)
+            if self.last_candle.get(name) == close.isoformat():
+                continue
+            if (now - close).total_seconds() < DECISION_DELAY_S:
+                continue
+            with self.feed.lock:
+                rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec")
+            if not rec or not self._fresh():
+                continue
+            if not market_bot.key_present():
+                continue
+            self.last_candle[name] = close.isoformat()
+            if self.decisions_today >= MAX_DECISIONS_PER_DAY.get(self.market, 90):
+                if not any(r.get("kind") == "cap" and r["at"][:10] == self.day for r in self.recent):
+                    self._record(name, "cap", "none", "Today's decision cap is reached - no more model calls today.")
+                continue
+            trade = self._open_trade(name)
+            if trade is not None:
+                self._review(name, trade, rec, client)
+            else:
+                why = self.entry_block(name)
+                if why:
+                    continue                     # not asked at all: nothing to decide, nothing billed
+                self._entry(name, rec, client)
+            self._save()
+        self._save()
+
+    def _fresh(self):
+        """Whether the feed's analysis is current. A feed whose Zerodha token
+        lapsed keeps its last reading on screen; deciding on it would be
+        deciding on the past."""
+        if self.feed.state.get("feed") not in (None, "ok"):
+            return False
+        live_at = getattr(self.feed, "live_at", None)
+        return bool(live_at) and time.time() - live_at <= STALE_S
+
+    # ------------------------------------------------------------ limits
+    def _open_trade(self, name):
+        with self.book.lock:
+            b = self.book.books.get(name)
+            t = b.trade if b else None
+            return t if t is not None and t["status"] == "OPEN" else None
+
+    def _sync_rules(self):
+        rules = self.feed.tickets
+        self.book.lots = rules.lots
+        self.book.capital = rules.capital
+        self.book.risk_pct = rules.risk_pct
+
+    def entry_block(self, name):
+        """Why no AI entry may be considered on this index right now, or None."""
+        self._sync_rules()
+        gate = self.book.entry_block()
+        if gate:
+            return gate[1]
+        now = self.now()
+        if not config.market_for(name).get("always_open") and (now.hour, now.minute) >= NO_ENTRY_AFTER:
+            return f"No AI entries after {NO_ENTRY_AFTER[0]}:{NO_ENTRY_AFTER[1]:02d}."
+        if sum(self.entries.values()) >= MAX_ENTRIES_PER_DAY:
+            return f"{MAX_ENTRIES_PER_DAY} AI entries today in this market - the daily maximum."
+        if self.entries.get(name, 0) >= MAX_ENTRIES_PER_INDEX:
+            return f"{MAX_ENTRIES_PER_INDEX} AI entries on {name} today - the maximum per index."
+        last = self.last_exit.get(name)
+        if last and self.clock() - last < COOLDOWN_MIN * 60:
+            return f"Cooling down after the last AI exit on {name}."
+        return None
+
+    def _desk_info(self, name):
+        return {"paper_only": True, "your_open_tickets": {k: self.book.public(k).get("ticket")
+                                                          for k in self.feed.instruments()
+                                                          if self._open_trade(k)},
+                "entries_today": dict(self.entries), "max_entries_per_day": MAX_ENTRIES_PER_DAY,
+                "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": list(self.contracts),
+                "cooldown_minutes_after_an_exit": COOLDOWN_MIN, "min_reward_to_risk": MIN_REWARD_RISK,
+                "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.feed.tickets.lots,
+                "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4]}
+
+    # ------------------------------------------------------------ deciding
+    def _ask(self, kind, name, client):
+        import bot_data
+        import market_bot
+        snap = self.feed.snapshot()
+        context = market_bot.build_context(snap, self.market, name, user=self.feed.email)
+        self.decisions_today += 1
+        self.busy = name
+        try:
+            decision, meta = market_bot.decide(kind, name, context, self._desk_info(name),
+                                               tools_ctx=bot_data.Ctx(self.feed.email, self.market, name),
+                                               client=client)
+        finally:
+            self.busy = None
+        self.tokens_today["input"] += meta.get("input_tokens") or 0
+        self.tokens_today["output"] += meta.get("output_tokens") or 0
+        return decision, meta
+
+    def _entry(self, name, rec, client):
+        import market_bot
+        try:
+            d, meta = self._ask("entry", name, client)
+        except market_bot.BotError as exc:
+            return self._record(name, "entry", "error", str(exc))
+        if d.get("action") != "enter":
+            return self._record(name, "entry", "wait", d.get("reason") or "", {"looked_at": meta.get("looked_at")})
+        with self.feed.lock:
+            rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec") or rec
+        ok, why, plan = self.validate(name, rec, d)
+        if not ok:
+            return self._record(name, "entry", "rejected", d.get("reason") or "",
+                                {"proposal": {k: d.get(k) for k in ("option_type", "strike", "target", "stop")},
+                                 "rejected_because": why, "looked_at": meta.get("looked_at")})
+        if self.thread is not None and not self._alive():
+            return None                  # this desk's feed was replaced while it decided
+        if not self.on:
+            return self._record(name, "entry", "rejected", d.get("reason") or "",
+                                {"rejected_because": "the AI desk was switched off while it decided"})
+        self._open(name, rec, plan, d.get("reason") or "")
+        return self._record(name, "entry", "enter", d.get("reason") or "",
+                            {"contract": plan["contract"], "entry": plan["ltp"], "target": plan["target"],
+                             "stop": plan["stop"], "looked_at": meta.get("looked_at")})
+
+    def _review(self, name, trade, rec, client):
+        import market_bot
+        try:
+            d, meta = self._ask("review", name, client)
+        except market_bot.BotError as exc:
+            return self._record(name, "review", "error", str(exc))
+        if d.get("action") == "exit":
+            reason = (d.get("reason") or "").strip()
+            short = reason.split(". ")[0][:90] or "the bot's call"
+            self.book.close_ticket(name, f"CLOSED — AI exit: {short}")
+            self.last_exit[name] = self.clock()
+            return self._record(name, "review", "exit", reason, {"looked_at": meta.get("looked_at")})
+        return self._record(name, "review", "hold", d.get("reason") or "", {"looked_at": meta.get("looked_at")})
+
+    # ------------------------------------------------------------ checking a proposal
+    def validate(self, name, rec, d):
+        """(ok, why, plan). Every number that matters is re-derived from live data."""
+        side = str(d.get("option_type") or "").upper()
+        if side not in ("CE", "PE"):
+            return False, "option_type must be CE or PE", None
+        try:
+            strike, target, stop = float(d.get("strike")), float(d.get("target")), float(d.get("stop"))
+        except (TypeError, ValueError):
+            return False, "strike, target and stop must all be numbers", None
+        chain = rec.get("option_chain") or {}
+        strikes = sorted(s["strike"] for s in chain.get("strikes") or [])
+        if not chain.get("available", True) or not strikes:
+            return False, "no live option chain to check the strike against", None
+        if strike not in strikes:
+            return False, f"{strike:g} is not a strike in the live chain", None
+        spot = rec.get("spot") or chain.get("spot")
+        if spot is None:
+            return False, "no spot price", None
+        atm_i = min(range(len(strikes)), key=lambda i: abs(strikes[i] - spot))
+        if abs(strikes.index(strike) - atm_i) > STRIKE_STEPS:
+            return False, f"{strike:g} is more than {STRIKE_STEPS} strikes from the money ({strikes[atm_i]:g})", None
+        ltp = next((s.get("call_ltp" if side == "CE" else "put_ltp") for s in chain["strikes"]
+                    if s["strike"] == strike), None)
+        if not ltp or ltp <= 0:
+            return False, "no live premium for that contract", None
+        expiry = str(chain.get("expiry") or "")[:10]
+        contract = f"{name}|{strike:g}|{side}|{expiry}"
+        if contract in self.contracts:
+            return False, ("that contract was already traded today - a second buy would average into the "
+                           "first in a real account"), None
+        cap = getattr(config, "MAX_SPREAD_PCT", 0)
+        q = signal_engine._find_strike_quote(chain, strike, side) or {}
+        if cap and q.get("pct") is not None and q["pct"] > cap:
+            return False, f"the spread is {q['pct']:.1f}%, over the {cap:g}% limit", None
+        if not stop < ltp * 0.97:
+            return False, f"the stop {stop:g} must be below the live premium {ltp:g}", None
+        if stop < ltp * 0.3:
+            return False, f"the stop {stop:g} risks more than 70% of the premium {ltp:g}", None
+        if not target > ltp * 1.03:
+            return False, f"the target {target:g} must be above the live premium {ltp:g}", None
+        rr = (target - ltp) / (ltp - stop)
+        if rr < MIN_REWARD_RISK:
+            return False, f"reward to risk is {rr:.2f}, under {MIN_REWARD_RISK:g}", None
+        return True, "", {"side": side, "strike": strike, "target": round(target, 2), "stop": round(stop, 2),
+                          "ltp": ltp, "expiry": expiry, "contract": contract, "rr": round(rr, 2)}
+
+    def _open(self, name, rec, plan, reason):
+        self._sync_rules()
+        r = dict(rec)
+        r.update(option_type=plan["side"], bias="BULLISH" if plan["side"] == "CE" else "BEARISH",
+                 suggested_strike=int(plan["strike"]) if float(plan["strike"]).is_integer() else plan["strike"],
+                 premium_source="live", live_ltp=plan["ltp"],
+                 premium_targets=[plan["target"]] * 3, premium_stop_loss=plan["stop"],
+                 index_targets=[], index_stop_loss=None, strictness="ai",
+                 # The log's signal columns describe THIS trade, not the rule
+                 # signal the reading came with.
+                 confidence="AI", score=None, risk_points=None, reach_points=None,
+                 reach_to_risk=plan["rr"])
+        with self.book.lock:
+            b = self.book.books[name]
+            self.book._open(b, r)
+            b.trade["exit_at"] = "T1"
+            b.trade["ai_reason"] = reason
+        self.entries[name] = self.entries.get(name, 0) + 1
+        self.contracts.append(plan["contract"])
+
+    # ------------------------------------------------------------ prices
+    def track(self, name, rec):
+        """A fresh reading from the analysis: check the open AI ticket's levels."""
+        evs = self.book.track(name, rec)
+        self._after(name, evs)
+
+    def price_tick(self):
+        """The AI ticket's own contract, off the stream, on every tick."""
+        for name in self.feed.instruments():
+            trade = self._open_trade(name)
+            if trade is None:
+                continue
+            px = self._stream_price(name, trade)
+            if px is None:
+                continue
+            self.book.live_price(name, px)
+            self._after(name, self.book.tick_price(name, px))
+
+    def _after(self, name, evs):
+        if any(ev.get("kind") == "closed" for ev in evs or []):
+            self.last_exit[name] = self.clock()
+            self._save()
+
+    def _stream_price(self, name, trade):
+        import feeds
+        tid = trade.get("trade_id")
+        handle = self._tok.get(tid)
+        if handle is None:
+            if self.clock() - self._tok_tried.get(tid, 0) < 30:
+                return None
+            self._tok_tried[tid] = self.clock()
+            handle = self._tok[tid] = self._subscribe(name, trade)
+            if handle is None:
+                del self._tok[tid]
+                return None
+        if self.feed.streamer is feeds._NO_STREAM:
+            ds = self.feed.dstream
+            return ds.mark_usd(handle, config.INSTRUMENTS[name]["deribit_index"]) if ds else None
+        st = self.feed.streamer
+        return st.price(handle) if st is not None else None
+
+    def _subscribe(self, name, trade):
+        import feeds
+        try:
+            if self.feed.streamer is feeds._NO_STREAM:
+                ds = self.feed.dstream
+                inst = self.feed._provider_for(name, None).option_instrument(
+                    name, trade["strike"], trade["option_type"], trade.get("expiry"))
+                if ds is None or not inst:
+                    return None
+                ds.subscribe([f"ticker.{inst}.100ms"])
+                return inst
+            import user_kite
+            from data_providers import KiteDataProvider
+            st, token = self.feed.streamer, user_kite.token_for(self.feed.email)
+            if st is None or not token:
+                return None
+            tok = KiteDataProvider(config.KITE_API_KEY, token).option_token(
+                name, trade["strike"], trade["option_type"], str(trade.get("expiry") or "")[:10] or None)
+            if not tok:
+                return None
+            st.subscribe([tok], quote=True)
+            return tok
+        except Exception:
+            return None
+
+    # ------------------------------------------------------------ reading
+    def public(self):
+        with self.lock:
+            rows = []
+            try:
+                rows = [r for r in trade_log._read_rows(self.book.path) if r.get("event") == "CLOSE"]
+            except Exception:
+                pass
+            pnl = [float(r["pnl"]) for r in rows if r.get("pnl") not in (None, "")]
+            today = self.now().strftime("%Y-%m-%d")
+            today_pnl = [float(r["pnl"]) for r in rows if r.get("date") == today and r.get("pnl") not in (None, "")]
+            record = {"closed": len(pnl), "wins": sum(1 for p in pnl if p > 0), "losses": sum(1 for p in pnl if p <= 0),
+                      "net": round(sum(pnl), 2),
+                      "today": {"closed": len(today_pnl), "net": round(sum(today_pnl), 2)},
+                      "last": [{k: r.get(k) for k in ("date", "time_ist", "index", "strike", "option_type", "entry",
+                                                      "exit", "pnl", "status")} for r in rows[-8:][::-1]]}
+            opened = {}
+            for k in self.feed.instruments():
+                if self._open_trade(k):
+                    t = self.book.public(k).get("ticket")
+                    if t is not None:
+                        t["reason"] = self.book.books[k].trade.get("ai_reason")
+                    opened[k] = t
+            return {"on": self.on, "paper_only": True, "market": self.market, "busy": self.busy,
+                    "open": opened, "recent": self.recent[:20], "record": record,
+                    "limits": {"entries_today": dict(self.entries) if self.day == today else {},
+                               "max_entries_per_day": MAX_ENTRIES_PER_DAY,
+                               "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "cooldown_min": COOLDOWN_MIN,
+                               "decisions_today": self.decisions_today if self.day == today else 0,
+                               "max_decisions_per_day": MAX_DECISIONS_PER_DAY.get(self.market, 90),
+                               "tokens_today": self.tokens_today if self.day == today else {"input": 0, "output": 0}}}

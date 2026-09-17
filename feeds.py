@@ -499,6 +499,12 @@ class Feed:
             self.live = live_orders.for_account(email, self.tickets.path,
                                                 close_ticket=self.tickets.close_ticket)
             self.tickets.listeners.append(self.live.on_ticket_event)
+        # The AI desk's paper tickets, in a book of their own - never given a
+        # listener, so they can never reach live orders.
+        self.ai = None
+        if self.tickets.path:
+            import ai_desk
+            self.ai = ai_desk.AIDesk(self, start=False)
 
         # The live price feed. Polling REST every thirty seconds can only ever
         # show a snapshot up to thirty seconds stale, and asking faster gets
@@ -555,6 +561,8 @@ class Feed:
         # the next poll or supervisor pass brings the live prices back.
         if self.streamer is not None:
             self._ensure_ticker()
+        if self.ai is not None:
+            self.ai.ensure_running()
 
     def instruments(self):
         """Only this feed's market. A crypto feed must never reach for NIFTY."""
@@ -924,6 +932,11 @@ class Feed:
                                 self.events.insert(0, ev)
                     except Exception:
                         pass
+                    if self.ai is not None:
+                        try:
+                            self.ai.book.close_all_at_bell()
+                        except Exception:
+                            pass
                     self.bell_closed = True
                 elif open_now:
                     self.bell_closed = False
@@ -1573,6 +1586,11 @@ class Feed:
             except Exception as exc:
                 self._note_fault(f"{name} tickets", f"{type(exc).__name__}: {exc}")
                 evs = []
+            if self.ai is not None:
+                try:
+                    self.ai.track(name, rec)
+                except Exception as exc:
+                    self._note_fault(f"{name} ai tickets", f"{type(exc).__name__}: {exc}")
             with self.lock:
                 entry = self.state["indices"].get(name)
                 if entry is None:
@@ -1589,6 +1607,15 @@ class Feed:
                     self.events.insert(0, ev)
                 del self.events[30:]
         self._bot_watch()
+
+    def _ai_prices(self):
+        """The AI desk's open paper tickets, priced on the tick like any other."""
+        if self.ai is None:
+            return
+        try:
+            self.ai.price_tick()
+        except Exception as exc:
+            self._note_fault("ai prices", f"{type(exc).__name__}: {exc}")
 
     def _bot_watch(self):
         """Check open tickets for the events the Market Bot reports on, and
@@ -1759,6 +1786,7 @@ class Feed:
                     # Reading the socket's dict is a memory read, so this runs
                     # at the loop rate rather than on a timer of its own.
                     self._crypto_prices()
+                    self._ai_prices()
                     if time.time() - self._last_live > 1.0:
                         self._last_live = time.time()
                         self._live_analysis()
@@ -1803,6 +1831,7 @@ class Feed:
                             del self.events[30:]
                         if ev.get("kind") == "closed":
                             self.opt_tokens.pop(name, None)
+                self._ai_prices()
                 # Everything derived from price, recomputed on the forming
                 # candle — the same thing the desktop does every second, and
                 # the reason its gauges move and the website's did not.

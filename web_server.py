@@ -321,6 +321,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_marketbot(form)
             if path == "/api/live":
                 return self._do_live(form)
+            if path == "/api/ai":
+                return self._do_ai(form)
             if path == "/api/customscreen":
                 return self._do_customscreen(form)
             if path == "/market":
@@ -498,6 +500,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_watchlist(user)
             if path == "/api/marketbot":
                 return self._api_marketbot(user)
+            if path == "/api/ai":
+                return self._api_ai(user)
             if path == "/api/customscreen":
                 return self._api_customscreen(user)
             if path == "/api/greeks":
@@ -1256,6 +1260,48 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as exc:
             return reply(False, f"Unexpected error: {type(exc).__name__}", 500)
         return reply(True, answer=answer, meta=meta)
+
+    def _api_ai(self, user):
+        """The AI desk in this market: its switch, open paper tickets, decisions,
+        record and limits."""
+        market = self._current_market()
+        if not user or not market:
+            return self._send(json.dumps({"error": "Sign in and pick a market first."}), "application/json")
+        ai = getattr(feeds.for_user(user, market), "ai", None)
+        if ai is None:
+            return self._send(json.dumps({"error": "The AI desk needs a signed-in account."}), "application/json")
+        return self._send(json.dumps(ai.public(), default=str), "application/json")
+
+    def _do_ai(self, form):
+        """Switch the AI desk on or off for this market. Paper only either way."""
+        def reply(ok, message="", code=200, **extra):
+            return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra), default=str),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        market = self._current_market()
+        if not market:
+            return reply(False, "Pick a market first.", 400)
+        ai = getattr(feeds.for_user(user, market), "ai", None)
+        if ai is None:
+            return reply(False, "The AI desk needs a signed-in account.", 400)
+        import market_bot
+        on = (form.get("on") or "") in ("1", "true", "on")
+        if on and not market_bot.key_present():
+            return reply(False, "No Anthropic API key is configured for this tool.", 503)
+        try:
+            ai.set_on(on)
+        except OSError:
+            return reply(False, "Could not save that setting on this machine.", 500)
+        msg = "The AI desk is on - paper only." if on else "The AI desk is off."
+        if on and not (accounts.get_user(user) or {}).get("always_on"):
+            msg += (" This account is set to run only while the page is open: close the page and the desk stops, "
+                    "and any AI ticket it had open is closed as 'the tool stopped'. Switch to \"runs all session\" "
+                    "on the Signal page to keep it running.")
+        return reply(True, msg, ai=ai.public())
 
     def _do_live(self, form):
         """Switch real Zerodha orders on or off for one Indian index, for this
@@ -3296,6 +3342,16 @@ table.chain .wide{color:var(--down)}
 .botnote{color:var(--ink-3);font-size:12px;margin-top:8px;line-height:1.5}
 .botnote.warn{color:var(--warn)}
 .botcap{font-size:12px;color:var(--ink-3);margin-top:4px}
+.aistats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:6px}
+.aistats .st{background:var(--raised);border:1px solid var(--bd);border-radius:10px;padding:9px 12px}
+.aistats .st b{display:block;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+.aistats .st span{font-size:12px;color:var(--ink-3)}
+.aidec{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.aidec .d{border-left:3px solid var(--bd);padding:4px 0 4px 10px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.aidec .d .t{font-size:12px;color:var(--ink-3)}
+.aidec .d.enter{border-color:var(--up)}.aidec .d.exit{border-color:var(--warn)}
+.aidec .d.rejected,.aidec .d.error{border-color:var(--down)}
+.aidec .d .rej{color:var(--down)}
 .botwatch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
 .botwatch .lbtn{flex:none}
 .botwatchnote{flex:1 1 260px;min-width:0;font-size:12px;color:var(--ink-3);line-height:1.5}
@@ -3656,6 +3712,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <button class="tab" data-tab="watchlist" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg></i>Watchlist</button>
   <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
   <button class="tab" data-tab="marketbot" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></i>Ask TradePicker<b class="botdot" id="botdot" hidden></b></button>
+  <button class="tab" data-tab="aidesk" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/></svg></i>AI trades</button>
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
    <div class="mgrp-items">
@@ -4003,6 +4060,28 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
     Never places, changes or cancels an order. Sends this market's signal and your open ticket
     to Anthropic, and when a question needs it any other section of the tool - including your
     watchlist and journal; never your name, email or broker ID.</div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="aidesk">
+  <div class="card" data-panel="aidesk" id="aideskcard">
+   <p class="eyebrow" role="heading" aria-level="2">AI trades &middot; paper only</p>
+   <div class="botwatch">
+    <button class="lbtn" id="aitog" type="button" aria-pressed="false">AI desk: off</button>
+    <span class="botwatchnote">Ask TradePicker picks its own entries, targets and stops from every section of the
+     tool, once per index at each 15-minute close, on paper - nothing is ever sent to Zerodha. It runs beside
+     the rule tickets with a record of its own. The tool still enforces the session, the loss limit, at most 4
+     entries a day (2 per index), a 30-minute wait after an exit, and no contract twice in a day. Each decision is
+     billed to your Anthropic key.</span>
+   </div>
+   <div class="aistats" id="aistats"></div>
+   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:16px">Open AI tickets</p>
+   <div id="aiopen"><div class="gnote">None open.</div></div>
+   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:16px">Decisions</p>
+   <div class="aidec" id="aidecisions"><div class="gnote">No decisions yet.</div></div>
+   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:16px">Closed AI trades</p>
+   <div class="watchwrap"><table class="watch" id="aiclosed"></table></div>
+   <div class="gnote" id="ainote"></div>
   </div>
  </section>
 
@@ -7248,13 +7327,13 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin", "journal", "screener"];
+              "season", "news", "record", "admin", "journal", "screener", "aidesk"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
                    internals:"Internals", strength:"Relative strength",
-                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal", screener:"Screener"};
+                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal", screener:"Screener", aidesk:"AI trades"};
 // The phone menu. A drawer rather than a strip of pills, closed by picking a
 // section, tapping outside it, or Escape.
 function navOpen(){
@@ -7336,6 +7415,7 @@ function showTab(name, push){
   if(name === "chain"){ chainFetch(true); oiFetch(); watchFetch(true); }
   if(name === "watchlist") watchFetch(true);
   if(name === "marketbot") botOnShow();
+  if(name === "aidesk") aiFetch();
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
   gateTabs();
@@ -7571,6 +7651,143 @@ document.addEventListener("click", async e => {
   if(rm){ rm.disabled = true; await watchPost({action: "remove", id: rm.dataset.id}); watchFetch(true); }
 });
 setInterval(() => { if(TAB === "watchlist" && !document.hidden) watchFetch(); }, 5000);
+
+// ============================================================ AI trades
+// The AI desk's paper tickets. Every string from the model goes through esc()
+// into element text only - never into an attribute.
+const AI = {data: null, busy: false};
+
+function aiMoney(v){ return v == null ? "—" : money(v); }
+
+// An open AI ticket drawn the way the Signal page draws a rule ticket: the
+// same card, badge, contract line, stats row and ladder - with one target (its
+// exit) and the stop, and the bot's own reason underneath.
+function aiTicketCard(k, t){
+  const ce = t.option_type === "CE";
+  const dp = t.tracked_on === "index" ? 0 : 2;
+  const target = (t.targets || [])[0];
+  const pnl = t.pnl;
+  const pc = pnl == null ? "var(--ink-3)" : pnl > 0 ? "var(--up)" : pnl < 0 ? "var(--down)" : "var(--ink-2)";
+  const rr = (target != null && t.stop != null && t.entry != null && t.entry > t.stop)
+    ? ((target - t.entry) / (t.entry - t.stop)).toFixed(2) + " : 1" : "—";
+  const idx = (LAST && LAST.indices && LAST.indices[k]) || {};
+  const cell = (l, v, col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
+    + `<div class="v"${col ? ` style="color:${col}"` : ""}>${esc(v)}</div></div>`;
+  const per = t.lot_size ? t.lot_size * (t.lots || 1) : 0;
+  const rungs = [["Target · exit", target, "var(--up)", (t.hit || {}).T1, (t.hit_time || {}).T1],
+                 ["Stop", t.stop, "var(--down)", t.sl_hit, t.sl_hit_time]];
+  const ladder = rungs.map(([name, v, c, done, when]) => {
+    let pct = 0;
+    if(v != null && t.entry != null && t.now != null && v !== t.entry){
+      pct = Math.max(0, Math.min(100, (t.now - t.entry) / (v - t.entry) * 100));
+    }
+    const rs = (per && v != null && t.entry != null) ? money((v - t.entry) * per) : "";
+    return `<div class="rung${done ? " done" : ""}"><div class="k">${esc(name)}${
+        done ? ` <span class="tick">✓ ${esc(when || "")}</span>` : ""}</div>`
+      + `<div class="bar"><i style="width:${done ? 100 : Math.round(pct)}%;background:${v == null ? "transparent" : c};--c:${c}"></i></div>`
+      + `<div class="n" style="color:${v == null ? "var(--ink-3)" : c}">${esc(v == null ? "—" : num(v, dp))}</div>`
+      + `<div class="od"></div>`
+      + `<div class="rs" style="color:${rs.startsWith("+") ? "var(--up)" : rs ? "var(--down)" : "var(--ink-3)"}">${esc(rs)}</div></div>`;
+  }).join("");
+  const ex = expiryText(t.expiry);
+  return `<div class="card herocard" data-bias="${ce ? "up" : "down"}" style="margin-top:12px">`
+    + `<div class="thead"><p class="eyebrow">AI ticket &middot; ${esc(k)}</p><span class="badge open">OPEN</span>`
+    + `<span class="tag flat" style="margin-left:auto">Paper</span></div>`
+    + `<div class="hero"><div class="v" style="color:${ce ? "var(--up)" : "var(--down)"}">${ce ? "Buy CE" : "Buy PE"}</div>`
+    + `<span class="tag flat">${esc(t.strike)} ${ce ? "Call" : "Put"} &middot; AI desk</span></div>`
+    + `<div class="contract"><b>${esc(k)} ${esc(t.strike)} ${esc(t.option_type)}</b>`
+    + (ex ? ` &middot; expiry <b>${esc(ex)}</b>` : "")
+    + ` &middot; tracked on ${t.tracked_on === "index" ? "the index" : "live premium"}</div>`
+    + `<div class="issued">Issued ${esc(t.entry_time)} IST &middot; levels frozen at entry</div>`
+    + `<div class="tstats">`
+    + cell("Reward : risk", rr) + cell("Entry", num(t.entry, dp)) + cell("Now", num(t.now, dp))
+    + cell("Spot", num(idx.spot, 0))
+    + cell(`${t.lots} lot${t.lots !== 1 ? "s" : ""}`, pnl == null ? "—" : money(pnl), pc)
+    + `</div>`
+    + `<div class="ladder">${ladder}</div>`
+    + `<div class="lnote">Closes at its target or its stop, checked on every tick - or earlier, whenever the `
+    + `AI desk decides to exit at a 15-minute close.</div>`
+    + (t.reason ? `<div class="whyhold">${esc(t.reason)}</div>` : "")
+    + `</div>`;
+}
+
+function aiRender(d){
+  AI.data = d;
+  const tog = $("aitog");
+  if(!d || d.error){
+    if($("ainote")) $("ainote").textContent = (d && d.error) || "The AI desk is not available.";
+    return;
+  }
+  tog.classList.toggle("on", !!d.on);
+  tog.setAttribute("aria-pressed", String(!!d.on));
+  tog.textContent = "AI desk: " + (d.on ? "on" : "off");
+  const L = d.limits || {}, R = d.record || {};
+  const entries = Object.values(L.entries_today || {}).reduce((a, b) => a + b, 0);
+  $("aistats").innerHTML = [
+    ["Today, closed", `${R.today ? R.today.closed : 0} · ${aiMoney(R.today ? R.today.net : 0)}`],
+    ["All AI trades", `${R.closed || 0} · ${R.wins || 0} won · ${R.losses || 0} lost`],
+    ["All-time net", aiMoney(R.net || 0)],
+    ["Entries today", `${entries} of ${L.max_entries_per_day || 0}`],
+    ["Decisions today", `${L.decisions_today || 0} of ${L.max_decisions_per_day || 0}`],
+  ].map(([k, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")
+    + (d.busy ? `<div class="st"><b>Deciding…</b><span>${esc(d.busy)}</span></div>` : "");
+
+  const open = Object.entries(d.open || {}).filter(([, t]) => t);
+  $("aiopen").innerHTML = open.length ? open.map(([k, t]) => aiTicketCard(k, t)).join("")
+                                      : `<div class="gnote">None open.</div>`;
+
+  const rec = d.recent || [];
+  $("aidecisions").innerHTML = rec.length ? rec.map(r => {
+    const word = {enter: "Entered", wait: "Waited", hold: "Held", exit: "Exited", rejected: "Proposal rejected",
+                  error: "Could not decide", cap: "Decision cap reached"}[r.action] || r.action;
+    const c = String(r.contract || "").split("|");
+    const extra = r.action === "enter" ? ` · ${c.slice(0, 3).join(" ")} at ${r.entry} · target ${r.target} · stop ${r.stop}` : "";
+    const cls = ["enter", "exit", "rejected", "error"].includes(r.action) ? r.action : "";
+    return `<div class="d ${cls}"><div class="t">${esc(r.at)} · ${esc(r.index)} · ${esc(word)}${esc(extra)}`
+      + (r.looked_at && r.looked_at.length ? ` · looked at ${esc(r.looked_at.join(", "))}` : "") + `</div>`
+      + `<div>${esc(r.reason)}</div>`
+      + (r.rejected_because ? `<div class="rej">Not taken: ${esc(r.rejected_because)}</div>` : "") + `</div>`;
+  }).join("") : `<div class="gnote">No decisions yet.</div>`;
+
+  const last = R.last || [];
+  $("aiclosed").innerHTML = last.length
+    ? `<thead><tr><th>Closed</th><th>Contract</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Why it closed</th></tr></thead><tbody>`
+      + last.map(t => `<tr><td>${esc(t.date)} ${esc((t.time_ist || "").slice(0, 5))}</td>`
+        + `<td>${esc(t.index)} ${esc(t.strike)} ${esc(t.option_type)}</td><td>${esc(t.entry)}</td><td>${esc(t.exit)}</td>`
+        + `<td>${esc(t.pnl === "" || t.pnl == null ? "—" : money(parseFloat(t.pnl)))}</td>`
+        + `<td style="text-align:left;white-space:normal">${esc(t.status)}</td></tr>`).join("") + `</tbody>`
+    : "";
+  $("ainote").textContent = last.length ? "" : "No AI trades have closed yet.";
+}
+
+async function aiFetch(){
+  if(AI.busy) return;
+  AI.busy = true;
+  try{ aiRender(await (await fetch("/api/ai", {cache: "no-store"})).json()); }
+  catch(e){ if($("ainote")) $("ainote").textContent = "Could not reach this tool's own server."; }
+  finally{ AI.busy = false; }
+}
+
+{ const tog = $("aitog");
+  if(tog) tog.addEventListener("click", async () => {
+    const on = !(AI.data && AI.data.on);
+    if(on && !confirm("Turn the AI desk on for this market?\n\nAsk TradePicker will decide on its own entries, "
+        + "targets and stops at each 15-minute close - on paper only, never sent to Zerodha. Each decision is "
+        + "billed to your Anthropic key; at most " + ((AI.data && AI.data.limits && AI.data.limits.max_decisions_per_day) || 90)
+        + " decisions a day in this market.")) return;
+    tog.disabled = true;
+    try{
+      const r = await fetch("/api/ai", {method: "POST", cache: "no-store",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({on: on ? "1" : "0"})});
+      const j = await r.json();
+      if(!j.ok) alert(j.message || "That could not be changed.");
+      if(j.ai) aiRender(j.ai);
+    }catch(e){ alert("Could not reach this tool's own server."); }
+    finally{ tog.disabled = false; }
+  });
+}
+setInterval(() => { if(TAB === "aidesk" && !document.hidden) aiFetch(); }, 5000);
 
 // ============================================================ Market Bot
 // A chat backed by Claude, given a fresh snapshot of the selected market on

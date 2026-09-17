@@ -436,6 +436,21 @@ check("refused every time: stops at MAX_EXIT_ATTEMPTS and says to check Kite",
       len(fk.places(transaction_type="SELL", order_type="LIMIT")) == lo.MAX_EXIT_ATTEMPTS and p["state"] == "attention"
       and any("CHECK KITE" in n["text"] for n in ex.notes), len(fk.places(transaction_type="SELL", order_type="LIMIT")))
 
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+def down(oid):
+    raise NetworkException("Read timed out")
+fk.order_history = down
+before = len(ex.notes)
+for _ in range(30):
+    clk.advance(1)
+    ex.poll()
+check("Zerodha not answering for 30s: said once, not once a second",
+      len(ex.notes) - before == 1 and "Read timed out" in ex.notes[0]["text"], len(ex.notes) - before)
+clk.advance(60)
+ex.poll()
+check("...and said again after a minute if it is still down", len(ex.notes) - before == 2)
+
 print("11. SOLD OUTSIDE THE TOOL (IN KITE) - NEVER SELL WHAT IS NOT HELD")
 ex, fk, clk, closed = rig()
 t, _ = open_and_fill(ex, fk, clk)
