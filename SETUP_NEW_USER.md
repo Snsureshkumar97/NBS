@@ -109,12 +109,14 @@ secret are already saved; only the daily token is refreshed.
 
 ---
 
-## Step 6 — Optional: turn on the Market Bot
+## Step 6 — Optional: turn on Ask TradePicker
 
-A chat panel in the tool that explains the selected market, the signal, and
-whether an open ticket should be held or exited — from the tool's own rules,
-not a view of its own. Skip this step entirely and the rest of the tool works
-exactly the same; the tab just says it needs a key.
+A chat panel in the tool that answers questions about anything the tool shows —
+the signal, the chart, the option chain, the watchlist, the journal, and the
+Market, Analysis and Research sections — and whether an open ticket should be
+held or exited, from the tool's own rules, not a view of its own. Skip this
+step entirely and the rest of the tool works exactly the same; the tab just
+says it needs a key.
 
 ```
 pip3 install anthropic
@@ -131,10 +133,12 @@ pip3 install anthropic
 3. Reload the tool's page in the browser — no restart needed; it looks for the
    key again on the next question.
 
-It never sends his name, email or Zerodha ID — only the selected market's
-signal and open ticket. It never places, changes or cancels an order.
+It never sends his name, email or Zerodha ID. With each question it sends the
+selected market's signal and open ticket, and — only when a question needs
+them — the other sections, including his watchlist and journal. It never
+places, changes or cancels an order.
 
-**Auto updates** (the button at the top of the Market Bot tab, off by default):
+**Auto updates** (the button at the top of the Ask TradePicker tab, off by default):
 while a ticket is open, the bot writes an update by itself when T1 is hit, the
 price gives back half the move after T1, the price is halfway to the stop, ADX
 drops below the trend gate, MACD turns against the trade, or 30 minutes pass

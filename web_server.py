@@ -3655,7 +3655,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <button class="tab" data-tab="chain" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i>Option chain</button>
   <button class="tab" data-tab="watchlist" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg></i>Watchlist</button>
   <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
-  <button class="tab" data-tab="marketbot" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></i>Market Bot<b class="botdot" id="botdot" hidden></b></button>
+  <button class="tab" data-tab="marketbot" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></i>Ask TradePicker<b class="botdot" id="botdot" hidden></b></button>
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
    <div class="mgrp-items">
@@ -3981,7 +3981,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 
  <section class="pane" data-pane="marketbot">
   <div class="card" data-panel="marketbot" id="marketbotcard">
-   <p class="eyebrow" role="heading" aria-level="2">Market Bot &middot; <span id="botidx">&mdash;</span></p>
+   <p class="eyebrow" role="heading" aria-level="2">Ask TradePicker &middot; <span id="botidx">&mdash;</span></p>
    <div class="botwatch">
     <button class="lbtn" id="botwatch" type="button" aria-pressed="false">Auto updates: off</button>
     <span class="botwatchnote" id="botwatchnote">While a ticket is open in this market, the bot writes an
@@ -7249,7 +7249,7 @@ function chainDraw(d){
 const TABS = ["home", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
               "season", "news", "record", "admin", "journal", "screener"];
-const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Market Bot",
+const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
@@ -7694,7 +7694,7 @@ async function botStatus(){
     if(d.watch){ botWatchRender(d.watch); BOT.watch.synced = true; botShowUpdates(); }
     const note = $("botnote"), send = $("botsend"), q = $("botq");
     if(!BOT.available){
-      note.textContent = d.reason || "The Market Bot is not available right now.";
+      note.textContent = d.reason || "Ask TradePicker is not available right now.";
       note.classList.add("warn");
       if(send) send.disabled = true;
       if(q) q.disabled = true;

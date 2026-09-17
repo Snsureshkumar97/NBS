@@ -50,7 +50,7 @@ MAX_TOOL_CALLS = 10          # section fetches per question
 TIMEOUT_S = 120.0
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
-SYSTEM = """You are the Market Bot inside TradePicker, a rule-based options signal tool. \
+SYSTEM = """You are Ask TradePicker, the assistant inside TradePicker, a rule-based options signal tool. \
 It covers the Indian index options Nifty, Bank Nifty and Sensex (traded through Zerodha, in rupees, \
 09:15 to 15:40 IST) and Bitcoin options on Deribit (in dollars, around the clock). \
 The person asking is the tool's user, looking at one market and one index at a time.

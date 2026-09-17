@@ -384,7 +384,7 @@ check("GET and POST routes exist", SRC.count('if path == "/api/marketbot":') == 
 check("the handlers are defined", "def _api_marketbot(self, user):" in SRC and "def _do_marketbot(self, form):" in SRC)
 check("a sidebar entry and its own pane", 'data-tab="marketbot"' in SRC and 'data-pane="marketbot"' in SRC)
 check("in the master tab list, with a readable label",
-      '"watchlist", "marketbot", "market"' in SRC and 'marketbot:"Market Bot"' in SRC)
+      '"watchlist", "marketbot", "market"' in SRC and 'marketbot:"Ask TradePicker"' in SRC)
 check("showing the tab checks status and focuses the box", "if(name === \"marketbot\") botOnShow();" in SRC)
 check("switching index clears the conversation - one market's ticket must not bleed into another's answer",
       "function botOnIndexChange()" in SRC and "BOT.history = [];" in SRC)
