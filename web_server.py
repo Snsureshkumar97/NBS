@@ -314,6 +314,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_admin_api(form)
             if path == "/api/journal":
                 return self._do_journal(form)
+            if path == "/api/watchlist":
+                return self._do_watchlist(form)
             if path == "/api/customscreen":
                 return self._do_customscreen(form)
             if path == "/market":
@@ -487,6 +489,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_analytics(user, qs)
             if path == "/api/journal":
                 return self._api_journal(user, qs)
+            if path == "/api/watchlist":
+                return self._api_watchlist(user)
             if path == "/api/customscreen":
                 return self._api_customscreen(user)
             if path == "/api/greeks":
@@ -1099,6 +1103,72 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "lot_sizes": {k: (config.INSTRUMENTS.get(k) or {}).get("lot_size") for k in insts},
             "today": journal.today_ist().isoformat(), "review": review}, default=str),
             "application/json")
+
+    # ------------------------------------------------------------ watchlist
+    _WATCH_CACHE = {}
+
+    def _api_watchlist(self, user):
+        """Your watchlist with a live price on each contract. Cached three seconds
+        per account and market: the page polls every five, and the prices are one
+        broker call however many contracts are on the list."""
+        import watchlist
+        market = self._current_market()
+        if not market:
+            return self._send(json.dumps({"items": [], "error": "Pick a market first."}),
+                              "application/json")
+        items = watchlist.load(user, market)
+        ids = [x["id"] for x in items]
+        key = (user, market)
+        hit = self._WATCH_CACHE.get(key)
+        if hit and time.time() - hit[0] < 3 and hit[1] == ids:
+            q = hit[2]
+        else:
+            q = {}
+            if items:
+                provider, state, detail = feeds.for_user(user, market)._provider()
+                if provider is None:
+                    q = {i: {"error": detail or "Not connected to the broker."} for i in ids}
+                else:
+                    try:
+                        q = watchlist.quotes(provider, items, market)
+                    except Exception as exc:
+                        q = {i: {"error": f"Prices could not be read: {type(exc).__name__}"} for i in ids}
+            self._WATCH_CACHE[key] = (time.time(), ids, q)
+        cur = config.MARKETS.get(market, {}).get("currency", "INR")
+        return self._send(json.dumps({"items": [dict(x, quote=q.get(x["id"]) or {}) for x in items],
+                                      "market": market, "currency": cur,
+                                      "max": watchlist.MAX_ITEMS}), "application/json")
+
+    def _do_watchlist(self, form):
+        """Add a contract to your watchlist or take one off. Your own list only:
+        the account comes from the session, never from the request."""
+        def reply(ok, message, code=200, **extra):
+            return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra)),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        market = self._current_market()
+        if not market:
+            return reply(False, "Pick a market first.", 400)
+        import watchlist
+        action = (form.get("action") or "").strip()
+        try:
+            if action == "add":
+                iid, added = watchlist.add(user, market, form.get("index"), form.get("expiry"),
+                                           form.get("strike"), form.get("side"), form.get("price"))
+                self._WATCH_CACHE.pop((user, market), None)
+                return reply(True, "Added to your watchlist." if added else "Already on your watchlist.",
+                             id=iid)
+            if action == "remove":
+                ok = watchlist.remove(user, market, (form.get("id") or "").strip())
+                self._WATCH_CACHE.pop((user, market), None)
+                return reply(ok, "Removed." if ok else "That contract was not on your watchlist.")
+        except ValueError as exc:
+            return reply(False, str(exc), 400)
+        return reply(False, "Unknown action.", 400)
 
     def _do_journal(self, form):
         """Add, change or delete one of your own journal trades, or save a day's
@@ -3049,6 +3119,27 @@ table.chain tr.atm td{color:var(--ink-2)} table.chain tr.atm td.k{color:var(--in
 table.chain td.mine{outline:1px solid rgba(77,148,232,.55);border-radius:4px;color:var(--ink)}
 table.chain .wall{color:var(--warn);font-weight:700}
 table.chain .wide{color:var(--down)}
+/* The watchlist star in each chain price cell. Deliberately not held to the 44px
+   phone floor: a 44px button in every price cell would double the height of the
+   chain, and the star is a convenience next to a number, not the way to trade. */
+table.chain .wstar{background:none;border:0;padding:2px 5px 2px 0;margin:0;color:var(--ink-3);
+  cursor:pointer;vertical-align:-2px;min-height:0;line-height:0}
+table.chain .wstar .ico{width:13px;height:13px;display:inline-block}
+table.chain .wstar:hover,table.chain .wstar.on{color:var(--warn)}
+table.chain .wstar.on .ico{fill:currentColor}
+/* the watchlist page */
+.watchwrap{overflow:auto;-webkit-overflow-scrolling:touch;border-radius:12px;background:rgba(6,8,12,.55)}
+table.watch{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.watch th{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+  font-weight:700;padding:8px 10px;text-align:right;white-space:nowrap}
+table.watch th:first-child,table.watch td:first-child{text-align:left}
+table.watch td{padding:9px 10px;text-align:right;color:var(--ink-2);border-top:1px solid var(--bd-soft);
+  white-space:nowrap;vertical-align:middle}
+table.watch td.c b{color:var(--ink)}
+table.watch td.c small{display:block;color:var(--ink-3);font-size:12px;margin-top:2px}
+table.watch td b{color:var(--ink)}
+table.watch .acts{display:flex;gap:6px;justify-content:flex-end}
+table.watch .werr{color:var(--warn);text-align:left;white-space:normal}
 .chainbar{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);margin-top:10px}
 .chainbar b{color:var(--ink-2)}
 
@@ -3375,6 +3466,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <button class="tab" data-tab="signal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i>Signal</button>
   <button class="tab" data-tab="chart" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i>Chart</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i>Option chain</button>
+  <button class="tab" data-tab="watchlist" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg></i>Watchlist</button>
   <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
@@ -3685,6 +3777,14 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <p class="eyebrow" role="heading" aria-level="2">Option chain &middot; <span id="chainhead">&mdash;</span></p>
   <div class="chainwrap"><table class="chain" id="chain"></table></div>
   <div class="chainbar" id="chainbar"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="watchlist">
+  <div class="card" data-panel="watchlist" id="watchcard">
+   <p class="eyebrow" role="heading" aria-level="2">Watchlist &middot; <span id="watchcount">&mdash;</span></p>
+   <div class="watchwrap"><table class="watch" id="watchtbl"></table></div>
+   <div class="gnote" id="watchnote">Loading your watchlist&hellip;</div>
   </div>
  </section>
 
@@ -6700,7 +6800,13 @@ function chainDraw(d){
               && (d.suggested.type === (kind === "ce" ? "CE" : "PE"));
     const wall = (kind === "ce" ? d.call_wall : d.put_wall) === strike;
     const wide = o.spread != null && o.spread > 3;
-    return `<td class="px${mine?" mine":""}">${o.ltp == null ? "—" : num(o.ltp,2)}</td>`
+    const side = kind === "ce" ? "CE" : "PE", wid = wlId(d.index, d.expiry, strike, side);
+    const watched = WL.ids.has(wid);
+    const star = `<button class="wstar${watched ? " on" : ""}" type="button" data-id="${esc(wid)}"`
+      + ` data-k="${esc(String(d.index))}" data-exp="${esc(String(d.expiry || ""))}" data-strike="${strike}"`
+      + ` data-side="${side}" data-px="${o.ltp == null ? "" : o.ltp}" aria-pressed="${watched}"`
+      + ` aria-label="Watch ${esc(String(d.index))} ${strike} ${side}">${WSTAR}</button>`;
+    return `<td class="px${mine?" mine":""}">${star}${o.ltp == null ? "—" : num(o.ltp,2)}</td>`
          + `<td>${o.bid == null ? "—" : num(o.bid,2)}</td>`
          + `<td>${o.ask == null ? "—" : num(o.ask,2)}</td>`
          + `<td class="${wide?"wide":""}">${o.spread == null ? "—" : o.spread.toFixed(1)+"%"}</td>`
@@ -6761,10 +6867,10 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["home", "signal", "chart", "chain", "market", "pulse", "sector",
+const TABS = ["home", "signal", "chart", "chain", "watchlist", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
               "season", "news", "record", "admin", "journal", "screener"];
-const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain",
+const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels",
@@ -6848,7 +6954,8 @@ function showTab(name, push){
       calcDraw();
     }
   }
-  if(name === "chain"){ chainFetch(true); oiFetch(); }
+  if(name === "chain"){ chainFetch(true); oiFetch(); watchFetch(true); }
+  if(name === "watchlist") watchFetch(true);
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
   gateTabs();
@@ -6988,6 +7095,102 @@ function pulseDraw(){
     + `<div class="ph">Leading</div>` + by.slice(0, 4).map(row).join("")
     + `<div class="ph">Lagging</div>` + by.slice(-4).reverse().map(row).join("");
 }
+
+// ============================================================ watchlist
+// Contracts you picked from the option chain, with live prices. Kept on the
+// server per account and market, so it is the same list on every device.
+const WL = {items: [], ids: new Set(), busy: false, cur: "₹"};
+const WSTAR = '<svg class="ico" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg>';
+// The same id the server builds: 23100 and 23100.0 must be one contract.
+const wlId = (k, exp, strike, side) => `${k}|${exp}|${String(Number(strike))}|${side}`;
+async function watchFetch(force){
+  if(WL.busy) return;
+  if(!force && TAB !== "watchlist") return;
+  WL.busy = true;
+  try{
+    const d = await (await fetch("/api/watchlist", {cache: "no-store"})).json();
+    WL.items = d.items || [];
+    WL.ids = new Set(WL.items.map(x => x.id));
+    WL.cur = d.currency === "USD" ? "$" : "₹";
+    watchDraw(d);
+    document.querySelectorAll("#chain .wstar").forEach(b => {
+      const on = WL.ids.has(b.dataset.id);
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
+    });
+  }catch(e){
+    const n = $("watchnote"); if(n) n.textContent = "The watchlist could not be read just now.";
+  }finally{ WL.busy = false; }
+}
+async function watchPost(fields){
+  try{
+    const r = await fetch("/api/watchlist", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams(fields)});
+    return await r.json();
+  }catch(e){ return {ok: false, message: "That could not be sent."}; }
+}
+function watchDraw(d){
+  const t = $("watchtbl"), note = $("watchnote");
+  if(!t) return;
+  const items = WL.items, crypto = WL.cur === "$";
+  $("watchcount").textContent = items.length ? `${items.length} of ${d.max || 50}` : "empty";
+  if(d.error){ t.innerHTML = ""; note.textContent = d.error; return; }
+  if(!items.length){
+    t.innerHTML = "";
+    note.textContent = "Nothing here yet. Open the option chain and tap the star beside any price to watch that contract.";
+    return;
+  }
+  const f = v => v == null ? "—" : num(v, 2);
+  t.innerHTML = `<thead><tr><th>Contract</th><th>${crypto ? "Mark" : "Last"}</th><th>Bid</th><th>Ask</th>`
+    + `<th>Spread</th><th>Since added</th><th></th></tr></thead><tbody>`
+    + items.map(x => {
+        const q = x.quote || {}, label = `${x.index} ${Number(x.strike)} ${x.side}`;
+        const name = `<td class="c"><b>${esc(label)}</b><small>expiry ${esc(expiryText(x.expiry) || x.expiry)}`
+                   + ` · added ${esc(x.added || "")}</small></td>`;
+        const acts = `<td><div class="acts"><button class="lbtn ocbtn" type="button" data-k="${esc(x.index)}"`
+          + ` data-strike="${esc(String(x.strike))}" data-side="${esc(x.side)}" data-expiry="${esc(x.expiry)}"`
+          + ` onclick="ocOpenFrom(this)">View chart</button><button class="lbtn ocbtn wrm" type="button"`
+          + ` data-id="${esc(x.id)}" aria-label="Remove ${esc(label)} from the watchlist">Remove</button></div></td>`;
+        if(q.error) return `<tr>${name}<td class="werr" colspan="5">${esc(q.error)}</td>${acts}</tr>`;
+        let since = "—", col = "";
+        if(q.last != null && x.added_price){
+          const ch = q.last - x.added_price, pc = ch / x.added_price * 100;
+          since = `${ch >= 0 ? "+" : "−"}${num(Math.abs(ch), 2)} (${pc >= 0 ? "+" : "−"}${Math.abs(pc).toFixed(1)}%)`;
+          col = ch > 0 ? "var(--up)" : ch < 0 ? "var(--down)" : "";
+        }
+        const spr = q.spread_pct == null ? "—" : q.spread_pct.toFixed(1) + "%";
+        return `<tr>${name}<td><b>${f(q.last)}</b></td><td>${f(q.bid)}</td><td>${f(q.ask)}</td>`
+          + `<td${q.spread_pct > 3 ? ' style="color:var(--down)"' : ""}>${spr}</td>`
+          + `<td${col ? ` style="color:${col}"` : ""}>${since}</td>${acts}</tr>`;
+      }).join("") + `</tbody>`;
+  note.textContent = (crypto
+      ? "Deribit marks in dollars, refreshed every few seconds while this page is open. "
+      : "Zerodha prices, refreshed every few seconds while this page is open. Bid and ask are empty outside market hours. ")
+    + "A spread over 3% shows in red - the tool holds a ticket at that width. Since added is measured from the price when you starred it.";
+}
+document.addEventListener("click", async e => {
+  const star = e.target.closest ? e.target.closest("#chain .wstar") : null;
+  if(star){
+    const on = star.classList.contains("on");
+    star.classList.toggle("on", !on); star.disabled = true;
+    const r = on
+      ? await watchPost({action: "remove", id: star.dataset.id})
+      : await watchPost({action: "add", index: star.dataset.k, expiry: star.dataset.exp,
+                         strike: star.dataset.strike, side: star.dataset.side, price: star.dataset.px});
+    star.disabled = false;
+    if(!r.ok){
+      star.classList.toggle("on", on);
+      star.title = r.message || "The watchlist could not be changed.";
+    }else{
+      if(on) WL.ids.delete(star.dataset.id); else WL.ids.add(star.dataset.id);
+      star.setAttribute("aria-pressed", String(!on));
+      star.title = r.message || "";
+    }
+    return;
+  }
+  const rm = e.target.closest ? e.target.closest("#watchtbl .wrm") : null;
+  if(rm){ rm.disabled = true; await watchPost({action: "remove", id: rm.dataset.id}); watchFetch(true); }
+});
+setInterval(() => { if(TAB === "watchlist" && !document.hidden) watchFetch(); }, 5000);
 
 // ============================================================ option clock
 // Open interest is a running total, so the number that matters intraday is
