@@ -74,9 +74,9 @@ def fast_adx(df, length=14, dx_len=3):
 
 
 VARIANTS = {
-    "live ADX(14)": _REAL_ADX,
-    "A ADX(7)": lambda df, length=14: _REAL_ADX(df, 7),
-    "B fast (DI 14, DX over 3)": lambda df, length=14: fast_adx(df, 14, 3),
+    "live ADX(14)": lambda df, length=14, dx_length=None: _REAL_ADX(df, 14),
+    "A ADX(7)": lambda df, length=14, dx_length=None: _REAL_ADX(df, 7),
+    "B fast (DI 14, DX over 3)": lambda df, length=14, dx_length=None: fast_adx(df, 14, 3),
 }
 
 

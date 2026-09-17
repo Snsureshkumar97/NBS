@@ -139,7 +139,7 @@ def vwap(df: pd.DataFrame) -> pd.Series:
     return result.ffill().fillna(typical_price)
 
 
-def adx(df: pd.DataFrame, length: int = 14) -> pd.Series:
+def adx(df: pd.DataFrame, length: int = 14, dx_length: int = None) -> pd.Series:
     """
     Average Directional Index — measures TREND STRENGTH (not direction).
     Roughly: 0-20 = weak/no trend (choppy, range-bound), 20-25 = developing,
@@ -149,6 +149,12 @@ def adx(df: pd.DataFrame, length: int = 14) -> pd.Series:
     to whipsaw. Wilder's original smoothing, approximated the same way
     atr() does (ewm with alpha=1/length), for consistency with the rest of
     this file.
+
+    `dx_length` is how many candles the final average of DX runs over. None
+    means `length` - Wilder's ADX, which is what every caller that does not
+    pass it still gets (the screener, for one). The signal engine passes
+    config.ADX_DX_SMOOTHING: +DI/-DI still over 14 candles, DX over 3, so the
+    gate follows a trend within a few candles instead of three and a half hours.
     """
     high, low = df["High"], df["Low"]
     up_move = high.diff()
@@ -167,7 +173,7 @@ def adx(df: pd.DataFrame, length: int = 14) -> pd.Series:
 
     di_sum = (plus_di + minus_di).replace(0, np.nan)
     dx = 100 * (plus_di - minus_di).abs() / di_sum
-    adx_val = dx.ewm(alpha=1 / length, adjust=False).mean()
+    adx_val = dx.ewm(alpha=1 / (dx_length or length), adjust=False).mean()
     return adx_val.fillna(0)
 
 

@@ -196,7 +196,7 @@ def fetch_history(index_key, years=3, use_cache=True):
 # ===========================================================================
 # PRECOMPUTE
 # ===========================================================================
-def precompute(df):
+def precompute(df, index_key=None):
     """Every indicator series, and the day-range statistics, computed once.
 
     Calling compute_technical_signal() per bar would recompute every EMA over
@@ -213,7 +213,7 @@ def precompute(df):
     out["atr"] = ind.atr(df, config.ATR_LENGTH)
     _, _, hist = ind.macd(close, config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
     out["macd_hist"] = hist
-    out["adx"] = ind.adx(df, config.ADX_LENGTH)
+    out["adx"] = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
     out["vwap"] = ind.vwap(df)
     out["swing_low"] = df["Low"].rolling(config.SWING_LOOKBACK, min_periods=1).min()
     out["swing_high"] = df["High"].rolling(config.SWING_LOOKBACK, min_periods=1).max()
@@ -268,7 +268,7 @@ def tech_at(df, pre, i):
     }
 
 
-def verify_precompute(df, pre, samples=25):
+def verify_precompute(df, pre, samples=25, index_key=None):
     """Prove the fast path agrees with the real compute_technical_signal.
 
     Without this the whole backtest is only testing my copy of the threshold
@@ -277,7 +277,7 @@ def verify_precompute(df, pre, samples=25):
     idxs = np.linspace(max(config.EMA_SLOW + 40, 120), len(df) - 1, samples).astype(int)
     bad = []
     for i in idxs:
-        real = se.compute_technical_signal(df.iloc[:i + 1])
+        real = se.compute_technical_signal(df.iloc[:i + 1], index_key)
         fast = tech_at(df, pre, i)
         for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "adx",
                   "last_close", "vwap", "last_swing_low", "last_swing_high"):
@@ -307,7 +307,7 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=Non
     if square_off is None:
         square_off = not always
     """Replay history bar by bar through the real engine."""
-    pre = precompute(df)
+    pre = precompute(df, index_key)
     step = config.INSTRUMENTS[index_key]["strike_step"]
     no_chain = se.compute_option_chain_signal(None)
 
@@ -613,7 +613,7 @@ def main():
 
     print("\nVerifying the fast indicator path against the real engine...")
     for k, df in dfs.items():
-        bad = verify_precompute(df, precompute(df))
+        bad = verify_precompute(df, precompute(df, k), index_key=k)
         if bad:
             print(f"  {k}: MISMATCH — the backtest does not agree with the live code:")
             for b in bad[:5]:

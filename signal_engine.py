@@ -30,14 +30,14 @@ def round_to_step(value: float, step: int) -> int:
     return int(round(value / step) * step)
 
 
-def compute_technical_signal(df: pd.DataFrame) -> dict:
+def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     close = df["Close"]
     ema_fast = ind.ema(close, config.EMA_FAST)
     ema_slow = ind.ema(close, config.EMA_SLOW)
     rsi = ind.rsi(close, config.RSI_LENGTH)
     atr = ind.atr(df, config.ATR_LENGTH)
     macd_line, macd_signal, macd_hist = ind.macd(close, config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
-    adx = ind.adx(df, config.ADX_LENGTH)
+    adx = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
     vwap = ind.vwap(df)
 
     last_close = close.iloc[-1]
@@ -145,7 +145,7 @@ def opening_range(df: pd.DataFrame) -> dict:
     return out
 
 
-def compute_market_trend(df: pd.DataFrame) -> dict:
+def compute_market_trend(df: pd.DataFrame, index_key: str = None) -> dict:
     """Reads the overall market condition — direction, strength, momentum,
     and where price sits in today's range.
 
@@ -158,7 +158,7 @@ def compute_market_trend(df: pd.DataFrame) -> dict:
     close = df["Close"]
     last = float(close.iloc[-1])
 
-    adx_series = ind.adx(df, config.ADX_LENGTH)
+    adx_series = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
     adx_val = float(adx_series.iloc[-1])
     _, _, macd_hist = ind.macd(close, config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
     vwap_series = ind.vwap(df)
@@ -490,7 +490,7 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     # when the market is most likely to keep going.
     if adx is None:
         try:
-            adx = float(ind.adx(df, config.ADX_LENGTH).iloc[-1])
+            adx = float(ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key)).iloc[-1])
         except Exception:
             adx = None
     expansion = config.range_expansion(adx)

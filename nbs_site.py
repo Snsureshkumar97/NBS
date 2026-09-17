@@ -1095,14 +1095,14 @@ def _record_figs(record):
     three-year result.
     """
     # pro_study.py pricing on history to 11 Sep 2026: the rules live from
-    # 16 Sep 2026 (no opening-range wait, T3 >= 1x stop, no entry into an RSI
-    # divergence, more room on a trend day, all three indices),
+    # 17 Sep 2026 (no opening-range wait, T3 >= 1x stop, no entry into an RSI
+    # divergence, more room on a trend day, the faster trend measure, all three indices),
     # priced as the options you would buy, per lot, after Zerodha's charges and
     # 0.25% slippage a side. Held out from 15 Aug 2025.
     figs = [
-        ("6,296", "trades on the current rules over three years"),
-        ("PF 1.07", "profit factor in the held-out year, after costs: slightly positive"),
-        ("\u20b94.26 lakh", "worst drawdown per lot in that year"),
+        ("6,012", "trades on the current rules over three years"),
+        ("PF 1.09", "profit factor in the held-out year, after costs: slightly positive"),
+        ("\u20b93.01 lakh", "worst drawdown per lot in that year"),
         ("modelled", "option prices, not real fills - unproven"),
     ]
     html = "".join(f'<div class="fig"><div class="n">{_esc(n)}</div>'
@@ -1759,19 +1759,19 @@ def results_page(user=None, record=None):
     and implied volatility falling after you buy all make real results worse.</li>
    <li><b>All of the held-out year&rsquo;s profit came on expiry days.</b>
     Across the three indices, trades on a contract&rsquo;s own expiry day made
-    &#8377;3,67,390 per lot in that year (388 trades, profit factor 2.05); every
-    other day together <b>lost &#8377;1,59,457</b> (2,182 trades, 0.94). Expiry
+    &#8377;3,09,635 per lot in that year (360 trades, profit factor 1.93); every
+    other day together <b>lost &#8377;59,099</b> (2,025 trades, 0.98). Expiry
     day is exactly where a constant-volatility model is least
     trustworthy.</li>
    <li><b>The held-out year is no longer clean.</b> Several of today&rsquo;s
     rules were chosen after the held-out year had been looked at &mdash; the
     reward-to-risk floor on 11 Sep 2026, and on 15 Sep 2026 dropping the
     opening-range break, trading Bank Nifty again and skipping entries into an
-    RSI divergence, and on 16 Sep giving a trend day more room to run and
-    dropping the opening-range wait as well. A test you have used to
+    RSI divergence, on 16 Sep giving a trend day more room to run and
+    dropping the opening-range wait, and on 17 Sep a faster trend measure. A test you have used to
     choose rules is no longer an independent test of them.</li>
    <li><b>The drawdowns are large.</b> The worst run in the held-out year was
-    &#8377;4,26,028 per lot, with the three indices&rsquo; trades taken in the
+    &#8377;3,00,843 per lot, with the three indices&rsquo; trades taken in the
     order they happened. An account sized so that a drawdown like that is
     survivable is the only kind this should be run with.</li>
    <li><b>There is no long live record.</b> The trades this server has logged
@@ -1793,18 +1793,18 @@ def results_page(user=None, record=None):
    dates. All three indices are traded: Nifty, Bank Nifty and Sensex.</p>
   <table class="tbl">
    <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
-   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,726</td><td>+&#8377;5,73,879</td><td>+&#8377;154</td><td>1.14</td><td>&#8377;1,95,985</td></tr>
-   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,570</td><td>+&#8377;2,07,933</td><td>+&#8377;81</td><td>1.07</td><td>&#8377;4,26,028</td></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,627</td><td>+&#8377;6,91,171</td><td>+&#8377;191</td><td>1.17</td><td>&#8377;1,70,001</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,385</td><td>+&#8377;2,50,536</td><td>+&#8377;105</td><td>1.09</td><td>&#8377;3,00,843</td></tr>
   </table>
-  <p>A profit factor of 1.07 means about &#8377;1.07 won for every &#8377;1 lost:
+  <p>A profit factor of 1.09 means about &#8377;1.09 won for every &#8377;1 lost:
    a thin margin. A modest increase in real costs over the modelled ones would take
    most of it.</p>
   <h3>By index</h3>
   <table class="tbl">
    <tr><th></th><th>First two years</th><th>PF</th><th>Held-out year</th><th>PF</th></tr>
-   <tr><td>Nifty</td><td>+&#8377;3,60,902</td><td>1.29</td><td>+&#8377;1,41,160</td><td>1.14</td></tr>
-   <tr><td>Bank Nifty</td><td>+&#8377;8,625</td><td>1.01</td><td>&minus;&#8377;1,03,041</td><td>0.91</td></tr>
-   <tr><td>Sensex</td><td>+&#8377;2,04,352</td><td>1.17</td><td>+&#8377;1,69,814</td><td>1.20</td></tr>
+   <tr><td>Nifty</td><td>+&#8377;3,02,326</td><td>1.24</td><td>+&#8377;1,53,847</td><td>1.16</td></tr>
+   <tr><td>Bank Nifty</td><td>+&#8377;1,40,540</td><td>1.09</td><td>&minus;&#8377;48,082</td><td>0.95</td></tr>
+   <tr><td>Sensex</td><td>+&#8377;2,48,305</td><td>1.21</td><td>+&#8377;1,44,771</td><td>1.18</td></tr>
   </table>
   <p>Bank Nifty has lost money under these rules since its weekly expiry ended
    in November 2024. It is traded because that was chosen on 15 Sep 2026, not
@@ -1885,6 +1885,17 @@ def results_page(user=None, record=None):
     &mdash; and made &#8377;75,136 more in the first two years, but turned the
     held-out year down to &#8377;61,958 with the deepest drawdown of the four
     versions tested, &#8377;5,31,939. It is not used.</li>
+   <li><b>A faster trend measure.</b> ADX averages its trend reading over 14
+    fifteen-minute candles, so on 17 Sep 2026 it sat at 12&ndash;15 while Nifty
+    rallied from the open. Keeping the buying and selling pressure over 14
+    candles but averaging the trend reading over 3 made &#8377;1,17,292 more in the
+    first two years and &#8377;42,603 more in the held-out year, on fewer trades,
+    with a shallower worst drawdown in both (&#8377;4,26,028 to &#8377;3,00,843 in the
+    held-out year). Most of that is Bank Nifty losing less; on Nifty and Sensex
+    alone it made slightly less, with a shallower drawdown. <b>In use from 17 Sep
+    2026</b>, on the Indian indices only &mdash; Bitcoin was not tested with it.
+    ADX over 7 candles also beat the old measure, but on many more trades and a
+    deeper drawdown in the first two years; it is not used.</li>
   </ul>
  </section>
 

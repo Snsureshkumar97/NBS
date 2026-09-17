@@ -61,7 +61,7 @@ for n in ("NIFTY", "SENSEX"):
     g.state["indices"][n] = {"rec": {}, "public": {}, "why": None, "df": None, "notes": [], "at": "00:00:00"}
 
 real = signal_engine.compute_technical_signal
-def broken(d):
+def broken(d, index_key=None):
     raise ValueError("broken indicator")
 signal_engine.compute_technical_signal = broken
 buf = io.StringIO()

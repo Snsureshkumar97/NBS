@@ -25,18 +25,18 @@ import trade_log
 
 # The backtest this is measured against: the rules live from 16 Sep 2026
 # (no wait for the opening range, room to run >= 1x stop with more room on a
-# trend day, no entry into an RSI divergence, exit at T2, all three indices
-# traded), pro_study.py pricing - real expiries, after Zerodha's costs,
+# trend day, no entry into an RSI divergence, the faster trend measure from
+# 17 Sep 2026, exit at T2, all three indices traded), pro_study.py pricing - real expiries, after Zerodha's costs,
 # per lot - on the held-out year (15 Aug 2025 - 11 Sep 2026). Index options only -
 # there is no comparable crypto backtest priced as options, so crypto shows its
 # own record.
 BENCHMARK = {
-    "all":       {"n": 2570, "win": 44.3, "avg": 81, "pf": 1.07},
-    "NIFTY":     {"n": 872, "win": 44.3, "avg": 162, "pf": 1.14},
-    "BANKNIFTY": {"n": 828, "win": 44.8, "avg": -124, "pf": 0.91},
-    "SENSEX":    {"n": 870, "win": 43.9, "avg": 195, "pf": 1.20},
-    "expiry":    {"n": 388, "win": 43.6, "avg": 947, "pf": 2.05},
-    "other":     {"n": 2182, "win": 44.5, "avg": -73, "pf": 0.94},
+    "all":       {"n": 2385, "win": 44.4, "avg": 105, "pf": 1.09},
+    "NIFTY":     {"n": 802, "win": 44.4, "avg": 192, "pf": 1.16},
+    "BANKNIFTY": {"n": 775, "win": 45.5, "avg": -62, "pf": 0.95},
+    "SENSEX":    {"n": 808, "win": 43.4, "avg": 179, "pf": 1.18},
+    "expiry":    {"n": 360, "win": 42.8, "avg": 860, "pf": 1.93},
+    "other":     {"n": 2025, "win": 44.7, "avg": -29, "pf": 0.98},
 }
 MIN_SAMPLE = 30
 

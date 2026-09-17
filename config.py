@@ -210,6 +210,28 @@ MACD_SIGNAL = 9
 # 20-25 developing, 25+ trending. Kept at the more permissive end (20) so
 # this filters out only clearly range-bound conditions, not every quiet day.
 ADX_LENGTH = 14
+# How many candles ADX averages its directional reading (DX) over; +DI/-DI stay
+# over ADX_LENGTH. None is Wilder's ADX (DX over ADX_LENGTH too).
+# 3 from 17 Sep 2026, at the user's choice, after trend_speed_study.py (pre-
+# declared; live rules otherwise; per lot after costs; first two years | held-out):
+#   ADX(14), DX over 14   +573,879 PF 1.14 DD 196k | +207,933 PF 1.07 DD 426k
+#   DX over 3 (this)      +691,171 PF 1.17 DD 170k | +250,536 PF 1.09 DD 301k
+# More money on fewer trades with a shallower worst drawdown in both periods. Most
+# of the gain is Bank Nifty losing less; on Nifty + Sensex alone it makes slightly
+# less (-15k | -12k) with a shallower drawdown. Prompted by that morning: Nifty
+# rallied from the open while ADX(14) sat at 12.6-15.5; DX over 3 cleared 20 on
+# the 09:45 candle. Also used by the trend-day range expansion, as tested.
+# Per market. Tested on the three Indian indices only: BTC keeps Wilder's ADX
+# (None) until it has been measured with it - a rule is not switched onto a
+# market it was never tested on.
+ADX_DX_SMOOTHING = {"nse_index": 3, "crypto": None}
+
+
+def adx_dx_smoothing(index_key=None):
+    """ADX_DX_SMOOTHING for this instrument's market. No key means the default
+    market - the desktop app and main.py's single-index runs, which are NSE."""
+    market = (INSTRUMENTS.get(index_key) or {}).get("market") if index_key else None
+    return ADX_DX_SMOOTHING.get(market or DEFAULT_MARKET)
 ADX_TREND_THRESHOLD = 20
 
 # ---------------------------------------------------------------------------

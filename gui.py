@@ -840,7 +840,7 @@ class SignalApp:
         if not isinstance(oi, dict) or "available" not in oi:
             oi = signal_engine.compute_option_chain_signal(None)
 
-        tech = signal_engine.compute_technical_signal(df)
+        tech = signal_engine.compute_technical_signal(df, key)
         spot = float(df["Close"].iloc[-1])
         step = config.INSTRUMENTS[key]["strike_step"]
         try:
@@ -852,7 +852,7 @@ class SignalApp:
             reach = None
         rec = signal_engine.build_recommendation(key, tech, oi, step, reach=reach)
         try:
-            rec["trend"] = signal_engine.compute_market_trend(df)
+            rec["trend"] = signal_engine.compute_market_trend(df, key)
         except Exception:
             rec["trend"] = None
 

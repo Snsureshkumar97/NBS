@@ -1527,7 +1527,7 @@ class Feed:
             if not isinstance(oi, dict) or "available" not in oi:
                 oi = signal_engine.compute_option_chain_signal(None)
             try:
-                tech = signal_engine.compute_technical_signal(df)
+                tech = signal_engine.compute_technical_signal(df, name)
                 spot = float(df["Close"].iloc[-1])
                 step = config.INSTRUMENTS[name]["strike_step"]
                 try:
@@ -1541,7 +1541,7 @@ class Feed:
                 rec = signal_engine.build_recommendation(name, tech, oi, step,
                                                           reach=reach)
                 try:
-                    rec["trend"] = signal_engine.compute_market_trend(df)
+                    rec["trend"] = signal_engine.compute_market_trend(df, name)
                 except Exception:
                     rec["trend"] = None
                 rec["candles"] = df

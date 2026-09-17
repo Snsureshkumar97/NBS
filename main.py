@@ -294,7 +294,7 @@ def fetch_recommendation(provider, index_key: str, interval: str, lookback_days,
         notes.append(f"WARNING: only {len(df)} candles fetched — indicators may be unreliable "
                       f"until more history is available (try a longer lookback or daily interval).")
 
-    tech = compute_technical_signal(df)
+    tech = compute_technical_signal(df, index_key)
 
     chain = None
     for attempt in range(1, MAX_FETCH_RETRIES + 2):
@@ -328,7 +328,7 @@ def fetch_recommendation(provider, index_key: str, interval: str, lookback_days,
     # Overall market condition — independent of whether a CE/PE signal fired,
     # so you always know what the market is doing even while it says WAIT.
     try:
-        rec["trend"] = compute_market_trend(df)
+        rec["trend"] = compute_market_trend(df, index_key)
     except Exception as e:
         rec["trend"] = None
         notes.append(f"(Market-trend read unavailable: {e})")
