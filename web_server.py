@@ -29,7 +29,8 @@ THINGS TO KNOW BEFORE PUTTING THIS ON THE PUBLIC INTERNET
       especially once money changes hands anywhere in the picture. The page
       carries a disclaimer, but a disclaimer is not a licence. See README.
 
-*** THIS TOOL PLACES NO ORDERS. IT ONLY DISPLAYS A SUGGESTION. ***
+*** NO ORDERS ARE PLACED UNLESS AN ACCOUNT SWITCHES LIVE ORDERS ON FOR AN ***
+*** INDIAN INDEX - then live_orders.py follows that index's tickets.      ***
 *** NOT SEBI-REGISTERED INVESTMENT ADVICE. ***
 """
 
@@ -318,6 +319,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_watchlist(form)
             if path == "/api/marketbot":
                 return self._do_marketbot(form)
+            if path == "/api/live":
+                return self._do_live(form)
             if path == "/api/customscreen":
                 return self._do_customscreen(form)
             if path == "/market":
@@ -631,6 +634,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # Only whether it is on and a counter - the page fetches the updates
             # themselves from /api/marketbot when the counter moves.
             "bot_watch": feed.watch.public() if getattr(feed, "watch", None) else None,
+            # Real Zerodha orders: which indices are switched on, today's
+            # positions and the latest steps. None on a market that has none.
+            "live": feed.live.public() if getattr(feed, "live", None) else None,
             "record": track_record(user, market),
             # Only this market's instruments. Returning all of them put NIFTY
             # cards on a crypto screen with no data behind them, because the
@@ -1248,6 +1254,42 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as exc:
             return reply(False, f"Unexpected error: {type(exc).__name__}", 500)
         return reply(True, answer=answer, meta=meta)
+
+    def _do_live(self, form):
+        """Switch real Zerodha orders on or off for one Indian index, for this
+        account only. Switching off never touches a position already open."""
+        def reply(ok, message="", code=200, **extra):
+            return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra)),
+                              "application/json", code=code)
+        user = self._current_user()
+        if not user:
+            return reply(False, "Sign in first.", 401)
+        if not self._same_origin():
+            return reply(False, "Refused: that request did not come from this site.", 403)
+        if self._current_market() != "nse_index":
+            return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex.", 400)
+        if _state["mode"] == "free":
+            return reply(False, "Live orders need Zerodha mode, not the free data mode.", 400)
+        import live_orders
+        index = (form.get("index") or "").strip().upper()
+        if index not in live_orders.INDICES:
+            return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex.", 400)
+        ex = getattr(feeds.for_user(user, "nse_index"), "live", None)
+        if ex is None:
+            return reply(False, "Live orders are not available for this account.", 400)
+        on = (form.get("on") or "") in ("1", "true", "on")
+        if on:
+            if not user_kite.token_for(user):
+                return reply(False, "Connect Zerodha for today first - orders go through your own login.", 400)
+            if not (accounts.get_user(user) or {}).get("always_on"):
+                return reply(False, "Switch the tool to \"runs all session\" first. Otherwise closing this "
+                                    "page stops the tool watching the target, and a position is left "
+                                    "with only its stop.", 400)
+        try:
+            ex.set_enabled(index, on)
+        except (ValueError, OSError) as exc:
+            return reply(False, str(exc) or "Could not save that setting.", 500)
+        return reply(True, f"Live orders on {index} are {'ON' if on else 'OFF'}.", live=ex.public())
 
     def _do_journal(self, form):
         """Add, change or delete one of your own journal trades, or save a day's
@@ -2794,6 +2836,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .badge.prev{background:var(--raised);border-color:var(--bd);color:var(--ink-3)}
 .tclear{margin-left:auto}
 .tskip{color:var(--warn);border-color:rgba(242,163,61,.45)}
+.tlive{margin-left:8px}
+#tlive.on{background:#7a1f2e;border-color:#b83a4f;color:#fff}
+.livestat{font-size:12px;color:var(--ink-2);margin-top:6px;padding:6px 10px;border-radius:8px;
+  background:var(--raised);border:1px solid var(--bd);line-height:1.5}
+.livestat.err{color:var(--down);border-color:rgba(239,85,112,.45)}
 .contract{font-size:13px;color:var(--ink-2);margin-top:4px}
 .contract b{color:var(--ink)}
 .issued{font-size:12px;color:var(--ink-3);margin-top:3px}
@@ -3681,7 +3728,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
       warning than making it compact. -->
  <details class="notice risk" id="riskbox">
   <summary><b>Not advice.</b> A mechanical rule set, not a SEBI-registered
-   analyst. No orders are placed for you. <span class="more">What was
+   analyst. No orders are placed unless you switch live orders on. <span class="more">What was
    measured &rsaquo;</span></summary>
   <div id="honest"></div>
  </details>
@@ -3780,6 +3827,8 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   style="display:none">Clear ticket</button>
   <button class="lbtn tclear tskip" id="tskip" type="button"
   style="display:none">Skip cooldown</button>
+  <button class="lbtn tlive" id="tlive" type="button" aria-pressed="false"
+  style="display:none">Live orders: off</button>
   </div>
   <div class="hero">
   <div class="v" id="bias">—</div>
@@ -3789,6 +3838,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
   <div class="contract" id="tcontract" style="display:none"></div>
   <div class="issued" id="tissued" style="display:none"></div>
+  <div class="livestat" id="tlivestat" style="display:none"></div>
   <div class="tstats" id="tstats" style="display:none"></div>
   <div class="overnight" id="tovernight" style="display:none"></div>
   <div class="whyhold" id="twhy" style="display:none"></div>
@@ -4402,6 +4452,7 @@ function blank(msg,detail){
   $("tbadge").style.display="none"; $("tclear").style.display="none";
   $("tcontract").style.display="none"; $("tissued").style.display="none";
   $("tstats").style.display="none"; $("twhy").style.display="none";
+  $("tlive").style.display="none"; $("tlivestat").style.display="none";
   $("trend").textContent="—"; $("trend").style.color="var(--ink-3)";
   $("trendsub").textContent=""; $("trendtiles").innerHTML="";
   $("why").innerHTML=""; CH.data=null; CH.key=null; chartDraw();
@@ -5290,13 +5341,88 @@ $("lots").onchange = e => {
 };
 
 $("tclear").onclick = () => {
-  if(!confirm("Clear this ticket?\n\nIt is marked closed and written to your "
-            + "trade log at the current price — nothing is cancelled with your "
-            + "broker, because nothing was ever placed there.")) return;
+  const held = liveHeld(LAST, CUR);
+  if(!confirm(held
+      ? `Clear this ticket AND SELL YOUR REAL POSITION?\n\n${held.filled_qty} ${held.tradingsymbol} is held at `
+        + "Zerodha. Its stop-loss order is cancelled and the position is sold now with a limit order "
+        + "a little below the market, repriced until it fills."
+      : "Clear this ticket?\n\nIt is marked closed and written to your "
+        + "trade log at the current price — nothing is cancelled with your "
+        + "broker, because nothing was ever placed there.")) return;
   fetch("/api/ticket", {method:"POST",
     headers:{"Content-Type":"application/x-www-form-urlencoded"},
     body:new URLSearchParams({action:"clear", index:CUR})})
     .then(() => tick()).catch(()=>{});
+};
+
+// ----------------------------------------------------------- live orders
+// Real Zerodha orders, per index. The button is the only way on; the server
+// refuses it without today's Zerodha login and "runs all session".
+const LIVE_ACTIVE = ["placing", "entering", "open", "exiting", "attention"];
+
+function liveHeld(s, k){
+  const L = s && s.live;
+  return L ? (L.positions || []).find(p => p.index === k && LIVE_ACTIVE.includes(p.state)) || null : null;
+}
+
+function liveBox(s){
+  const L = s && s.live, b = $("tlive"), st = $("tlivestat");
+  if(!b || !st) return;
+  if(!L || !CUR || !(CUR in (L.enabled || {}))){
+    b.style.display = "none"; st.style.display = "none"; return;
+  }
+  const on = !!L.enabled[CUR];
+  b.style.display = "";
+  b.classList.toggle("on", on);
+  b.setAttribute("aria-pressed", String(on));
+  b.textContent = "Live orders: " + (on ? "ON" : "off");
+  b.style.marginLeft = ($("tclear").style.display === "none" && $("tskip").style.display === "none") ? "auto" : "";
+  const p = (L.positions || []).find(x => x.index === CUR);
+  const note = (L.notes || []).find(n => n.index === CUR);
+  const sym = p ? (p.tradingsymbol || "the contract") : "";
+  const lines = [];
+  if(p){
+    lines.push({
+      placing: "Live: checking whether the buy reached Zerodha",
+      entering: `Live: buying ${p.qty || ""} ${sym}`,
+      open: `Live: holding ${p.filled_qty} ${sym} bought at ${p.avg_price} · stop-loss order at Zerodha, trigger ${p.stop_trigger}`,
+      exiting: `Live: selling ${sym} - ${p.exit_reason || ""}`,
+      attention: `Live: ${sym} MAY STILL BE HELD - check Kite now`,
+      closed: `Live: ${sym} closed` + (p.exit_price ? ` at ${p.exit_price}` : ""),
+      failed: "Live: no position",
+    }[p.state] || "");
+  }
+  if(note) lines.push(`${note.at} · ${note.text}`);
+  st.textContent = lines.filter(Boolean).join("  —  ");
+  st.style.display = st.textContent ? "" : "none";
+  st.classList.toggle("err", !!((note && note.level === "error") || (p && p.state === "attention")));
+}
+
+$("tlive").onclick = async () => {
+  const L = LAST && LAST.live, b = $("tlive");
+  if(!L || !CUR) return;
+  const on = !L.enabled[CUR];
+  if(on && !confirm(`Place REAL orders on ${CUR}?\n\n`
+      + "From now on every ticket on this index is also bought at Zerodha with your money: the "
+      + "ticket's own contract and lots, as a limit order a little above the price. The moment it "
+      + "fills, a stop-loss order goes to Zerodha at the ticket's stop. The tool sells at T2, when you "
+      + "clear the ticket, and at 15:20 at the latest - intraday only. No new live entry after 15:10.\n\n"
+      + "Zerodha rejects these orders until this connection's static IP is registered on "
+      + "developers.kite.trade.\n\nPast results do not predict future ones. This is your decision.")) return;
+  if(!on && !confirm(`Stop placing live orders on ${CUR}?\n\nA position already open is still managed to its exit.`)) return;
+  b.disabled = true;
+  try{
+    const r = await fetch("/api/live", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: new URLSearchParams({index: CUR, on: on ? "1" : "0"})});
+    const j = await r.json();
+    if(!j.ok) alert(j.message || "That could not be changed.");
+    else if(LAST){ LAST.live = j.live; render(LAST); }
+  }catch(e){
+    alert("Could not reach this tool's own server.");
+  }finally{
+    b.disabled = false;
+  }
 };
 
 $("tskip").onclick = () => {
@@ -6465,6 +6591,7 @@ function render(s){
 
   const tstate = (s.tickets||{})[CUR] || null;
   ticketBox(r, tstate);
+  liveBox(s);
   ladder(r, tstate && tstate.ticket);
   riskBox(r, tstate && tstate.ticket, s.session);
   rrBox(r, tstate && tstate.ticket);

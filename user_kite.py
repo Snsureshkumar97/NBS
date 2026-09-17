@@ -20,8 +20,9 @@ WHY IT IS WORTH THE EXTRA MOVING PARTS
       goes with it, because it lives in the same record.
 
 WHAT A TOKEN IS AND ISN'T
-    A Kite access token can read positions and place orders. THIS TOOL PLACES
-    NO ORDERS — but the token stored here could, so it is treated as a
+    A Kite access token can read positions and place orders. This tool places
+    orders with it only where the account switched live orders on (see
+    live_orders.py) — and because the token can, it is treated as a
     credential: written only to users.json (mode 0600, same file the password
     hashes live in), never rendered into a page, never logged, and never sent
     to a browser.

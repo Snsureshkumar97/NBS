@@ -453,8 +453,9 @@ INTRADAY_VOLUME_PROFILE = {
 # Enter your trading capital on the signal card and the tool shows, for every
 # signal and every open ticket, the money between entry and stop, what share
 # of the account that is, and how many lots fit inside RISK_PER_TRADE_PCT.
-# Nothing is enforced on the lots you pick - this tool never places an order -
-# but the number is in front of you before you do.
+# Nothing is enforced on the lots you pick - and they are what a live order
+# uses, where live orders are switched on - but the number is in front of you
+# before you do.
 #
 # The daily loss limit IS enforced on tickets: once today's closed trades have
 # lost DAILY_LOSS_LIMIT_R full-risk trades' worth of capital (3 x 1% = 3% at

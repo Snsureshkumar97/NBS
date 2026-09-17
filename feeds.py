@@ -30,7 +30,8 @@ CACHING
     per-user cases named explicitly.
 
 A FEED IS NOT A SUBSCRIPTION
-    Nothing here places an order, and nothing here streams ticks. Each pass is
+    Nothing here places an order (live_orders.py does, only where an account
+    switched it on), and nothing here streams ticks. Each pass is
     a plain historical-candle fetch plus the same signal_engine call the
     desktop app makes.
 """
@@ -489,6 +490,15 @@ class Feed:
         # account switches them on, and never on the shared free-mode feed.
         self.watch = (ticket_watch.Watch(self.tickets.path + ".botwatch.json")
                       if self.tickets.path else None)
+        # Real Zerodha orders that follow this account's tickets, per index,
+        # only where switched on. One executor per account for the whole
+        # process, handed to whichever feed is current.
+        self.live = None
+        if self.tickets.path and self.market == "nse_index":
+            import live_orders
+            self.live = live_orders.for_account(email, self.tickets.path,
+                                                close_ticket=self.tickets.close_ticket)
+            self.tickets.listeners.append(self.live.on_ticket_event)
 
         # The live price feed. Polling REST every thirty seconds can only ever
         # show a snapshot up to thirty seconds stale, and asking faster gets

@@ -791,7 +791,7 @@ def shell(title, body, user=None, active="", description="", noindex=False):
     {LOGO}<b style="color:var(--ink);font-size:15px">{_esc(BRAND)}</b></div>
    <p style="margin:0;max-width:320px">A rule-based second opinion on Nifty,
     Bank Nifty and Sensex index options. It shows its working, it says WAIT most
-    of the time, and it places no orders.</p>
+    of the time, and it places no orders unless you switch live orders on.</p>
   </div>
   <div><h5>The tool</h5><ul>{foot_nav}</ul></div>
   <div><h5>Account</h5><ul>
@@ -1126,7 +1126,7 @@ def home_page(user=None, record=None):
     body = f"""
 <div class="wrap">
  <div class="hero">
-  <div class="eyebrow"><span class="dot"></span>Reads the market · places no orders</div>
+  <div class="eyebrow"><span class="dot"></span>Reads the market · no orders unless you switch them on</div>
   <h1>A second opinion you can argue with
    <span class="thin">{_esc(BRAND)} applies one fixed rule set to Nifty, Bank
    Nifty and Sensex, and shows you every reason it reached its answer.</span></h1>
@@ -1265,7 +1265,8 @@ def home_page(user=None, record=None):
     return shell(f"{BRAND} — {TAGLINE}", body, user=user, active="/",
                  description=(f"{BRAND} — a rule-based decision-support screen for "
                               "Nifty, Bank Nifty and Sensex index options. Shows its "
-                              "working, places no orders, and was measured negative "
+                              "working, places no orders unless you switch them on, "
+                              "and was measured negative "
                               "after costs."))
 
 
@@ -1432,8 +1433,9 @@ def how_page(user=None, record=None):
   <p><b>Sizing.</b> Enter your trading capital on the signal card and every
    signal and open ticket shows the money between entry and stop, what share of
    the account that is, and how many lots fit inside the risk per trade you
-   picked. The lots are still yours to choose &mdash; nothing here places an
-   order &mdash; but the number is in front of you before you do. BTC sizes in
+   picked. The lots are still yours to choose &mdash; and they are the lots a
+   live order uses, if you switch live orders on for that index &mdash; but the
+   number is in front of you before you do. BTC sizes in
    tenths of a contract, Deribit&rsquo;s minimum, so a small account is not
    forced into a whole coin.</p>
   <p><b>Review.</b> The Review page reads your own finished tickets back &mdash;
@@ -2013,9 +2015,11 @@ def security_page(user=None, record=None):
   <p>This is the part that deserves the most care, because a Kite access token
    can read positions and place orders.</p>
   <ul>
-   <li><b>This tool places no orders.</b> There is no order code in it at all.
-    The token could, which is exactly why it is treated as a credential rather
-    than as a setting.</li>
+   <li><b>Orders are placed only if you switch live orders on</b>, one Indian
+    index at a time &mdash; off by default. Then each ticket on that index is
+    bought for you, intraday only, with a stop-loss order at Zerodha and a sell
+    at the exit target or 15:20. The token can place orders, which is exactly why
+    it is treated as a credential rather than as a setting.</li>
    <li>It is stored only in the server's user file — the same file as the
     password hashes, written with owner-only permissions.</li>
    <li>It is <b>never rendered into a page, never logged, and never sent to a

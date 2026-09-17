@@ -111,6 +111,10 @@ class TicketBook:
         self.books = {name: IndexBook(name)
                       for name in config.instruments_in(self.market)}
         self.closed = []               # this session's closed tickets, newest first
+        # Called as fn(kind, trade) when a ticket opens or closes - how live
+        # orders follow a ticket. Called under self.lock, so a listener must
+        # only queue work, never wait on anything.
+        self.listeners = []
         self.session_net = 0.0
         self._day_cache = None
 
@@ -991,6 +995,14 @@ class TicketBook:
         except Exception:
             pass
         self._day_cache = None          # it counts against today from now
+        self._emit("opened", book.trade)
+
+    def _emit(self, kind, trade):
+        for fn in list(self.listeners):
+            try:
+                fn(kind, trade)
+            except Exception:
+                pass
 
     def _close(self, book, trade, price, rec):
         """Log a ticket that has stopped being OPEN, and bank its P&L."""
@@ -1019,6 +1031,7 @@ class TicketBook:
         }
         self.closed.insert(0, row)
         del self.closed[40:]            # a session strip, not an archive
+        self._emit("closed", trade)
         return {"kind": "closed", "index": book.name, "trade": row}
 
     def tick_price(self, name, price):
@@ -1069,6 +1082,21 @@ class TicketBook:
                 return ev
             book.trade = None
             return None
+
+    def close_ticket(self, name, status):
+        """Close an open ticket for a stated reason - the live-order intraday
+        close at 15:20 - logged at the current price like any other close."""
+        with self.lock:
+            book = self.books.get(name)
+            if not book or book.trade is None or book.trade["status"] != "OPEN":
+                return None
+            px = self._price_for(book.trade, book.last_rec)
+            if px is None:
+                px = book.live
+            book.trade["status"] = status
+            ev = self._close(book, book.trade, px, book.last_rec)
+            book.trade = None
+            return ev
 
     def skip_cooldown(self, name):
         """Let the next ticket on this index through its cooldown, once.
