@@ -458,14 +458,14 @@ try:
     check("the cooldown is enforced at the endpoint, not just in the library (429)", out["code"] == 429)
 
     mb.allow = lambda email, now=None: (True, "")
-    mb.ask = lambda q, hist, context, client=None: ("Hold - T2 or the stop have not been hit.", {"input_tokens": 1})
+    mb.ask = lambda q, hist, context, client=None, tools_ctx=None: ("Hold - T2 or the stop have not been hit.", {"input_tokens": 1})
     h, out = handler()
     h._do_marketbot({"action": "ask", "index": "NIFTY",
                      "question": "Should I hold my NIFTY ticket?", "history": "[]"})
     d = json.loads(out["body"])
     check("a real question round-trips end to end", d["ok"] is True and "Hold" in d["answer"], d)
 
-    def boom(q, hist, context, client=None):
+    def boom(q, hist, context, client=None, tools_ctx=None):
         raise mb.BotError("Anthropic is rate-limiting this key right now - try again in a minute.", 429)
     mb.ask = boom
     h, out = handler()

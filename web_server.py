@@ -1247,8 +1247,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as exc:
             return reply(False, f"Could not build the market snapshot: {type(exc).__name__}", 500)
         history = market_bot.clean_history(form.get("history"))
+        import bot_data
         try:
-            answer, meta = market_bot.ask(form.get("question"), history, context)
+            answer, meta = market_bot.ask(form.get("question"), history, context,
+                                          tools_ctx=bot_data.Ctx(user, market, index))
         except market_bot.BotError as exc:
             return reply(False, str(exc), exc.code)
         except Exception as exc:
@@ -3999,7 +4001,8 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div class="botnote" id="botnote"></div>
    <div class="botcap">Not advice - explains the tool's own mechanical rules and its own data.
     Never places, changes or cancels an order. Sends this market's signal and your open ticket
-    to Anthropic; never your name, email or broker ID.</div>
+    to Anthropic, and when a question needs it any other section of the tool - including your
+    watchlist and journal; never your name, email or broker ID.</div>
   </div>
  </section>
 
@@ -7738,6 +7741,8 @@ async function botSend(){
     thinking.remove();
     if(d.ok){
       botAppend("bot", d.answer);
+      const seen = (d.meta && d.meta.looked_at) || [];
+      if(seen.length) botSystemNote("Looked at: " + seen.join(", "));
       BOT.history.push({role: "user", text: text});
       BOT.history.push({role: "assistant", text: d.answer});
       if(BOT.history.length > 12) BOT.history = BOT.history.slice(-12);
