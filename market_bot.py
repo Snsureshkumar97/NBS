@@ -443,7 +443,12 @@ BUY one option - a CE when you expect the index to rise, a PE when you expect it
 expiry in the live chain, at the user's own lot size. You choose the strike (within a few strikes of the \
 money), a take-profit premium and a stop premium. The entry is the contract's live premium when the ticket \
 opens, not a price you name. The stop and target are checked on every tick; at each 15-minute close you \
-are also asked whether to hold or exit an open ticket, and may exit at any time for any reason.
+are also asked whether to hold or exit an open ticket, and may exit at any time for any reason. You are also \
+asked straight away, between closes, when a trade turns - it reaches halfway to its stop, ADX falls below the \
+trend gate, the MACD histogram turns against it, or it makes no progress for half an hour - and <desk> then \
+carries what_just_happened. Separately, the tool closes a trade by itself once it has covered most of the way \
+to its target and then hands back half of that best gain, so a profit that reverses hard inside one candle is \
+not left to run to the stop; see give_back_rule in <desk>.
 
 Each request brings a <market_snapshot> for one index and a <desk> block with your open tickets, today's \
 entries and limits, contracts already traded today (never propose one of those again), and your own recent \

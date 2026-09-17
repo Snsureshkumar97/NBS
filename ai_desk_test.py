@@ -433,6 +433,76 @@ d3 = ad.AIDesk(f3, now=lambda: T["now"], clock=lambda: T["clock"], start=False)
 check("a desk saved with the old market-wide switch comes back with every index on",
       d3.enabled == {"NIFTY": True, "BANKNIFTY": True, "SENSEX": True})
 
+print("5c. A PROFIT THAT TURNS: THE GIVE-BACK RULE AND AN UNSCHEDULED REVIEW")
+at(10, 0, 50)
+f, d = desk()
+d.set_on(True)
+SCRIPT[:] = [enter(target=160.0, stop=110.0)]     # entry 130, so the target is 30 away
+d.step()
+tid = d._open_trade("NIFTY")["trade_id"]
+d._tok[tid] = "tok1"
+f.streamer.px["tok1"] = 148.0                      # 60% of the way
+d.price_tick()
+check("60% of the way to the target: still open", d._open_trade("NIFTY") is not None)
+f.streamer.px["tok1"] = 142.0                      # gave back a third of the best gain
+d.price_tick()
+check("gave back a third of it: still open", d._open_trade("NIFTY") is not None)
+f.streamer.px["tok1"] = 138.0                      # gave back half of the 18-point best gain
+d.price_tick()
+rows = [r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"]
+check("gave back half the best gain: closed by the rule, in profit, before the stop",
+      d._open_trade("NIFTY") is None and "give-back rule" in rows[-1]["status"]
+      and float(rows[-1]["pnl"]) > 0, rows[-1:])
+check("...and it is in the decisions list as the tool's own exit, not the bot's",
+      any(r["kind"] == "rule" and r["action"] == "exit" and "give-back" in r["reason"] for r in d.recent))
+check("...and it starts the cooldown", d.last_exit.get("NIFTY") == T["clock"])
+
+f, d = desk()
+d.set_on(True)
+at(11, 0, 50)
+SCRIPT[:] = [enter(target=190.0, stop=110.0)]
+d.step()
+trade = d._open_trade("NIFTY")
+tid = trade["trade_id"]
+d._tok[tid] = "tok1"
+f.streamer.px["tok1"] = 145.0
+d.price_tick()
+check("a modest gain, no give-back", d._open_trade("NIFTY") is not None)
+ASKED.clear()
+at(11, 5, 50)                                      # not a candle close: only an event can ask now
+half = dict(rec(), option_chain=chain())
+pub = d.book.public("NIFTY")["ticket"]
+d.book.live_price("NIFTY", 120.0)                  # halfway from 130 to the stop at 110
+d.track("NIFTY", half)
+T["clock"] += ad.ticket_watch.HOLD_PRICE_S
+d.book.live_price("NIFTY", 120.0)
+d.track("NIFTY", half)
+check("a turn is noticed between closes", d.pending.get("NIFTY"), d.pending)
+SCRIPT[:] = [{"action": "exit", "reason": "Halfway to the stop with the trend gone."}]
+d.step()
+check("the bot is asked straight away, told what happened, and can exit in between closes",
+      ASKED and ASKED[0][0] == "review" and ASKED[0][2].get("what_just_happened")
+      and d._open_trade("NIFTY") is None, ASKED[:1])
+check("the desk block also tells it the give-back rule exists", "give_back_rule" in ASKED[0][2])
+
+f, d = desk()
+d.set_on(True)
+at(12, 0, 50)
+SCRIPT[:] = [enter(target=190.0, stop=110.0)]
+d.step()
+trade = d._open_trade("NIFTY")
+d.event_reviews[trade["trade_id"]] = ad.MAX_EVENT_REVIEWS
+d.pending["NIFTY"] = ["Halfway to the stop"]
+ASKED.clear()
+at(12, 5, 50)
+d.step()
+check("event reviews are capped per ticket", not ASKED and d._open_trade("NIFTY") is not None)
+d.event_reviews[trade["trade_id"]] = 0
+d.last_event_review["NIFTY"] = T["clock"]
+d.pending["NIFTY"] = ["ADX fell below the trend gate"]
+d.step()
+check("and spaced out - two turns in a minute is one review", not ASKED)
+
 print("6. AFTER A RESTART")
 at(13, 0, 50)
 f, d = desk(email="restart@example.invalid")

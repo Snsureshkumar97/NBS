@@ -43,6 +43,7 @@ import time
 
 import config
 import signal_engine
+import ticket_watch
 import tickets
 import trade_log
 from main import is_market_open, now_ist
@@ -57,6 +58,16 @@ NO_ENTRY_AFTER = (15, 10)
 MAX_DECISIONS_PER_DAY = {"nse_index": 90, "crypto": 100}
 STRIKE_STEPS = 6
 MIN_REWARD_RISK = 1.0
+# Giving back a profit: once the trade has covered GIVEBACK_ARM of the way from
+# entry to its target, the tool closes it if it hands back GIVEBACK_GIVE of that
+# best gain. Checked on every tick, with no model call - a reversal inside one
+# candle would otherwise run to the stop before the bot's next review.
+GIVEBACK_ARM = 0.6
+GIVEBACK_GIVE = 0.5
+# A turn also wakes the bot for an unscheduled review, at most this many times
+# per ticket and no closer together than this.
+MAX_EVENT_REVIEWS = 3
+EVENT_REVIEW_GAP_S = 300
 RECENT_KEPT = 60
 LOOP_S = 15
 
@@ -84,6 +95,14 @@ class AIDesk:
         self.last_exit = {}          # index -> epoch of the last AI exit
         self.recent = []             # newest first
         self.busy = None
+        # The same six triggers the automatic updates watch for. Used here to
+        # wake the bot between candle closes when a trade turns.
+        self.watch = ticket_watch.Watch(None)
+        self.watch.on = True
+        self.pending = {}            # index -> [what just happened]
+        self.event_reviews = {}      # trade_id -> reviews spent
+        self.last_event_review = {}  # index -> epoch
+        self.peak = {}               # trade_id -> best progress from entry, in premium
         self._tok = {}               # trade_id -> streamed contract handle
         self._tok_tried = {}
         self._load()
@@ -195,6 +214,7 @@ class AIDesk:
             return
         self._roll_day()
         now = self.now()
+        self._event_reviews(client)
         for name in self.feed.instruments():
             if not self.enabled.get(name):
                 continue
@@ -226,6 +246,32 @@ class AIDesk:
                 self._entry(name, rec, client)
             self._save()
         self._save()
+
+    def _event_reviews(self, client=None):
+        """A trade that turned, reviewed before the next candle close."""
+        import market_bot
+        for name in list(self.pending):
+            with self.lock:
+                why = self.pending.pop(name, [])
+            trade = self._open_trade(name)
+            if not why or trade is None or not self.enabled.get(name) or not self._fresh():
+                continue
+            if not market_bot.key_present() or self.decisions_today >= MAX_DECISIONS_PER_DAY.get(self.market, 90):
+                continue
+            tid = trade.get("trade_id")
+            if self.event_reviews.get(tid, 0) >= MAX_EVENT_REVIEWS:
+                continue
+            last = self.last_event_review.get(name)
+            if last and self.clock() - last < EVENT_REVIEW_GAP_S:
+                continue
+            with self.feed.lock:
+                rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec")
+            if not rec:
+                continue
+            self.event_reviews[tid] = self.event_reviews.get(tid, 0) + 1
+            self.last_event_review[name] = self.clock()
+            self._review(name, trade, rec, client, why=sorted(set(why)))
+            self._save()
 
     def _fresh(self):
         """Whether the feed's analysis is current. A feed whose Zerodha token
@@ -275,19 +321,25 @@ class AIDesk:
                 "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": list(self.contracts),
                 "cooldown_minutes_after_an_exit": COOLDOWN_MIN, "min_reward_to_risk": MIN_REWARD_RISK,
                 "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.feed.tickets.lots,
+                "give_back_rule": (f"the tool closes a trade on its own once it has covered "
+                                   f"{GIVEBACK_ARM * 100:.0f}% of the way to its target and then hands back "
+                                   f"{GIVEBACK_GIVE * 100:.0f}% of that best gain"),
                 "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4]}
 
     # ------------------------------------------------------------ deciding
-    def _ask(self, kind, name, client):
+    def _ask(self, kind, name, client, why=None):
         import bot_data
         import market_bot
         snap = self.feed.snapshot()
         context = market_bot.build_context(snap, self.market, name, user=self.feed.email)
+        desk = self._desk_info(name)
+        if why:
+            desk["what_just_happened"] = why
         self.decisions_today += 1
         self.decisions_by_index[name] = self.decisions_by_index.get(name, 0) + 1
         self.busy = name
         try:
-            decision, meta = market_bot.decide(kind, name, context, self._desk_info(name),
+            decision, meta = market_bot.decide(kind, name, context, desk,
                                                tools_ctx=bot_data.Ctx(self.feed.email, self.market, name),
                                                client=client)
         finally:
@@ -321,10 +373,10 @@ class AIDesk:
                             {"contract": plan["contract"], "entry": plan["ltp"], "target": plan["target"],
                              "stop": plan["stop"], "looked_at": meta.get("looked_at")})
 
-    def _review(self, name, trade, rec, client):
+    def _review(self, name, trade, rec, client, why=None):
         import market_bot
         try:
-            d, meta = self._ask("review", name, client)
+            d, meta = self._ask("review", name, client, why=why)
         except market_bot.BotError as exc:
             return self._record(name, "review", "error", str(exc))
         if d.get("action") == "exit":
@@ -407,6 +459,52 @@ class AIDesk:
         """A fresh reading from the analysis: check the open AI ticket's levels."""
         evs = self.book.track(name, rec)
         self._after(name, evs)
+        trade = self._open_trade(name)
+        if trade is None:
+            return
+        self._giveback(name, trade, self.book._price_for(trade, rec))
+        with self.feed.lock:
+            idx = ((self.feed.state.get("indices") or {}).get(name) or {}).get("public")
+        self._events(name, trade, idx)
+
+    def _events(self, name, trade, idx):
+        """Note a turn in the trade - halfway to the stop, ADX below the gate, MACD
+        against it, no progress - so the bot can be asked before the next close."""
+        pub = self.book.public(name).get("ticket")
+        if not pub or not pub.get("open"):
+            return
+        fired = self.watch.observe(name, trade.get("trade_id"), pub, idx,
+                                   config.strictness().get("adx"), self.clock())
+        self.watch.forget_except({t.get("trade_id") for t in
+                                  (self._open_trade(k) for k in self.feed.instruments()) if t})
+        if fired:
+            with self.lock:
+                self.pending.setdefault(name, [])
+                self.pending[name] += [e["label"] for e in fired]
+
+    def _giveback(self, name, trade, price):
+        """Hand back too much of a gain and the trade is closed, on the tick."""
+        if price is None:
+            return
+        entry, target = trade.get("entry_ltp"), (trade.get("premium_targets") or [None])[0]
+        if not entry or not target or target <= entry:
+            return
+        tid = trade.get("trade_id")
+        gain, room = price - entry, target - entry
+        best = max(self.peak.get(tid, 0.0), gain)
+        self.peak[tid] = best
+        if best < GIVEBACK_ARM * room or gain > best * GIVEBACK_GIVE:
+            return
+        pct, back = best / room * 100.0, (best - gain) / best * 100.0
+        self.book.close_ticket(name, f"CLOSED — AI give-back rule: {pct:.0f}% of the way to the target, "
+                                     f"then gave back {back:.0f}% of that")
+        self.last_exit[name] = self.clock()
+        self.peak.pop(tid, None)
+        self._record(name, "rule", "exit", f"Reached {pct:.0f}% of the way to the target ({target:g}) at "
+                                           f"{entry + best:.2f}, then gave back {back:.0f}% of that gain. Closed by "
+                                           f"the give-back rule, not by the bot.",
+                     {"contract": f"{name}|{trade.get('strike')}|{trade.get('option_type')}"})
+        self._save()
 
     def price_tick(self):
         """The AI ticket's own contract, off the stream, on every tick."""
@@ -419,6 +517,8 @@ class AIDesk:
                 continue
             self.book.live_price(name, px)
             self._after(name, self.book.tick_price(name, px))
+            if self._open_trade(name) is not None:
+                self._giveback(name, trade, px)
 
     def _after(self, name, evs):
         if any(ev.get("kind") == "closed" for ev in evs or []):
