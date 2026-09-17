@@ -1290,13 +1290,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return reply(False, "The AI desk needs a signed-in account.", 400)
         import market_bot
         on = (form.get("on") or "") in ("1", "true", "on")
+        index = (form.get("index") or "").strip().upper()
+        if index not in config.instruments_in(market):
+            return reply(False, "Pick an index in this market first.", 400)
         if on and not market_bot.key_present():
             return reply(False, "No Anthropic API key is configured for this tool.", 503)
         try:
-            ai.set_on(on)
+            ai.set_on(on, index)
         except OSError:
             return reply(False, "Could not save that setting on this machine.", 500)
-        msg = "The AI desk is on - paper only." if on else "The AI desk is off."
+        msg = (f"The AI desk for {index} is on - paper only." if on
+               else f"The AI desk for {index} is off. An open AI ticket there still runs to its target, its "
+                    f"stop or the close.")
         if on and not (accounts.get_user(user) or {}).get("always_on"):
             msg += (" This account is set to run only while the page is open: close the page and the desk stops, "
                     "and any AI ticket it had open is closed as 'the tool stopped'. Switch to \"runs all session\" "
@@ -1900,6 +1905,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         k = (qs.get("k") or [""])[0].upper()
         if k in (config.instruments_in(market) if market else ()):
             payload["reading"] = feed.reading(k, (qs.get("at") or [None])[0])
+        ai = getattr(feed, "ai", None)
+        if ai is not None:
+            # Each open AI ticket's live premium and P&L, so the AI trades tab
+            # moves with the market instead of on its own five-second poll.
+            live_ai = {}
+            for name in (config.instruments_in(market) if market else ()):
+                t = ai.book.public(name).get("ticket")
+                if t and t.get("open"):
+                    live_ai[name] = {"now": t.get("now"), "pnl": t.get("pnl"), "hit": t.get("hit"),
+                                     "sl_hit": t.get("sl_hit")}
+            payload["ai"] = live_ai
         payload["tickets"] = {
             k: (feed.tickets.public(k) or {}).get("ticket")
             for k in (config.instruments_in(market) if market
@@ -3342,6 +3358,17 @@ table.chain .wide{color:var(--down)}
 .botnote{color:var(--ink-3);font-size:12px;margin-top:8px;line-height:1.5}
 .botnote.warn{color:var(--warn)}
 .botcap{font-size:12px;color:var(--ink-3);margin-top:4px}
+.aipicker{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.aipicker .lbtn{display:inline-flex;align-items:center;gap:8px}
+.aipicker .lbtn .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-3);flex:none}
+.aipicker .lbtn .dot.on{background:var(--up)}
+.aipicker .lbtn .pl{font-variant-numeric:tabular-nums;font-weight:700}
+.aipicker .lbtn .pl.up{color:var(--up)}.aipicker .lbtn .pl.down{color:var(--down)}
+.aipicker .lbtn.on .pl{color:#fff}
+.aitog{margin-left:auto}
+.aispot{margin-top:4px}
+.aispot .v{font-variant-numeric:tabular-nums}
+.aispotlbl{font-size:12px;color:var(--ink-3);letter-spacing:.5px;text-transform:uppercase}
 .aistats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:6px}
 .aistats .st{background:var(--raised);border:1px solid var(--bd);border-radius:10px;padding:9px 12px}
 .aistats .st b{display:block;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -4064,24 +4091,30 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
  </section>
 
  <section class="pane" data-pane="aidesk">
+  <div class="aipicker" id="aipicker" role="tablist" aria-label="AI desk by index"></div>
   <div class="card" data-panel="aidesk" id="aideskcard">
-   <p class="eyebrow" role="heading" aria-level="2">AI trades &middot; paper only</p>
-   <div class="botwatch">
-    <button class="lbtn" id="aitog" type="button" aria-pressed="false">AI desk: off</button>
-    <span class="botwatchnote">Ask TradePicker picks its own entries, targets and stops from every section of the
-     tool, once per index at each 15-minute close, on paper - nothing is ever sent to Zerodha. It runs beside
-     the rule tickets with a record of its own. The tool still enforces the session, the loss limit, at most 4
-     entries a day (2 per index), a 30-minute wait after an exit, and no contract twice in a day. Each decision is
-     billed to your Anthropic key.</span>
+   <div class="thead">
+    <p class="eyebrow" role="heading" aria-level="2">AI trades &middot; <span id="aiidx">&mdash;</span> &middot; paper only</p>
+    <button class="lbtn aitog" id="aitog" type="button" aria-pressed="false">AI desk: off</button>
+   </div>
+   <div class="hero aispot">
+    <div class="v" id="aispot">&mdash;</div>
+    <span class="tag flat" id="aichg" style="display:none"></span>
+    <span class="aispotlbl" id="aispotlbl">live spot</span>
    </div>
    <div class="aistats" id="aistats"></div>
-   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:16px">Open AI tickets</p>
-   <div id="aiopen"><div class="gnote">None open.</div></div>
-   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:16px">Decisions</p>
+   <div id="aiopen"></div>
+   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:18px">Decisions on <span id="aiidx2">&mdash;</span></p>
    <div class="aidec" id="aidecisions"><div class="gnote">No decisions yet.</div></div>
-   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:16px">Closed AI trades</p>
+   <p class="eyebrow" role="heading" aria-level="3" style="margin-top:18px">Closed AI trades on <span id="aiidx3">&mdash;</span></p>
    <div class="watchwrap"><table class="watch" id="aiclosed"></table></div>
    <div class="gnote" id="ainote"></div>
+   <div class="botwatchnote" style="margin-top:14px">Each index has its own switch. When it is on, Ask TradePicker
+    picks its own entries, targets and stops for that index from every section of the tool, at each 15-minute
+    close, on paper - nothing is ever sent to Zerodha. It runs beside the rule tickets with a record of its own.
+    The tool still enforces the session, the loss limit, at most 4 AI entries a day across the market (2 per
+    index), a 30-minute wait after an exit, and no contract twice in a day. Each decision is billed to your
+    Anthropic key.</div>
   </div>
  </section>
 
@@ -4469,6 +4502,7 @@ function selectIndex(k){
   const changed = k !== CUR;
   CUR = k;
   render(LAST);
+  if(TAB === "aidesk" && window.AIDESK && window.AIDESK.data) aiRender(window.AIDESK.data);
   if(changed && typeof botOnIndexChange === "function") botOnIndexChange();
 }
 // These are declared here, with the other page globals, because the code in
@@ -7006,6 +7040,7 @@ async function priceTick(){
   feedTag(t.live, t.age);
 
   if(changed) render(LAST);
+  aiTick(t);
   // The chain's strikes stream as well. render() asks for the chain only when
   // the index itself moved, so while its tab is open it is asked here too.
   if(TAB === "chain") chainFetch();
@@ -7656,6 +7691,7 @@ setInterval(() => { if(TAB === "watchlist" && !document.hidden) watchFetch(); },
 // The AI desk's paper tickets. Every string from the model goes through esc()
 // into element text only - never into an attribute.
 const AI = {data: null, busy: false};
+window.AIDESK = AI;
 
 function aiMoney(v){ return v == null ? "—" : money(v); }
 
@@ -7711,6 +7747,33 @@ function aiTicketCard(k, t){
     + `</div>`;
 }
 
+function aiIndex(d){
+  const names = (d && d.indices) || [];
+  return names.includes(CUR) ? CUR : names[0];
+}
+
+// The live spot for the index on screen, off the same 250ms price feed as the
+// rest of the page.
+function aiSpot(){
+  const k = aiIndex(AI.data);
+  const r = (LAST && LAST.indices && LAST.indices[k]) || {};
+  const el = $("aispot"), chg = $("aichg");
+  if(!el) return;
+  el.textContent = r.spot == null ? "—" : num(r.spot, 2);
+  const tr = r.trend || {};
+  if(tr.day_change != null){
+    const up = tr.day_change >= 0;
+    el.style.color = up ? "var(--up)" : "var(--down)";
+    chg.style.display = "";
+    chg.textContent = `${up ? "+" : ""}${num(tr.day_change, 2)}  (${up ? "+" : ""}${num(tr.day_change_pct, 2)}%) today`;
+  } else {
+    el.style.color = "";
+    chg.style.display = "none";
+  }
+  const lbl = $("aispotlbl");
+  if(lbl) lbl.textContent = (LIVE && LIVE.live) ? "live spot" : "last spot";
+}
+
 function aiRender(d){
   AI.data = d;
   const tog = $("aitog");
@@ -7718,46 +7781,78 @@ function aiRender(d){
     if($("ainote")) $("ainote").textContent = (d && d.error) || "The AI desk is not available.";
     return;
   }
-  tog.classList.toggle("on", !!d.on);
-  tog.setAttribute("aria-pressed", String(!!d.on));
-  tog.textContent = "AI desk: " + (d.on ? "on" : "off");
-  const L = d.limits || {}, R = d.record || {};
-  const entries = Object.values(L.entries_today || {}).reduce((a, b) => a + b, 0);
+  const k = aiIndex(d);
+  const names = d.indices || [];
+  const en = d.enabled || {};
+  const opens = d.open || {};
+
+  $("aipicker").innerHTML = names.map(n => {
+    const t = opens[n];
+    const pl = t && t.pnl != null ? `<span class="pl ${t.pnl >= 0 ? "up" : "down"}">${esc(money(t.pnl))}</span>` : "";
+    return `<button class="lbtn${n === k ? " on" : ""}" type="button" role="tab" aria-selected="${n === k}" data-aik="${esc(n)}">`
+      + `<span class="dot${en[n] ? " on" : ""}"></span>${esc(n)} · ${en[n] ? "on" : "off"}${t ? " · open" : ""} ${pl}</button>`;
+  }).join("");
+
+  ["aiidx", "aiidx2", "aiidx3"].forEach(id => { const e = $(id); if(e) e.textContent = k || "—"; });
+  const on = !!en[k];
+  tog.classList.toggle("on", on);
+  tog.setAttribute("aria-pressed", String(on));
+  tog.textContent = `AI desk for ${k || "—"}: ${on ? "on" : "off"}`;
+  aiSpot();
+
+  const L = d.limits || {}, R = (d.records || {})[k] || {};
+  const entries = (L.entries_today || {})[k] || 0;
+  const marketEntries = Object.values(L.entries_today || {}).reduce((a, b) => a + b, 0);
   $("aistats").innerHTML = [
     ["Today, closed", `${R.today ? R.today.closed : 0} · ${aiMoney(R.today ? R.today.net : 0)}`],
-    ["All AI trades", `${R.closed || 0} · ${R.wins || 0} won · ${R.losses || 0} lost`],
+    [`All ${k} AI trades · ${R.wins || 0} won, ${R.losses || 0} lost`, `${R.closed || 0}`],
     ["All-time net", aiMoney(R.net || 0)],
-    ["Entries today", `${entries} of ${L.max_entries_per_day || 0}`],
-    ["Decisions today", `${L.decisions_today || 0} of ${L.max_decisions_per_day || 0}`],
-  ].map(([k, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")
-    + (d.busy ? `<div class="st"><b>Deciding…</b><span>${esc(d.busy)}</span></div>` : "");
+    [`Entries today · market ${marketEntries} of ${L.max_entries_per_day || 0}`, `${entries} of ${L.max_entries_per_index || 0}`],
+    [`Decisions today · market ${L.decisions_today || 0} of ${L.max_decisions_per_day || 0}`, `${(L.decisions_by_index || {})[k] || 0}`],
+  ].map(([a, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(a)}</span></div>`).join("")
+    + (d.busy === k ? `<div class="st"><b>Deciding…</b><span>${esc(k)}</span></div>` : "");
 
-  const open = Object.entries(d.open || {}).filter(([, t]) => t);
-  $("aiopen").innerHTML = open.length ? open.map(([k, t]) => aiTicketCard(k, t)).join("")
-                                      : `<div class="gnote">None open.</div>`;
+  const t = opens[k];
+  $("aiopen").innerHTML = t ? aiTicketCard(k, t)
+    : `<div class="gnote" style="margin-top:14px">No AI ticket open on ${esc(k)}.${on ? " It is considered at each 15-minute close." : " Switch the AI desk on for " + esc(k) + " to let it trade here."}</div>`;
 
-  const rec = d.recent || [];
+  const rec = (d.recent || []).filter(r => r.index === k);
   $("aidecisions").innerHTML = rec.length ? rec.map(r => {
     const word = {enter: "Entered", wait: "Waited", hold: "Held", exit: "Exited", rejected: "Proposal rejected",
-                  error: "Could not decide", cap: "Decision cap reached"}[r.action] || r.action;
+                  error: "Could not decide", none: "Decision cap reached"}[r.action] || r.action;
     const c = String(r.contract || "").split("|");
     const extra = r.action === "enter" ? ` · ${c.slice(0, 3).join(" ")} at ${r.entry} · target ${r.target} · stop ${r.stop}` : "";
     const cls = ["enter", "exit", "rejected", "error"].includes(r.action) ? r.action : "";
-    return `<div class="d ${cls}"><div class="t">${esc(r.at)} · ${esc(r.index)} · ${esc(word)}${esc(extra)}`
+    return `<div class="d ${cls}"><div class="t">${esc(r.at)} · ${esc(word)}${esc(extra)}`
       + (r.looked_at && r.looked_at.length ? ` · looked at ${esc(r.looked_at.join(", "))}` : "") + `</div>`
       + `<div>${esc(r.reason)}</div>`
       + (r.rejected_because ? `<div class="rej">Not taken: ${esc(r.rejected_because)}</div>` : "") + `</div>`;
-  }).join("") : `<div class="gnote">No decisions yet.</div>`;
+  }).join("") : `<div class="gnote">No decisions on ${esc(k)} yet.</div>`;
 
   const last = R.last || [];
   $("aiclosed").innerHTML = last.length
     ? `<thead><tr><th>Closed</th><th>Contract</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Why it closed</th></tr></thead><tbody>`
-      + last.map(t => `<tr><td>${esc(t.date)} ${esc((t.time_ist || "").slice(0, 5))}</td>`
-        + `<td>${esc(t.index)} ${esc(t.strike)} ${esc(t.option_type)}</td><td>${esc(t.entry)}</td><td>${esc(t.exit)}</td>`
-        + `<td>${esc(t.pnl === "" || t.pnl == null ? "—" : money(parseFloat(t.pnl)))}</td>`
-        + `<td style="text-align:left;white-space:normal">${esc(t.status)}</td></tr>`).join("") + `</tbody>`
+      + last.map(x => `<tr><td>${esc(x.date)} ${esc((x.time_ist || "").slice(0, 5))}</td>`
+        + `<td>${esc(x.index)} ${esc(x.strike)} ${esc(x.option_type)}</td><td>${esc(x.entry)}</td><td>${esc(x.exit)}</td>`
+        + `<td>${esc(x.pnl === "" || x.pnl == null ? "—" : money(parseFloat(x.pnl)))}</td>`
+        + `<td style="text-align:left;white-space:normal">${esc(x.status)}</td></tr>`).join("") + `</tbody>`
     : "";
-  $("ainote").textContent = last.length ? "" : "No AI trades have closed yet.";
+  $("ainote").textContent = last.length ? "" : `No AI trades on ${k} have closed yet.`;
+}
+
+// The fast price poll: the spot, and each open AI ticket's live premium and P&L.
+function aiTick(t){
+  if(TAB !== "aidesk" || !AI.data) return;
+  let moved = false;
+  for(const [k, v] of Object.entries(t.ai || {})){
+    const cur = (AI.data.open || {})[k];
+    if(cur && (cur.now !== v.now || cur.pnl !== v.pnl)){
+      Object.assign(cur, v);
+      moved = true;
+    }
+  }
+  if(moved) aiRender(AI.data);
+  else aiSpot();
 }
 
 async function aiFetch(){
@@ -7768,20 +7863,31 @@ async function aiFetch(){
   finally{ AI.busy = false; }
 }
 
-{ const tog = $("aitog");
+{ const picker = $("aipicker");
+  if(picker) picker.addEventListener("click", e => {
+    const b = e.target.closest ? e.target.closest("[data-aik]") : null;
+    if(!b) return;
+    selectIndex(b.dataset.aik);
+    if(AI.data) aiRender(AI.data);
+  });
+  const tog = $("aitog");
   if(tog) tog.addEventListener("click", async () => {
-    const on = !(AI.data && AI.data.on);
-    if(on && !confirm("Turn the AI desk on for this market?\n\nAsk TradePicker will decide on its own entries, "
-        + "targets and stops at each 15-minute close - on paper only, never sent to Zerodha. Each decision is "
-        + "billed to your Anthropic key; at most " + ((AI.data && AI.data.limits && AI.data.limits.max_decisions_per_day) || 90)
-        + " decisions a day in this market.")) return;
+    const k = aiIndex(AI.data);
+    if(!k) return;
+    const on = !((AI.data && AI.data.enabled) || {})[k];
+    if(on && !confirm(`Turn the AI desk on for ${k}?\n\nAsk TradePicker will decide on its own entries, `
+        + "targets and stops for " + k + " at each 15-minute close - on paper only, never sent to Zerodha. "
+        + "Each decision is billed to your Anthropic key; at most "
+        + ((AI.data && AI.data.limits && AI.data.limits.max_decisions_per_day) || 90)
+        + " decisions a day across this market.")) return;
     tog.disabled = true;
     try{
       const r = await fetch("/api/ai", {method: "POST", cache: "no-store",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: new URLSearchParams({on: on ? "1" : "0"})});
+        body: new URLSearchParams({index: k, on: on ? "1" : "0"})});
       const j = await r.json();
       if(!j.ok) alert(j.message || "That could not be changed.");
+      else if(j.message && /runs all session/.test(j.message)) alert(j.message);
       if(j.ai) aiRender(j.ai);
     }catch(e){ alert("Could not reach this tool's own server."); }
     finally{ tog.disabled = false; }

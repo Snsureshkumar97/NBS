@@ -73,9 +73,10 @@ class AIDesk:
         self.book = tickets.TicketBook(feed.email, feed.market, path=os.path.join(base, "ai_trades.csv"))
         self.book.auto_rearm = False
         self.lock = threading.RLock()
-        self.on = False
+        self.enabled = {}            # index -> switched on (each index has its own switch)
         self.day = None
         self.decisions_today = 0
+        self.decisions_by_index = {}
         self.tokens_today = {"input": 0, "output": 0}
         self.entries = {}            # index -> entries today
         self.contracts = []          # "NIFTY|25000|CE|2026-09-22" traded today
@@ -107,9 +108,13 @@ class AIDesk:
                 s = json.load(fh)
         except Exception:
             return
-        self.on = bool(s.get("on"))
+        names = self.feed.instruments()
+        self.enabled = {k: bool(v) for k, v in (s.get("enabled") or {}).items() if k in names}
+        if s.get("on") and "enabled" not in s:            # one switch for the whole market, before 18 Sep 2026
+            self.enabled = {k: True for k in names}
         self.day = s.get("day")
         self.decisions_today = int(s.get("decisions_today") or 0)
+        self.decisions_by_index = s.get("decisions_by_index") or {}
         self.tokens_today = s.get("tokens_today") or self.tokens_today
         self.entries = s.get("entries") or {}
         self.contracts = s.get("contracts") or []
@@ -119,7 +124,8 @@ class AIDesk:
 
     def _save(self):
         with self.lock:
-            data = {"on": self.on, "day": self.day, "decisions_today": self.decisions_today,
+            data = {"enabled": self.enabled, "day": self.day, "decisions_today": self.decisions_today,
+                    "decisions_by_index": self.decisions_by_index,
                     "tokens_today": self.tokens_today, "entries": self.entries, "contracts": self.contracts,
                     "last_candle": self.last_candle, "last_exit": self.last_exit,
                     "recent": self.recent[:RECENT_KEPT]}
@@ -131,15 +137,24 @@ class AIDesk:
     def _roll_day(self):
         today = self.now().strftime("%Y-%m-%d")
         if self.day != today:
-            self.day, self.decisions_today = today, 0
+            self.day, self.decisions_today, self.decisions_by_index = today, 0, {}
             self.tokens_today = {"input": 0, "output": 0}
             self.entries, self.contracts = {}, []
 
-    def set_on(self, on):
+    @property
+    def on(self):
+        return any(self.enabled.values())
+
+    def set_on(self, on, index=None):
+        """Switch one index on or off - or every index in the market when none is named."""
+        names = self.feed.instruments()
+        if index is not None and index not in names:
+            raise ValueError(f"{index} is not in this market.")
         with self.lock:
-            self.on = bool(on)
+            for k in ([index] if index else names):
+                self.enabled[k] = bool(on)
             self._save()
-        return self.on
+        return self.enabled.get(index) if index else self.on
 
     def _record(self, index, kind, action, reason, extra=None):
         entry = {"at": self.now().strftime("%Y-%m-%d %H:%M:%S"), "index": index, "kind": kind,
@@ -181,6 +196,8 @@ class AIDesk:
         self._roll_day()
         now = self.now()
         for name in self.feed.instruments():
+            if not self.enabled.get(name):
+                continue
             if not is_market_open(now, name):
                 continue
             close = self._candle_close(now)
@@ -267,6 +284,7 @@ class AIDesk:
         snap = self.feed.snapshot()
         context = market_bot.build_context(snap, self.market, name, user=self.feed.email)
         self.decisions_today += 1
+        self.decisions_by_index[name] = self.decisions_by_index.get(name, 0) + 1
         self.busy = name
         try:
             decision, meta = market_bot.decide(kind, name, context, self._desk_info(name),
@@ -295,9 +313,9 @@ class AIDesk:
                                  "rejected_because": why, "looked_at": meta.get("looked_at")})
         if self.thread is not None and not self._alive():
             return None                  # this desk's feed was replaced while it decided
-        if not self.on:
+        if not self.enabled.get(name):
             return self._record(name, "entry", "rejected", d.get("reason") or "",
-                                {"rejected_because": "the AI desk was switched off while it decided"})
+                                {"rejected_because": f"the AI desk for {name} was switched off while it decided"})
         self._open(name, rec, plan, d.get("reason") or "")
         return self._record(name, "entry", "enter", d.get("reason") or "",
                             {"contract": plan["contract"], "entry": plan["ltp"], "target": plan["target"],
@@ -458,26 +476,34 @@ class AIDesk:
                 rows = [r for r in trade_log._read_rows(self.book.path) if r.get("event") == "CLOSE"]
             except Exception:
                 pass
-            pnl = [float(r["pnl"]) for r in rows if r.get("pnl") not in (None, "")]
             today = self.now().strftime("%Y-%m-%d")
-            today_pnl = [float(r["pnl"]) for r in rows if r.get("date") == today and r.get("pnl") not in (None, "")]
-            record = {"closed": len(pnl), "wins": sum(1 for p in pnl if p > 0), "losses": sum(1 for p in pnl if p <= 0),
-                      "net": round(sum(pnl), 2),
-                      "today": {"closed": len(today_pnl), "net": round(sum(today_pnl), 2)},
-                      "last": [{k: r.get(k) for k in ("date", "time_ist", "index", "strike", "option_type", "entry",
-                                                      "exit", "pnl", "status")} for r in rows[-8:][::-1]]}
+            names = self.feed.instruments()
+
+            def summary(sel):
+                pnl = [float(r["pnl"]) for r in sel if r.get("pnl") not in (None, "")]
+                tp = [float(r["pnl"]) for r in sel if r.get("date") == today and r.get("pnl") not in (None, "")]
+                return {"closed": len(pnl), "wins": sum(1 for p in pnl if p > 0),
+                        "losses": sum(1 for p in pnl if p <= 0), "net": round(sum(pnl), 2),
+                        "today": {"closed": len(tp), "net": round(sum(tp), 2)},
+                        "last": [{k: r.get(k) for k in ("date", "time_ist", "index", "strike", "option_type",
+                                                        "entry", "exit", "pnl", "status")} for r in sel[-8:][::-1]]}
+
             opened = {}
-            for k in self.feed.instruments():
+            for k in names:
                 if self._open_trade(k):
                     t = self.book.public(k).get("ticket")
                     if t is not None:
                         t["reason"] = self.book.books[k].trade.get("ai_reason")
                     opened[k] = t
-            return {"on": self.on, "paper_only": True, "market": self.market, "busy": self.busy,
-                    "open": opened, "recent": self.recent[:20], "record": record,
-                    "limits": {"entries_today": dict(self.entries) if self.day == today else {},
+            fresh_day = self.day == today
+            return {"on": self.on, "enabled": {k: bool(self.enabled.get(k)) for k in names},
+                    "indices": names, "paper_only": True, "market": self.market, "busy": self.busy,
+                    "open": opened, "recent": self.recent[:40], "record": summary(rows),
+                    "records": {k: summary([r for r in rows if r.get("index") == k]) for k in names},
+                    "limits": {"entries_today": dict(self.entries) if fresh_day else {},
                                "max_entries_per_day": MAX_ENTRIES_PER_DAY,
                                "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "cooldown_min": COOLDOWN_MIN,
-                               "decisions_today": self.decisions_today if self.day == today else 0,
+                               "decisions_today": self.decisions_today if fresh_day else 0,
+                               "decisions_by_index": dict(self.decisions_by_index) if fresh_day else {},
                                "max_decisions_per_day": MAX_DECISIONS_PER_DAY.get(self.market, 90),
-                               "tokens_today": self.tokens_today if self.day == today else {"input": 0, "output": 0}}}
+                               "tokens_today": self.tokens_today if fresh_day else {"input": 0, "output": 0}}}

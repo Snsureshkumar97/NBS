@@ -356,9 +356,10 @@ SOURCES = [
                     "by index and over time.",
      "params": {}},
     {"name": "get_ai_trades", "tabs": ("aidesk",), "routes": ("/api/ai",), "fn": _ai_trades,
-     "description": "The AI trades tab: the AI desk's own paper tickets in this market (open ones with live P&L, "
-                    "its reason for each), its recent enter / wait / hold / exit decisions and why, any proposal "
-                    "the tool rejected and why, its closed-trade record, and today's limits and decision count.",
+     "description": "The AI trades tab: which indices the AI desk is switched on for (each has its own switch), its "
+                    "own paper tickets in this market (open ones with live P&L and its reason for each), its recent "
+                    "enter / wait / hold / exit decisions and why, any proposal the tool rejected and why, its "
+                    "closed-trade record per index and overall, and today's limits and decision counts.",
      "params": {}},
     {"name": "get_world_markets", "tabs": ("home",), "routes": ("/api/markets",), "fn": _world,
      "description": "The market strip at the top of the page: world indices, Indian sectors and currencies (on the "

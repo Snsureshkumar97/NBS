@@ -104,8 +104,12 @@ mb.decide = fake_decide
 mb.key_present = lambda: True
 
 
+N = [0]
+
+
 def desk(market="nse_index", email=None):
-    email = email or f"u{len(ASKED)}{T['clock']}@example.invalid"
+    N[0] += 1
+    email = email or f"desk{N[0]}@example.invalid"
     f = FakeFeed(market, email)
     d = ad.AIDesk(f, now=lambda: T["now"], clock=lambda: T["clock"], start=False)
     return f, d
@@ -376,7 +380,7 @@ at(13, 0, 50)
 
 
 def switched_off_mid_decision(kind, index, context, desk_info, tools_ctx=None, client=None):
-    d.on = False
+    d.enabled[index] = False
     return enter(), {"input_tokens": 1, "output_tokens": 1}
 
 
@@ -387,6 +391,47 @@ finally:
     mb.decide = fake_decide
 check("switched off while the bot was deciding: its entry is not taken",
       d._open_trade("NIFTY") is None and "switched off" in (d.recent[0].get("rejected_because") or ""), d.recent[:1])
+
+print("5b. EACH INDEX ON ITS OWN SWITCH")
+at(14, 0, 50)
+f, d = desk()
+d.set_on(True, "SENSEX")
+ASKED.clear()
+d.step()
+check("only the switched-on index is asked about", [a[1] for a in ASKED] == ["SENSEX"], ASKED)
+check("switching one index on leaves the others off", d.enabled == {"SENSEX": True})
+try:
+    d.set_on(True, "BTC")
+    check("an index from another market cannot be switched on", False)
+except ValueError:
+    check("an index from another market cannot be switched on", True)
+d.set_on(True)
+at(14, 15, 50)
+ASKED.clear()
+SCRIPT[:] = [enter(), {"action": "wait", "reason": "x"}, {"action": "wait", "reason": "y"}]
+d.step()
+d.set_on(False, "NIFTY")
+at(14, 30, 50)
+ASKED.clear()
+d.step()
+check("switching NIFTY off stops its reviews too; the others carry on",
+      [a[1] for a in ASKED] == ["BANKNIFTY", "SENSEX"] and d._open_trade("NIFTY") is not None, ASKED)
+pub = d.public()
+check("public: a switch per index and a record per index",
+      pub["enabled"] == {"NIFTY": False, "BANKNIFTY": True, "SENSEX": True}
+      and set(pub["records"]) == {"NIFTY", "BANKNIFTY", "SENSEX"} and pub["limits"]["decisions_by_index"]["NIFTY"] == 1)
+d.book.tick_price("NIFTY", 161.0)
+pub = d.public()
+check("a closed NIFTY trade counts in NIFTY's record only",
+      pub["records"]["NIFTY"]["closed"] == 1 and pub["records"]["SENSEX"]["closed"] == 0 and pub["record"]["closed"] == 1)
+old_state = json.load(open(d.state_path))
+old_state.pop("enabled")
+old_state["on"] = True
+json.dump(old_state, open(d.state_path, "w"))
+f3 = FakeFeed("nse_index", f.email)
+d3 = ad.AIDesk(f3, now=lambda: T["now"], clock=lambda: T["clock"], start=False)
+check("a desk saved with the old market-wide switch comes back with every index on",
+      d3.enabled == {"NIFTY": True, "BANKNIFTY": True, "SENSEX": True})
 
 print("6. AFTER A RESTART")
 at(13, 0, 50)
@@ -478,6 +523,10 @@ check("an AI trades tab, in the tab list, with a label", 'data-tab="aidesk"' in 
       and 'aidesk:"AI trades"' in SRC)
 check("the model's words reach the page through esc() in element text",
       "<div>${esc(r.reason)}</div>" in SRC and '<div class="whyhold">${esc(t.reason)}</div>' in SRC)
+check("the tab has an index picker, a live spot line and a switch per index",
+      'id="aipicker"' in SRC and 'id="aispot"' in SRC and "body: new URLSearchParams({index: k, on: on ? \"1\" : \"0\"})" in SRC)
+check("the fast price poll moves the AI tab (spot and open AI tickets)", "  aiTick(t);" in SRC
+      and 'payload["ai"] = live_ai' in SRC)
 check("an open AI ticket is drawn as the Signal page's ticket card - badge, stats row, ladder",
       "function aiTicketCard(" in SRC and '<span class="badge open">OPEN</span>' in SRC
       and '`<div class="tstats">`' in SRC and '`<div class="ladder">${ladder}</div>`' in SRC)
@@ -503,17 +552,25 @@ def handler(user="me@example.invalid", same_origin=True):
 
 try:
     h, out = handler(same_origin=False)
-    h._do_ai({"on": "1"})
+    h._do_ai({"index": "NIFTY", "on": "1"})
     check("a cross-site request cannot switch it on", out["code"] == 403 and not d.on)
     real.key_present = lambda: False
     h, out = handler()
-    h._do_ai({"on": "1"})
+    h._do_ai({"index": "NIFTY", "on": "1"})
     check("not without an API key", out["code"] == 503 and not d.on)
     real.key_present = lambda: True
     h, out = handler()
     h._do_ai({"on": "1"})
-    check("switched on, and the page gets the desk back", json.loads(out["body"])["ok"] and d.on
-          and json.loads(out["body"])["ai"]["paper_only"] is True)
+    check("an index must be named - there is no market-wide switch on the page", out["code"] == 400 and not d.on)
+    h, out = handler()
+    h._do_ai({"index": "BTC", "on": "1"})
+    check("an index from another market is refused", out["code"] == 400 and not d.on)
+    h, out = handler()
+    h._do_ai({"index": "BANKNIFTY", "on": "1"})
+    body = json.loads(out["body"])
+    check("switching BANKNIFTY on turns on BANKNIFTY only", body["ok"] and d.enabled == {"BANKNIFTY": True}
+          and body["ai"]["enabled"] == {"NIFTY": False, "BANKNIFTY": True, "SENSEX": False}, body.get("ai", {}).get("enabled"))
+    check("the reply names the index", "BANKNIFTY" in body["message"])
     h, out = handler()
     h._api_ai("me@example.invalid")
     pub = json.loads(out["body"])
