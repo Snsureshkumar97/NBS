@@ -126,22 +126,30 @@ with open(log_path, "w", newline="") as fh:
     w = csv.writer(fh)
     w.writerow(["trade_id", "event", "date", "time_ist", "index", "strike", "option_type",
                "entry", "exit", "t1_hit", "t2_hit", "t3_hit", "sl_hit", "status", "pnl",
-               "lot_size", "lots"])
+               "lot_size", "lots", "risk_points", "reward_risk", "score", "confidence", "adx"])
+    # NIFTY-1: ADX was 22.7 and confidence Medium AT ENTRY; by the time it closed the
+    # signal had strengthened to 25.6 / High. Only the entry reading should surface.
     w.writerow(["NIFTY-1", "OPEN", "2026-09-17", "09:59:44", "NIFTY", "23300", "CE",
-               "130.35", "", "", "", "", "", "OPEN", "", "75", "1.0"])
+               "130.35", "", "", "", "", "", "OPEN", "", "75", "1.0",
+               "77.72", "1.44", "3", "Medium", "22.7"])
     w.writerow(["NIFTY-1", "CLOSE", "2026-09-17", "12:22:47", "NIFTY", "23300", "CE",
                "130.35", "171.0", "True", "True", "False", "False",
-               "CLOSED — T2 hit (full target reached)", "3048.75", "75", "1.0"])
+               "CLOSED — T2 hit (full target reached)", "3048.75", "75", "1.0",
+               "77.51", "1.22", "4", "High", "25.6"])
     w.writerow(["NIFTY-2", "OPEN", "2026-09-17", "12:22:59", "NIFTY", "23350", "CE",
-               "134.6", "", "", "", "", "", "OPEN", "", "75", "1.0"])
+               "134.6", "", "", "", "", "", "OPEN", "", "75", "1.0",
+               "43.11", "1.08", "3", "Medium", "24.9"])
     w.writerow(["NIFTY-2", "CLOSE", "2026-09-17", "13:27:12", "NIFTY", "23350", "CE",
                "134.6", "95.15", "False", "False", "False", "True",
-               "CLOSED — stop-loss hit", "-2958.75", "75", "1.0"])
+               "CLOSED — stop-loss hit", "-2958.75", "75", "1.0",
+               "39.45", "0.95", "2", "Low", "17.3"])
     w.writerow(["BANKNIFTY-1", "OPEN", "2026-09-17", "10:00:00", "BANKNIFTY", "56000", "CE",
-               "200.0", "", "", "", "", "", "OPEN", "", "30", "1.0"])
+               "200.0", "", "", "", "", "", "OPEN", "", "30", "1.0",
+               "60.0", "1.3", "4", "High", "26.0"])
     w.writerow(["BANKNIFTY-1", "CLOSE", "2026-09-17", "11:00:00", "BANKNIFTY", "56000", "CE",
                "200.0", "220.0", "True", "False", "False", "False",
-               "CLOSED — T1 hit", "600.0", "30", "1.0"])
+               "CLOSED — T1 hit", "600.0", "30", "1.0",
+               "58.0", "1.35", "4", "High", "27.0"])
 try:
     check("with no open ticket, the closed trade is not just absent",
           mb._recent_trades(LOG_USER, "nse_index", "NIFTY") != [])
@@ -154,6 +162,14 @@ try:
           and recent[1]["t3_hit"] is False)
     check("scoped to the index asked about - Bank Nifty's trade does not show up under NIFTY",
           all(t.get("strike") != "56000" for t in recent))
+    check("the ENTRY-time reading, not the close-time one that overwrote it in the same row",
+          recent[1]["entry_adx"] == 22.7 and recent[1]["entry_confidence"] == "Medium"
+          and recent[1]["entry_score"] == 3.0 and recent[1]["entry_reward_risk"] == 1.44
+          and recent[1]["entry_risk_points"] == 77.72, recent[1])
+    check("...specifically NOT the CLOSE row's own re-stamped values (25.6 / High / 4 / 1.22)",
+          recent[1]["entry_adx"] != 25.6 and recent[1]["entry_confidence"] != "High")
+    check("the second trade's own entry reading is its own, not the first trade's",
+          recent[0]["entry_adx"] == 24.9 and recent[0]["entry_confidence"] == "Medium")
     check("no user, no lookup - never touches disk for an anonymous call",
           mb._recent_trades(None, "nse_index", "NIFTY") == [])
     check("capped", len(mb._recent_trades(LOG_USER, "nse_index", "NIFTY")) <= mb.RECENT_TRADES_MAX)

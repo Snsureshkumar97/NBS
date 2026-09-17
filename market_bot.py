@@ -63,6 +63,15 @@ live state - so entry, exit and result for a past trade come only from recent_tr
 before saying you have no information; if it is genuinely not in that list either, say so rather \
 than guessing.
 
+For a closed trade, entry_adx / entry_confidence / entry_score / entry_reward_risk / \
+entry_risk_points are the ONLY indicator context the tool has ever kept - what ADX, the signal's \
+confidence tier, its agreement score and its reward:risk were at the moment that trade was taken. \
+The tool does NOT log RSI, MACD, VWAP or which indicators individually agreed or dissented for any \
+past trade, closed or open - that detail was never recorded, for any trade, at any time; it is not \
+being withheld from you and no amount of asking differently will produce it. If asked for it on a \
+past trade, say plainly that the tool never recorded it, rather than inferring it from the outcome \
+or from what a live signal with a similar ADX might currently show.
+
 session_today.per_index gives each traded index's own net result for today, in this market - so the \
 session-wide tallies (issued, wins, stops, net) can be reconciled against the selected index's own \
 trades without inventing another index's strike, entry or exit, which you were not given and must \
@@ -157,11 +166,34 @@ _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 _CLIENT_ID = re.compile(r"\b[A-Z]{2,4}\d{3,6}\b")
 
 
+def _num(v):
+    try:
+        return float(v) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _recent_trades(user, market, index):
     """The last few CLOSED tickets the tool itself issued on this index, newest
-    first - entry, exit, result. A closed ticket is cleared from the live state
-    the moment it closes, so this is the only place a past trade's numbers
-    still exist. Read-only: the same trade log the Journal and Record read."""
+    first - entry, exit, result, and the trend strength and confidence the
+    signal actually had AT ENTRY. A closed ticket is cleared from the live
+    state the moment it closes, so this is the only place a past trade's
+    numbers still exist. Read-only: the same trade log the Journal and Record
+    read.
+
+    log_open() and log_close() both stamp the signal reading current AT THAT
+    CALL - so a CLOSE row's own adx/confidence/score/reward_risk describe the
+    market when the ticket closed, not when it was taken. Reading only the
+    CLOSE row (as this used to) silently answered "how strong was the signal
+    at entry" with the wrong moment. The OPEN row, matched by trade_id, is the
+    one true entry-time reading.
+
+    RSI, MACD, VWAP and the indicator vote breakdown are not in this file's
+    columns at all, for any trade, by design - only adx, confidence, score,
+    reward_risk and risk_points are kept. That is a real gap in what the tool
+    has ever recorded, not something withheld here; it cannot be recovered for
+    a trade that already happened, only changed for trades still to come.
+    """
     if not user:
         return []
     import trade_log
@@ -169,6 +201,7 @@ def _recent_trades(user, market, index):
         rows = trade_log._read_rows(trade_log.user_log_path(user, market))
     except Exception:
         return []
+    opens = {r.get("trade_id"): r for r in rows if r.get("event") == "OPEN"}
     out = []
     for r in rows:
         if r.get("event") != "CLOSE" or r.get("index") != index:
@@ -178,6 +211,7 @@ def _recent_trades(user, market, index):
             pnl = round(float(pnl), 2) if pnl not in (None, "") else None
         except ValueError:
             pnl = None
+        o = opens.get(r.get("trade_id")) or {}
         out.append({
             "date": r.get("date"), "time": (r.get("time_ist") or "")[:5] or None,
             "strike": r.get("strike"), "option_type": r.get("option_type"),
@@ -185,6 +219,10 @@ def _recent_trades(user, market, index):
             "status": r.get("status"),
             "t1_hit": r.get("t1_hit") == "True", "t2_hit": r.get("t2_hit") == "True",
             "t3_hit": r.get("t3_hit") == "True", "sl_hit": r.get("sl_hit") == "True",
+            # From the OPEN row only - what the signal looked like at entry.
+            "entry_adx": _num(o.get("adx")), "entry_confidence": o.get("confidence") or None,
+            "entry_score": _num(o.get("score")), "entry_reward_risk": _num(o.get("reward_risk")),
+            "entry_risk_points": _num(o.get("risk_points")),
         })
     out.reverse()          # rows are oldest-first; the model reads newest-first
     return out[:RECENT_TRADES_MAX]
