@@ -5732,6 +5732,12 @@ function ocDraw(){
   g.textAlign = "left"; g.textBaseline = "top";
   const t0 = String(bars[0][0] || "").slice(11,16), t1 = String(last[0] || "").slice(11,16);
   g.fillText(`${t0} → ${t1} IST`, 2, P.t + plotH + 4);
+
+  // the open ticket's P&L, when this popup IS that contract
+  const tk = openTicketFor(OC.k);
+  if(tk && String(tk.strike) === String(OC.strike) && tk.option_type === OC.side){
+    pnlBadge(g, P.l + 8, P.t + 6, tk);
+  }
 }
 
 document.addEventListener("click", e => {
@@ -5743,6 +5749,8 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => { if(e.key === "Escape" && OC.open) ocClose(); });
 window.addEventListener("resize", () => { if(OC.open) ocDraw(); });
+// Candles refresh every 20s; the P&L badge keeps pace with the signal card.
+setInterval(() => { if(OC.open && !document.hidden) ocDraw(); }, 3000);
 
 function chartWant(key){
   const stale = Date.now() - CH.at > 30000;
@@ -5813,6 +5821,51 @@ function onColour(bg){
   return onBlack >= onWhite ? "#0a0d14" : "#fff";
 }
 
+// ------------------------------------------------------------ the open ticket, on the charts
+// Read from the live state polled every few seconds, so the chart's P&L is the
+// signal card's P&L, not a second calculation that could disagree with it.
+function openTicketFor(key){
+  const t = (((LAST && LAST.tickets) || {})[key] || {}).ticket;
+  return t && t.open ? t : null;
+}
+// Premium-tracked: money and % of the premium paid. Tracked on the index (no
+// live option price at entry): points and % of the index, signed for the side.
+function ticketPnl(t){
+  if(!t) return null;
+  if(t.pnl != null && t.entry){
+    const pc = t.now != null ? (t.now - t.entry) / t.entry * 100 : null;
+    return {sign: Math.sign(t.pnl), text: money(t.pnl)
+      + (pc == null ? "" : ` (${pc >= 0 ? "+" : "−"}${Math.abs(pc).toFixed(1)}%)`)};
+  }
+  const r = (((LAST && LAST.indices) || {})[t.index]) || {};
+  const e = t.entry_spot != null ? t.entry_spot : t.entry, spot = r.spot;
+  if(spot == null || e == null) return null;
+  const pts = t.option_type === "PE" ? e - spot : spot - e;
+  return {sign: Math.sign(pts), text: `${pts >= 0 ? "+" : "−"}${num(Math.abs(pts), 0)} pts`
+    + ` (${pts >= 0 ? "+" : "−"}${Math.abs(pts / e * 100).toFixed(2)}%)`};
+}
+// A badge in the plot's top-left corner: which contract, and what it is worth
+// since entry. Green up, red down, neutral at zero - with the sign in the text
+// too, so colour is never the only thing saying which way it went.
+function pnlBadge(g, x, y, t){
+  const p = ticketPnl(t);
+  if(!p) return;
+  const cs = getComputedStyle(document.documentElement);
+  const bg = p.sign > 0 ? cs.getPropertyValue("--up").trim()
+           : p.sign < 0 ? cs.getPropertyValue("--down").trim() : "#1b1e26";
+  const text = `${t.index} ${t.strike} ${t.option_type} · P&L ${p.text}`;
+  g.save();
+  g.font = "600 12px -apple-system,sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+  const tw = g.measureText(text).width + 18;
+  g.fillStyle = bg;
+  g.beginPath();
+  if(g.roundRect) g.roundRect(x, y, tw, 24, 7); else g.rect(x, y, tw, 24);
+  g.fill();
+  g.fillStyle = onColour(bg);
+  g.fillText(text, x + 9, y + 12.5);
+  g.restore();
+}
+
 function chartDraw(){
   const {w,h} = chartSize();
   const C = {
@@ -5854,9 +5907,15 @@ function chartDraw(){
   // Levels are drawn, so they are included — but only when they are near
   // enough not to squash the candles into a band. An ATR-derived target
   // always is; a stale one from another session might not be.
-  const L = (d.levels)||{};
+  // While a ticket is open the chart shows THAT ticket: its levels froze at
+  // entry, and the live signal's can drift away from the position actually held.
+  const TK = openTicketFor(CH.key);
+  const L = (TK && TK.index_targets)
+    ? {t1: TK.index_targets[0], t2: TK.index_targets[1], t3: TK.index_targets[2],
+       stop: TK.index_stop, entry: TK.entry_spot}
+    : ((d.levels)||{});
   const span0 = (hi - lo) || 1;
-  for(const v of [L.t1,L.t2,L.t3,L.stop]){
+  for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry]){
     if(v==null) continue;
     if(v > hi && v - hi > span0*0.9) continue;
     if(v < lo && lo - v > span0*0.9) continue;
@@ -5963,7 +6022,8 @@ function chartDraw(){
   // Lines at their true prices; the tags on the right are spread at least a
   // tag's height apart, because T1, T2 and T3 are often a few points from
   // each other and their tags used to print one over the next.
-  const lv = [[L.t1, "T1", C.up], [L.t2, "T2", C.up], [L.t3, "T3", C.up], [L.stop, "SL", C.down]]
+  const lv = [[L.t1, "T1", C.up], [L.t2, "T2", C.up], [L.t3, "T3", C.up], [L.stop, "SL", C.down],
+              [L.entry, "Entry", C.warn]]
     .filter(a => a[0] != null)
     .map(a => ({v: a[0], label: a[1], colour: a[2], y: Y(a[0])}))
     .filter(a => a.y >= PAD.t-1 && a.y <= PAD.t+plotH+1);
@@ -6006,6 +6066,8 @@ function chartDraw(){
     cx.fillText(a.label + " " + Math.round(a.v).toLocaleString("en-IN"), w-PAD.r+4, a.ty);
     cx.restore();
   });
+
+  if(TK) pnlBadge(cx, PAD.l + 8, PAD.t + 6, TK);
 
   // ---- last price ------------------------------------------------------
   const last = bars[bars.length-1];

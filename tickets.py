@@ -1166,6 +1166,9 @@ class TicketBook:
             # a premium ticket's rungs are these same levels in option terms.
             "index_targets": trade.get("index_targets"),
             "index_stop": trade.get("index_sl"),
+            # Where the INDEX was at entry, whichever way the ticket is tracked:
+            # the chart draws the entry line in index points.
+            "entry_spot": trade.get("entry_spot"),
         }
 
     def public(self, name, rec=None):
