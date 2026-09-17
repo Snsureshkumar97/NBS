@@ -505,6 +505,12 @@ class Feed:
         if self.tickets.path:
             import ai_desk
             self.ai = ai_desk.AIDesk(self, start=False)
+            if self.live is not None:
+                # The AI desk's tickets are paper unless their OWN live switch
+                # is on - a second switch per index, apart from the rule
+                # tickets' one. The executor decides by the source it is told.
+                self.ai.book.listeners.append(
+                    lambda kind, trade: self.live.on_ticket_event(kind, trade, source="ai"))
 
         # The live price feed. Polling REST every thirty seconds can only ever
         # show a snapshot up to thirty seconds stale, and asking faster gets
@@ -1190,6 +1196,10 @@ class Feed:
         self._crypto_at = time.time()
         self._crypto_track()
         for name in self.instruments():
+            try:
+                self._subscribe_chain_crypto(name)
+            except Exception as exc:
+                self._note_fault(f"{name} chain stream", f"{type(exc).__name__}: {exc}")
             meta = config.INSTRUMENTS[name]
             px = st.index_price(meta["deribit_index"])
             if px is not None:
@@ -1395,6 +1405,8 @@ class Feed:
         strikes that have a recent tick. Empty outside the session: after the
         bell a socket keeps sending packets whose prices no longer move, and a
         chain marked live over them would say something untrue."""
+        if self.streamer is _NO_STREAM:
+            return self._chain_live_crypto(name)
         st = self.streamer
         have = self.chain_toks.get(name)
         if (st is None or st is _NO_STREAM or not have or have.get("on") is not st
@@ -1409,6 +1421,69 @@ class Feed:
                 if b:
                     out[key] = b
         return out
+
+    def _chain_live_crypto(self, name):
+        """The same, off the Deribit socket. Deribit quotes an option in the
+        COIN, so every price is multiplied by the index to reach dollars - the
+        chain itself is in dollars, and mixing the two would read as a crash."""
+        ds, have = self.dstream, self.chain_toks.get(name)
+        if ds is None or not have or have.get("on") is not ds:
+            return {}
+        spot = ds.index_price(config.INSTRUMENTS[name]["deribit_index"])
+        if not spot:
+            return {}
+        out = {}
+        for key, inst in list(have["map"].items()):
+            b = ds.book(inst, max_age=CHAIN_TICK_MAX_AGE)
+            if not b:
+                continue
+            def usd(v):
+                return None if v in (None, 0) else round(v * spot, 2)
+            out[key] = {"ltp": usd(b.get("last") or b.get("mark")), "bid": usd(b.get("bid")),
+                        "ask": usd(b.get("ask")), "oi": b.get("oi"), "at": b["at"]}
+        return out
+
+    def _subscribe_chain_crypto(self, name):
+        """Stream the strikes around the money, so the option chain moves with
+        the coin instead of stepping once every REST pass."""
+        ds = self.dstream
+        if ds is None:
+            return
+        with self.lock:
+            oi = self.base_oi.get(name)
+        strikes = (oi or {}).get("strikes") or []
+        expiry = str((oi or {}).get("expiry") or "")
+        spot = self.spots.get(name) or (oi or {}).get("spot")
+        if not strikes or not expiry or not spot:
+            return
+        have = self.chain_toks.get(name)
+        if have and have.get("expiry") == expiry and have.get("on") is ds and have.get("atm") == round(spot / 500):
+            return                      # same expiry, same neighbourhood: already streaming
+        ks = sorted(s["strike"] for s in strikes)
+        atm = min(range(len(ks)), key=lambda i: abs(ks[i] - spot))
+        want = ks[max(0, atm - CHAIN_STREAM_SPAN):atm + CHAIN_STREAM_SPAN + 1]
+        try:
+            provider = self._provider_for(name, None)
+        except Exception:
+            return
+        mapping, channels = {}, []
+        for k in want:
+            for kind in ("CE", "PE"):
+                try:
+                    inst = provider.option_instrument(name, k, kind, expiry)
+                except Exception:
+                    inst = None
+                if inst:
+                    mapping[(float(k), kind)] = inst
+                    channels.append(f"ticker.{inst}.100ms")
+        if not mapping:
+            return
+        try:
+            ds.subscribe(channels)
+        except Exception:
+            return
+        self.chain_toks[name] = {"expiry": expiry, "map": mapping, "streamed": set(mapping.values()),
+                                 "on": ds, "atm": round(spot / 500)}
 
     def _subscribe_ticket(self, name):
         """Add an open ticket's own contract to the feed.

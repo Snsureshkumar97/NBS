@@ -1267,10 +1267,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         market = self._current_market()
         if not user or not market:
             return self._send(json.dumps({"error": "Sign in and pick a market first."}), "application/json")
-        ai = getattr(feeds.for_user(user, market), "ai", None)
+        feed = feeds.for_user(user, market)
+        ai = getattr(feed, "ai", None)
         if ai is None:
             return self._send(json.dumps({"error": "The AI desk needs a signed-in account."}), "application/json")
-        return self._send(json.dumps(ai.public(), default=str), "application/json")
+        payload = ai.public()
+        live = getattr(feed, "live", None)
+        if live is not None:
+            # The second switch per index: whether AI tickets here also place
+            # real Zerodha orders. Indian indices only - crypto has no executor.
+            pub = live.public()
+            payload["live_ai"] = pub["enabled_ai"]
+            payload["live_positions"] = [p for p in pub["positions"] if p.get("source") == "ai"]
+            payload["live_notes"] = pub["notes"]
+        return self._send(json.dumps(payload, default=str), "application/json")
 
     def _do_ai(self, form):
         """Switch the AI desk on or off for this market. Paper only either way."""
@@ -1331,6 +1341,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if ex is None:
             return reply(False, "Live orders are not available for this account.", 400)
         on = (form.get("on") or "") in ("1", "true", "on")
+        source = (form.get("source") or "rule").strip().lower()
+        if source not in ("rule", "ai"):
+            return reply(False, "Unknown kind of ticket.", 400)
         if on:
             if not user_kite.token_for(user):
                 return reply(False, "Connect Zerodha for today first - orders go through your own login.", 400)
@@ -1339,10 +1352,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                     "page stops the tool watching the target, and a position is left "
                                     "with only its stop.", 400)
         try:
-            ex.set_enabled(index, on)
+            ex.set_enabled(index, on, source)
         except (ValueError, OSError) as exc:
             return reply(False, str(exc) or "Could not save that setting.", 500)
-        return reply(True, f"Live orders on {index} are {'ON' if on else 'OFF'}.", live=ex.public())
+        what = f"AI trades on {index}" if source == "ai" else index
+        return reply(True, f"Live orders for {what} are {'ON' if on else 'OFF'}.", live=ex.public())
 
     def _do_journal(self, form):
         """Add, change or delete one of your own journal trades, or save a day's
@@ -2912,7 +2926,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .tclear{margin-left:auto}
 .tskip{color:var(--warn);border-color:rgba(242,163,61,.45)}
 .tlive{margin-left:8px}
-#tlive.on{background:#7a1f2e;border-color:#b83a4f;color:#fff}
+#tlive.on,#ailive.on{background:#7a1f2e;border-color:#b83a4f;color:#fff}
+#ailive{margin-left:8px}
+.ailivestat{font-size:12px;color:var(--ink-2);margin-top:8px;padding:6px 10px;border-radius:8px;
+  background:var(--raised);border:1px solid var(--bd);line-height:1.5}
+.ailivestat.err{color:var(--down);border-color:rgba(239,85,112,.45)}
 .livestat{font-size:12px;color:var(--ink-2);margin-top:6px;padding:6px 10px;border-radius:8px;
   background:var(--raised);border:1px solid var(--bd);line-height:1.5}
 .livestat.err{color:var(--down);border-color:rgba(239,85,112,.45)}
@@ -4096,6 +4114,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div class="thead">
     <p class="eyebrow" role="heading" aria-level="2">AI trades &middot; <span id="aiidx">&mdash;</span> &middot; paper only</p>
     <button class="lbtn aitog" id="aitog" type="button" aria-pressed="false">AI desk: off</button>
+    <button class="lbtn ailive" id="ailive" type="button" aria-pressed="false" hidden>Live orders for AI: off</button>
    </div>
    <div class="hero aispot">
     <div class="v" id="aispot">&mdash;</div>
@@ -7814,9 +7833,45 @@ function aiRender(d){
   ].map(([a, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(a)}</span></div>`).join("")
     + (d.busy === k ? `<div class="st"><b>Deciding…</b><span>${esc(k)}</span></div>` : "");
 
+  const lv = $("ailive");
+  const liveMap = d.live_ai || null;
+  if(lv){
+    lv.hidden = !liveMap || !(k in liveMap);
+    if(!lv.hidden){
+      const lon = !!liveMap[k];
+      lv.classList.toggle("on", lon);
+      lv.setAttribute("aria-pressed", String(lon));
+      lv.textContent = `Live orders for AI ${k}: ${lon ? "ON" : "off"}`;
+    }
+  }
+
   const t = opens[k];
   $("aiopen").innerHTML = t ? aiTicketCard(k, t)
     : `<div class="gnote" style="margin-top:14px">No AI ticket open on ${esc(k)}.${on ? " It is considered at each 15-minute close." : " Switch the AI desk on for " + esc(k) + " to let it trade here."}</div>`;
+
+  const lpos = (d.live_positions || []).filter(p => p.index === k);
+  const lnote = (d.live_notes || []).find(n => n.index === k);
+  const lstat = $("ailivestat") || (() => {
+    const el = document.createElement("div");
+    el.className = "ailivestat"; el.id = "ailivestat";
+    $("aiopen").after(el);
+    return el;
+  })();
+  const lp = lpos[0];
+  const lines = [];
+  if(lp){
+    lines.push({placing: "Live: checking whether the buy reached Zerodha",
+                entering: `Live: buying ${lp.qty || ""} ${lp.tradingsymbol || ""}`,
+                open: `Live: holding ${lp.filled_qty} ${lp.tradingsymbol} bought at ${lp.avg_price} · stop-loss order at Zerodha, trigger ${lp.stop_trigger}`,
+                exiting: `Live: selling ${lp.tradingsymbol} - ${lp.exit_reason || ""}`,
+                attention: `Live: ${lp.tradingsymbol} MAY STILL BE HELD - check Kite now`,
+                closed: `Live: ${lp.tradingsymbol} closed` + (lp.exit_price ? ` at ${lp.exit_price}` : ""),
+                failed: "Live: no position"}[lp.state] || "");
+  }
+  if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
+  lstat.textContent = lines.filter(Boolean).join("  —  ");
+  lstat.style.display = lstat.textContent ? "" : "none";
+  lstat.classList.toggle("err", !!((lnote && lnote.level === "error") || (lp && lp.state === "attention")));
 
   const rec = (d.recent || []).filter(r => r.index === k);
   $("aidecisions").innerHTML = rec.length ? rec.map(r => {
@@ -7871,6 +7926,30 @@ async function aiFetch(){
     if(!b) return;
     selectIndex(b.dataset.aik);
     if(AI.data) aiRender(AI.data);
+  });
+  const lv = $("ailive");
+  if(lv) lv.addEventListener("click", async () => {
+    const k = aiIndex(AI.data);
+    if(!k) return;
+    const on = !((AI.data && AI.data.live_ai) || {})[k];
+    if(on && !confirm(`Place REAL Zerodha orders for the AI desk's ${k} trades?\n\n`
+        + "From now on, every ticket the AI desk opens on " + k + " is also bought with your money: its own "
+        + "contract and your lots, as a limit order a little above the price, with a stop-loss order at Zerodha "
+        + "on the stop the bot set. It is sold when the bot exits, when the give-back rule fires, at its target "
+        + "or stop, and at 15:20 at the latest.\n\nThe bot decides these trades itself and cannot be "
+        + "backtested. Past results do not predict future ones. This is your decision.")) return;
+    if(!on && !confirm(`Stop placing real orders for the AI desk's ${k} trades?\n\nA position already open is `
+        + "still managed to its exit.")) return;
+    lv.disabled = true;
+    try{
+      const r = await fetch("/api/live", {method: "POST", cache: "no-store",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({index: k, on: on ? "1" : "0", source: "ai"})});
+      const j = await r.json();
+      if(!j.ok) alert(j.message || "That could not be changed.");
+      aiFetch();
+    }catch(e){ alert("Could not reach this tool's own server."); }
+    finally{ lv.disabled = false; }
   });
   const tog = $("aitog");
   if(tog) tog.addEventListener("click", async () => {

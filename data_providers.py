@@ -978,6 +978,7 @@ class DeribitStreamer:
         self._lock = threading.Lock()
         self._index = {}          # "btc_usd" -> price
         self._mark = {}           # instrument -> mark in coin
+        self._tick = {}           # instrument -> {mark, bid, ask, last, oi, at}, all in coin
         self._bars = {}           # "btc_usd" -> the 15-minute bar being built
         self._subs = set()
         self._pending = []
@@ -1073,10 +1074,7 @@ class DeribitStreamer:
                                 bar["c"] = px
                         self.last_tick_at = time.time()
                 elif chan.startswith("ticker."):
-                    inst, mk = data.get("instrument_name"), data.get("mark_price")
-                    if inst and mk is not None:
-                        with self._lock:
-                            self._mark[inst] = float(mk)
+                    if self.on_ticker(data):
                         self.last_tick_at = time.time()
             except Exception as exc:
                 self.last_error = str(exc)
@@ -1102,6 +1100,37 @@ class DeribitStreamer:
             mk = self._mark.get(instrument)
             idx = self._index.get(index_name)
         return None if mk is None or idx is None else mk * idx
+
+    def on_ticker(self, data):
+        """One ticker packet. The whole quote is kept, not just the mark: the
+        option chain wants the bid, the ask and open interest, and they arrive
+        in the same packet. Prices are in the COIN."""
+        inst, mk = (data or {}).get("instrument_name"), (data or {}).get("mark_price")
+        if not inst or mk is None:
+            return False
+
+        def _f(v):
+            try:
+                return None if v in (None, "") else float(v)
+            except (TypeError, ValueError):
+                return None
+        with self._lock:
+            self._mark[inst] = float(mk)
+            self._tick[inst] = {"mark": float(mk), "bid": _f(data.get("best_bid_price")),
+                                "ask": _f(data.get("best_ask_price")), "last": _f(data.get("last_price")),
+                                "oi": _f(data.get("open_interest")), "at": time.time()}
+        return True
+
+    def book(self, instrument, max_age=None):
+        """One contract's streamed quote in the COIN, or None if it is missing
+        or older than max_age seconds."""
+        with self._lock:
+            b = self._tick.get(instrument)
+        if not b:
+            return None
+        if max_age is not None and time.time() - b["at"] > max_age:
+            return None
+        return dict(b)
 
     def forming_bar(self, index_name):
         """The candle being built from live ticks, or None.

@@ -139,7 +139,7 @@ class Clock:
         self.now += dt.timedelta(seconds=s)
 
 
-def rig(enabled=("NIFTY",), path=None):
+def rig(enabled=("NIFTY",), path=None, ai=()):
     fk, clk, closed = FakeKite(), Clock(), []
     path = path or os.path.join(tempfile.mkdtemp(), "trades.csv")
     ex = lo.Executor("me@example.invalid", path, kite=lambda: fk,
@@ -147,6 +147,8 @@ def rig(enabled=("NIFTY",), path=None):
                      now=lambda: clk.now, clock=lambda: clk.t, start=False)
     for i in enabled:
         ex.set_enabled(i, True)
+    for i in ai:
+        ex.set_enabled(i, True, "ai")
     drain(ex)
     return ex, fk, clk, closed
 
@@ -563,6 +565,42 @@ drain(ex4)
 check("a restart while an entry was unanswered: once found, it is sold - its ticket is gone",
       not fk.places(order_type="SL") and len(fk.places(transaction_type="SELL", order_type="LIMIT")) == 1)
 
+print("12b. THE AI DESK'S OWN SWITCH, APART FROM THE RULE TICKETS'")
+ex, fk, clk, closed = rig(enabled=())
+check("both switches start off", ex.public()["enabled"]["NIFTY"] is False and ex.public()["enabled_ai"]["NIFTY"] is False)
+ex.on_ticket_event("opened", ticket(tid="AI-1"), source="ai")
+drain(ex)
+check("an AI ticket with the AI switch off: no order", not fk.places())
+ex.set_enabled("NIFTY", True, "ai")
+check("switching AI orders on leaves the rule tickets' switch off",
+      ex.enabled_ai["NIFTY"] is True and ex.enabled["NIFTY"] is False)
+ex.on_ticket_event("opened", ticket(tid="AI-2"), source="ai")
+drain(ex)
+buys = fk.places(transaction_type="BUY")
+check("now the AI ticket is bought", len(buys) == 1 and buys[0]["tradingsymbol"] == "NIFTY2026092225000CE", buys)
+check("the position remembers whose ticket it is", ex.positions["AI-2"]["source"] == "ai"
+      and ex.public()["positions"][0]["source"] == "ai")
+check("...and the note says so", any("AI ticket" in n["text"] for n in ex.notes))
+ex.on_ticket_event("opened", ticket(tid="RULE-1"))
+drain(ex)
+check("a rule ticket on the same index is still not bought - its own switch is off",
+      len(fk.places(transaction_type="BUY")) == 1)
+ex.set_enabled("NIFTY", True)
+ex.on_ticket_event("opened", ticket(tid="RULE-2"))
+drain(ex)
+check("with both switches on, the rule ticket and the AI ticket can both be live on one index",
+      len(fk.places(transaction_type="BUY")) == 2 and ex.positions["RULE-2"]["source"] == "rule")
+ex.on_ticket_event("opened", ticket(tid="AI-3"), source="ai")
+drain(ex)
+check("but never two live AI positions on the same index",
+      len(fk.places(transaction_type="BUY")) == 2 and any("already holds a live AI position" in n["text"] for n in ex.notes))
+ex.set_enabled("NIFTY", False, "ai")
+ex.on_ticket_event("opened", ticket(tid="AI-4"), source="ai")
+drain(ex)
+check("switched off again: no new AI order", len(fk.places(transaction_type="BUY")) == 2)
+check("both switches survive a restart", lo.Executor("me@example.invalid", ex.path[:-len(".live.json")],
+      kite=lambda: fk, now=lambda: clk.now, clock=lambda: clk.t, start=False).enabled["NIFTY"] is True)
+
 print("13. ONE EXECUTOR PER ACCOUNT")
 lo._registry.clear()
 fk = FakeKite()
@@ -672,6 +710,20 @@ try:
     h, out = handler(ex)
     h._do_live({"index": "NIFTY", "on": "0"})
     check("switching OFF is always allowed, whatever else is missing", json.loads(out["body"])["ok"] and not ex.enabled["NIFTY"])
+    user_kite.token_for = lambda email: "tok"
+    accounts.get_user = lambda email: {"always_on": True}
+    h, out = handler(ex)
+    h._do_live({"index": "NIFTY", "on": "1", "source": "ai"})
+    d = json.loads(out["body"])
+    check("the AI desk's own live switch goes through the same door",
+          d["ok"] and ex.enabled_ai["NIFTY"] and not ex.enabled["NIFTY"] and "AI trades on NIFTY" in d["message"], d["message"])
+    h, out = handler(ex)
+    h._do_live({"index": "NIFTY", "on": "1", "source": "everything"})
+    check("an unknown kind of ticket is refused", out["code"] == 400)
+    user_kite.token_for = lambda email: None
+    h, out = handler(ex)
+    h._do_live({"index": "NIFTY", "on": "1", "source": "ai"})
+    check("AI live orders need today's Zerodha login too", out["code"] == 400)
 finally:
     feeds.for_user, user_kite.token_for, accounts.get_user = _saved[:3]
     web_server._state["mode"] = _saved[3]

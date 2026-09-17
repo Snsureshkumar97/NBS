@@ -169,6 +169,85 @@ n0 = len(LOOKUPS); g._subscribe_chain("BTC")
 check("crypto, with no Zerodha socket, is left alone", len(LOOKUPS) == n0 and not g.chain_toks)
 
 
+print("3b. BITCOIN: THE CHAIN STREAMS OFF DERIBIT")
+import data_providers
+
+
+class FakeDeribit:
+    """The Deribit socket: channels in, coin-denominated quotes out."""
+
+    def __init__(self):
+        self.subs, self.books, self.index = [], {}, 77000.0
+    def subscribe(self, channels):
+        self.subs.append(sorted(channels))
+    def book(self, inst, max_age=None):
+        b = self.books.get(inst)
+        if not b:
+            return None
+        if max_age is not None and time.time() - b["at"] > max_age:
+            return None
+        return dict(b)
+    def index_price(self, name):
+        return self.index
+
+
+class DeribitProvider:
+    def option_instrument(self, name, strike, kind, expiry=None):
+        return f"BTC-30OCT26-{int(strike)}-{'C' if kind == 'CE' else 'P'}"
+
+
+ds = FakeDeribit()
+g.dstream = ds
+g._provider_for = lambda name, p: DeribitProvider()
+g.base_oi["BTC"] = {"expiry": "2026-10-30", "spot": 77000.0,
+                    "strikes": [{"strike": float(k)} for k in range(60000, 96000, 1000)]}
+g.spots["BTC"] = 77000.0
+g._subscribe_chain_crypto("BTC")
+chans = ds.subs[0] if ds.subs else []
+strikes = sorted({int(c.split("-")[2]) for c in chans})
+check("25 strikes either side of the money, calls and puts, on the 100ms ticker",
+      len(chans) == 50 and all(c.endswith(".100ms") for c in chans)
+      and strikes[0] == 65000 and strikes[-1] == 89000, (len(chans), strikes[:1], strikes[-1:]))
+g._subscribe_chain_crypto("BTC")
+check("nothing new while the expiry and the neighbourhood hold", len(ds.subs) == 1)
+g.spots["BTC"] = 78200.0
+g._subscribe_chain_crypto("BTC")
+check("the coin moves past the bucket: the window is re-centred", len(ds.subs) == 2)
+g.base_oi["BTC"]["expiry"] = "2026-11-27"
+g._subscribe_chain_crypto("BTC")
+check("a new expiry is streamed too", len(ds.subs) == 3)
+
+inst = g.chain_toks["BTC"]["map"][(78000.0, "CE")]
+ds.books[inst] = {"mark": 0.0412, "bid": 0.0405, "ask": 0.0420, "last": 0.0410, "oi": 812.5, "at": time.time()}
+live = g.chain_live("BTC")
+row = live.get((78000.0, "CE")) or {}
+check("Deribit quotes the coin, the chain quotes dollars: every price is multiplied by the index",
+      row.get("ltp") == round(0.0410 * 77000, 2) and row.get("bid") == round(0.0405 * 77000, 2)
+      and row.get("ask") == round(0.0420 * 77000, 2), row)
+check("open interest rides along as it comes", row.get("oi") == 812.5)
+ds.books[inst]["at"] = time.time() - feeds.CHAIN_TICK_MAX_AGE - 5
+check("a stale tick is not shown as live", (78000.0, "CE") not in g.chain_live("BTC"))
+ds.books[inst]["at"] = time.time()
+ds.index = None
+check("no index price, no conversion - nothing is shown rather than a wrong number", g.chain_live("BTC") == {})
+ds.index = 77000.0
+ds2 = FakeDeribit()
+ds2.books[inst] = {"mark": 0.09, "bid": 0.088, "ask": 0.092, "last": 0.09, "oi": 1.0, "at": time.time()}
+g.dstream = ds2
+check("a rebuilt socket is not read through the old socket's subscriptions", g.chain_live("BTC") == {})
+g.dstream = ds
+
+st_real = data_providers.DeribitStreamer()
+st_real.on_ticker({"instrument_name": "BTC-30OCT26-78000-C", "mark_price": 0.041, "best_bid_price": 0.0405,
+                   "best_ask_price": 0.042, "last_price": 0.0409, "open_interest": 812.5})
+b = st_real.book("BTC-30OCT26-78000-C")
+check("the real streamer keeps the whole quote from one ticker packet",
+      b and b["bid"] == 0.0405 and b["ask"] == 0.042 and b["last"] == 0.0409 and b["oi"] == 812.5, b)
+check("...and the mark still answers mark_usd", st_real.mark_usd("BTC-30OCT26-78000-C", "btc_usd") is None)
+check("a packet with no mark is ignored", st_real.on_ticker({"instrument_name": "X"}) is False)
+check("an old quote is not returned", st_real.book("BTC-30OCT26-78000-C", max_age=-1) is None)
+
+
 print("4. WHAT COUNTS AS LIVE")
 tok = f.chain_toks["NIFTY"]["map"][(23450.0, "CE")]
 st2.books[tok] = {"ltp": 61.2, "oi": 13500000, "bid": 61.1, "ask": 61.3, "at": time.time()}

@@ -125,7 +125,10 @@ class Executor:
         self.clock = clock or time.time
         self.lock = threading.RLock()
         self.q = queue.Queue()
+        # Two switches per index, both off: the rule tickets' own, and the AI
+        # desk's. An AI ticket is paper unless its own switch here is on.
         self.enabled = {k: False for k in INDICES}
+        self.enabled_ai = {k: False for k in INDICES}
         self.positions = {}          # trade_id -> position
         self.notes = []              # newest first
         self.day = None
@@ -150,6 +153,7 @@ class Executor:
         except Exception:
             return
         self.enabled.update({k: bool(v) for k, v in (s.get("enabled") or {}).items() if k in INDICES})
+        self.enabled_ai.update({k: bool(v) for k, v in (s.get("enabled_ai") or {}).items() if k in INDICES})
         self.positions = s.get("positions") or {}
         self.notes = s.get("notes") or []
         self.day = s.get("day")
@@ -163,7 +167,8 @@ class Executor:
             keep = {t: p for t, p in self.positions.items()
                     if p.get("day") == today or p.get("state") in ACTIVE}
             self.positions = keep
-            data = {"enabled": self.enabled, "positions": keep, "notes": self.notes[:NOTES_KEPT],
+            data = {"enabled": self.enabled, "enabled_ai": self.enabled_ai,
+                    "positions": keep, "notes": self.notes[:NOTES_KEPT],
                     "day": self.day, "entries_today": self.entries_today}
             tmp = self.path + ".tmp"
             with open(tmp, "w") as fh:
@@ -183,22 +188,32 @@ class Executor:
         print(f"[live] {self.now():%Y-%m-%d %H:%M:%S} {index}: {text}", flush=True)
 
     # ------------------------------------------------------------ the switch
-    def set_enabled(self, index, on):
+    def switches(self, source="rule"):
+        return self.enabled_ai if source == "ai" else self.enabled
+
+    def set_enabled(self, index, on, source="rule"):
         if index not in INDICES:
             raise ValueError("That index cannot place live orders.")
+        if source not in ("rule", "ai"):
+            raise ValueError("Unknown kind of ticket.")
         with self.lock:
-            self.enabled[index] = bool(on)
+            self.switches(source)[index] = bool(on)
             self._save()
-        self._note(index, "Live orders switched " + ("ON." if on else "OFF. An open position is still managed to its exit."))
+        what = "AI trades on " + index if source == "ai" else index
+        self._note(index, f"Live orders for {what} switched "
+                          + ("ON." if on else "OFF. An open position is still managed to its exit."))
         if on:
             self.q.put(("warm", {}, {}))
-        return self.enabled[index]
+        return self.switches(source)[index]
 
     # ------------------------------------------------------------ ticket events
-    def on_ticket_event(self, kind, trade, **info):
-        """Called from inside the ticket engine's lock: only queue, never wait."""
+    def on_ticket_event(self, kind, trade, source="rule", **info):
+        """Called from inside a ticket engine's lock: only queue, never wait.
+        `source` says whose ticket it is - the rules' or the AI desk's - and each
+        has its own switch and its own live position per index."""
         if not trade or trade.get("index") not in INDICES:
             return
+        info = dict(info, source=source)
         if kind == "opened":
             self.q.put(("open", dict(trade), info))
         elif kind == "closed":
@@ -220,10 +235,10 @@ class Executor:
 
     def handle(self, what, trade, info):
         if what == "open":
-            self._enter(trade)
+            self._enter(trade, (info or {}).get("source") or "rule")
         elif what == "warm":
             for index in INDICES:
-                if self.enabled.get(index):
+                if self.enabled.get(index) or self.enabled_ai.get(index):
                     self._rows(EXCHANGE[index])
         else:
             pos = self.positions.get(trade.get("trade_id"))
@@ -280,19 +295,21 @@ class Executor:
             product=PRODUCT, validity="DAY", tag=pos["tag"], **kw))
 
     # ------------------------------------------------------------ entry
-    def _enter(self, trade):
+    def _enter(self, trade, source="rule"):
         index, tid = trade["index"], trade.get("trade_id")
+        who = "AI " if source == "ai" else ""
         now = self.now()
         today = self._today()
         with self.lock:
             if self.day != today:
                 self.day, self.entries_today = today, 0
-            if not self.enabled.get(index):
+            if not self.switches(source).get(index):
                 return
             if not tid or tid in self.positions:
                 return
-            if any(p.get("index") == index and p.get("state") in ACTIVE for p in self.positions.values()):
-                self._note(index, "No live order: this index already holds a live position.", "warn")
+            if any(p.get("index") == index and p.get("source", "rule") == source
+                   and p.get("state") in ACTIVE for p in self.positions.values()):
+                self._note(index, f"No live order: this index already holds a live {who}position.", "warn")
                 return
             if (now.hour, now.minute) >= NO_ENTRY_AFTER:
                 self._note(index, f"No live order: tickets after {NO_ENTRY_AFTER[0]}:{NO_ENTRY_AFTER[1]:02d} "
@@ -306,7 +323,7 @@ class Executor:
                                   "premium, so its stop is not a premium level.", "warn")
                 return
             pos = self.positions[tid] = {
-                "trade_id": tid, "index": index, "day": today, "state": "placing",
+                "trade_id": tid, "index": index, "day": today, "state": "placing", "source": source,
                 "strike": trade.get("strike"), "option_type": trade.get("option_type"),
                 "expiry": str(trade.get("expiry") or "")[:10], "lots": trade.get("lots") or 1,
                 "stop_trigger": trade.get("premium_sl"), "t2": (trade.get("premium_targets") or [None, None])[1],
@@ -337,7 +354,7 @@ class Executor:
             pos["entry_order_id"] = self._place(pos, transaction_type="BUY", quantity=pos["qty"],
                                                 order_type="LIMIT", price=limit)
             pos["state"], pos["entry_at"] = "entering", self.clock()
-            self._note(index, f"BUY {pos['qty']} {pos['tradingsymbol']} limit {limit} sent "
+            self._note(index, f"{who}ticket: BUY {pos['qty']} {pos['tradingsymbol']} limit {limit} sent "
                               f"(order {pos['entry_order_id']}).", pos=pos)
         except Exception as exc:
             if pos.get("sending") and not pos.get("entry_order_id") and _unanswered(exc):
@@ -653,7 +670,7 @@ class Executor:
                 pos.setdefault("log", []).append({"at": "", "text": "From an earlier session - intraday "
                                                   "positions are squared off by Zerodha at the close."})
         self.recover_all("the tool restarted while this position was open")
-        if any(self.enabled.values()):
+        if any(self.enabled.values()) or any(self.enabled_ai.values()):
             self.q.put(("warm", {}, {}))
 
     def recover_all(self, reason):
@@ -668,11 +685,12 @@ class Executor:
     def public(self):
         with self.lock:
             today = self._today()
-            pos = [{k: p.get(k) for k in ("trade_id", "index", "state", "tradingsymbol", "qty", "filled_qty",
+            pos = [{k: p.get(k) for k in ("trade_id", "index", "state", "source", "tradingsymbol", "qty", "filled_qty",
                                           "avg_price", "stop_trigger", "stop_limit", "exit_price",
                                           "exit_reason", "entry_order_id", "stop_order_id")}
                    for p in self.positions.values() if p.get("day") == today]
             pos.sort(key=lambda p: p.get("trade_id") or "", reverse=True)
-            return {"enabled": dict(self.enabled), "positions": pos, "notes": self.notes[:8],
+            return {"enabled": dict(self.enabled), "enabled_ai": dict(self.enabled_ai),
+                    "positions": pos, "notes": self.notes[:8],
                     "entries_today": self.entries_today if self.day == today else 0,
                     "max_entries": MAX_ENTRIES_PER_DAY}

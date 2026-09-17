@@ -186,7 +186,7 @@ rows = trade_log._read_rows(d.book.path)
 check("written to ai_trades.csv, not the rule tickets' log",
       d.book.path.endswith("ai_trades.csv") and rows and rows[0]["event"] == "OPEN"
       and not trade_log._read_rows(trade_log.user_log_path(f.email, "nse_index")))
-check("paper only: the AI book has no listeners, so live orders can never follow it", d.book.listeners == [])
+check("paper by default: nothing is listening to this book here", d.book.listeners == [])
 ent = next((r for r in d.recent if r["action"] == "enter"), {})
 check("the entry is recorded with contract, entry, target and stop",
       ent.get("contract") == "NIFTY|25000|CE|2026-09-22" and ent.get("entry") == 130.0
@@ -654,7 +654,12 @@ check("the feed prices AI tickets on both tick loops and checks them on every re
       FSRC.count("self._ai_prices()") == 2 and "self.ai.track(name, rec)" in FSRC)
 check("squared off at the bell with the rule tickets", "self.ai.book.close_all_at_bell()" in FSRC)
 ASRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai_desk.py")).read()
-check("nothing in the AI desk touches live orders", "live_orders" not in ASRC and "place_order" not in ASRC)
+check("nothing in the AI desk itself touches live orders", "live_orders" not in ASRC and "place_order" not in ASRC)
+check("the feed bridges AI tickets to the executor under their own source, so they need their own switch",
+      'self.live.on_ticket_event(kind, trade, source="ai")' in FSRC)
+check("the AI tab has the AI live-orders switch, and it names real money",
+      'id="ailive"' in SRC and "Place REAL Zerodha orders for the AI desk" in SRC
+      and 'source: "ai"' in SRC)
 
 print("AI DESK TEST PASSED" if not fails else f"AI DESK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
