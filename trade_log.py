@@ -32,9 +32,14 @@ FIELDS = [
     "status", "pnl", "lot_size", "lots", "tracked_on",
     "entry_spot", "risk_points", "reach_points", "reward_risk",
     "score", "confidence", "adx", "strictness",
-    # Last, so a log written before it existed is still the same columns in
-    # the same order - _upgrade_header() only ever appends to that header.
     "cooldown_skipped",
+    # Added 17 Sep 2026, at the user's request, so a closed trade's OWN entry
+    # carries the reading that decided it - not just adx, which was already
+    # here. A row from before this line existed simply has no value for these
+    # three; that is a trade this can't be recovered for, not a bad read.
+    # New columns always go at the very end - _upgrade_header() only ever
+    # appends to an old header, and never reorders it.
+    "rsi", "macd_hist", "vwap_gap",
 ]
 
 
@@ -159,6 +164,7 @@ def _base_row(trade, rec, now):
     stop = trade["premium_sl"] if trade["use_premium"] else trade["index_sl"]
     entry = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
     r = rec or {}
+    tech = r.get("technical") or {}
     return {
         "trade_id": trade.get("trade_id", ""),
         "date": now.strftime("%Y-%m-%d"),
@@ -183,9 +189,15 @@ def _base_row(trade, rec, now):
         "reward_risk": r.get("reach_to_risk"),
         "score": r.get("score"),
         "confidence": r.get("confidence"),
-        "adx": (r.get("technical") or {}).get("adx"),
+        "adx": tech.get("adx"),
         "strictness": r.get("strictness"),
         "cooldown_skipped": "yes" if trade.get("cooldown_skipped") else "",
+        # rsi is rounded here the same way feeds._public() rounds it for the live
+        # card (tech only has the raw last_rsi); macd_hist and vwap_gap are
+        # already rounded inside compute_technical_signal() and pass straight through.
+        "rsi": round(tech["last_rsi"], 1) if tech.get("last_rsi") is not None else None,
+        "macd_hist": tech.get("macd_hist"),
+        "vwap_gap": tech.get("vwap_gap"),
     }
 
 

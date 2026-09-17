@@ -64,13 +64,14 @@ before saying you have no information; if it is genuinely not in that list eithe
 than guessing.
 
 For a closed trade, entry_adx / entry_confidence / entry_score / entry_reward_risk / \
-entry_risk_points are the ONLY indicator context the tool has ever kept - what ADX, the signal's \
-confidence tier, its agreement score and its reward:risk were at the moment that trade was taken. \
-The tool does NOT log RSI, MACD, VWAP or which indicators individually agreed or dissented for any \
-past trade, closed or open - that detail was never recorded, for any trade, at any time; it is not \
-being withheld from you and no amount of asking differently will produce it. If asked for it on a \
-past trade, say plainly that the tool never recorded it, rather than inferring it from the outcome \
-or from what a live signal with a similar ADX might currently show.
+entry_risk_points / entry_rsi / entry_macd_hist / entry_vwap_gap are what the tool kept about the \
+signal at the moment that trade was taken - ADX, the confidence tier, the agreement score, \
+reward:risk, RSI, the MACD histogram and the VWAP gap. The three ending in _rsi / _macd_hist / \
+_vwap_gap were only added to the log on 17 Sep 2026: a trade closed before that date has no value \
+for them - null there means "not recorded for this trade", not "read it and it was zero" - say so \
+plainly rather than guessing or inferring one from the outcome. The tool has never recorded, for any \
+trade, WHICH indicators individually agreed or dissented (only the total agreement score) - that \
+stays genuinely unavailable, past or future, and no amount of asking differently will produce it.
 
 session_today.per_index gives each traded index's own net result for today, in this market - so the \
 session-wide tallies (issued, wins, stops, net) can be reconciled against the selected index's own \
@@ -188,11 +189,13 @@ def _recent_trades(user, market, index):
     at entry" with the wrong moment. The OPEN row, matched by trade_id, is the
     one true entry-time reading.
 
-    RSI, MACD, VWAP and the indicator vote breakdown are not in this file's
-    columns at all, for any trade, by design - only adx, confidence, score,
-    reward_risk and risk_points are kept. That is a real gap in what the tool
-    has ever recorded, not something withheld here; it cannot be recovered for
-    a trade that already happened, only changed for trades still to come.
+    RSI, MACD and VWAP joined the log on 17 Sep 2026, at the user's request -
+    before that date only adx, confidence, score, reward_risk and risk_points
+    were kept. A trade logged before then simply has no value for the three
+    newer columns; that is a real gap for that one trade, not something
+    withheld here, and it cannot be recovered after the fact. The indicator
+    vote breakdown (which of RSI/MACD/trend/VWAP individually agreed or
+    dissented) is still not kept for any trade, closed or open.
     """
     if not user:
         return []
@@ -223,6 +226,10 @@ def _recent_trades(user, market, index):
             "entry_adx": _num(o.get("adx")), "entry_confidence": o.get("confidence") or None,
             "entry_score": _num(o.get("score")), "entry_reward_risk": _num(o.get("reward_risk")),
             "entry_risk_points": _num(o.get("risk_points")),
+            # Added to trade_log 17 Sep 2026 - None here means either a trade
+            # logged before that date, or a genuine gap in that one reading.
+            "entry_rsi": _num(o.get("rsi")), "entry_macd_hist": _num(o.get("macd_hist")),
+            "entry_vwap_gap": _num(o.get("vwap_gap")),
         })
     out.reverse()          # rows are oldest-first; the model reads newest-first
     return out[:RECENT_TRADES_MAX]

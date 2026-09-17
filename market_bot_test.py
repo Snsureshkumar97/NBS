@@ -126,30 +126,44 @@ with open(log_path, "w", newline="") as fh:
     w = csv.writer(fh)
     w.writerow(["trade_id", "event", "date", "time_ist", "index", "strike", "option_type",
                "entry", "exit", "t1_hit", "t2_hit", "t3_hit", "sl_hit", "status", "pnl",
-               "lot_size", "lots", "risk_points", "reward_risk", "score", "confidence", "adx"])
+               "lot_size", "lots", "risk_points", "reward_risk", "score", "confidence", "adx",
+               "rsi", "macd_hist", "vwap_gap"])
+    # NIFTY-OLD: dated before NIFTY-1/NIFTY-2 and written first, matching how a real
+    # append-only log is actually ordered - _recent_trades() relies on file order to
+    # get newest-first right, so an older trade belongs earlier in the file, not later.
+    # No rsi/macd_hist/vwap_gap columns exist in this row at all (those joined the log
+    # on 17 Sep 2026), proving the None-not-a-crash path for a genuinely pre-dated trade.
+    w.writerow(["NIFTY-OLD", "OPEN", "2026-09-10", "11:10:00", "NIFTY", "23450", "PE",
+               "111.1", "", "", "", "", "", "OPEN", "", "75", "1.0",
+               "56.95", "1.59", "-4", "High", "32.3"])
+    w.writerow(["NIFTY-OLD", "CLOSE", "2026-09-10", "11:10:00", "NIFTY", "23450", "PE",
+               "111.1", "", "", "", "", "",
+               "CLOSED — the tool stopped while this was open, so there is no exit price for it",
+               "", "75", "1.0", "56.95", "1.59", "-4", "High", "32.3"])
     # NIFTY-1: ADX was 22.7 and confidence Medium AT ENTRY; by the time it closed the
-    # signal had strengthened to 25.6 / High. Only the entry reading should surface.
+    # signal had strengthened to 25.6 / High. Only the entry reading should surface -
+    # same for RSI/MACD/VWAP, added to the log 17 Sep 2026.
     w.writerow(["NIFTY-1", "OPEN", "2026-09-17", "09:59:44", "NIFTY", "23300", "CE",
                "130.35", "", "", "", "", "", "OPEN", "", "75", "1.0",
-               "77.72", "1.44", "3", "Medium", "22.7"])
+               "77.72", "1.44", "3", "Medium", "22.7", "58.3", "1.7", "-4.2"])
     w.writerow(["NIFTY-1", "CLOSE", "2026-09-17", "12:22:47", "NIFTY", "23300", "CE",
                "130.35", "171.0", "True", "True", "False", "False",
                "CLOSED — T2 hit (full target reached)", "3048.75", "75", "1.0",
-               "77.51", "1.22", "4", "High", "25.6"])
+               "77.51", "1.22", "4", "High", "25.6", "71.2", "2.9", "8.0"])
     w.writerow(["NIFTY-2", "OPEN", "2026-09-17", "12:22:59", "NIFTY", "23350", "CE",
                "134.6", "", "", "", "", "", "OPEN", "", "75", "1.0",
-               "43.11", "1.08", "3", "Medium", "24.9"])
+               "43.11", "1.08", "3", "Medium", "24.9", "62.0", "0.8", "3.5"])
     w.writerow(["NIFTY-2", "CLOSE", "2026-09-17", "13:27:12", "NIFTY", "23350", "CE",
                "134.6", "95.15", "False", "False", "False", "True",
                "CLOSED — stop-loss hit", "-2958.75", "75", "1.0",
-               "39.45", "0.95", "2", "Low", "17.3"])
+               "39.45", "0.95", "2", "Low", "17.3", "48.5", "-1.2", "-6.0"])
     w.writerow(["BANKNIFTY-1", "OPEN", "2026-09-17", "10:00:00", "BANKNIFTY", "56000", "CE",
                "200.0", "", "", "", "", "", "OPEN", "", "30", "1.0",
-               "60.0", "1.3", "4", "High", "26.0"])
+               "60.0", "1.3", "4", "High", "26.0", "65.0", "2.1", "5.0"])
     w.writerow(["BANKNIFTY-1", "CLOSE", "2026-09-17", "11:00:00", "BANKNIFTY", "56000", "CE",
                "200.0", "220.0", "True", "False", "False", "False",
                "CLOSED — T1 hit", "600.0", "30", "1.0",
-               "58.0", "1.35", "4", "High", "27.0"])
+               "58.0", "1.35", "4", "High", "27.0", "73.0", "3.0", "10.0"])
 try:
     check("with no open ticket, the closed trade is not just absent",
           mb._recent_trades(LOG_USER, "nse_index", "NIFTY") != [])
@@ -170,6 +184,15 @@ try:
           recent[1]["entry_adx"] != 25.6 and recent[1]["entry_confidence"] != "High")
     check("the second trade's own entry reading is its own, not the first trade's",
           recent[0]["entry_adx"] == 24.9 and recent[0]["entry_confidence"] == "Medium")
+    check("RSI, MACD histogram and VWAP gap at entry ride along the same way, from the OPEN row",
+          recent[1]["entry_rsi"] == 58.3 and recent[1]["entry_macd_hist"] == 1.7
+          and recent[1]["entry_vwap_gap"] == -4.2, recent[1])
+    check("...not the CLOSE row's own later reading (71.2 / 2.9 / 8.0)",
+          recent[1]["entry_rsi"] != 71.2 and recent[1]["entry_vwap_gap"] != 8.0)
+    old = [t for t in recent if t["strike"] == "23450"][0]
+    check("a trade logged before 17 Sep 2026 (no such columns in that row at all) gives None, not a crash",
+          old["entry_rsi"] is None and old["entry_macd_hist"] is None and old["entry_vwap_gap"] is None
+          and old["entry_adx"] == 32.3, old)
     check("no user, no lookup - never touches disk for an anonymous call",
           mb._recent_trades(None, "nse_index", "NIFTY") == [])
     check("capped", len(mb._recent_trades(LOG_USER, "nse_index", "NIFTY")) <= mb.RECENT_TRADES_MAX)
