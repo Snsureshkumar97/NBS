@@ -1217,7 +1217,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         feed = feeds.for_user(user, market)
         snap = feed.snapshot()
         try:
-            context = market_bot.build_context(snap, market, index)
+            context = market_bot.build_context(snap, market, index, user=user)
         except Exception as exc:
             return reply(False, f"Could not build the market snapshot: {type(exc).__name__}", 500)
         history = market_bot.clean_history(form.get("history"))

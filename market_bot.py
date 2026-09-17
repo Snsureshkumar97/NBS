@@ -57,6 +57,12 @@ Every question arrives with a <market_snapshot> of that market at the moment of 
 It is the only source of facts you have. Use its numbers; never invent prices, levels, news or data \
 that are not in it. If something the question needs is missing, say so plainly.
 
+A ticket that has already closed is NOT in open_ticket - the moment it closes the tool clears its \
+live state - so entry, exit and result for a past trade come only from recent_trades_this_index \
+(newest first, capped, this index only). If the question is about a trade that closed, look there \
+before saying you have no information; if it is genuinely not in that list either, say so rather \
+than guessing.
+
 What you are asked for, and how to answer:
 - The market: what the selected index is doing now - direction, trend strength (ADX), where price sits \
 against VWAP and the day's range, and how the other indices in the same market compare.
@@ -139,8 +145,42 @@ TICKET_FIELDS = ("index", "strike", "expiry", "option_type", "status", "open", "
                  "index_stop", "entry_spot")
 SESSION_FIELDS = ("issued", "closed_today", "wins", "stops", "net", "max_trades", "limits",
                   "loss_limit_pct", "open")
+RECENT_TRADES_MAX = 5
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 _CLIENT_ID = re.compile(r"\b[A-Z]{2,4}\d{3,6}\b")
+
+
+def _recent_trades(user, market, index):
+    """The last few CLOSED tickets the tool itself issued on this index, newest
+    first - entry, exit, result. A closed ticket is cleared from the live state
+    the moment it closes, so this is the only place a past trade's numbers
+    still exist. Read-only: the same trade log the Journal and Record read."""
+    if not user:
+        return []
+    import trade_log
+    try:
+        rows = trade_log._read_rows(trade_log.user_log_path(user, market))
+    except Exception:
+        return []
+    out = []
+    for r in rows:
+        if r.get("event") != "CLOSE" or r.get("index") != index:
+            continue
+        pnl = r.get("pnl")
+        try:
+            pnl = round(float(pnl), 2) if pnl not in (None, "") else None
+        except ValueError:
+            pnl = None
+        out.append({
+            "date": r.get("date"), "time": (r.get("time_ist") or "")[:5] or None,
+            "strike": r.get("strike"), "option_type": r.get("option_type"),
+            "entry": r.get("entry"), "exit": r.get("exit"), "pnl": pnl,
+            "status": r.get("status"),
+            "t1_hit": r.get("t1_hit") == "True", "t2_hit": r.get("t2_hit") == "True",
+            "t3_hit": r.get("t3_hit") == "True", "sl_hit": r.get("sl_hit") == "True",
+        })
+    out.reverse()          # rows are oldest-first; the model reads newest-first
+    return out[:RECENT_TRADES_MAX]
 
 
 def _pick(d, fields):
@@ -154,7 +194,7 @@ def scrub(text):
     return _CLIENT_ID.sub(lambda m: m.group(0) if m.group(0) in config.INSTRUMENTS else "[removed]", text)
 
 
-def build_context(snap, market, index, now=None):
+def build_context(snap, market, index, now=None, user=None):
     """The snapshot sent with a question - an allow-list, never the raw state."""
     now = now or dt.datetime.now(IST)
     indices = snap.get("indices") or {}
@@ -176,6 +216,7 @@ def build_context(snap, market, index, now=None):
         "hold_reason": tk.get("wait"),
         "open_ticket": ticket if ticket and ticket.get("open") else None,
         "last_ticket_if_closed": ticket if ticket and not ticket.get("open") else None,
+        "recent_trades_this_index": _recent_trades(user, market, index),
         "other_indices_in_this_market": {k: _pick(v or {}, PEER_FIELDS)
                                          for k, v in indices.items() if k != index},
         "session_today": _pick(snap.get("session") or {}, SESSION_FIELDS),

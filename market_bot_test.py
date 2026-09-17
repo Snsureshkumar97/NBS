@@ -8,6 +8,7 @@ reflects config, history stays sane even when the client sends it garbage, the
 cooldown and daily cap actually bite, and every exception from the SDK becomes
 a message a user could read rather than a stack trace.
 """
+import csv
 import datetime as dt
 import json
 import os
@@ -107,7 +108,71 @@ check("an index name is left alone (no digits, does not match the pattern)",
       mb.scrub("NIFTY is bullish") == "NIFTY is bullish")
 check("plain numbers are left alone", mb.scrub("spot is 23217.60") == "spot is 23217.60")
 
-print("4. THE SNAPSHOT: AN ALLOW-LIST, NOT THE RAW STATE")
+print("4. A CLOSED TICKET'S ENTRY AND EXIT DON'T JUST VANISH")
+# 17 Sep 2026: the live ticket is cleared to None the instant it closes (tickets.py
+# sets book.trade = None), so a question about a trade that already closed had
+# nothing in open_ticket AND nothing in last_ticket_if_closed - the bot said it
+# had no entry/exit for a trade the user had just watched close. Fixed by reading
+# the same trade log the Journal and Record read.
+TL_HOME = tempfile.mkdtemp()
+_old_home = os.environ.get("TRADING_TOOL_HOME")
+os.environ["TRADING_TOOL_HOME"] = TL_HOME
+import importlib
+import trade_log
+importlib.reload(trade_log)
+LOG_USER = "trader@example.invalid"
+log_path = trade_log.user_log_path(LOG_USER, "nse_index")
+with open(log_path, "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["trade_id", "event", "date", "time_ist", "index", "strike", "option_type",
+               "entry", "exit", "t1_hit", "t2_hit", "t3_hit", "sl_hit", "status", "pnl",
+               "lot_size", "lots"])
+    w.writerow(["NIFTY-1", "OPEN", "2026-09-17", "09:59:44", "NIFTY", "23300", "CE",
+               "130.35", "", "", "", "", "", "OPEN", "", "75", "1.0"])
+    w.writerow(["NIFTY-1", "CLOSE", "2026-09-17", "12:22:47", "NIFTY", "23300", "CE",
+               "130.35", "171.0", "True", "True", "False", "False",
+               "CLOSED — T2 hit (full target reached)", "3048.75", "75", "1.0"])
+    w.writerow(["NIFTY-2", "OPEN", "2026-09-17", "12:22:59", "NIFTY", "23350", "CE",
+               "134.6", "", "", "", "", "", "OPEN", "", "75", "1.0"])
+    w.writerow(["NIFTY-2", "CLOSE", "2026-09-17", "13:27:12", "NIFTY", "23350", "CE",
+               "134.6", "95.15", "False", "False", "False", "True",
+               "CLOSED — stop-loss hit", "-2958.75", "75", "1.0"])
+    w.writerow(["BANKNIFTY-1", "OPEN", "2026-09-17", "10:00:00", "BANKNIFTY", "56000", "CE",
+               "200.0", "", "", "", "", "", "OPEN", "", "30", "1.0"])
+    w.writerow(["BANKNIFTY-1", "CLOSE", "2026-09-17", "11:00:00", "BANKNIFTY", "56000", "CE",
+               "200.0", "220.0", "True", "False", "False", "False",
+               "CLOSED — T1 hit", "600.0", "30", "1.0"])
+try:
+    check("with no open ticket, the closed trade is not just absent",
+          mb._recent_trades(LOG_USER, "nse_index", "NIFTY") != [])
+    recent = mb._recent_trades(LOG_USER, "nse_index", "NIFTY")
+    check("newest first", recent[0]["status"] == "CLOSED — stop-loss hit"
+          and recent[1]["status"].startswith("CLOSED — T2 hit"), recent)
+    check("entry, exit and the actual P&L are all there",
+          recent[1]["entry"] == "130.35" and recent[1]["exit"] == "171.0" and recent[1]["pnl"] == 3048.75)
+    check("which target was hit travels with it", recent[1]["t1_hit"] is True and recent[1]["t2_hit"] is True
+          and recent[1]["t3_hit"] is False)
+    check("scoped to the index asked about - Bank Nifty's trade does not show up under NIFTY",
+          all(t.get("strike") != "56000" for t in recent))
+    check("no user, no lookup - never touches disk for an anonymous call",
+          mb._recent_trades(None, "nse_index", "NIFTY") == [])
+    check("capped", len(mb._recent_trades(LOG_USER, "nse_index", "NIFTY")) <= mb.RECENT_TRADES_MAX)
+
+    ctx_closed = json.loads(mb.build_context({"indices": {}, "tickets": {}}, "nse_index", "NIFTY", user=LOG_USER))
+    check("build_context carries it through, even with no live ticket at all",
+          ctx_closed["open_ticket"] is None
+          and ctx_closed["recent_trades_this_index"][0]["pnl"] == -2958.75, ctx_closed["recent_trades_this_index"])
+    check("without a user, the field is an empty list, not missing",
+          json.loads(mb.build_context({"indices": {}, "tickets": {}}, "nse_index", "NIFTY"))
+          ["recent_trades_this_index"] == [])
+finally:
+    if _old_home is None:
+        os.environ.pop("TRADING_TOOL_HOME", None)
+    else:
+        os.environ["TRADING_TOOL_HOME"] = _old_home
+    importlib.reload(trade_log)
+
+print("5. THE SNAPSHOT: AN ALLOW-LIST, NOT THE RAW STATE")
 SNAP_OPEN = {
     "indices": {
         "NIFTY": {"action": "BUY CE (Call)", "bias": "BULLISH", "spot": 23282.1, "adx": 26.2,
@@ -168,7 +233,7 @@ ctx3 = json.loads(mb.build_context(big, "nse_index", "NIFTY"))
 check("a runaway reasoning blob is dropped rather than sent whole",
       ctx3["reasoning"] == "(too long to include)" and len(mb.build_context(big, "nse_index", "NIFTY")) < 45000)
 
-print("5. CONVERSATION HISTORY")
+print("6. CONVERSATION HISTORY")
 check("empty or missing history is fine", mb.clean_history(None) == [] and mb.clean_history("") == [])
 check("garbage JSON becomes an empty history", mb.clean_history("{not json") == [])
 check("a JSON object (not a list) becomes an empty history", mb.clean_history(json.dumps({"a": 1})) == [])
@@ -198,7 +263,7 @@ leaky = json.dumps([{"role": "user", "text": "my email is trader@example.com"}, 
 check("history is scrubbed the same way a fresh question is",
       "[removed]" in mb.clean_history(leaky)[0]["content"])
 
-print("6. ASKING - THE HAPPY PATH")
+print("7. ASKING - THE HAPPY PATH")
 client = FakeClient(resp=fake_response("Hold until T2 or the stop; nothing has been hit yet."))
 answer, meta = mb.ask("Should I hold?", [], ctx, client=client)
 check("the answer text comes back", "Hold" in answer, answer)
@@ -214,7 +279,7 @@ check("the snapshot travels inside <market_snapshot> tags with the question afte
       call["messages"][-1]["content"].startswith("<market_snapshot>")
       and call["messages"][-1]["content"].strip().endswith("Should I hold?"))
 
-print("7. INPUT VALIDATION - NEVER CALLS THE MODEL")
+print("8. INPUT VALIDATION - NEVER CALLS THE MODEL")
 c = FakeClient(resp=fake_response())
 try:
     mb.ask("   ", [], ctx, client=c); raised = False
@@ -228,7 +293,7 @@ except mb.BotError as exc:
     raised, code = True, exc.code
 check("an over-long question is refused before any API call", raised and code == 400 and not c.messages.calls)
 
-print("8. WHAT THE MODEL CAN DO WRONG, AND HOW IT SURFACES")
+print("9. WHAT THE MODEL CAN DO WRONG, AND HOW IT SURFACES")
 c = FakeClient(resp=fake_response(text=None, stop_reason="refusal"))
 try:
     mb.ask("q", [], ctx, client=c); raised = False
@@ -264,7 +329,7 @@ for exc_obj, want_code, note in (
         raised, code = True, e.code
     check(f"{note}: turned into a BotError({want_code})", raised and code == want_code, code)
 
-print("9. WIRED INTO THE PAGE")
+print("10. WIRED INTO THE PAGE")
 SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
 check("GET and POST routes exist", SRC.count('if path == "/api/marketbot":') == 2)
 check("the handlers are defined", "def _api_marketbot(self, user):" in SRC and "def _do_marketbot(self, form):" in SRC)
@@ -280,7 +345,7 @@ check("Enter sends, Shift+Enter does not", 'e.key === "Enter" && !e.shiftKey' in
 check("the disclosure is on the page: not advice, never places an order",
       "Never places, changes or cancels an order." in SRC)
 
-print("10. THE ENDPOINT ITSELF")
+print("11. THE ENDPOINT ITSELF")
 import feeds
 import web_server
 
