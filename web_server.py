@@ -481,7 +481,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path == "/api/state":
                 return self._api_state(user)
             if path == "/api/tick":
-                return self._api_tick(user)
+                return self._api_tick(user, qs)
             if path == "/api/chain":
                 return self._api_chain(user, qs)
             if path == "/api/news":
@@ -1829,18 +1829,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         if live else None),
             "rows": rows}), "application/json")
 
-    def _api_tick(self, user):
-        """Prices only, read straight out of the tick socket's memory.
+    def _api_tick(self, user, qs=None):
+        """Prices, read straight out of the tick socket's memory - and the
+        selected index's indicator reading, when it has changed.
 
         Separate from /api/state on purpose. State is a heavy object — three
         recommendations, their reasoning, the ticket book, the day's totals —
-        and it changes when the analysis runs, which is every thirty seconds.
-        Prices change several times a second, so they get their own endpoint
-        that touches no network and can be asked for at that rate.
+        polled every three seconds. Prices change several times a second, so
+        they get their own endpoint that touches no network.
+
+        The indicators are recomputed on the forming candle about once a second,
+        but rode only on the three-second state poll, so RSI, MACD, VWAP, ADX,
+        the gate and the trend reached the screen up to three seconds after the
+        server had them (measured 17 Sep 2026). `k` names the index on screen and
+        `at` the recompute the page already has; the reading comes back only
+        when there is a newer one.
         """
         market = self._current_market()
         feed = feeds.for_user(user, market)
         payload = feed.ticks()
+        qs = qs or {}
+        k = (qs.get("k") or [""])[0].upper()
+        if k in (config.instruments_in(market) if market else ()):
+            payload["reading"] = feed.reading(k, (qs.get("at") or [None])[0])
         payload["tickets"] = {
             k: (feed.tickets.public(k) or {}).get("ticket")
             for k in (config.instruments_in(market) if market
@@ -4472,7 +4483,7 @@ let LOTS = 1;
 let LOTS_SYNCED = false;
 
 // A Deribit contract IS one coin, so "5 lots of 1" is a unit that does not
-// exist; index options are genuinely sold in lots of 75 or 30. Set here rather
+// exist; index options are genuinely sold in lots of 65 or 30. Set here rather
 // than inside the no-ticket branch, because ladder() returns early once a
 // ticket is open - which is exactly when you are most likely to be reading it.
 function unitLabel(r){
@@ -6843,7 +6854,9 @@ async function priceTick(){
   // A failed poll is itself news. Returning quietly left the tag reading
   // "Live" over prices that had stopped arriving the moment the server or the
   // network went away - the exact claim the tag exists to avoid making.
-  try{ t = await (await fetch("/api/tick",{cache:"no-store"})).json(); }
+  const k = CUR || "";
+  try{ t = await (await fetch("/api/tick?k=" + encodeURIComponent(k) + "&at="
+                              + encodeURIComponent(READAT[k] || ""), {cache:"no-store"})).json(); }
   catch(e){ feedTag(false, null); return; }
   LIVE = t;
   if(!LAST || !LAST.indices) return;
@@ -6854,6 +6867,15 @@ async function priceTick(){
   // bars all still stepped once every thirty seconds, which is exactly what
   // "the rest of it isn't live" meant.
   let changed = false;
+  // The indicators, the gate and the trend, as soon as the server recomputes
+  // them - before the prices below, which are fresher still and win.
+  const rd = t.reading;
+  if(rd && rd.index && LAST.indices[rd.index] && rd.public){
+    Object.assign(LAST.indices[rd.index], rd.public);
+    if(LAST.why) LAST.why[rd.index] = rd.why;
+    READAT[rd.index] = rd.at;
+    changed = true;
+  }
   for(const [k, px] of Object.entries(t.spots||{})){
     const r = LAST.indices[k];
     if(r && px != null && r.spot !== px){ r.spot = px; changed = true; }
@@ -6916,7 +6938,7 @@ async function priceTick(){
     LASTHIT = sig;
   }
 }
-let LIVE = null, LASTHIT = null;
+let LIVE = null, LASTHIT = null, READAT = {};
 // The screen counts one currency and must never guess which. Crypto premiums
 // are dollars per contract; index premiums are rupees per lot. Printing one
 // behind the other's sign is a wrong number that looks like a right one, and

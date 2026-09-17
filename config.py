@@ -118,7 +118,7 @@ INSTRUMENTS = {
         "kite_tradingsymbol": "NIFTY 50",
         "market": "nse_index",
         "strike_step": 50,
-        "lot_size": 75,                 # verify current lot size on Zerodha before trading
+        "lot_size": 65,                 # Zerodha's instrument list, checked 17 Sep 2026 (was 75)
         "has_free_option_chain": True,
     },
     "BANKNIFTY": {
@@ -149,7 +149,7 @@ INSTRUMENTS = {
     # venue rather than two.
     #
     # lot_size is 1 because a Deribit option contract IS one coin, so "lots" and
-    # "contracts" are the same number - unlike an index, where a lot is 75.
+    # "contracts" are the same number - unlike an index, where a lot is 65.
     "BTC": {
         "yahoo_ticker": "BTC-USD",
         "nse_symbol": None,

@@ -197,8 +197,19 @@ buys = fk.places(transaction_type="BUY")
 b = buys[0] if buys else {}
 check("one BUY sent", len(buys) == 1, buys)
 check("the ticket's own expiry, not the next one with the same strike", b.get("tradingsymbol") == "NIFTY2026092225000CE")
-check("quantity is lots x ZERODHA's lot size (65), not the tool's config (75)",
-      b.get("quantity") == 130 and config.INSTRUMENTS["NIFTY"]["lot_size"] != 65, b.get("quantity"))
+_cfg_lot = config.INSTRUMENTS["NIFTY"]["lot_size"]
+config.INSTRUMENTS["NIFTY"]["lot_size"] = 75
+try:
+    ex, fk, clk, closed = rig()
+    fk.last["NIFTY2026092225000CE"] = 131.0
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    q = (fk.places(transaction_type="BUY") or [{}])[0].get("quantity")
+finally:
+    config.INSTRUMENTS["NIFTY"]["lot_size"] = _cfg_lot
+check("quantity is lots x ZERODHA's lot size (65), even if the tool's config were stale (75)",
+      b.get("quantity") == 130 and q == 130, (b.get("quantity"), q))
+check("the tool's own Nifty lot size now matches Zerodha's", _cfg_lot == 65)
 check("intraday product, on NFO, a DAY order", b.get("product") == "MIS" and b.get("exchange") == "NFO"
       and b.get("validity") == "DAY")
 check("a LIMIT 2% above the live price, rounded UP to the tick", b.get("order_type") == "LIMIT" and b.get("price") == 133.65,

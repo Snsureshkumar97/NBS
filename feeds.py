@@ -892,6 +892,7 @@ class Feed:
                         with self.lock:
                             self.base_df[name] = rec.get("candles")
                             self.base_oi[name] = rec.get("option_chain")
+                            prev = self.state["indices"].get(name) or {}
                             self.state["indices"][name] = {
                                 "rec": rec,
                                 "public": _public(rec, name),
@@ -899,6 +900,7 @@ class Feed:
                                 "df": rec.get("candles"),
                                 "notes": notes,
                                 "at": now_ist().strftime("%H:%M:%S"),
+                                "seq": prev.get("seq", 0) + 1,
                             }
                             self.state["error"] = None
                             for ev in evs:
@@ -1579,6 +1581,7 @@ class Feed:
                 entry["public"] = _public(rec, name)
                 entry["why"] = explain.explain(rec)
                 entry["at"] = now_ist().strftime("%H:%M:%S")
+                entry["seq"] = entry.get("seq", 0) + 1
                 self.live_at = time.time()
                 self.live_errors.pop(name, None)
                 for ev in evs:
@@ -1890,6 +1893,16 @@ class Feed:
                 if px is not None:
                     out["premium"][name] = px
         return out
+
+    def reading(self, name, since=None):
+        """One index's newest indicator reading - what the page renders the
+        signal card and gauges from - or None if `since` is already it."""
+        with self.lock:
+            entry = self.state["indices"].get(name)
+            if not entry or not entry.get("public") or (since and str(entry.get("seq")) == str(since)):
+                return None
+            return {"index": name, "at": str(entry.get("seq")), "public": entry["public"],
+                    "why": entry.get("why")}
 
     def stop_stream(self):
         st, self.streamer = self.streamer, None

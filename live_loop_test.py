@@ -123,4 +123,77 @@ src = inspect.getsource(feeds.Feed._run)
 check("the analysis pass asks for that many days for the Indian indices",
       "INTRADAY_LOOKBACK_DAYS" in src and 'self.market == "nse_index"' in src)
 
+print("5. EVERY READING FOLLOWS THE FORMING CANDLE, AND REACHES THE PAGE ON THE FAST POLL")
+import json
+import config
+import pandas as pd
+import web_server
+
+
+class MovingStreamer(QuietStreamer):
+    connected = True
+    def __init__(self):
+        self.bar = None
+    def forming_bar(self, tok):
+        return self.bar
+    def price(self, tok):
+        return self.bar and self.bar["c"]
+    def age_seconds(self):
+        return 0.2
+
+
+h = feeds.Feed("t:moving", "test@example.invalid", "nse_index")
+ms = h.streamer = MovingStreamer()
+base = bt.fetch_history("NIFTY", years=3, use_cache=True).iloc[-300:]
+h.base_df["NIFTY"] = base
+h.tokens["NIFTY"] = 1
+h.state["indices"]["NIFTY"] = {"rec": {}, "public": {}, "why": None, "df": None, "notes": [], "at": "00:00:00"}
+start = int((base.index[-1] + pd.Timedelta(minutes=15)).timestamp())
+last = float(base["Close"].iloc[-1])
+seen, hi, lo = [], last, last
+for move in (0, 40, 80, 120, -40, -120):
+    c = last + move
+    hi, lo = max(hi, c), min(lo, c)
+    ms.bar = {"start": start, "o": last, "h": hi, "l": lo, "c": c}
+    with contextlib.redirect_stdout(io.StringIO()):
+        h._live_analysis()
+    p = h.state["indices"]["NIFTY"]["public"]
+    seen.append((p["spot"], p["rsi"], p["macd_hist"], p["vwap_gap"], p["adx"], (p["trend"] or {}).get("label")))
+moved = lambda i: sum(1 for a, b in zip(seen, seen[1:]) if a[i] != b[i])
+check("one recompute after each price move: spot, RSI, MACD histogram and VWAP gap all follow it",
+      all(moved(i) == len(seen) - 1 for i in range(4)), seen)
+check("ADX moves as the forming candle makes new highs and lows", moved(4) >= 2, [s[4] for s in seen])
+check("on the Indian indices ADX is the fast measure (trend averaged over 3)", config.adx_dx_smoothing("NIFTY") == 3)
+
+r1 = h.reading("NIFTY")
+check("the reading carries the public card and the votes behind the gauges",
+      r1 and r1["public"]["rsi"] == seen[-1][1] and (r1["why"] or {}).get("votes") is not None
+      and "gate" in (r1["why"] or {}), r1 and list(r1))
+check("asked again with the same marker: nothing resent", h.reading("NIFTY", r1["at"]) is None)
+ms.bar = dict(ms.bar, c=last + 10)
+with contextlib.redirect_stdout(io.StringIO()):
+    h._live_analysis()
+r2 = h.reading("NIFTY", r1["at"])
+check("a new recompute - even inside the same second - is sent", r2 is not None and r2["at"] != r1["at"])
+
+orig_for_user = feeds.for_user
+try:
+    feeds.for_user = lambda email, mkt=None, start=True: h
+    hd = object.__new__(web_server.Handler)
+    out = {}
+    hd._send = lambda body, ctype="text/html", code=200: out.update(body=body)
+    hd._current_market = lambda: "nse_index"
+    hd._api_tick("test@example.invalid", {"k": ["NIFTY"], "at": [""]})
+    d = json.loads(out["body"])
+    check("/api/tick?k=NIFTY carries the reading", (d.get("reading") or {}).get("index") == "NIFTY", list(d))
+    hd._api_tick("test@example.invalid", {"k": ["NIFTY"], "at": [d["reading"]["at"]]})
+    check("...and leaves it out when the page already has it", json.loads(out["body"]).get("reading") is None)
+    hd._api_tick("test@example.invalid", {"k": ["BTC"]})
+    check("an index from another market is ignored", "reading" not in json.loads(out["body"]))
+finally:
+    feeds.for_user = orig_for_user
+SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
+check("the page's fast poll asks for the selected index's reading and merges it",
+      '"/api/tick?k=" + encodeURIComponent(k)' in SRC and "Object.assign(LAST.indices[rd.index], rd.public)" in SRC)
+
 print("LIVE LOOP TEST PASSED" if not fails else f"LIVE LOOP TEST FAILED: {fails}")

@@ -35,17 +35,17 @@ check("nothing was saved by the refusals", journal.load(EM, MK)["trades"] == [])
 print("2. MONEY ON YOUR OWN TRADES")
 tid = journal.add_trade(EM, MK, form())
 e = journal.entries(EM, MK, "mine")[0]
-check("lot size filled from the instrument (Nifty 75)", e["lot_size"] == 75)
-check("gross = (exit - entry) x lots x lot size", e["gross"] == 30 * 2 * 75, e["gross"])
-ref = round(30 * 150 - rs.net_rupees(120, 150, 150, "NSE", 0.0), 2)
+check("lot size filled from the instrument (Nifty 65)", e["lot_size"] == 65)
+check("gross = (exit - entry) x lots x lot size", e["gross"] == 30 * 2 * 65, e["gross"])
+ref = round(30 * 130 - rs.net_rupees(120, 150, 130, "NSE", 0.0), 2)
 check("charges estimated with the backtests' Zerodha model", e["charges_estimated"] and e["charges"] == ref, (e["charges"], ref))
 check("net = gross - charges", e["net"] == round(e["gross"] - e["charges"], 2))
 journal.add_trade(EM, MK, form(entry="200", exit="170", side="PE", dir="sell", charges="55"))
 s = [x for x in journal.entries(EM, MK, "mine") if x["dir"] == "sell"][0]
-check("a sell that falls makes money", s["gross"] == 30 * 2 * 75, s["gross"])
+check("a sell that falls makes money", s["gross"] == 30 * 2 * 65, s["gross"])
 check("charges you typed are used as typed, not estimated", s["charges"] == 55 and not s["charges_estimated"])
 journal.update_trade(EM, MK, tid, form(exit="100"))
-check("editing a trade changes it", [x for x in journal.entries(EM, MK, "mine") if x["id"] == tid][0]["gross"] == -20 * 150)
+check("editing a trade changes it", [x for x in journal.entries(EM, MK, "mine") if x["id"] == tid][0]["gross"] == -20 * 130)
 try:
     journal.update_trade(EM, MK, "nope", form()); check("editing an unknown id is refused", False)
 except ValueError:
