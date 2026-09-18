@@ -1099,16 +1099,18 @@ class TicketBook:
             book.trade = None
             return None
 
-    def close_ticket(self, name, status):
+    def close_ticket(self, name, status, price=None):
         """Close an open ticket for a stated reason - the live-order intraday
-        close at 15:20 - logged at the current price like any other close."""
+        close at 15:20, an AI exit, the give-back rule - logged at the price
+        that caused it when there is one, else the ticket's own streamed price,
+        else the chain's (which can be a REST pass old)."""
         with self.lock:
             book = self.books.get(name)
             if not book or book.trade is None or book.trade["status"] != "OPEN":
                 return None
-            px = self._price_for(book.trade, book.last_rec)
+            px = price if price is not None else book.live
             if px is None:
-                px = book.live
+                px = self._price_for(book.trade, book.last_rec)
             book.trade["status"] = status
             ev = self._close(book, book.trade, px, book.last_rec)
             book.trade = None

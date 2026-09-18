@@ -503,6 +503,62 @@ d.pending["NIFTY"] = ["ADX fell below the trend gate"]
 d.step()
 check("and spaced out - two turns in a minute is one review", not ASKED)
 
+print("5d. ITS OWN TRACK RECORD, WITH EVERY DECISION")
+f, d = desk()
+tr = d.track_record("NIFTY")
+check("no trades yet: says so, nothing to learn from", tr["closed_trades"] == 0 and "nothing to learn" in tr["note"])
+
+
+def trade_on(day, h, name, side, strike, target, stop, reason):
+    at(h, 0, 50, day=day)
+    r = rec(name)
+    ok, why, plan = d.validate(name, r, {"option_type": side, "strike": strike, "target": target, "stop": stop})
+    assert ok, why
+    d._open(name, r, plan, reason)
+    d._record(name, "entry", "enter", reason, {"contract": plan["contract"], "entry": plan["ltp"]})
+    return plan
+
+
+trade_on(21, 10, "NIFTY", "CE", 25000, 160, 110, "Breakout above VWAP with ADX rising.")
+d.book.tick_price("NIFTY", 161.0)                                     # target: +31 x 130
+trade_on(22, 10, "NIFTY", "CE", 25050, 150, 100, "Second leg up after a pullback to VWAP.")
+d.book.tick_price("NIFTY", 99.0)                                      # stop
+trade_on(23, 12, "NIFTY", "PE", 25050, 180, 120, "Rejected at the day high, puts building.")
+d.book.live_price("NIFTY", 150.0)
+d.book.close_ticket("NIFTY", "CLOSED — AI exit: momentum gone")       # its own exit, at the streamed price
+check("an AI exit is logged at the contract's streamed price, not the chain's older one",
+      float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 150.0)
+trade_on(24, 14, "SENSEX", "CE", 25000, 160, 110, "Range break on Sensex.")
+trade_on(24, 14, "NIFTY", "CE", 25100, 120, 70, "Late-day squeeze.")
+d._giveback("NIFTY", d._open_trade("NIFTY"), 108.0)                   # 60% of the way (entry 90 -> 120)
+d._giveback("NIFTY", d._open_trade("NIFTY"), 99.0)                    # then half of that gain back
+check("the give-back rule's close is logged at the price that fired it",
+      float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 99.0)
+d.book.tick_price("SENSEX", 109.0)
+tr = d.track_record("NIFTY")
+check("counts every closed AI trade in the market", tr["closed_trades"] == 5, tr["closed_trades"])
+check("this index separately from the rest", tr["this_index"]["n"] == 4 and tr["all_indices"]["n"] == 5)
+ex = tr["by_exit"]
+check("how each one ended: target, stop, its own exit, the give-back rule",
+      ex["target"]["n"] == 1 and ex["stop"]["n"] >= 1 and ex["your_exit"]["n"] == 1 and ex["give_back_rule"]["n"] == 1, ex)
+check("win rate and net add up", tr["this_index"]["net"] == round(sum(float(r["pnl"]) for r in trade_log._read_rows(d.book.path)
+      if r["event"] == "CLOSE" and r["index"] == "NIFTY"), 2))
+check("by side and by time of entry on this index", set(tr["by_side_on_this_index"]) == {"CE", "PE"}
+      and set(tr["by_entry_time_on_this_index"]) >= {"before 11:00", "11:00-13:00", "after 13:00"},
+      tr["by_entry_time_on_this_index"])
+last = tr["your_last_trades_on_this_index"]
+check("its latest trades on this index, newest first, each with the reason it gave then",
+      len(last) == 4 and last[0]["contract"] == "25100 CE" and last[0]["your_reason_then"] == "Late-day squeeze."
+      and last[-1]["your_reason_then"] == "Breakout above VWAP with ADX rising.", [x["your_reason_then"] for x in last])
+check("...and the readings at entry", last[0]["at_entry"]["adx"] == "24.0", last[0]["at_entry"])
+check("under 30 trades it is told not to lean on patterns yet", "too few" in tr.get("caution", ""))
+check("it rides with every decision", "your_track_record" in d._desk_info("NIFTY"))
+check("and stays small enough to send every time", len(json.dumps(d._desk_info("NIFTY"))) < 9000,
+      len(json.dumps(d._desk_info("NIFTY"))))
+import market_bot as real_mb
+check("the desk's instructions explain it and warn about small samples",
+      "your_track_record" in real_mb.DESK_SYSTEM and "mostly noise" in real_mb.DESK_SYSTEM)
+
 print("6. AFTER A RESTART")
 at(13, 0, 50)
 f, d = desk(email="restart@example.invalid")

@@ -450,6 +450,14 @@ carries what_just_happened. Separately, the tool closes a trade by itself once i
 to its target and then hands back half of that best gain, so a profit that reverses hard inside one candle is \
 not left to run to the stop; see give_back_rule in <desk>.
 
+<desk> also carries your_track_record: your own closed AI trades in this market - win rate and net overall \
+and on this index, how they ended (target, stop, your own exit, the give-back rule, the session close), \
+results by side and by time of entry, and your latest trades on this index with the reason you gave then and \
+the ADX / RSI / MACD / VWAP readings at entry. Use it to learn from what actually happened: if a kind of entry \
+keeps failing, be slower to take it; if your own exits keep costing money against the stop or target, trust \
+the levels more. Respect its caution: with few trades, patterns are mostly noise - note them, do not act on \
+them. When the record does change your decision, say so in your reason.
+
 Each request brings a <market_snapshot> for one index and a <desk> block with your open tickets, today's \
 entries and limits, contracts already traded today (never propose one of those again), and your own recent \
 decisions on this index. Look up anything else you need with your tools - the option chain for strikes, \

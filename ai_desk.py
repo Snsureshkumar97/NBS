@@ -69,6 +69,11 @@ GIVEBACK_GIVE = 0.5
 MAX_EVENT_REVIEWS = 3
 EVENT_REVIEW_GAP_S = 300
 RECENT_KEPT = 60
+# Its own record, handed to the bot with every decision. Asked for by the user
+# on 18 Sep 2026 as the cheap way for it to learn from its results - nothing is
+# trained; it reads what happened and may adjust.
+RECORD_LAST = 8               # its latest closed trades on the index, with the reason it gave
+RECORD_MIN_SAMPLE = 30        # under this many trades, patterns are flagged as too few to lean on
 LOOP_S = 15
 
 
@@ -324,7 +329,111 @@ class AIDesk:
                 "give_back_rule": (f"the tool closes a trade on its own once it has covered "
                                    f"{GIVEBACK_ARM * 100:.0f}% of the way to its target and then hands back "
                                    f"{GIVEBACK_GIVE * 100:.0f}% of that best gain"),
-                "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4]}
+                "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4],
+                "your_track_record": self.track_record(name)}
+
+    # ------------------------------------------------------------ its own record
+    @staticmethod
+    def _exit_kind(status):
+        low = (status or "").lower()
+        if "give-back rule" in low:
+            return "give_back_rule"
+        if "ai exit" in low:
+            return "your_exit"
+        if trade_log.is_target_close(status):
+            return "target"
+        if "stop-loss hit" in low:
+            return "stop"
+        if "market closed" in low or "intraday close" in low:
+            return "session_close"
+        if "cleared manually" in low:
+            return "cleared_by_user"
+        return "other"
+
+    def _entry_reasons(self):
+        """{(date, index, strike, CE/PE): the reason the bot gave for that entry}."""
+        out = {}
+        try:
+            with open(self.decisions_path) as fh:
+                for line in fh:
+                    if '"action": "enter"' not in line:
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    c = str(r.get("contract") or "").split("|")
+                    if len(c) >= 3:
+                        out[(str(r.get("at", ""))[:10], c[0], c[1], c[2])] = r.get("reason") or ""
+        except OSError:
+            pass
+        return out
+
+    def track_record(self, name):
+        """What its own closed trades in this market did - overall, on this index,
+        by how they ended, by side and by time of day - and its latest trades on
+        this index with the reason it gave and the readings at entry."""
+        try:
+            rows = trade_log._read_rows(self.book.path)
+        except Exception:
+            rows = []
+        opens = {r.get("trade_id"): r for r in rows if r.get("event") == "OPEN"}
+        closes = [r for r in rows if r.get("event") == "CLOSE"]
+        done = [r for r in closes if r.get("pnl") not in (None, "")]
+        abandoned = len(closes) - len(done)
+        if not done:
+            return {"closed_trades": 0, "abandoned": abandoned,
+                    "note": "No closed AI trades yet in this market - nothing to learn from so far."}
+
+        def stats(sel):
+            p = [float(r["pnl"]) for r in sel]
+            if not p:
+                return {"n": 0}
+            wins, losses = [x for x in p if x > 0], [x for x in p if x <= 0]
+            return {"n": len(p), "win_rate_pct": round(100.0 * len(wins) / len(p)), "net": round(sum(p), 2),
+                    "avg_win": round(sum(wins) / len(wins), 2) if wins else None,
+                    "avg_loss": round(sum(losses) / len(losses), 2) if losses else None,
+                    "per_trade": round(sum(p) / len(p), 2)}
+
+        def bucket(r):
+            o = opens.get(r.get("trade_id")) or {}
+            try:
+                h = int(str(o.get("time_ist") or "")[:2])
+            except ValueError:
+                return "unknown"
+            if config.market_for(r.get("index")).get("always_open"):
+                return f"{h - h % 6:02d}-{h - h % 6 + 6:02d} IST"
+            return "before 11:00" if h < 11 else "11:00-13:00" if h < 13 else "after 13:00"
+
+        mine = [r for r in done if r.get("index") == name]
+        groups = {}
+        for key, fn in (("by_exit", lambda r: self._exit_kind(r.get("status"))),
+                        ("by_side_on_this_index", lambda r: r.get("option_type") or "?"),
+                        ("by_entry_time_on_this_index", bucket)):
+            sel = done if key == "by_exit" else mine
+            g = {}
+            for r in sel:
+                g.setdefault(fn(r), []).append(r)
+            groups[key] = {k: stats(v) for k, v in g.items()}
+        reasons = self._entry_reasons()
+        last = []
+        for r in mine[-RECORD_LAST:][::-1]:
+            o = opens.get(r.get("trade_id")) or {}
+            last.append({
+                "date": r.get("date"), "entered": (o.get("time_ist") or "")[:5], "closed": (r.get("time_ist") or "")[:5],
+                "contract": f"{r.get('strike')} {r.get('option_type')}", "entry": r.get("entry"), "exit": r.get("exit"),
+                "pnl": float(r["pnl"]), "how_it_ended": self._exit_kind(r.get("status")),
+                "at_entry": {k: o.get(k) or None for k in ("adx", "rsi", "macd_hist", "vwap_gap")},
+                "your_reason_then": (reasons.get((o.get("date") or r.get("date"), name, str(r.get("strike")),
+                                                  r.get("option_type"))) or "")[:220] or None})
+        out = {"closed_trades": len(done), "abandoned_no_exit_price": abandoned,
+               "all_indices": stats(done), "this_index": stats(mine), **groups,
+               "your_last_trades_on_this_index": last}
+        if len(done) < RECORD_MIN_SAMPLE:
+            out["caution"] = (f"Only {len(done)} closed trades so far - too few to trust any pattern here. Note it; "
+                              f"do not change how you trade because of it until there are at least "
+                              f"{RECORD_MIN_SAMPLE}.")
+        return out
 
     # ------------------------------------------------------------ deciding
     def _ask(self, kind, name, client, why=None):
@@ -497,7 +606,7 @@ class AIDesk:
             return
         pct, back = best / room * 100.0, (best - gain) / best * 100.0
         self.book.close_ticket(name, f"CLOSED — AI give-back rule: {pct:.0f}% of the way to the target, "
-                                     f"then gave back {back:.0f}% of that")
+                                     f"then gave back {back:.0f}% of that", price=price)
         self.last_exit[name] = self.clock()
         self.peak.pop(tid, None)
         self._record(name, "rule", "exit", f"Reached {pct:.0f}% of the way to the target ({target:g}) at "
