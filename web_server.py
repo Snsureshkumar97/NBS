@@ -1883,7 +1883,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         rec = ((feed.snapshot().get("indices") or {}).get(name) or {})
         return self._send(json.dumps({
             "index": name, "expiry": chain.get("expiry"), "spot": spot, "atm": atm,
-            "pcr": chain.get("pcr"), "max_pain": chain.get("max_pain"),
+            "pcr": chain.get("pcr"), "pcr_live": chain.get("pcr_live") or 0,
+            "max_pain": chain.get("max_pain"),
             "call_wall": chain.get("top_call_oi_strike"),
             "put_wall": chain.get("top_put_oi_strike"),
             "suggested": {"strike": rec.get("strike"), "type": rec.get("option_type")},
@@ -7342,7 +7343,7 @@ function chainDraw(d){
   const sym = d.currency === "USD" ? "$" : "₹";
   bar.innerHTML =
     `<span>Spot <b>${d.spot == null ? "—" : num(d.spot,2)}</b></span>`
-    + `<span>PCR <b>${d.pcr == null ? "—" : d.pcr}</b></span>`
+    + `<span title="${d.pcr_live ? "Recomputed every second from the streamed open interest around the money, with the snapshot for the far strikes." : "From the last option-chain snapshot."}">PCR <b>${d.pcr == null ? "—" : d.pcr}</b>${d.pcr_live ? " · live" : ""}</span>`
     + (d.max_pain != null ? `<span>Max pain <b>${num(d.max_pain,0)}</b></span>` : "")
     + (d.call_wall != null ? `<span>Call wall <b>${num(d.call_wall,0)}</b></span>` : "")
     + (d.put_wall != null ? `<span>Put wall <b>${num(d.put_wall,0)}</b></span>` : "")

@@ -785,14 +785,55 @@ class Feed:
         return out
 
     def chain(self, name):
-        """The last option-chain snapshot for one instrument, or None.
+        """The option chain for one instrument, or None, with its open interest
+        brought up to the second (see live_chain).
 
-        Already fetched every cycle for the signal itself - the strike ladder,
-        the PCR and the walls all come out of it - and thrown away after. The
-        screen can show it for the price of handing it over.
+        Fetched every cycle for the signal itself - the strike ladder, the PCR
+        and the walls all come out of it. The screen can show it for the price
+        of handing it over.
+        """
+        return self.live_chain(name)
+
+    def live_chain(self, name):
+        """The last chain snapshot with the streamed open interest laid over it,
+        and PCR recomputed from the result - so PCR moves every second, not
+        once per REST pass.
+
+        Asked for by the user on 18 Sep 2026: the snapshot's PCR sat still for
+        30-40 seconds at a time. The strikes around the money stream their open
+        interest; the far strikes keep the snapshot's figures - they barely move
+        and are not streamed - so the ratio still covers the whole expiry. The
+        PCR vote is rebuilt from the RAW chain: compute_option_chain_signal
+        spreads its input over its result, and a processed chain would carry its
+        old oi_score straight back over the new one.
         """
         with self.lock:
-            return self.base_oi.get(name)
+            base = self.base_oi.get(name)
+        if not isinstance(base, dict) or not base.get("strikes"):
+            return base
+        live = self.chain_live(name)
+        if not live:
+            return base
+        strikes, n = [], 0
+        for s in base["strikes"]:
+            c = live.get((float(s["strike"]), "CE")) or {}
+            p = live.get((float(s["strike"]), "PE")) or {}
+            if c.get("oi") is not None or p.get("oi") is not None:
+                s = dict(s)
+                if c.get("oi") is not None:
+                    s["call_oi"] = c["oi"]
+                    n += 1
+                if p.get("oi") is not None:
+                    s["put_oi"] = p["oi"]
+                    n += 1
+            strikes.append(s)
+        ce = sum(s.get("call_oi") or 0 for s in strikes)
+        pe = sum(s.get("put_oi") or 0 for s in strikes)
+        if not ce or not n:
+            return base
+        raw = {k: v for k, v in base.items() if k not in ("available", "oi_score", "notes")}
+        raw.update(strikes=strikes, pcr=round(pe / ce, 3), pcr_live=n, pcr_at=round(time.time(), 1))
+        return signal_engine.compute_option_chain_signal(raw)
 
     def _ref(self):
         """Any instrument of this feed's market - they share its session."""
@@ -1628,8 +1669,9 @@ class Feed:
                     self._note_fault(name, f"only {0 if df is None else len(df)} candles "
                                            "for the live recompute")
                 continue
-            with self.lock:
-                oi = self.base_oi.get(name)
+            # The chain with its open interest as of this second, so the PCR
+            # vote moves with the market rather than with the REST pass.
+            oi = self.live_chain(name)
             if not isinstance(oi, dict) or "available" not in oi:
                 oi = signal_engine.compute_option_chain_signal(None)
             try:

@@ -295,9 +295,60 @@ check("a contract with no tick keeps the snapshot", pe["ltp"] == 54.7 and not pe
       and rows[23500.0]["ce"]["ltp"] == 35.0, pe)
 check("payload counts live contracts and stamps the last tick", d["live"] == 1 and d["live_at"]
       and len(d["live_at"]) == 8, (d["live"], d["live_at"]))
-check("PCR, max pain and the walls are still the snapshot's", d["pcr"] == 0.86 and d["call_wall"] == 23500)
+check("max pain and the walls are the snapshot's; PCR is the feed's chain's own", d["pcr"] == 0.86
+      and d["call_wall"] == 23500 and d["pcr_live"] == 0)
 page = ws_mod.PAGE
 check("the page asks for the chain from the fast price poll while its tab is open",
       'if(TAB === "chain") chainFetch();' in page and "CHAIN_LIVE ? 1000 : 20000" in page)
+
+print("6. PCR EVERY SECOND")
+import signal_engine
+raw = {"expiry": "2026-09-15", "spot": 23461.0, "max_pain": 23450, "top_call_oi_strike": 23500,
+       "top_put_oi_strike": 23300,
+       "strikes": [{"strike": 23450.0, "call_oi": 1000, "put_oi": 1000, "call_ltp": 60.0, "put_ltp": 55.0},
+                   {"strike": 23500.0, "call_oi": 1000, "put_oi": 1000, "call_ltp": 35.0, "put_ltp": 80.0},
+                   {"strike": 26000.0, "call_oi": 5000, "put_oi": 5000, "call_ltp": 1.0, "put_ltp": 2500.0}]}
+raw["pcr"] = 1.0
+f.base_oi["NIFTY"] = signal_engine.compute_option_chain_signal(raw)
+check("the snapshot's PCR vote: 1.0 is neutral", f.base_oi["NIFTY"]["oi_score"] == 0)
+f.chain_toks["NIFTY"]["map"] = {(23450.0, "CE"): 1, (23450.0, "PE"): 2, (23500.0, "CE"): 3, (23500.0, "PE"): 4}
+f.chain_toks["NIFTY"]["streamed"] = {1, 2, 3, 4}
+now = time.time()
+st2.books = {1: {"oi": 1000, "at": now}, 2: {"oi": 3400, "at": now},
+             3: {"oi": 1000, "at": now}, 4: {"oi": 3400, "at": now}}
+lc = f.live_chain("NIFTY")
+check("PCR recomputed from the streamed open interest, the far strike from the snapshot",
+      lc["pcr"] == round((3400 + 3400 + 5000) / (1000 + 1000 + 5000), 3), lc["pcr"])
+check("how many OI figures are live is carried with it", lc["pcr_live"] == 4)
+check("the PCR vote moves with it (1.686 is over 1.2) - not the snapshot's stale vote",
+      lc["oi_score"] == 1 and lc["available"] is True, lc["oi_score"])
+check("the far strike keeps its snapshot OI, prices are untouched",
+      [x for x in lc["strikes"] if x["strike"] == 26000.0][0]["put_oi"] == 5000
+      and [x for x in lc["strikes"] if x["strike"] == 23450.0][0]["call_ltp"] == 60.0)
+check("the snapshot itself is not changed", f.base_oi["NIFTY"]["pcr"] == 1.0
+      and f.base_oi["NIFTY"]["strikes"][0]["put_oi"] == 1000)
+check("chain() - what the chain tab, the pulse and the bot read - is the live one", f.chain("NIFTY")["pcr"] == lc["pcr"])
+st2.books[2]["oi"] = st2.books[4]["oi"] = 1000
+check("the next second's ticks: PCR follows them straight away",
+      f.live_chain("NIFTY")["pcr"] == 1.0 and f.live_chain("NIFTY")["oi_score"] == 0)
+st2.books = {}
+check("no fresh ticks: the snapshot, exactly", f.live_chain("NIFTY") is f.base_oi["NIFTY"])
+OPEN["v"] = False
+st2.books = {1: {"oi": 9999, "at": now}}
+check("after the bell: the snapshot, not a stale stream", f.live_chain("NIFTY") is f.base_oi["NIFTY"])
+OPEN["v"] = True
+FSRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "feeds.py")).read()
+check("the once-a-second recompute builds the signal on the live chain",
+      "oi = self.live_chain(name)" in FSRC)
+
+g.base_oi["BTC"] = signal_engine.compute_option_chain_signal(dict(raw, pcr=1.0, strikes=[
+    {"strike": 78000.0, "call_oi": 100.0, "put_oi": 100.0}, {"strike": 90000.0, "call_oi": 50.0, "put_oi": 10.0}]))
+g.chain_toks["BTC"] = {"expiry": "2026-11-27", "map": {(78000.0, "CE"): "C78", (78000.0, "PE"): "P78"},
+                       "streamed": {"C78", "P78"}, "on": ds, "atm": 156}
+ds.books = {"C78": {"mark": 0.04, "oi": 100.0, "at": time.time()}, "P78": {"mark": 0.04, "oi": 40.0, "at": time.time()}}
+check("Bitcoin: PCR from Deribit's streamed open interest too",
+      g.live_chain("BTC")["pcr"] == round((40 + 10) / (100 + 50), 3), g.live_chain("BTC")["pcr"])
+check("the page marks a live PCR", "pcr_live" in open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+      "web_server.py")).read() and '" · live"' in page)
 
 print("CHAIN STREAM TEST PASSED" if not fails else f"CHAIN STREAM TEST FAILED: {fails}")
