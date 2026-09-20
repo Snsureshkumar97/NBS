@@ -501,6 +501,16 @@ class Feed:
             self.live = live_orders.for_account(email, self.tickets.path,
                                                 close_ticket=self.tickets.close_ticket)
             self.tickets.listeners.append(self.live.on_ticket_event)
+        elif self.tickets.path and config.MARKETS[self.market]["market_provider"] == "delta":
+            # Bitcoin's twin, on Delta Exchange India under the account's own
+            # keys. Its stop is watched here on the streamed mark - Delta holds
+            # no stop order on an option - so the executor reads this feed's
+            # socket first and Delta's ticker only when the socket has nothing.
+            import delta_orders
+            self.live = delta_orders.for_account(email, self.tickets.path,
+                                                 close_ticket=self.tickets.close_ticket,
+                                                 mark=self._crypto_mark)
+            self.tickets.listeners.append(self.live.on_ticket_event)
         # The AI desk's paper tickets, in a book of their own - never given a
         # listener, so they can never reach live orders.
         self.ai = None
@@ -1238,6 +1248,11 @@ class Feed:
                     del self.events[30:]
                 if ev.get("kind") == "closed":
                     self.opt_tokens.pop(name, None)
+
+    def _crypto_mark(self, symbol):
+        """A contract's live mark off this feed's socket, for the executor."""
+        ds = self.dstream
+        return ds.mark_usd(symbol) if ds is not None else None
 
     def _crypto_prices(self):
         """Read the socket's memory into this feed's price maps."""

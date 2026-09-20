@@ -1294,7 +1294,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         live = getattr(feed, "live", None)
         if live is not None:
             # The second switch per index: whether AI tickets here also place
-            # real Zerodha orders. Indian indices only - crypto has no executor.
+            # real orders - at Zerodha on the indices, on Delta Exchange for Bitcoin.
             pub = live.public()
             payload["live_ai"] = pub["enabled_ai"]
             payload["live_positions"] = [p for p in pub["positions"] if p.get("source") == "ai"]
@@ -1359,15 +1359,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return reply(False, "Sign in first.", 401)
         if not self._same_origin():
             return reply(False, "Refused: that request did not come from this site.", 403)
-        if self._current_market() != "nse_index":
-            return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex.", 400)
-        if _state["mode"] == "free":
+        market = self._current_market()
+        if market not in ("nse_index", "crypto"):
+            return reply(False, "Live orders are only for Nifty, Bank Nifty, Sensex and Bitcoin.", 400)
+        if market == "nse_index" and _state["mode"] == "free":
             return reply(False, "Live orders need Zerodha mode, not the free data mode.", 400)
-        import live_orders
         index = (form.get("index") or "").strip().upper()
-        if index not in live_orders.INDICES:
-            return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex.", 400)
-        ex = getattr(feeds.for_user(user, "nse_index"), "live", None)
+        if market == "nse_index":
+            import live_orders
+            allowed = live_orders.INDICES
+        else:
+            import delta_orders
+            allowed = delta_orders.INDICES
+        if index not in allowed:
+            return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex on Zerodha, and Bitcoin "
+                                "on Delta Exchange India.", 400)
+        ex = getattr(feeds.for_user(user, market), "live", None)
         if ex is None:
             return reply(False, "Live orders are not available for this account.", 400)
         on = (form.get("on") or "") in ("1", "true", "on")
@@ -1375,8 +1382,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if source not in ("rule", "ai"):
             return reply(False, "Unknown kind of ticket.", 400)
         if on:
-            if not user_kite.token_for(user):
+            if market == "nse_index" and not user_kite.token_for(user):
                 return reply(False, "Connect Zerodha for today first - orders go through your own login.", 400)
+            if market == "crypto":
+                import user_delta
+                if not user_delta.keys_for(user):
+                    return reply(False, "Add your Delta Exchange keys first (the Delta Exchange page) - orders go "
+                                        "through your own account.", 400)
             if not (accounts.get_user(user) or {}).get("always_on"):
                 return reply(False, "Switch the tool to \"runs all session\" first. Otherwise closing this "
                                     "page stops the tool watching the target, and a position is left "
@@ -5684,7 +5696,16 @@ $("tlive").onclick = async () => {
   const L = LAST && LAST.live, b = $("tlive");
   if(!L || !CUR) return;
   const on = !L.enabled[CUR];
-  if(on && !confirm(`Place REAL orders on ${CUR}?\n\n`
+  const btc = CUR === "BTC";
+  if(on && btc && !confirm(`Place REAL orders on Bitcoin at Delta Exchange India?\n\n`
+      + "From now on every ticket on Bitcoin is also bought on Delta with your money: the ticket's own "
+      + "contract and number of contracts, as a limit order a little above the mark.\n\n"
+      + "DELTA HOLDS NO STOP ORDER ON AN OPTION. This tool watches the mark and sells at the ticket's stop - "
+      + "only while this server is running. It also sells at the target, when you clear the ticket, and "
+      + "30 minutes before the contract settles (17:30 IST).\n\n"
+      + "Delta refuses orders until this server's IP is whitelisted on your API key.\n\n"
+      + "Past results do not predict future ones. This is your decision.")) return;
+  if(on && !btc && !confirm(`Place REAL orders on ${CUR}?\n\n`
       + "From now on every ticket on this index is also bought at Zerodha with your money: the "
       + "ticket's own contract and lots, as a limit order a little above the price. The moment it "
       + "fills, a stop-loss order goes to Zerodha at the ticket's stop. The tool sells at T2, when you "
@@ -8103,7 +8124,15 @@ async function aiFetch(){
     const k = aiIndex(AI.data);
     if(!k) return;
     const on = !((AI.data && AI.data.live_ai) || {})[k];
-    if(on && !confirm(`Place REAL Zerodha orders for the AI desk's ${k} trades?\n\n`
+    const btc = k === "BTC";
+    if(on && btc && !confirm(`Place REAL Delta Exchange orders for the AI desk's Bitcoin trades?\n\n`
+        + "From now on, every ticket the AI desk opens on Bitcoin is also bought on Delta with your money: its "
+        + "own contract and your number of contracts, as a limit order a little above the mark.\n\n"
+        + "DELTA HOLDS NO STOP ORDER ON AN OPTION. This tool watches the mark and sells at the stop the bot set - "
+        + "only while this server is running. It also sells when the bot exits, when the give-back rule fires, "
+        + "at the target, and 30 minutes before the contract settles.\n\nThe bot decides these trades itself "
+        + "and cannot be backtested. Past results do not predict future ones. This is your decision.")) return;
+    if(on && !btc && !confirm(`Place REAL Zerodha orders for the AI desk's ${k} trades?\n\n`
         + "From now on, every ticket the AI desk opens on " + k + " is also bought with your money: its own "
         + "contract and your lots, as a limit order a little above the price, with a stop-loss order at Zerodha "
         + "on the stop the bot set. It is sold when the bot exits, when the give-back rule fires, at its target "
