@@ -379,5 +379,14 @@ check("both confirm dialogs tell a Bitcoin user that Delta holds no stop order a
       WS.count("DELTA HOLDS NO STOP ORDER ON AN OPTION") == 2 and "Place REAL orders on Bitcoin at Delta Exchange India" in WS
       and "Place REAL Delta Exchange orders for the AI desk's Bitcoin trades" in WS)
 
+check("the live-status line for Bitcoin says the stop is the tool's and not at Delta - on the Signal card and the AI tab - "
+      "while Zerodha's wording is kept for the indices",
+      "function liveStateText(p, stopWatchedByTool)" in WS and "liveStateText(p, L.stop_at_venue === false)" in WS
+      and "liveStateText(lp, d.live_stop_at_venue === false)" in WS
+      and "NOT held at Delta, so it only works while the server is running" in WS
+      and "stop-loss order at Zerodha, trigger ${p.stop_trigger}" in WS
+      and WS.count("stop-loss order at Zerodha, trigger") == 1)
+check("the AI payload carries whether the stop is at the venue", 'payload["live_stop_at_venue"] = pub.get("stop_at_venue", True)' in WS)
+
 print("DELTA ORDERS TEST PASSED" if not fails else f"DELTA ORDERS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

@@ -1384,6 +1384,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             payload["live_ai"] = pub["enabled_ai"]
             payload["live_positions"] = [p for p in pub["positions"] if p.get("source") == "ai"]
             payload["live_notes"] = pub["notes"]
+            # False on Delta Exchange, where the tool - not the venue - holds the stop.
+            payload["live_stop_at_venue"] = pub.get("stop_at_venue", True)
         return self._send(json.dumps(payload, default=str), "application/json")
 
     def _do_ai(self, form):
@@ -5756,6 +5758,28 @@ function liveHeld(s, k){
   return L ? (L.positions || []).find(p => p.index === k && LIVE_ACTIVE.includes(p.state)) || null : null;
 }
 
+// One wording for both live-status lines (the Signal card and the AI tab). The
+// stop sentence depends on the venue: at Zerodha the stop-loss order rests at
+// the exchange and works with this server off; on Delta Exchange nothing rests
+// at the venue - the tool watches the mark, and only while the server runs. The
+// Zerodha sentence used to be shown for Bitcoin too, which told the user a stop
+// was protecting a position that it was not (found 20 Sep 2026).
+function liveStateText(p, stopWatchedByTool){
+  const sym = p.tradingsymbol || "the contract";
+  const where = stopWatchedByTool ? "Delta" : "Zerodha";
+  return ({
+    placing: `Live: checking whether the buy reached ${where}`,
+    entering: `Live: buying ${p.qty || ""} ${sym}`,
+    open: `Live: holding ${p.filled_qty} ${sym} bought at ${p.avg_price} · ` + (stopWatchedByTool
+      ? `stop ${p.stop_trigger} is watched by this tool on Delta's mark - NOT held at Delta, so it only works while the server is running`
+      : `stop-loss order at Zerodha, trigger ${p.stop_trigger}`),
+    exiting: `Live: selling ${sym} - ${p.exit_reason || ""}`,
+    attention: `Live: ${sym} MAY STILL BE HELD - check ${stopWatchedByTool ? "Delta" : "Kite"} now`,
+    closed: `Live: ${sym} closed` + (p.exit_price ? ` at ${p.exit_price}` : ""),
+    failed: "Live: no position",
+  })[p.state] || "";
+}
+
 function liveBox(s){
   const L = s && s.live, b = $("tlive"), st = $("tlivestat");
   if(!b || !st) return;
@@ -5770,19 +5794,8 @@ function liveBox(s){
   b.style.marginLeft = ($("tclear").style.display === "none" && $("tskip").style.display === "none") ? "auto" : "";
   const p = (L.positions || []).find(x => x.index === CUR);
   const note = (L.notes || []).find(n => n.index === CUR);
-  const sym = p ? (p.tradingsymbol || "the contract") : "";
   const lines = [];
-  if(p){
-    lines.push({
-      placing: "Live: checking whether the buy reached Zerodha",
-      entering: `Live: buying ${p.qty || ""} ${sym}`,
-      open: `Live: holding ${p.filled_qty} ${sym} bought at ${p.avg_price} · stop-loss order at Zerodha, trigger ${p.stop_trigger}`,
-      exiting: `Live: selling ${sym} - ${p.exit_reason || ""}`,
-      attention: `Live: ${sym} MAY STILL BE HELD - check Kite now`,
-      closed: `Live: ${sym} closed` + (p.exit_price ? ` at ${p.exit_price}` : ""),
-      failed: "Live: no position",
-    }[p.state] || "");
-  }
+  if(p) lines.push(liveStateText(p, L.stop_at_venue === false));
   if(note) lines.push(`${note.at} · ${note.text}`);
   st.textContent = lines.filter(Boolean).join("  —  ");
   st.style.display = st.textContent ? "" : "none";
@@ -8163,15 +8176,7 @@ function aiRender(d){
   })();
   const lp = lpos[0];
   const lines = [];
-  if(lp){
-    lines.push({placing: "Live: checking whether the buy reached Zerodha",
-                entering: `Live: buying ${lp.qty || ""} ${lp.tradingsymbol || ""}`,
-                open: `Live: holding ${lp.filled_qty} ${lp.tradingsymbol} bought at ${lp.avg_price} · stop-loss order at Zerodha, trigger ${lp.stop_trigger}`,
-                exiting: `Live: selling ${lp.tradingsymbol} - ${lp.exit_reason || ""}`,
-                attention: `Live: ${lp.tradingsymbol} MAY STILL BE HELD - check Kite now`,
-                closed: `Live: ${lp.tradingsymbol} closed` + (lp.exit_price ? ` at ${lp.exit_price}` : ""),
-                failed: "Live: no position"}[lp.state] || "");
-  }
+  if(lp) lines.push(liveStateText(lp, d.live_stop_at_venue === false));
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
   const brk = (LAST && LAST.broker) || {};
   if(brk.connected && brk.funds && brk.funds.available != null)
