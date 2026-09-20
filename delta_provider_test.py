@@ -68,7 +68,11 @@ class FakeHTTP:
             return Resp({"success": True, "result": [{"time": t, "open": 80000.0, "high": 80100.0, "low": 79900.0,
                                                        "close": 80050.0, "volume": 12.5} for t in ts]})
         if url.endswith("/v2/tickers/.DEXBTUSD"):
+            if getattr(self, "index_null", False):
+                return Resp({"success": True, "result": None})       # Delta does this at times
             return Resp({"success": True, "result": {"symbol": ".DEXBTUSD", "spot_price": "80400.5", "close": 80399.0}})
+        if url.endswith("/v2/tickers/BTCUSD"):
+            return Resp({"success": True, "result": {"symbol": "BTCUSD", "spot_price": "80447.3", "mark_price": "80428.9"}})
         if url.endswith("/v2/tickers"):
             rows = []
             for days, sp in self.spread.items():
@@ -108,6 +112,9 @@ except ValueError:
 
 print("3. SPOT AND THE CHAIN, IN DOLLARS")
 check("spot is the index's spot_price", p.spot("BTC") == 80400.5)
+fh.index_null = True
+check("the index ticker answering null: the perpetual's spot_price stands in", p.spot("BTC") == 80447.3)
+fh.index_null = False
 check("the index's own symbol stands in for a token", p.index_token("BTC") == ".DEXBTUSD" and p.equity_tokens(["X"]) == {})
 config.MAX_SPREAD_PCT = 5.0
 dpv._PICK.clear(); dpv._PICK_AT.clear(); dpv._SINCE.clear(); dpv._BAD.clear()

@@ -133,8 +133,19 @@ class DeltaDataProvider:
 
     # ------------------------------------------------------------ spot
     def spot(self, index_key: str):
-        t = self._get(f"/v2/tickers/{INSTRUMENTS[index_key]['delta_index']}") or {}
-        px = _f(t.get("spot_price")) or _f(t.get("close")) or _f(t.get("mark_price"))
+        """The index price over REST. Delta's index ticker (.DEXBTUSD) answers
+        with a null result at times (seen 20 Sep 2026), so the perpetual's own
+        spot_price - the same index - stands in when it does."""
+        meta = INSTRUMENTS[index_key]
+        px = None
+        try:
+            t = self._get(f"/v2/tickers/{meta['delta_index']}") or {}
+            px = _f(t.get("spot_price")) or _f(t.get("close")) or _f(t.get("mark_price"))
+        except Exception:
+            px = None
+        if px is None:
+            t = self._get(f"/v2/tickers/{meta['delta_perpetual']}") or {}
+            px = _f(t.get("spot_price"))
         if px is None:
             raise RuntimeError(f"delta gave no index price for {index_key}")
         return px
