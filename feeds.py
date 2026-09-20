@@ -1493,6 +1493,52 @@ class Feed:
                     out[key] = b
         return out
 
+    def contract_quote(self, name, strike, side, expiry=None):
+        """The live quote of ONE contract off this feed's own socket -
+        {ltp, bid, ask, oi, at, source} - or None when it is not being streamed.
+
+        For the strike chart's per-second updates, and for the bot's option-chart
+        lookup. The chain's window around the money streams already, and an
+        open ticket's own contract streams even after it has left that window;
+        anything else is not on a socket and is not guessed at. Nothing is
+        subscribed here."""
+        kind = "CE" if str(side).upper().startswith("C") else "PE"
+        want = (str(expiry or "")[:10]) or None
+        try:
+            k = float(strike)
+        except (TypeError, ValueError):
+            return None
+        have = self.chain_toks.get(name)
+        if have and (want is None or str(have.get("expiry"))[:10] == want):
+            b = self.chain_live(name).get((k, kind))
+            if b and b.get("ltp") is not None:
+                return {"ltp": b["ltp"], "bid": b.get("bid"), "ask": b.get("ask"), "oi": b.get("oi"),
+                        "at": b.get("at"), "source": "chain"}
+        try:
+            book = self.tickets.books.get(name)
+            t = book.trade if book else None
+            tok = self.opt_tokens.get(name)
+            if (t and t.get("status") == "OPEN" and tok is not None and float(t.get("strike")) == k
+                    and (t.get("option_type") or "").upper() == kind
+                    and (want is None or str(t.get("expiry") or "")[:10] == want)):
+                st = self.streamer
+                if st is _NO_STREAM:
+                    ds = self.dstream
+                    b = ds.book(tok, max_age=CHAIN_TICK_MAX_AGE) if ds is not None else None
+                    px = ds.mark_usd(tok, config.crypto_index(name)) if ds is not None else None
+                    if b and px is not None:
+                        coin = bool(getattr(ds, "QUOTES_IN_COIN", True))
+                        return {"ltp": px, "bid": None if coin else b.get("bid"), "ask": None if coin else b.get("ask"),
+                                "oi": b.get("oi"), "at": b.get("at"), "source": "ticket"}
+                elif st is not None and hasattr(st, "book"):
+                    b = st.book(tok, max_age=CHAIN_TICK_MAX_AGE)
+                    if b and b.get("ltp") is not None:
+                        return {"ltp": b["ltp"], "bid": b.get("bid"), "ask": b.get("ask"), "oi": b.get("oi"),
+                                "at": b.get("at"), "source": "ticket"}
+        except (TypeError, ValueError, AttributeError):
+            return None
+        return None
+
     def _chain_live_crypto(self, name):
         """The same, off the Deribit socket. Deribit quotes an option in the
         COIN, so every price is multiplied by the index to reach dollars - the

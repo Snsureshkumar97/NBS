@@ -441,6 +441,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._shot(path[len("/shot/"):-len(".png")])
             if path in ("/favicon.svg", "/favicon.ico"):
                 return self._send(nbs_site.FAVICON, "image/svg+xml")
+            if path == "/vendor/lightweight-charts.js":
+                return self._vendor("lightweight-charts.standalone.production.js")
             if path == "/robots.txt":
                 return self._send(nbs_site.robots_txt(self._base()), "text/plain")
             if path == "/sitemap.xml":
@@ -539,6 +541,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._candles(user, path[len("/api/candles/"):], qs)
             if path.startswith("/api/option_candles/"):
                 return self._option_candles(user, path[len("/api/option_candles/"):], qs)
+            if path.startswith("/api/option_tick/"):
+                return self._option_tick(user, path[len("/api/option_tick/"):], qs)
             if path.startswith("/api/map/"):
                 return self._heat_map(user, path[len("/api/map/"):], qs)
 
@@ -2238,6 +2242,63 @@ class Handler(http.server.BaseHTTPRequestHandler):
     _OPT_INTERVAL = {"1m": ("minute", 2), "5m": ("5minute", 5),
                      "15m": ("15minute", 12), "1d": ("day", 120)}
 
+    _VENDOR = {}
+    # Exactly the files this may serve - a name is looked up here, never joined
+    # onto a path, so nothing outside vendor/ can be reached whoever calls it.
+    _VENDOR_FILES = frozenset({"lightweight-charts.standalone.production.js"})
+
+    def _vendor(self, name):
+        """A vendored library, served as it was downloaded (see vendor/README.md)."""
+        if name not in self._VENDOR_FILES:
+            return self._send("not found", "text/plain", 404)
+        body = self._VENDOR.get(name)
+        if body is None:
+            try:
+                with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor", name),
+                          encoding="utf-8") as fh:
+                    body = self._VENDOR[name] = fh.read()
+            except OSError:
+                return self._send("not found", "text/plain", 404)
+        return self._send(body, "application/javascript; charset=utf-8")
+
+    def _contract_live(self, user, market, key, strike, side, expiry):
+        """One contract's live quote from the running feed, shaped for the page
+        and the bot - {ltp, bid, ask, oi, age, live, t, source} - or None. Never
+        starts a feed, never subscribes anything."""
+        try:
+            feed = feeds.for_user(user, market, start=False)
+            if feed is None or not hasattr(feed, "contract_quote"):
+                return None
+            q = feed.contract_quote(key, strike, side, expiry)
+        except Exception:
+            return None
+        if not q or q.get("ltp") is None:
+            return None
+        now = time.time()
+        age = (now - q["at"]) if q.get("at") else None
+        return {"ltp": q["ltp"], "bid": q.get("bid"), "ask": q.get("ask"), "oi": q.get("oi"),
+                "age": round(age, 1) if age is not None else None,
+                "live": bool(age is not None and age < 15.0), "t": int(now), "source": q.get("source")}
+
+    def _option_tick(self, user, rest, qs=None):
+        """The contract's live price, for the strike chart's forming candle.
+        Read off the feed's own socket; a contract that is not streamed answers
+        {live: false} rather than a guess."""
+        parts = [p for p in (rest or "").split("/") if p]
+        if len(parts) < 3:
+            return self._send(json.dumps({"live": False, "error": "bad request"}), "application/json", 400)
+        key, side = parts[0].upper(), parts[2].upper()
+        try:
+            strike = float(parts[1])
+        except ValueError:
+            return self._send(json.dumps({"live": False, "error": "bad strike"}), "application/json", 400)
+        if side not in ("CE", "PE"):
+            return self._send(json.dumps({"live": False, "error": "bad option type"}), "application/json", 400)
+        market = self._current_market()
+        expiry = ((qs or {}).get("expiry") or [None])[0]
+        q = self._contract_live(user, market, key, strike, side, expiry)
+        return self._send(json.dumps(q or {"live": False, "t": int(time.time())}), "application/json")
+
     def _option_candles(self, user, rest, qs=None):
         """Candles for ONE option contract - the strike a signal or ticket names.
 
@@ -2273,7 +2334,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         ck = (key, strike, side, str(expiry), tf)
         hit = self._OPT_CACHE.get(ck)
         if hit and time.time() - hit[0] < self._OPT_CACHE_S:
-            return self._send(json.dumps(hit[1]), "application/json")
+            return self._send(json.dumps(dict(hit[1], live=self._contract_live(user, market, key, strike, side, expiry))),
+                              "application/json")
 
         feed = feeds.for_user(user, market)
         provider, state, detail = feed._provider()
@@ -2334,7 +2396,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if len(self._OPT_CACHE) > 64:
             for k, _v in sorted(self._OPT_CACHE.items(), key=lambda kv: kv[1][0])[:32]:
                 self._OPT_CACHE.pop(k, None)
-        return self._send(json.dumps(payload), "application/json")
+        # The live quote is never cached: it is what moves between fetches.
+        return self._send(json.dumps(dict(payload, live=self._contract_live(user, market, key, strike, side, expiry))),
+                          "application/json")
 
     def _candles(self, user, key, qs=None):
         """The bars themselves, as JSON, for the interactive chart.
@@ -3648,6 +3712,8 @@ table.watch .werr{color:var(--warn);text-align:left;white-space:normal}
 .ochd .t{font-weight:700;font-size:14px;color:var(--ink)}
 .ochd .s{font-size:12px;color:var(--ink-3);margin-top:2px}
 .ochd .sp{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
+.ochd .oclive{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ocpnl{font-weight:650;font-size:12px;padding:3px 10px;border-radius:7px;white-space:nowrap}
 .occv{display:block;width:100%;height:330px;background:var(--bg);cursor:crosshair}
 .ocnote{padding:9px 14px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--bd)}
 .lbtn.ocbtn{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:650}
@@ -3934,14 +4000,17 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div style="min-width:0">
     <div class="t" id="octitle">&mdash;</div>
     <div class="s" id="ocsub"></div>
+    <div class="s oclive" id="oclive"></div>
    </div>
    <div class="sp">
+    <span class="ocpnl" id="ocpnl" hidden></span>
+    <button class="lbtn ocbtn otf" data-otf="1m" type="button">1m</button>
     <button class="lbtn ocbtn otf" data-otf="5m" type="button">5m</button>
     <button class="lbtn ocbtn otf" data-otf="15m" type="button">15m</button>
     <button class="lbtn ocbtn" id="occlose" type="button">Close</button>
    </div>
   </div>
-  <canvas class="occv" id="occv"></canvas>
+  <div class="occv" id="occv" role="img" aria-label="Candlestick chart of this contract's premium, moving with its live price"></div>
   <div class="ocnote" id="ocnote"></div>
  </div>
 </div>
@@ -4263,7 +4332,12 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div id="tvwrap"></div>
    <div class="gnote">TradingView&rsquo;s own chart page, in a frame, with all of its indicators and drawing tools. It
     loads from tradingview.com only while this tab is open; nothing on it is read by this tool or by Ask TradePicker.
-    Sign in to TradingView inside the frame to keep your own layouts.</div>
+    <b>Live or delayed:</b> Bitcoin (Bitstamp) is live. Nifty, Bank Nifty and Sensex are <b>delayed 15 minutes</b> by
+    TradingView&rsquo;s exchange licence unless you sign in inside the frame with an account that has real-time NSE/BSE
+    data - the tool cannot change that. For prices live to the tick use this tool&rsquo;s own Chart tab; contract
+    (strike) charts, from the option chain or a ticket&rsquo;s View chart, are drawn with TradingView&rsquo;s open-source
+    Lightweight Charts on the tool&rsquo;s own streamed prices, because TradingView does not list these option
+    contracts at all.</div>
   </div>
  </section>
 
@@ -6277,11 +6351,97 @@ function chartTF(tf){
 // ---------------------------------------------------------------------------
 // ONE CONTRACT'S CHART
 // The chart on the page is the index. This is the option you would actually
-// buy: its premium, from Zerodha's own history for that instrument, refreshed
-// while the box is open. Read-only, like everything else here.
+// buy: TradingView's Lightweight Charts (open source, served from this server
+// - vendor/) drawing the contract's own candles, the open ticket's levels as
+// price lines, and a forming candle moved by the contract's streamed price
+// every second. It used to be a hand-drawn canvas that re-fetched every 20
+// seconds and never saw a tick (the user's report, 21 Sep 2026); TradingView's
+// own site does not list these contracts, so the chart is theirs but the data
+// is the tool's. Read-only, like everything else here.
 // ---------------------------------------------------------------------------
+const IST_S = 19800;                                   // the axis reads IST wall-clock
+const OC_STEP = {"1m": 60, "5m": 300, "15m": 900};     // seconds; each divides the IST offset evenly
+const OC_WORD = {"1m": "one", "5m": "five", "15m": "fifteen"};
 const OC = {open:false, k:null, strike:null, side:null, expiry:"", tf:"5m",
-            data:null, timer:null, hover:null};
+            data:null, timer:null, ticker:null, chart:null, series:null, lines:[], levelVals:[],
+            last:null, lib:null, fitted:false};
+
+// The candle a price at server-time t (seconds) belongs to, merged into the
+// last one drawn: the same candle -> its high, low and close move; a new
+// candle -> it opens at that price; a price older than the last candle -> null.
+// Pure, so it is tested on its own.
+function ocMerge(last, price, t, step){
+  const time = Math.floor(t / step) * step + IST_S;
+  if(last && last.time === time){
+    return {time, open: last.open, high: Math.max(last.high, price), low: Math.min(last.low, price), close: price};
+  }
+  if(last && last.time > time) return null;
+  return {time, open: price, high: price, low: price, close: price};
+}
+
+// The server's candles [iso time, o, h, l, c, volume] as the library wants
+// them: ascending, one per time, on the IST-shifted axis.
+function ocBars(candles){
+  const out = [];
+  for(const b of candles || []){
+    const t = Math.floor(Date.parse(b[0]) / 1000);
+    const o = Number(b[1]), h = Number(b[2]), l = Number(b[3]), c = Number(b[4]);
+    if(!isFinite(t) || ![o, h, l, c].every(isFinite)) continue;
+    out.push({time: t + IST_S, open: o, high: h, low: l, close: c});
+  }
+  out.sort((x, y) => x.time - y.time);
+  return out.filter((x, i) => i === 0 || x.time !== out[i - 1].time);
+}
+
+// The library is 190 KB and only this popup uses it: loaded on first open.
+function ocLib(){
+  if(window.LightweightCharts) return Promise.resolve();
+  if(OC.lib) return OC.lib;
+  OC.lib = new Promise((ok, no) => {
+    const el = document.createElement("script");
+    el.src = "/vendor/lightweight-charts.js";
+    el.onload = ok;
+    el.onerror = () => { OC.lib = null; no(new Error("chart library")); };
+    document.head.appendChild(el);
+  });
+  return OC.lib;
+}
+
+// The library scales the price axis to the candles only, so a stop or target
+// outside their range would sit off-screen - the very levels a trade is judged
+// against. This widens the range to include the open ticket's levels.
+function ocScale(original){
+  const r = original();
+  if(!r || !r.priceRange || !OC.levelVals.length) return r;
+  let lo = r.priceRange.minValue, hi = r.priceRange.maxValue;
+  for(const v of OC.levelVals){ lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  return {priceRange: {minValue: lo, maxValue: hi}, margins: r.margins};
+}
+
+function ocChart(){
+  const LW = window.LightweightCharts, el = $("occv");
+  if(!LW || !el) return null;
+  const C = {bg: css("--bg") || "#0b0e14", ink3: css("--ink-3") || "#8a93a6", bd: css("--bd") || "#232a38",
+             up: css("--up") || "#2fbf71", down: css("--down") || "#e5534b"};
+  const opts = {
+    autoSize: true,
+    layout: {background: {type: LW.ColorType.Solid, color: C.bg}, textColor: C.ink3, fontSize: 11},
+    grid: {vertLines: {color: C.bd}, horzLines: {color: C.bd}},
+    rightPriceScale: {borderColor: C.bd},
+    timeScale: {borderColor: C.bd, timeVisible: true, secondsVisible: false},
+    crosshair: {mode: LW.CrosshairMode.Normal},
+  };
+  const sopts = {upColor: C.up, downColor: C.down, borderVisible: false, wickUpColor: C.up, wickDownColor: C.down,
+                 priceFormat: {type: "price", precision: 2, minMove: 0.01}, autoscaleInfoProvider: ocScale};
+  if(!OC.chart){
+    OC.chart = LW.createChart(el, opts);
+    OC.series = OC.chart.addSeries(LW.CandlestickSeries, sopts);
+  } else {
+    OC.chart.applyOptions(opts);          // the theme may have changed since it was last open
+    OC.series.applyOptions(sopts);
+  }
+  return OC.chart;
+}
 
 function ocOpenFrom(el){
   if(!el) return;
@@ -6291,33 +6451,42 @@ function ocOpenFrom(el){
 function ocOpen(k, strike, side, expiry){
   if(!k || strike == null || !side) return;
   OC.open = true; OC.k = k; OC.strike = String(strike); OC.side = side;
-  OC.expiry = expiry || ""; OC.data = null; OC.hover = null;
+  OC.expiry = expiry || ""; OC.data = null; OC.last = null; OC.fitted = false; OC.levelVals = [];
   $("oc").hidden = false;
   $("octitle").textContent = `${k} ${strike} ${side === "CE" ? "Call" : "Put"}`;
   $("ocsub").textContent = "Loading this contract's own candles…";
+  $("oclive").textContent = "";
   $("ocnote").textContent = "";
   document.querySelectorAll(".lbtn.otf").forEach(b => b.classList.toggle("on", b.dataset.otf === OC.tf));
-  ocDraw();
-  ocFetch();
+  ocPnl();
+  ocLib().then(() => {
+    if(!OC.open) return;
+    ocChart();
+    if(OC.series) OC.series.setData([]);
+    ocFetch();
+    ocTickStart();
+  }).catch(() => { $("ocnote").textContent = "The chart library could not be loaded."; });
   if(OC.timer) clearInterval(OC.timer);
-  OC.timer = setInterval(ocFetch, 20000);   // the cache on the server is 15s
+  OC.timer = setInterval(ocFetch, 60000);   // completed candles from the venue; the price moves every second
 }
 
 function ocClose(){
   OC.open = false;
   $("oc").hidden = true;
   if(OC.timer){ clearInterval(OC.timer); OC.timer = null; }
+  if(OC.ticker){ clearInterval(OC.ticker); OC.ticker = null; }
 }
 
 function ocTF(tf){
-  if(tf === OC.tf) return;
-  OC.tf = tf; OC.data = null;
+  if(tf === OC.tf || !OC_STEP[tf]) return;
+  OC.tf = tf; OC.data = null; OC.last = null; OC.fitted = false;
   document.querySelectorAll(".lbtn.otf").forEach(b => b.classList.toggle("on", b.dataset.otf === tf));
-  ocDraw(); ocFetch();
+  if(OC.series) OC.series.setData([]);
+  ocFetch();
 }
 
 function ocFetch(){
-  if(!OC.open) return;
+  if(!OC.open || !OC.series) return;
   const k = OC.k, s = OC.strike, side = OC.side, tf = OC.tf;
   fetch(`/api/option_candles/${encodeURIComponent(k)}/${encodeURIComponent(s)}/${encodeURIComponent(side)}`
         + `?tf=${encodeURIComponent(tf)}&expiry=${encodeURIComponent(OC.expiry || "")}`,
@@ -6325,108 +6494,104 @@ function ocFetch(){
     .then(r => r.json())
     .then(d => {
       if(!OC.open || OC.k !== k || OC.strike !== s || OC.side !== side || OC.tf !== tf) return;
-      OC.data = d;
-      const n = (d.candles || []).length;
-      $("ocsub").textContent = d.expiry ? `Expiry ${d.expiry}` : "";
-      $("ocnote").textContent = d.error ? d.error
-        : n ? `${n} ${tf === "5m" ? "five" : "fifteen"}-minute candles of this contract's premium, from Zerodha. `
-              + "Updates every 20 seconds while this is open."
-            : "No candles for this contract yet.";
-      ocDraw();
+      ocApply(d);
     })
     .catch(() => { $("ocnote").textContent = "Could not load this contract's chart."; });
 }
 
-function ocDraw(){
-  const cv2 = $("occv");
-  if(!cv2) return;
-  const box = cv2.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.max(240, Math.floor(box.width)), h = Math.max(160, Math.floor(box.height));
-  cv2.width = w * dpr; cv2.height = h * dpr;
-  const g = cv2.getContext("2d");
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const C2 = {bg: css("--bg"), ink: css("--ink"), ink3: css("--ink-3"),
-              up: css("--up"), down: css("--down"), bd: css("--bd"), warn: css("--warn")};
-  g.fillStyle = C2.bg; g.fillRect(0, 0, w, h);
-
-  const bars = ((OC.data || {}).candles) || [];
-  if(!bars.length){
-    g.fillStyle = C2.ink3; g.font = "13px -apple-system,sans-serif"; g.textAlign = "center";
-    g.fillText((OC.data && OC.data.error) ? "No chart for this contract" : "loading…", w/2, h/2);
-    return;
+function ocApply(d){
+  OC.data = d;
+  const bars = ocBars(d.candles);
+  // The candle the ticks have been building is newer than the venue's copy of
+  // it: keep its extremes and its close rather than snapping back.
+  const f = OC.last;
+  if(f && bars.length){
+    const last = bars[bars.length - 1];
+    if(f.time === last.time){
+      last.high = Math.max(last.high, f.high); last.low = Math.min(last.low, f.low); last.close = f.close;
+    } else if(f.time > last.time){
+      bars.push(f);
+    }
   }
-  const P = {l:0, r:62, t:10, b:20};
-  const plotW = w - P.l - P.r, plotH = h - P.t - P.b;
-  const lv = ((OC.data || {}).levels) || {};
-  let hi = -Infinity, lo = Infinity;
-  for(const b of bars){ hi = Math.max(hi, b[2]); lo = Math.min(lo, b[3]); }
-  for(const v of [lv.t1, lv.t2, lv.t3, lv.stop, lv.entry]){
-    if(v != null){ hi = Math.max(hi, v); lo = Math.min(lo, v); }
-  }
-  const span = (hi - lo) || 1;
-  hi += span * 0.06; lo -= span * 0.06;
-  const Y = v => P.t + (hi - v) / (hi - lo) * plotH;
-  const bw = plotW / bars.length;
+  ocLevels(d.levels || {});
+  OC.series.setData(bars);
+  OC.last = bars.length ? bars[bars.length - 1] : null;
+  if(!OC.fitted && bars.length){ OC.chart.timeScale().fitContent(); OC.fitted = true; }
+  $("ocsub").textContent = d.expiry ? `Expiry ${d.expiry}` : "";
+  const n = (d.candles || []).length;
+  $("ocnote").textContent = d.error ? d.error
+    : n ? `${n} ${OC_WORD[OC.tf] || ""}-minute candles of this contract's premium. The last candle moves with the `
+          + "contract's live price every second while it is streaming."
+        : "No candles for this contract yet.";
+  if(d.live) ocQuote(d.live);
+}
 
-  // the frozen levels of an open ticket on this very contract
-  const rung = [[lv.t1,"T1",C2.up],[lv.t2,"T2",C2.up],[lv.t3,"T3",C2.up],
-                [lv.stop,"SL",C2.down],[lv.entry,"Entry",C2.warn]];
-  for(const [v, label, colour] of rung){
+// The open ticket's frozen levels, as price lines on the axis.
+function ocLevels(lv){
+  const LW = window.LightweightCharts;
+  if(!OC.series || !LW) return;
+  for(const ln of OC.lines) OC.series.removePriceLine(ln);
+  OC.lines = [];
+  OC.levelVals = [lv.t1, lv.t2, lv.t3, lv.stop, lv.entry].filter(v => v != null).map(Number).filter(isFinite);
+  const rung = [[lv.t1, "T1", css("--up")], [lv.t2, "T2", css("--up")], [lv.t3, "T3", css("--up")],
+                [lv.stop, "SL", css("--down")], [lv.entry, "Entry", css("--warn")]];
+  for(const [v, title, color] of rung){
     if(v == null) continue;
-    const y = Y(v);
-    if(y < P.t || y > P.t + plotH) continue;
-    g.save();
-    g.strokeStyle = colour; g.setLineDash([5,4]); g.lineWidth = 1;
-    g.beginPath(); g.moveTo(P.l, Math.round(y)+0.5); g.lineTo(w-P.r, Math.round(y)+0.5); g.stroke();
-    g.setLineDash([]);
-    g.fillStyle = colour; g.fillRect(w-P.r, y-8, P.r, 16);
-    g.fillStyle = onColour(colour); g.font = "10px -apple-system,sans-serif";
-    g.textAlign = "left"; g.textBaseline = "middle";
-    g.fillText(`${label} ${Number(v).toFixed(1)}`, w-P.r+4, y);
-    g.restore();
+    OC.lines.push(OC.series.createPriceLine({price: Number(v), color: color || "#888", lineWidth: 1,
+                                             lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title}));
   }
+}
 
-  for(let i = 0; i < bars.length; i++){
-    const [, o, hg, lw, c] = bars[i];
-    const x = P.l + i * bw + bw/2;
-    const up = c >= o, colour = up ? C2.up : C2.down;
-    g.strokeStyle = colour; g.fillStyle = colour; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(Math.round(x)+0.5, Y(hg)); g.lineTo(Math.round(x)+0.5, Y(lw)); g.stroke();
-    const body = Math.max(1, Math.min(bw * 0.62, bw - 1));
-    const top = Math.min(Y(o), Y(c)), tall = Math.max(1, Math.abs(Y(c) - Y(o)));
-    if(bw < 2.2){ g.fillRect(Math.round(x), top, 1, tall); }
-    else if(up){
-      g.fillStyle = C2.bg; g.fillRect(x-body/2, top, body, tall);
-      g.strokeRect(Math.round(x-body/2)+0.5, Math.round(top)+0.5, Math.round(body), Math.round(tall));
-    } else { g.fillRect(x-body/2, top, body, tall); }
+function ocTickStart(){
+  if(OC.ticker) clearInterval(OC.ticker);
+  OC.ticker = setInterval(ocTick, 1000);
+  ocTick();
+}
+
+function ocTick(){
+  if(!OC.open || document.hidden) return;
+  const k = OC.k, s = OC.strike, side = OC.side;
+  fetch(`/api/option_tick/${encodeURIComponent(k)}/${encodeURIComponent(s)}/${encodeURIComponent(side)}`
+        + `?expiry=${encodeURIComponent(OC.expiry || "")}`, {cache:"no-store"})
+    .then(r => r.json())
+    .then(q => { if(OC.open && OC.k === k && OC.strike === s && OC.side === side) ocQuote(q); })
+    .catch(() => {});
+}
+
+// One quote: the forming candle moves when it is live, and the line under the
+// title says what the price is and whether it is streaming.
+function ocQuote(q){
+  const el = $("oclive");
+  if(!q || q.ltp == null){ if(el) el.textContent = ""; return; }
+  if(q.live && OC.series){
+    const nb = ocMerge(OC.last, Number(q.ltp), q.t, OC_STEP[OC.tf] || 300);
+    if(nb){ OC.series.update(nb); OC.last = nb; }
   }
+  if(!el) return;
+  const f2 = v => Number(v).toFixed(2);
+  el.textContent = `${q.live ? "Live" : "Last"} ${f2(q.ltp)}`
+    + (q.bid != null && q.ask != null ? ` · bid ${f2(q.bid)} / ask ${f2(q.ask)}` : "")
+    + (q.oi != null ? ` · OI ${Number(q.oi).toLocaleString()}` : "")
+    + (q.live ? "" : " · not streaming right now");
+}
 
-  // last premium, on the axis
-  const last = bars[bars.length-1];
-  const y = Y(last[4]);
-  g.save();
-  g.strokeStyle = C2.ink3; g.setLineDash([2,3]); g.lineWidth = 1;
-  g.beginPath(); g.moveTo(P.l, Math.round(y)+0.5); g.lineTo(w-P.r, Math.round(y)+0.5); g.stroke();
-  g.setLineDash([]);
-  const bg = last[4] >= last[1] ? C2.up : C2.down;
-  g.fillStyle = bg; g.fillRect(w-P.r, y-9, P.r, 18);
-  g.fillStyle = onColour(bg); g.font = "600 11px -apple-system,sans-serif";
-  g.textAlign = "left"; g.textBaseline = "middle";
-  g.fillText(Number(last[4]).toFixed(2), w-P.r+5, y);
-  g.restore();
-
-  // the time the last candle belongs to, bottom left
-  g.fillStyle = C2.ink3; g.font = "10px -apple-system,sans-serif";
-  g.textAlign = "left"; g.textBaseline = "top";
-  const t0 = String(bars[0][0] || "").slice(11,16), t1 = String(last[0] || "").slice(11,16);
-  g.fillText(`${t0} → ${t1} IST`, 2, P.t + plotH + 4);
-
-  // the open ticket's P&L, when this popup IS that contract
+// The open ticket's P&L, when this popup IS that contract - kept in step with
+// the signal card.
+function ocPnl(){
+  const el = $("ocpnl");
+  if(!el) return;
   const tk = openTicketFor(OC.k);
-  if(tk && String(tk.strike) === String(OC.strike) && tk.option_type === OC.side){
-    pnlBadge(g, P.l + 8, P.t + 6, tk);
+  if(OC.open && tk && String(tk.strike) === String(OC.strike) && tk.option_type === OC.side){
+    const p = ticketPnl(tk);
+    if(p){
+      const bg = p.sign > 0 ? css("--up") : p.sign < 0 ? css("--down") : "#1b1e26";
+      el.textContent = `${tk.index} ${tk.strike} ${tk.option_type} · P&L ${p.text}`;
+      el.style.background = bg; el.style.color = onColour(bg);
+      el.hidden = false;
+      return;
+    }
   }
+  el.hidden = true;
 }
 
 document.addEventListener("click", e => {
@@ -6437,9 +6602,7 @@ document.addEventListener("click", e => {
   if(e.target && (e.target.id === "occlose" || e.target.id === "oc")) ocClose();
 });
 document.addEventListener("keydown", e => { if(e.key === "Escape" && OC.open) ocClose(); });
-window.addEventListener("resize", () => { if(OC.open) ocDraw(); });
-// Candles refresh every 20s; the P&L badge keeps pace with the signal card.
-setInterval(() => { if(OC.open && !document.hidden) ocDraw(); }, 3000);
+setInterval(() => { if(OC.open && !document.hidden) ocPnl(); }, 1500);
 
 function chartWant(key){
   const stale = Date.now() - CH.at > 30000;

@@ -40,6 +40,7 @@ EXCLUDED_TABS = {
 EXCLUDED_ROUTES = {
     "/api/tick": "the same prices and readings as the signal, four times a second",
     "/api/marketbot": "the bot's own status",
+    "/api/option_tick/": "one contract's live quote, once a second - the same figures are in get_option_chart's live block",
     "/api/admin/users": "operator screen: other users' accounts",
 }
 PRIVATE_KEYS = {"user", "account", "email", "kite", "kite_user_id", "user_id", "kite_token",
@@ -296,7 +297,10 @@ SOURCES = [
                 "bars": {"type": "integer", "description": "How many of the newest candles, 5-200; default 60."}}},
     {"name": "get_option_chart", "tabs": ("chart",), "routes": ("/api/option_candles/",), "fn": _option_chart,
      "description": "Candles for ONE option contract's premium - the strike a signal or ticket names - as the "
-                    "chart's option view shows it.",
+                    "chart's option view shows it, plus its `live` block: the contract's price right now off the "
+                    "tool's own socket (ltp, bid, ask, open interest, its age in seconds, and whether it is "
+                    "streaming) - the same quote that moves the chart's last candle every second. live is null "
+                    "when the contract is not streamed (after the bell, or a strike outside the chain's window).",
      "params": {"index": INDEX, "strike": {"type": "number", "description": "Strike price."},
                 "option_type": {"type": "string", "enum": ["CE", "PE"]},
                 "expiry": {"type": "string", "description": "YYYY-MM-DD; default the nearest."},

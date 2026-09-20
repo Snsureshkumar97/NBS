@@ -60,11 +60,11 @@ check("a ticket tracked on the index: points, signed for a put",
 check("the sign is in the text, not only the colour", '"+" : "\u2212"' in body and body.count('"+" : "\u2212"') == 3)
 
 print("4. THE CONTRACT POPUP")
-check("the badge when the popup IS the open ticket's contract",
-      "String(tk.strike) === String(OC.strike) && tk.option_type === OC.side" in SRC
-      and "pnlBadge(g, P.l + 8, P.t + 6, tk);" in SRC)
+check("the badge when the popup IS the open ticket's contract - the same P&L the signal card computes",
+      "String(tk.strike) === String(OC.strike) && tk.option_type === OC.side" in SRC.split("function ocPnl()")[1][:1200]
+      and "ticketPnl(tk)" in SRC.split("function ocPnl()")[1][:1200])
 check("it keeps pace with the signal card while open",
-      "setInterval(() => { if(OC.open && !document.hidden) ocDraw(); }, 3000);" in SRC)
+      "setInterval(() => { if(OC.open && !document.hidden) ocPnl(); }, 1500);" in SRC)
 
 print("CHART PNL TEST PASSED" if not fails else f"CHART PNL TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

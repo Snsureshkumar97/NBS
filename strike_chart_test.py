@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 
 os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()      # nothing touches the real logs
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -57,11 +58,16 @@ class FakeBook:
         return {"ticket": self.ticket, "wait": None}
 
 
+QUOTE = {"q": None}         # what the fake feed's socket says about the contract right now
+
+
 class FakeFeed:
     def __init__(self, provider, ticket=None):
         self.prov, self.tickets = provider, FakeBook(ticket)
     def _provider(self):
         return (self.prov, "ok", "")
+    def contract_quote(self, name, strike, side, expiry=None):
+        return QUOTE["q"]
 
 
 def call(rest, qs=None, provider=None, ticket=None, market="nse_index"):
@@ -157,14 +163,37 @@ SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.
 check("the endpoint is routed", '/api/option_candles/' in SRC and 'self._option_candles(' in SRC)
 check("the signal card has a View chart button", 'id="ocopen"' in SRC and ">View chart<" in SRC)
 check("the open ticket's contract line has one too", "ocOpenFrom(this)" in SRC)
-check("the popup exists with its own canvas", 'class="oc" id="oc"' in SRC and 'id="occv"' in SRC)
+check("the popup exists, with a container for TradingView's Lightweight Charts and a live line",
+      'class="oc" id="oc"' in SRC and 'id="occv"' in SRC and 'id="oclive"' in SRC
+      and "createChart(" in SRC and "CandlestickSeries" in SRC)
 check("it closes on Escape", 'e.key === "Escape" && OC.open' in SRC)
 check("it refreshes itself while open", "setInterval(ocFetch" in SRC)
-check("its tags use the readable-text helper", "onColour(" in SRC.split("function ocDraw()")[1][:4000])
+check("its P&L tag uses the readable-text helper", "onColour(" in SRC.split("function ocPnl()")[1][:1500])
 # A fixed overlay inside a card would be positioned against the card, because
 # the 3D layer transforms cards - so the box must sit outside .wrap.
 check("the popup sits outside the transformed .wrap",
       SRC.index('class="oc" id="oc"') < SRC.index('<aside class="side"'))
+
+print("7. THE LIVE QUOTE RIDES ON THE RESPONSE - THE BOT SEES IT TOO")
+web_server.Handler._OPT_CACHE.clear()
+QUOTE["q"] = {"ltp": 109.8, "bid": 109.7, "ask": 110.0, "oi": 5000, "at": time.time() - 1, "source": "chain"}
+p, _, _ = call("NIFTY/23100/PE", {"tf": ["5m"]})
+lv = p.get("live") or {}
+check("a fresh response carries the contract's live quote: price, bid, ask, OI, its age and that it is live",
+      lv.get("ltp") == 109.8 and lv.get("bid") == 109.7 and lv.get("ask") == 110.0 and lv.get("oi") == 5000
+      and lv.get("live") is True and 0.5 <= lv.get("age") <= 5 and lv.get("source") == "chain" and isinstance(lv.get("t"), int), lv)
+QUOTE["q"] = {"ltp": 111.2, "bid": None, "ask": None, "oi": 5100, "at": time.time() - 30, "source": "chain"}
+p2, _, prov2 = call("NIFTY/23100/PE", {"tf": ["5m"]})
+check("a cached response (no second venue fetch) still carries the NEW quote - it is never cached",
+      len(prov2.fetched) == 0 and (p2.get("live") or {}).get("ltp") == 111.2, (p2.get("live"), prov2.fetched))
+check("a quote older than 15 seconds is shown as not live, with its price", (p2["live"]).get("live") is False and p2["live"]["age"] >= 29)
+QUOTE["q"] = None
+web_server.Handler._OPT_CACHE.clear()
+p3, _, _ = call("NIFTY/23100/PE", {"tf": ["5m"]})
+check("a contract that is not streamed: live is null, the candles are unaffected", p3.get("live") is None and len(p3["candles"]) == 3)
+import bot_data
+check("Ask TradePicker's and the AI desk's option-chart lookup returns the whole response, so the live block reaches them",
+      "return d" in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot_data.py")).read().split("def _option_chart(")[1][:900])
 
 feeds.for_user = _real_for_user
 print("STRIKE CHART TEST PASSED" if not fails else f"STRIKE CHART TEST FAILED: {fails}")
