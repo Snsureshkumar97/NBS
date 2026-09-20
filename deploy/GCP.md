@@ -73,11 +73,24 @@ this Mac, one command at a time, each shown before it runs.
    approve in your Tailscale account), then `sudo tailscale funnel --bg 5055`.
    The public address stays exactly **https://nbs-signal-tool.tail7b2558.ts.net**,
    so nothing changes for you, and the Kite app's redirect URL stays valid.
+
+   *What happened on 20 Sep 2026:* the VM registered while the Mac's old
+   device still held the name and came up as `nbs-signal-tool-1`. Deleting the
+   old device and renaming in the console did **not** move the node's MagicDNS
+   name, and neither did `tailscale set --hostname` or a plain logout/login
+   (same device, same name). What worked was a fresh identity:
+   `sudo systemctl stop tailscaled && sudo rm /var/lib/tailscale/tailscaled.state
+   && sudo systemctl start tailscaled && sudo tailscale up --hostname=nbs-signal-tool`
+   (one more approval link), then `sudo tailscale funnel --bg 5055`. So: remove
+   the old device **before** the VM's first `tailscale up`, and the plain name
+   comes first time.
 3. On the VM: `sudo systemctl restart nbs-signal-tool`; I check the page,
    the feeds and the tickets from the outside.
 4. **You register the VM's static IP** on developers.kite.trade (your app →
    IP whitelist) and on your Delta Exchange API key's whitelist. Both venues
-   see the tool come from that one address from then on.
+   see the tool come from that one address from then on. If adding the
+   whitelist on Delta creates or rotates the key, re-enter the new key and
+   secret on the tool's Delta page - it checks them from the VM's own address.
 5. You log in to Zerodha on the new server the next morning as usual (the
    token does not move — it is cleared every morning anyway).
 
