@@ -39,8 +39,9 @@ missing = [t for t in tabs if t not in covered and t not in bd.EXCLUDED_TABS]
 check("the page's tab list was found", len(tabs) >= 15, tabs)
 check("every tab is covered by a bot source, or excluded with a reason", not missing,
       f"add a source in bot_data.py for: {missing}")
-check("the exclusions are only the bot itself and the operator screen",
-      set(bd.EXCLUDED_TABS) == {"marketbot", "admin"})
+check("the exclusions are only the bot itself, the operator screen, and TradingView's framed page",
+      set(bd.EXCLUDED_TABS) == {"marketbot", "admin", "tradingview"}
+      and "frame" in bd.EXCLUDED_TABS["tradingview"], bd.EXCLUDED_TABS)
 check("no source claims a tab that does not exist", not (covered - set(tabs)), covered - set(tabs))
 
 g0 = SRC.index("    def do_GET(")

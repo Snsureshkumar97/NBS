@@ -34,6 +34,7 @@ LIST_CAPS = (80, 40, 15, 5)
 EXCLUDED_TABS = {
     "marketbot": "the bot's own chat",
     "admin": "operator screen: other users' accounts",
+    "tradingview": "TradingView's own chart page in a frame: nothing of the tool's to read",
 }
 # GET routes that carry no section data of their own.
 EXCLUDED_ROUTES = {
@@ -250,6 +251,10 @@ def _greeks(ctx, args):
     return _page_call(ctx, "_api_greeks", ctx.user, _qs(index=_index(ctx, args)))
 
 
+def _gann(ctx, args):
+    return _page_call(ctx, "_api_gann", ctx.user, _qs(index=_index(ctx, args)))
+
+
 def _news(ctx, args):
     return _page_call(ctx, "_api_news", ctx.user)
 
@@ -343,6 +348,12 @@ SOURCES = [
                     "leads) and Seasonality (how this time of month or year has behaved).",
      "params": {"section": {"type": "string", "enum": ["all", *ANALYTICS_SECTIONS],
                             "description": "One part, or all; default all."}}},
+    {"name": "get_gann", "tabs": ("gann",), "routes": ("/api/gann",), "fn": _gann,
+     "description": "The Gann levels tab: Square of Nine levels around the live spot - the 45-degree grid with the "
+                    "nearest support and resistance and their distance in ATR, the 90/180/360-degree rungs - and the "
+                    "volume oscillator (EMA5 against EMA20 of volume). Reference levels the tool tested and does not "
+                    "trade on; say so if asked whether they carry an edge.",
+     "params": {"index": INDEX}},
     {"name": "get_greeks", "tabs": ("greeks",), "routes": ("/api/greeks",), "fn": _greeks,
      "description": "The Greeks & IV tab: implied volatility at the money and across the wings, skew, and each "
                     "strike's delta, gamma, theta and vega.",
@@ -368,7 +379,7 @@ SOURCES = [
 ]
 
 _BY_NAME = {s["name"]: s for s in SOURCES}
-LABELS = {"get_signal": "Signal", "get_chart": "Chart", "get_option_chart": "Option chart",
+LABELS = {"get_signal": "Signal", "get_gann": "Gann levels", "get_chart": "Chart", "get_option_chart": "Option chart",
           "get_option_chain": "Option chain", "get_oi_clock": "OI clock", "get_watchlist": "Watchlist",
           "get_journal": "Journal", "get_market_map": "Market map", "get_constituents": "Constituents",
           "get_momentum_spikes": "Momentum spikes", "run_stock_screener": "Screener",

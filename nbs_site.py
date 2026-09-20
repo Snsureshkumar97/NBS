@@ -2060,8 +2060,11 @@ def security_page(user=None, record=None):
     issued, not tied to a person</td></tr>
   </table>
   <p>There is no analytics, no third-party script, and nothing is loaded from
-   another domain — the pages you are reading declare a content security policy
-   that forbids it. No payment details are collected anywhere, because nothing
+   another domain — with one exception you open by hand: the TradingView tab
+   shows TradingView&rsquo;s own chart page in a frame, from tradingview.com,
+   only when you open that tab, and nothing on it is read by this tool. The
+   pages you are reading declare a content security policy that forbids
+   everything else. No payment details are collected anywhere, because nothing
    here is sold.</p>
  </section>
 

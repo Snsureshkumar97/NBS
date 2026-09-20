@@ -207,9 +207,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        # Nothing here loads anything external, so lock that down.
+        # Nothing here loads anything external, so lock that down - with one
+        # exception the user opens by hand: the TradingView tab frames
+        # TradingView's own chart page. A frame, never their script.
         self.send_header("Content-Security-Policy",
-                         "default-src 'self' 'unsafe-inline'; img-src 'self' data:")
+                         "default-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                         "frame-src https://*.tradingview.com https://*.tradingview-widget.com")
         self.send_header("X-Content-Type-Options", "nosniff")
         for k, v in getattr(self, "_extra_headers", []):
             self.send_header(k, v)
@@ -498,6 +501,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_spikes(user, qs)
             if path == "/api/analytics":
                 return self._api_analytics(user, qs)
+            if path == "/api/gann":
+                return self._api_gann(user, qs)
             if path == "/api/journal":
                 return self._api_journal(user, qs)
             if path == "/api/watchlist":
@@ -1415,6 +1420,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception:
             return reply(False, "The journal could not be saved just now.", 500)
         return reply(False, "Unknown action.", 400)
+
+    def _api_gann(self, user, qs):
+        """Gann Square of Nine levels around the live spot and the volume
+        oscillator, for one index of this market - both markets, since the
+        maths needs only a price. A calculator the user asked for; the study
+        that tested it as a filter is quoted in the payload."""
+        import gann
+        market = self._current_market()
+        names = config.instruments_in(market) if market else []
+        k = ((qs.get("index") or [""])[0] or "").strip().upper() or (names[0] if names else "")
+        if k not in names:
+            return self._send(json.dumps({"error": "Pick an index in this market first."}),
+                              "application/json", code=400)
+        feed = feeds.for_user(user, market)
+        snap = feed.snapshot()
+        spot = ((snap.get("indices") or {}).get(k) or {}).get("spot")
+        if spot is None:
+            spot = (getattr(feed, "spots", None) or {}).get(k)
+        try:
+            df, _rec = feed.candles(k)
+        except Exception:
+            df = None
+        return self._send(json.dumps(gann.report(k, spot, df), default=str), "application/json")
 
     def _api_analytics(self, user, qs):
         """The analyst's numbers: volatility, levels, internals, strength,
@@ -2848,6 +2876,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   border:1px solid var(--bd);border-radius:999px;padding:1px 7px;color:var(--ink-3)}
 .jbadge.mine{color:var(--accent);border-color:rgba(77,148,232,.45)}
 .jbadge.ai{color:#b07d15;border-color:rgba(176,125,21,.45)}
+.tvframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:0;border-radius:12px;background:#0b0e14}
 #jdaytbl td:nth-child(-n+3),#jdaytbl th:nth-child(-n+3),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
 #jdaytbl td.jnote{white-space:normal;min-width:180px;max-width:320px;color:var(--ink-2)}
 .rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
@@ -3824,6 +3853,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <p class="mgroup">Desk</p>
   <button class="tab" data-tab="signal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i>Signal</button>
   <button class="tab" data-tab="chart" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i>Chart</button>
+  <button class="tab" data-tab="tradingview" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14l3-4 3 3 4-6"/></svg></i>TradingView</button>
   <button class="tab" data-tab="chain" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i>Option chain</button>
   <button class="tab" data-tab="watchlist" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/></svg></i>Watchlist</button>
   <button class="tab" data-tab="journal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg></i>Journal</button>
@@ -3845,6 +3875,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
     <button class="tab" data-tab="vol" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M3 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg></i>Volatility</button>
     <button class="tab" data-tab="greeks" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4L4 20h16z"/></svg></i>Greeks &amp; IV</button>
     <button class="tab" data-tab="levels" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h16"/></svg></i>Levels</button>
+    <button class="tab" data-tab="gann" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M12 4v16M8 8h8v8H8z"/></svg></i>Gann levels</button>
     <button class="tab" data-tab="internals" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M10 20V5M15 20v-7M20 20v-4"/></svg></i>Internals</button>
     <button class="tab" data-tab="strength" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6 4 4 6-7"/><path d="M15 8h5v5"/></svg></i>Relative strength</button>
     <button class="tab" data-tab="season" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></i>Seasonality</button>
@@ -4123,6 +4154,16 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
  </section>
 
+ <section class="pane" data-pane="tradingview">
+  <div class="card" data-panel="tv" id="tvcard">
+   <p class="eyebrow" role="heading" aria-level="2">TradingView &middot; <span id="tvsym">&mdash;</span></p>
+   <div id="tvwrap"></div>
+   <div class="gnote">TradingView&rsquo;s own chart page, in a frame, with all of its indicators and drawing tools. It
+    loads from tradingview.com only while this tab is open; nothing on it is read by this tool or by Ask TradePicker.
+    Sign in to TradingView inside the frame to keep your own layouts.</div>
+  </div>
+ </section>
+
  <section class="pane" data-pane="chain">
   <div class="card" data-panel="clock" id="clockcard">
    <p class="eyebrow" role="heading" aria-level="2">Option clock &middot; open interest change in the window</p>
@@ -4348,6 +4389,25 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div class="scrwrap"><table class="scr" id="lvlfib"></table></div>
    <div class="gnote" id="lvlfibnote"></div>
   </div>
+ </section>
+
+ <section class="pane" data-pane="gann">
+  <div class="card" data-panel="gann" id="ganncard">
+   <p class="eyebrow" role="heading" aria-level="2">Gann Square of Nine &middot; <span id="gannidx">&mdash;</span></p>
+   <div class="aistats" id="gannstats"></div>
+   <div class="scrwrap"><table class="scr" id="gannladder"></table></div>
+   <div class="gnote" id="gannnote"></div>
+  </div>
+  <div class="card" data-panel="gannrungs" id="gannrungscard">
+   <p class="eyebrow" role="heading" aria-level="2">The bigger rungs &middot; 45&deg;, 90&deg;, 180&deg; and a full turn</p>
+   <div class="scrwrap"><table class="scr" id="gannrungs"></table></div>
+  </div>
+  <div class="card" data-panel="gannvo" id="gannvocard">
+   <p class="eyebrow" role="heading" aria-level="2">Volume oscillator &middot; EMA5 against EMA20 of volume</p>
+   <div class="aistats" id="gannvo"></div>
+   <div class="gnote" id="gannvonote"></div>
+  </div>
+  <div class="gnote" id="gannstudy"></div>
  </section>
 
  <section class="pane" data-pane="internals">
@@ -7461,11 +7521,11 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin", "journal", "screener", "aidesk"];
+              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk"];
 const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
-                   levels:"Levels",
+                   levels:"Levels", gann:"Gann levels", tradingview:"TradingView",
                    internals:"Internals", strength:"Relative strength",
                    season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal", screener:"Screener", aidesk:"AI trades"};
 // The phone menu. A drawer rather than a strip of pills, closed by picking a
@@ -7529,6 +7589,8 @@ function showTab(name, push){
   if(name === "pulse"){ pulseDraw(); screenFetch(); }
   if(name === "spikes") spikeFetch();
   if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
+  if(name === "gann") gannFetch();
+  if(name === "tradingview") tvPaint();
   if(name === "greeks") gkFetch();
   if(name === "admin") adminFetch();
   if(name === "journal") journalFetch();
@@ -8728,6 +8790,85 @@ function gkPaint(){
 // One fetch behind five panes. Every panel prints the sample it was computed
 // from: a statistic without its n is a claim, not a measurement.
 let ANA = null, ANA_AT = 0;
+// ============================================================ Gann levels
+// A calculator, not a signal: the levels are reference prices around the
+// live spot. Refetched when the tab opens and every 15 s while it is open.
+let GANN = null;
+async function gannFetch(){
+  try{
+    GANN = await (await fetch("/api/gann?index=" + encodeURIComponent(CUR || ""), {cache: "no-store"})).json();
+  }catch(e){ GANN = {error: "could not be read"}; }
+  gannPaint();
+}
+function gannPaint(){
+  const d = GANN || {};
+  if($("gannidx")) $("gannidx").textContent = d.index || CUR || "—";
+  if(d.error || d.spot == null){
+    if($("gannstats")) $("gannstats").innerHTML = `<div class="st"><b>—</b><span>${esc(d.error || d.note || "No live price yet.")}</span></div>`;
+    scrTable("gannladder", [], [], "No levels without a price."); scrTable("gannrungs", [], [], "");
+    if($("gannstudy")) $("gannstudy").textContent = d.study || "";
+    return;
+  }
+  const dp = d.index === "BTC" ? 0 : 2;
+  $("gannstats").innerHTML = [
+    ["Spot", num(d.spot, dp)],
+    ["Nearest support · 45°", num(d.nearest_support, dp) + (d.support_in_atr != null ? ` · ${num(d.support_in_atr, 2)} ATR` : "")],
+    ["Nearest resistance · 45°", num(d.nearest_resistance, dp) + (d.resistance_in_atr != null ? ` · ${num(d.resistance_in_atr, 2)} ATR` : "")],
+    ["ATR(14)", d.atr14 != null ? num(d.atr14, 0) : "—"],
+  ].map(([a, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(a)}</span></div>`).join("");
+  const rows = (d.ladder || []).slice().sort((a, b) => b.price - a.price);
+  scrTable("gannladder", rows,
+    [["Level", r => `<td class="sym" style="color:${r.side === "above" ? "var(--down)" : "var(--up)"}">${esc(num(r.price, dp))}</td>`],
+     ["Angle", r => `<td>${esc(String(r.angle))}°${r.cardinal ? " · cardinal" : ""}</td>`],
+     ["From spot", r => `<td style="color:${r.pct_from_spot >= 0 ? "var(--down)" : "var(--up)"}">${esc((r.pct_from_spot >= 0 ? "+" : "") + num(r.pct_from_spot, 2))}%</td>`],
+     ["Side", r => `<td>${r.side === "above" ? "resistance" : "support"}</td>`]],
+    "No levels.");
+  if($("gannnote")) $("gannnote").textContent = "The 45° grid of the square around the spot: each rung's square root is a "
+    + "quarter apart. Levels above the spot are read as resistance, below as support; cardinals (multiples of 90°) are "
+    + "the ones traders weight more.";
+  scrTable("gannrungs", d.rungs || [],
+    [["Angle", r => `<td class="sym">${esc(String(r.angle))}°</td>`],
+     ["Down", r => `<td style="color:var(--up)">${esc(num(r.down, dp))}</td>`],
+     ["Up", r => `<td style="color:var(--down)">${esc(num(r.up, dp))}</td>`]],
+    "");
+  const vo = d.volume_oscillator || {};
+  if($("gannvo")){
+    $("gannvo").innerHTML = vo.value_pct == null
+      ? `<div class="st"><b>—</b><span>${esc(vo.note || "No volume.")}</span></div>`
+      : [[`${vo.value_pct >= 0 ? "+" : ""}${num(vo.value_pct, 1)}%`, vo.rising ? "rising participation" : "fading participation"],
+         [vo.previous_bar_pct == null ? "—" : `${vo.previous_bar_pct >= 0 ? "+" : ""}${num(vo.previous_bar_pct, 1)}%`, "previous bar"],
+         [`EMA${vo.fast} / EMA${vo.slow}`, `volume of ${vo.volume_of || "the index"}`]]
+        .map(([v, a]) => `<div class="st"><b style="color:${String(v).startsWith("+") ? "var(--up)" : String(v).startsWith("-") ? "var(--down)" : ""}">${esc(v)}</b><span>${esc(a)}</span></div>`).join("");
+  }
+  if($("gannvonote")) $("gannvonote").textContent = vo.value_pct == null ? "" : "Above zero, the last five bars carried more "
+    + "volume than the last twenty; below, less. On the indices the volume is the near-month future's.";
+  if($("gannstudy")) $("gannstudy").textContent = d.study || "";
+}
+setInterval(() => { if(TAB === "gann" && !document.hidden) gannFetch(); }, 15000);
+
+// ============================================================ TradingView
+// TradingView's own chart page in a frame - the official embed that needs no
+// script of theirs. Rebuilt only when the symbol or theme changes.
+const TV_SYMBOL = {NIFTY: "NSE:NIFTY", BANKNIFTY: "NSE:BANKNIFTY", SENSEX: "BSE:SENSEX", BTC: "BITSTAMP:BTCUSD"};
+let TV_LAST = "";
+function tvPaint(){
+  const wrap = $("tvwrap");
+  if(!wrap) return;
+  const sym = TV_SYMBOL[CUR] || "NSE:NIFTY";
+  const dark = !(document.documentElement.dataset.theme === "light"
+                 || document.body.classList.contains("light"));
+  const key = sym + "|" + (dark ? "dark" : "light");
+  if($("tvsym")) $("tvsym").textContent = sym;
+  if(key === TV_LAST) return;
+  TV_LAST = key;
+  const q = new URLSearchParams({symbol: sym, interval: "15", theme: dark ? "dark" : "light", style: "1",
+                                 timezone: "Asia/Kolkata", withdateranges: "1", hide_side_toolbar: "0",
+                                 allow_symbol_change: "1", save_image: "0", locale: "en"});
+  wrap.innerHTML = `<iframe class="tvframe" title="TradingView chart for ${esc(sym)}" loading="lazy" `
+    + `referrerpolicy="no-referrer" allow="fullscreen" src="https://s.tradingview.com/widgetembed/?${q.toString()}"></iframe>`;
+}
+setInterval(() => { if(TAB === "tradingview") tvPaint(); }, 2000);
+
 async function anaFetch(force){
   if(!force && ANA && Date.now() - ANA_AT < 600000){ anaPaint(); return; }
   // The first read after a restart fetches candles for every index member,
