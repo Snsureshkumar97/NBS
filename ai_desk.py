@@ -109,6 +109,9 @@ class AIDesk:
         self.last_event_review = {}  # index -> epoch
         self.peak = {}               # trade_id -> best progress from entry, in premium
         self._tok = {}               # trade_id -> streamed contract handle
+        # The desk's own lots, per market - asked for on 20 Sep 2026. None
+        # means "the same as the rule tickets' lots setting".
+        self._lots = None
         self._tok_tried = {}
         self._load()
         self.thread = None
@@ -145,6 +148,7 @@ class AIDesk:
         self.last_candle = s.get("last_candle") or {}
         self.last_exit = s.get("last_exit") or {}
         self.recent = s.get("recent") or []
+        self._lots = float(s["lots"]) if s.get("lots") not in (None, "") else None
 
     def _save(self):
         with self.lock:
@@ -152,7 +156,7 @@ class AIDesk:
                     "decisions_by_index": self.decisions_by_index,
                     "tokens_today": self.tokens_today, "entries": self.entries, "contracts": self.contracts,
                     "last_candle": self.last_candle, "last_exit": self.last_exit,
-                    "recent": self.recent[:RECENT_KEPT]}
+                    "recent": self.recent[:RECENT_KEPT], "lots": self._lots}
             tmp = self.state_path + ".tmp"
             with open(tmp, "w") as fh:
                 json.dump(data, fh, default=str)
@@ -296,9 +300,37 @@ class AIDesk:
 
     def _sync_rules(self):
         rules = self.feed.tickets
-        self.book.lots = rules.lots
+        self.book.lots = self.lots
         self.book.capital = rules.capital
         self.book.risk_pct = rules.risk_pct
+
+    @property
+    def lots(self):
+        """How many lots each AI ticket is for: the desk's own setting, or the
+        rule tickets' lots until one is chosen."""
+        return self._lots if self._lots is not None else self.feed.tickets.lots
+
+    def set_lots(self, lots):
+        """Choose the desk's lots from this market's choices (the nearest one),
+        or None to follow the rule tickets' setting again. Open tickets keep
+        the lots they were opened with."""
+        choices = config.lot_choices(self.market)
+        if lots in (None, ""):
+            self._lots = None
+        else:
+            self._lots = float(min(choices, key=lambda c: abs(c - float(lots))))
+            if self._lots.is_integer():
+                self._lots = int(self._lots)
+        self._save()
+        return self.lots
+
+    @staticmethod
+    def _cost(entry, lot_size, lots):
+        """What the premium cost to buy: entry x lot size x lots, or None."""
+        try:
+            return round(float(entry) * float(lot_size) * float(lots or 1), 2)
+        except (TypeError, ValueError):
+            return None
 
     def entry_block(self, name):
         """Why no AI entry may be considered on this index right now, or None."""
@@ -329,7 +361,7 @@ class AIDesk:
         with self.feed.lock:
             pub = (self.feed.state["indices"].get(name) or {}).get("public") or {}
         try:
-            need = float(pub.get("ltp")) * int(pub.get("lot_size")) * float(self.feed.tickets.lots or 1)
+            need = float(pub.get("ltp")) * int(pub.get("lot_size")) * float(self.lots or 1)
         except (TypeError, ValueError):
             need = None
         return {"on": True, "funds_for_one_ticket_at_the_suggested_premium":
@@ -361,7 +393,7 @@ class AIDesk:
                 "entries_today": dict(self.entries), "max_entries_per_day": MAX_ENTRIES_PER_DAY,
                 "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": list(self.contracts),
                 "cooldown_minutes_after_an_exit": COOLDOWN_MIN, "min_reward_to_risk": MIN_REWARD_RISK,
-                "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.feed.tickets.lots,
+                "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.lots,
                 "give_back_rule": (f"the tool closes a trade on its own once it has covered "
                                    f"{GIVEBACK_ARM * 100:.0f}% of the way to its target and then hands back "
                                    f"{GIVEBACK_GIVE * 100:.0f}% of that best gain"),
@@ -766,8 +798,10 @@ class AIDesk:
                 return {"closed": len(pnl), "wins": sum(1 for p in pnl if p > 0),
                         "losses": sum(1 for p in pnl if p <= 0), "net": round(sum(pnl), 2),
                         "today": {"closed": len(tp), "net": round(sum(tp), 2)},
-                        "last": [{k: r.get(k) for k in ("date", "time_ist", "index", "strike", "option_type",
-                                                        "entry", "exit", "pnl", "status")} for r in sel[-8:][::-1]]}
+                        "last": [dict({k: r.get(k) for k in ("date", "time_ist", "index", "strike", "option_type",
+                                                             "entry", "exit", "pnl", "status", "lots", "lot_size")},
+                                      cost=self._cost(r.get("entry"), r.get("lot_size"), r.get("lots")))
+                                 for r in sel[-8:][::-1]]}
 
             opened = {}
             for k in names:
@@ -779,6 +813,8 @@ class AIDesk:
             fresh_day = self.day == today
             return {"on": self.on, "enabled": {k: bool(self.enabled.get(k)) for k in names},
                     "indices": names, "paper_only": True, "market": self.market, "busy": self.busy,
+                    "lots": self.lots, "lots_follow_rules": self._lots is None,
+                    "lot_choices": config.lot_choices(self.market),
                     "open": opened, "recent": self.recent[:40], "record": summary(rows),
                     "records": {k: summary([r for r in rows if r.get("index") == k]) for k in names},
                     "limits": {"entries_today": dict(self.entries) if fresh_day else {},

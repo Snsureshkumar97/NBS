@@ -1095,7 +1095,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(json.dumps({"error": "Pick a market first."}),
                               "application/json", code=400)
         source = (qs.get("source") or ["all"])[0]
-        if source not in ("all", "mine", "tool"):
+        if source not in ("all", "mine", "tool", "ai"):
             source = "all"
         try:
             lines = journal.entries(user, market, source)
@@ -1301,6 +1301,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         ai = getattr(feeds.for_user(user, market), "ai", None)
         if ai is None:
             return reply(False, "The AI desk needs a signed-in account.", 400)
+        if "lots" in form and "on" not in form:
+            # The desk's own lots for this market - or blank to follow the
+            # rule tickets' setting again. Open AI tickets keep their lots.
+            try:
+                lots = ai.set_lots(form.get("lots"))
+            except (TypeError, ValueError):
+                return reply(False, "That is not a number of lots.", 400)
+            except OSError:
+                return reply(False, "Could not save that setting on this machine.", 500)
+            return reply(True, f"AI tickets in this market are now for {lots:g} lot{'s' if lots != 1 else ''}.",
+                         ai=ai.public())
         import market_bot
         on = (form.get("on") or "") in ("1", "true", "on")
         index = (form.get("index") or "").strip().upper()
@@ -2783,6 +2794,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .jbadge{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
   border:1px solid var(--bd);border-radius:999px;padding:1px 7px;color:var(--ink-3)}
 .jbadge.mine{color:var(--accent);border-color:rgba(77,148,232,.45)}
+.jbadge.ai{color:#b07d15;border-color:rgba(176,125,21,.45)}
 #jdaytbl td:nth-child(-n+3),#jdaytbl th:nth-child(-n+3),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
 #jdaytbl td.jnote{white-space:normal;min-width:180px;max-width:320px;color:var(--ink-2)}
 .rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
@@ -3388,6 +3400,8 @@ table.chain .wide{color:var(--down)}
 .aipicker .lbtn .pl.up{color:var(--up)}.aipicker .lbtn .pl.down{color:var(--down)}
 .aipicker .lbtn.on .pl{color:#fff}
 .aitog{margin-left:auto}
+.ailots{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);font-weight:600}
+.ailots select{font:inherit;font-weight:700;color:var(--ink);background:var(--bg-2, transparent);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
 .aispot{margin-top:4px}
 .aispot .v{font-variant-numeric:tabular-nums}
 .aispotlbl{font-size:12px;color:var(--ink-3);letter-spacing:.5px;text-transform:uppercase}
@@ -4119,6 +4133,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
     <p class="eyebrow" role="heading" aria-level="2">AI trades &middot; <span id="aiidx">&mdash;</span> &middot; paper only</p>
     <button class="lbtn aitog" id="aitog" type="button" aria-pressed="false">AI desk: off</button>
     <button class="lbtn ailive" id="ailive" type="button" aria-pressed="false" hidden>Live orders for AI: off</button>
+    <label class="ailots" for="ailots">Lots <select id="ailots" aria-label="Lots per AI ticket"></select></label>
    </div>
    <div class="hero aispot">
     <div class="v" id="aispot">&mdash;</div>
@@ -4355,6 +4370,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
     <button class="lbtn on" type="button" data-src="all">Everything</button>
     <button class="lbtn" type="button" data-src="mine">My trades</button>
     <button class="lbtn" type="button" data-src="tool">Tool tickets</button>
+    <button class="lbtn" type="button" data-src="ai">AI trades</button>
    </div>
    <button class="lbtn on" type="button" id="jaddbtn">+ Add a trade</button>
   </div>
@@ -5089,11 +5105,11 @@ function jdayPaint(d){
   $("jdaytitle").textContent = `${jdate(JN_DAY)} · ` + (lines.length ? `${lines.length} trade${lines.length === 1 ? "" : "s"} · ${money(tot)}` : "no trades");
   const dp = v => v == null ? "—" : num(v, 2);
   $("jdaytbl").innerHTML = lines.length
-    ? `<thead><tr><th>Source</th><th>Time</th><th>Contract</th><th>Lots</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
-      + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : '<span class="jbadge">Tool</span>'}</td>`
+    ? `<thead><tr><th>Source</th><th>Time</th><th>Contract</th><th>Lots</th><th>Cost</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
+      + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : e.source === "ai" ? '<span class="jbadge ai">AI</span>' : '<span class="jbadge">Tool</span>'}</td>`
         + `<td>${esc(e.time || "")}</td>`
         + `<td class="sym">${esc(e.instrument || "")} ${e.strike != null ? esc(String(e.strike)) : ""} ${esc(e.side || "")}${e.dir === "sell" ? " sold" : ""}</td>`
-        + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${dp(e.entry)}</td><td>${dp(e.exit)}</td>`
+        + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${e.cost == null ? "—" : num(e.cost, 0)}</td><td>${dp(e.entry)}</td><td>${dp(e.exit)}</td>`
         + `<td style="color:${jcol(e.gross)}">${money(e.gross)}</td>`
         + `<td>${e.charges == null ? "—" : money(e.charges, false) + (e.charges_estimated ? " est." : "")}</td>`
         + `<td style="color:${e.net == null ? "" : jcol(e.net)}">${e.net == null ? "—" : money(e.net)}</td>`
@@ -7761,7 +7777,8 @@ function aiTicketCard(k, t){
     + ` &middot; tracked on ${t.tracked_on === "index" ? "the index" : "live premium"}</div>`
     + `<div class="issued">Issued ${esc(t.entry_time)} IST &middot; levels frozen at entry</div>`
     + `<div class="tstats">`
-    + cell("Reward : risk", rr) + cell("Entry", num(t.entry, dp)) + cell("Now", num(t.now, dp))
+    + cell("Reward : risk", rr) + cell("Entry", num(t.entry, dp))
+    + cell("Cost", (per && t.entry != null) ? num(t.entry * per, 0) : "—") + cell("Now", num(t.now, dp))
     + cell("Spot", num(idx.spot, 0))
     + cell(`${t.lots} lot${t.lots !== 1 ? "s" : ""}`, pnl == null ? "—" : money(pnl), pc)
     + `</div>`
@@ -7775,6 +7792,33 @@ function aiTicketCard(k, t){
 function aiIndex(d){
   const names = (d && d.indices) || [];
   return names.includes(CUR) ? CUR : names[0];
+}
+
+// The lots each AI ticket is for - the desk's own choice for this market,
+// or the rule tickets' lots until one is made. Cost on the ticket card and in
+// the record follows from it: premium x lot size x lots.
+function aiLotsRender(d){
+  const sel = $("ailots");
+  if(!sel) return;
+  const choices = d.lot_choices || [];
+  const cur = d.lots;
+  sel.innerHTML = choices.map(c => `<option value="${esc(String(c))}"${c === cur ? " selected" : ""}>${esc(String(c))}</option>`).join("")
+    + `<option value=""${d.lots_follow_rules ? " selected" : ""}>same as rules (${esc(String(cur))})</option>`;
+  if(!sel.dataset.wired){
+    sel.dataset.wired = "1";
+    sel.addEventListener("change", async () => {
+      sel.disabled = true;
+      try{
+        const r = await fetch("/api/ai", {method: "POST", cache: "no-store",
+          headers: {"Content-Type": "application/x-www-form-urlencoded"},
+          body: new URLSearchParams({lots: sel.value})});
+        const j = await r.json();
+        if(!j.ok) alert(j.message || "That could not be changed.");
+        if(j.ai) aiRender(j.ai);
+      }catch(e){ alert("Could not reach this tool's own server."); }
+      finally{ sel.disabled = false; }
+    });
+  }
 }
 
 // The live spot for the index on screen, off the same 250ms price feed as the
@@ -7824,6 +7868,7 @@ function aiRender(d){
   tog.setAttribute("aria-pressed", String(on));
   tog.textContent = `AI desk for ${k || "—"}: ${on ? "on" : "off"}`;
   aiSpot();
+  aiLotsRender(d);
 
   const L = d.limits || {}, R = (d.records || {})[k] || {};
   const entries = (L.entries_today || {})[k] || 0;
@@ -7892,9 +7937,10 @@ function aiRender(d){
 
   const last = R.last || [];
   $("aiclosed").innerHTML = last.length
-    ? `<thead><tr><th>Closed</th><th>Contract</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Why it closed</th></tr></thead><tbody>`
+    ? `<thead><tr><th>Closed</th><th>Contract</th><th>Lots</th><th>Entry</th><th>Cost</th><th>Exit</th><th>P&amp;L</th><th>Why it closed</th></tr></thead><tbody>`
       + last.map(x => `<tr><td>${esc(x.date)} ${esc((x.time_ist || "").slice(0, 5))}</td>`
-        + `<td>${esc(x.index)} ${esc(x.strike)} ${esc(x.option_type)}</td><td>${esc(x.entry)}</td><td>${esc(x.exit)}</td>`
+        + `<td>${esc(x.index)} ${esc(x.strike)} ${esc(x.option_type)}</td><td>${esc(x.lots || "")}</td><td>${esc(x.entry)}</td>`
+        + `<td>${x.cost == null ? "—" : esc(num(x.cost, 0))}</td><td>${esc(x.exit)}</td>`
         + `<td>${esc(x.pnl === "" || x.pnl == null ? "—" : money(parseFloat(x.pnl)))}</td>`
         + `<td style="text-align:left;white-space:normal">${esc(x.status)}</td></tr>`).join("") + `</tbody>`
     : "";

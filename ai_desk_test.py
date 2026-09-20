@@ -537,6 +537,16 @@ check("the give-back rule's close is logged at the price that fired it",
 d.book.tick_price("SENSEX", 109.0)
 tr = d.track_record("NIFTY")
 check("counts every closed AI trade in the market", tr["closed_trades"] == 5, tr["closed_trades"])
+import journal
+jl = journal.entries(d.feed.email, "nse_index", "ai")
+check("the journal reads the AI desk's trades as a source of their own, each with what it cost",
+      len(jl) == 5 and all(e["source"] == "ai" for e in jl)
+      and jl[0]["cost"] == round(jl[0]["entry"] * jl[0]["lots"] * jl[0]["lot_size"], 2), jl[:1])
+check("...and 'tool' still means the rule tickets only",
+      all(e["source"] == "tool" for e in journal.entries(d.feed.email, "nse_index", "tool")))
+check("the record's closed trades carry the cost too",
+      all(x.get("cost") == round(float(x["entry"]) * float(x["lot_size"]) * float(x["lots"]), 2)
+          for x in d.public()["records"]["NIFTY"]["last"]), d.public()["records"]["NIFTY"]["last"][:1])
 check("this index separately from the rest", tr["this_index"]["n"] == 4 and tr["all_indices"]["n"] == 5)
 ex = tr["by_exit"]
 check("how each one ended: target, stop, its own exit, the give-back rule",
@@ -741,6 +751,35 @@ try:
     h, out = handler()
     h._do_ai({"on": "1"})
     check("an index must be named - there is no market-wide switch on the page", out["code"] == 400 and not d.on)
+    check("until chosen, AI lots are the rule tickets' lots", d.lots == d.feed.tickets.lots and d.public()["lots_follow_rules"])
+    h, out = handler()
+    h._do_ai({"lots": "3"})
+    j = json.loads(out["body"])
+    check("lots for AI tickets are chosen on the page, per market", out["code"] == 200 and j["ok"] and d.lots == 3
+          and j["ai"]["lots"] == 3 and not j["ai"]["lots_follow_rules"], j.get("message"))
+    f9, d9 = desk()
+    d9.set_lots(3)
+    at(11, 0, 50, day=25)
+    r9 = rec("NIFTY")
+    ok9, why9, plan9 = d9.validate("NIFTY", r9, {"option_type": "CE", "strike": 25000, "target": 160, "stop": 110})
+    assert ok9, why9
+    d9._open("NIFTY", r9, plan9, "lots test")
+    t9 = d9._open_trade("NIFTY")
+    check("a ticket opened after the choice is for that many lots - not the rules' lots",
+          t9["lots"] == 3 and d9.feed.tickets.lots == 2, t9 and t9["lots"])
+    d9.book.close_ticket("NIFTY", "CLOSED — AI exit: lots test", price=plan9["ltp"])
+    h, out = handler()
+    h._do_ai({"lots": "2.6"})
+    check("a value off the list snaps to the nearest choice", d.lots == 3, d.lots)
+    check("the choices offered are this market's", json.loads(out["body"])["ai"]["lot_choices"] == config.lot_choices("nse_index"))
+    h, out = handler()
+    h._do_ai({"lots": "x"})
+    check("not a number: refused", out["code"] == 400 and d.lots == 3)
+    d2 = ad.AIDesk(d.feed, now=lambda: T["now"], clock=lambda: T["clock"], start=False)
+    check("the choice survives a restart", d2.lots == 3)
+    h, out = handler()
+    h._do_ai({"lots": ""})
+    check("cleared: back to the rule tickets' lots", d.lots == d.feed.tickets.lots and json.loads(out["body"])["ai"]["lots_follow_rules"])
     h, out = handler()
     h._do_ai({"index": "BTC", "on": "1"})
     check("an index from another market is refused", out["code"] == 400 and not d.on)
@@ -773,5 +812,10 @@ check("the AI tab has the AI live-orders switch, and it names real money",
       'id="ailive"' in SRC and "Place REAL Zerodha orders for the AI desk" in SRC
       and 'source: "ai"' in SRC)
 
+check("the page has the lots selector, posts it to the same endpoint, and shows the cost",
+      'id="ailots"' in SRC and "body: new URLSearchParams({lots: sel.value})" in SRC
+      and 'cell("Cost"' in SRC and "<th>Cost</th><th>Exit</th>" in SRC)
+check("the journal offers the AI desk's trades and badges them",
+      'data-src="ai">AI trades' in SRC and 'jbadge ai">AI' in SRC and "<th>Lots</th><th>Cost</th>" in SRC)
 print("AI DESK TEST PASSED" if not fails else f"AI DESK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

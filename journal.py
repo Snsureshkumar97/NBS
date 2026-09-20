@@ -222,9 +222,45 @@ def estimate_charges(instrument, entry, exit_price, qty, direction="buy"):
     return round(gross - rs.net_rupees(buy, sell, qty, exch, 0.0), 2)
 
 
+def ai_log_path(email, market):
+    """The AI desk's own trade log, beside the tool's (see ai_desk.AIDesk)."""
+    return os.path.join(os.path.dirname(trade_log.user_log_path(email, market)), "ai_trades.csv")
+
+
+def _ticket_lines(path, source):
+    """The closed tickets of one trade log as journal lines - the tool's
+    (source "tool") or the AI desk's (source "ai"); the same row shape."""
+    try:
+        rows = trade_log._read_rows(path)
+    except Exception:
+        rows = []
+    out = []
+    for r in rows:
+        if r.get("event") != "CLOSE" or "the tool stopped" in (r.get("status") or ""):
+            continue
+        pnl = _f(r.get("pnl"))
+        if pnl is None:
+            continue           # a ticket tracked on the index has no money figure
+        entry, exit_price = _f(r.get("entry")), _f(r.get("exit"))
+        lots, lot_size = _f(r.get("lots")) or 1.0, _f(r.get("lot_size")) or 1.0
+        charges = estimate_charges(r.get("index"), entry, exit_price, lots * lot_size)
+        out.append({
+            "id": r.get("trade_id") or "", "source": source, "date": r.get("date") or "",
+            "time": (r.get("time_ist") or "")[:5] or None, "instrument": r.get("index"),
+            "side": r.get("option_type"), "dir": "buy", "strike": _f(r.get("strike")),
+            "lots": lots, "lot_size": lot_size, "entry": entry, "exit": exit_price,
+            # What the premium cost to buy - the money that was actually at risk.
+            "cost": round(entry * lots * lot_size, 2) if entry is not None else None,
+            "gross": round(pnl, 2), "charges": charges,
+            "charges_estimated": charges is not None,
+            "net": None if charges is None else round(pnl - charges, 2),
+            "status": r.get("status"), "notes": ""})
+    return out
+
+
 def entries(email, market, source="all"):
-    """Every journal line, oldest first: yours (source "mine") and the tool's
-    closed tickets (source "tool")."""
+    """Every journal line, oldest first: yours (source "mine"), the tool's
+    closed tickets (source "tool") and the AI desk's (source "ai")."""
     out = []
     if source in ("all", "mine"):
         for t in load(email, market)["trades"]:
@@ -237,31 +273,13 @@ def entries(email, market, source="all"):
                 estimated = charges is not None
             out.append(dict(t, source="mine", gross=gross, charges=charges,
                             charges_estimated=estimated,
+                            cost=round(t["entry"] * qty, 2) if qty else None,
                             net=None if charges is None else round(gross - charges, 2),
                             status=None))
     if source in ("all", "tool"):
-        try:
-            rows = trade_log._read_rows(trade_log.user_log_path(email, market))
-        except Exception:
-            rows = []
-        for r in rows:
-            if r.get("event") != "CLOSE" or "the tool stopped" in (r.get("status") or ""):
-                continue
-            pnl = _f(r.get("pnl"))
-            if pnl is None:
-                continue           # a ticket tracked on the index has no money figure
-            entry, exit_price = _f(r.get("entry")), _f(r.get("exit"))
-            lots, lot_size = _f(r.get("lots")) or 1.0, _f(r.get("lot_size")) or 1.0
-            charges = estimate_charges(r.get("index"), entry, exit_price, lots * lot_size)
-            out.append({
-                "id": r.get("trade_id") or "", "source": "tool", "date": r.get("date") or "",
-                "time": (r.get("time_ist") or "")[:5] or None, "instrument": r.get("index"),
-                "side": r.get("option_type"), "dir": "buy", "strike": _f(r.get("strike")),
-                "lots": lots, "lot_size": lot_size, "entry": entry, "exit": exit_price,
-                "gross": round(pnl, 2), "charges": charges,
-                "charges_estimated": charges is not None,
-                "net": None if charges is None else round(pnl - charges, 2),
-                "status": r.get("status"), "notes": ""})
+        out += _ticket_lines(trade_log.user_log_path(email, market), "tool")
+    if source in ("all", "ai"):
+        out += _ticket_lines(ai_log_path(email, market), "ai")
     out = [e for e in out if _DATE.match(e.get("date") or "")]
     out.sort(key=lambda e: (e["date"], e.get("time") or ""))
     return out
