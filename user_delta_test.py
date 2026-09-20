@@ -144,7 +144,7 @@ check("the header chip follows the venue, never Zerodha over a crypto page",
       '$("kite").href = br.connect_url' in WS and '"Connect " + br.name' in WS)
 check("the security page lists the Delta keys", "Delta Exchange API key and secret" in NS)
 check("the venue chip is actually shown on a non-Zerodha market (it used to be display:none with nothing revealing it)",
-      '$("kite").style.display = (needs || br.name !== "Zerodha") ? "" : "none";' in WS)
+      '$("kite").style.display = br.name ? "" : "none";' in WS)
 check("the Bitcoin AI tab says where to add the keys while none are added", "/connect-delta) before switching live orders on" in WS)
 check("the Zerodha page walks through live orders, and no longer claims no order is ever placed",
       "developers.kite.trade" in NS and "No order is ever placed" not in NS and "step by step" in NS)

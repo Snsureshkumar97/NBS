@@ -5100,9 +5100,18 @@ function riskBox(r, tk, sess){
   // lots quietly exceed the risk budget by the charges.
   const flat = (chg && chg.flat != null) ? chg.flat : 0;
   const lotCost = (chg && chg.per_lot && chg.per_lot.stop != null) ? chg.per_lot.stop : 0;
+  // The cost of the trade itself - the premium paid for the lots - shown
+  // before the risk, for a signal and for an open ticket alike.
+  const costPer = (tk && tk.open)
+    ? ((tk.tracked_on === "premium" && tk.entry != null && tk.lot_size) ? tk.entry * tk.lot_size : null)
+    : ((r.ltp != null && r.lot_size && r.bias && r.bias !== "NEUTRAL") ? r.ltp * r.lot_size : null);
+  const costLine = (costPer != null && costPer > 0)
+    ? `Cost of ${what}: <b>${money(costPer * lots, false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
+      + ` (${money(costPer, false)} per ${unit}, the premium paid). `
+    : "";
   if(perLot != null && perLot > 0){
     const total = (perLot + lotCost) * lots + flat;
-    let s = `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
+    let s = costLine + `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
           + ` (${money(perLot,false)} per ${unit}, entry to stop${chg ? ", plus charges" : ""})`;
     if(cap){
       const pct = total / cap * 100;
@@ -5923,6 +5932,10 @@ function ticketBox(r, state){
     st.innerHTML =
         cell("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+" : 1")
       + cell("Entry", num(tk.entry,dp))
+      // What the premium cost to buy - entry x lot size x lots - the money at
+      // risk in full; asked for on 20 Sep 2026, for both markets.
+      + cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
+               ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—")
       + cell("Now", num(tk.now,dp))
       + cell("Spot", num(r.spot,0))
       + cell(`${tk.lots} lot${tk.lots!==1?"s":""}`,
@@ -6923,7 +6936,10 @@ function render(s){
   // so on the Bitcoin market there was no way to reach the Delta page - the
   // user's report on 20 Sep 2026. Shown whenever the venue is not Zerodha,
   // and on the Indian indices when Zerodha needs connecting.
-  $("kite").style.display = (needs || br.name !== "Zerodha") ? "" : "none";
+  // Whenever a venue is known: on the Indian indices it carries the Kite
+  // cash, on Bitcoin the Delta wallet (the user's report, 20 Sep 2026: the
+  // Zerodha balance was fetched but the chip that shows it stayed hidden).
+  $("kite").style.display = br.name ? "" : "none";
   $("stale").style.display = (!needs && s.stale) ? "flex" : "none";
   $("stalemsg").textContent = s.feed==="expired"
     ? "Zerodha clears access tokens every morning and today's has not been renewed."
