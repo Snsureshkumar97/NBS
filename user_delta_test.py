@@ -51,6 +51,9 @@ class FakeHTTP:
         if getattr(self, "ip_block", None):
             return Resp(403, {"success": False, "error": {"code": "ip_not_whitelisted_for_api_key",
                                                           "context": {"client_ip": self.ip_block}}})
+        if "/v2/wallet/balances" in url:
+            return Resp(200, {"success": True, "result": [{"asset_symbol": "USD", "available_balance": "123.45", "balance": "150.0"},
+                                                          {"asset_symbol": "BTC", "available_balance": "0", "balance": "0"}]})
         return Resp(200, {"success": True, "result": {"id": 4242, "email": "someone@example.invalid"}})
 
 
@@ -102,6 +105,24 @@ check("the summary names the user id and the time, never the key or secret",
       s["user_id"] == "4242" and s["since"] and "k1" not in json.dumps(s) and "s1" not in json.dumps(s), s)
 check("a fresh account: missing, and told the keys are only for live orders",
       ud.status("nobody@example.invalid")[0] == "missing" and "live orders" in ud.status("nobody@example.invalid")[1])
+
+print("3b. THE WALLET, FOR THE USER'S OWN PAGES ONLY")
+ud._checks.clear(); ud._wallets.clear()
+w = ud.wallet("me@example.invalid", session=FakeHTTP())
+check("balances read and rounded: asset, available, balance", w == [{"asset": "USD", "available": 123.45, "balance": 150.0},
+                                                                   {"asset": "BTC", "available": 0.0, "balance": 0.0}], w)
+fw = FakeHTTP(); ud.wallet("me@example.invalid", session=fw)
+check("read at most once a minute", fw.calls == [])
+check("nobody: no wallet", ud.wallet("nobody@example.invalid") is None)
+ud._checks.clear()
+ud.status("me@example.invalid", session=FakeHTTP())        # prime the cache with the fake - summary() takes no session
+s = ud.summary("me@example.invalid")
+check("the summary carries the wallet when the keys are accepted", s["connected"] and s["wallet"][0]["available"] == 123.45, s.get("wallet"))
+html = __import__("nbs_site").delta_connect_page("me@example.invalid", "ok", "ok", user_id="1", since="x", wallet=s["wallet"])
+check("the Delta page shows the wallet", "123.45 available" in html and "150.00 balance" in html)
+WS0 = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
+check("the venue chip and the AI tab show what is available, from the broker block's funds",
+      '"funds": funds}' in WS0 and "br.funds.available" in WS0 and "wallet: ${brk.funds.asset" in WS0)
 
 print("4. DISCONNECTING CLEARS EVERYTHING")
 ud.disconnect("me@example.invalid")

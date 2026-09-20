@@ -175,6 +175,35 @@ def status(email, force=False):
     return state, detail
 
 
+_funds = {}                  # email -> (when, {asset, available, net})
+FUNDS_TTL = 60
+
+
+def funds(email, force=False):
+    """The account's cash at Zerodha - available for a premium, and net - read
+    at most once a minute for the user's own pages. Never handed to the bot."""
+    token = token_for(email)
+    if not token:
+        return None
+    now = time.time()
+    if not force:
+        with _lock:
+            cached = _funds.get(email)
+        if cached and now - cached[0] < FUNDS_TTL:
+            return cached[1]
+    try:
+        m = kite_auth._kite(config.KITE_API_KEY, token).margins("equity") or {}
+        avail = (m.get("available") or {}).get("live_balance")
+        net = m.get("net")
+        out = {"asset": "INR", "available": round(float(avail if avail is not None else (net or 0)), 2),
+               "net": round(float(net or 0), 2)}
+    except Exception:
+        out = None
+    with _lock:
+        _funds[email] = (now, out)
+    return out
+
+
 def summary(email):
     """Everything a page needs to describe the connection — and no token."""
     user = accounts.get_user(email) or {}

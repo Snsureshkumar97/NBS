@@ -2808,7 +2808,7 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
     return shell("Zerodha connection", body, user=user, active="", noindex=True)
 
 
-def delta_connect_page(user, state, detail, user_id="", since="", error=None, notice=None):
+def delta_connect_page(user, state, detail, user_id="", since="", error=None, notice=None, wallet=None):
     """The Delta Exchange India keys screen - the crypto twin of connect_page.
     Prices need no key; the keys are only for live Bitcoin orders."""
     good = state == "ok"
@@ -2821,6 +2821,9 @@ def delta_connect_page(user, state, detail, user_id="", since="", error=None, no
         rows = ('<div class="rows">'
                 + (f'<div class="row"><b>Delta user</b><span>{_esc(user_id)}</span></div>' if user_id else "")
                 + (f'<div class="row"><b>Keys added</b><span>{_esc(since)}</span></div>' if since else "")
+                + "".join(f'<div class="row"><b>Wallet · {_esc(w.get("asset") or "")}</b>'
+                          f'<span>{w.get("available"):,.2f} available &middot; {w.get("balance"):,.2f} balance</span></div>'
+                          for w in (wallet or []) if w.get("available") is not None)
                 + f'<div class="row"><b>Account</b><span>{_esc(user)}</span></div>'
                 + "</div>")
     field = ('style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);'

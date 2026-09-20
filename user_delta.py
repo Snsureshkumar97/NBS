@@ -35,6 +35,8 @@ TESTNET = "https://cdn-ind.testnet.deltaex.org"
 _CHECK_TTL = 300
 _lock = threading.Lock()
 _checks = {}                # email -> (when, state, detail)
+_wallets = {}               # email -> (when, [{asset, available, balance}])
+WALLET_TTL = 60
 
 FIELDS = ("delta_key", "delta_secret", "delta_user_id", "delta_connected_at")
 
@@ -166,10 +168,40 @@ def status(email, force=False, session=None, base=BASE):
     return state, detail
 
 
+def wallet(email, force=False, session=None, base=BASE):
+    """The account's balances on Delta, [{asset, available, balance}], read at
+    most once a minute - for the user's own pages. The bot is never handed
+    this; it gets yes/no from the executor's funds check."""
+    keys = keys_for(email)
+    if not keys:
+        return None
+    now = time.time()
+    if not force:
+        with _lock:
+            cached = _wallets.get(email)
+        if cached and now - cached[0] < WALLET_TTL:
+            return cached[1]
+    try:
+        rows = request(keys[0], keys[1], "GET", "/v2/wallet/balances", session=session, base=base) or []
+    except Exception:
+        return None
+    out = []
+    for b in rows if isinstance(rows, list) else []:
+        try:
+            out.append({"asset": b.get("asset_symbol"), "available": round(float(b.get("available_balance") or 0), 2),
+                        "balance": round(float(b.get("balance") or 0), 2)})
+        except (TypeError, ValueError):
+            continue
+    with _lock:
+        _wallets[email] = (now, out)
+    return out
+
+
 def summary(email):
     """Everything a page needs to describe the connection - and no key."""
     user = accounts.get_user(email) or {}
     state, detail = status(email)
     return {"state": state, "detail": detail, "connected": state == "ok",
             "user_id": user.get("delta_user_id") or "",
-            "since": user.get("delta_connected_at") or ""}
+            "since": user.get("delta_connected_at") or "",
+            "wallet": wallet(email) if state == "ok" else None}

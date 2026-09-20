@@ -2474,7 +2474,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         info = user_delta.summary(user)
         return self._send(nbs_site.delta_connect_page(
             user, info["state"], info["detail"], user_id=info["user_id"], since=info["since"],
-            error=error, notice=notice))
+            error=error, notice=notice, wallet=info.get("wallet")))
 
     def _do_connect_delta(self, form):
         """Keep or drop this account's Delta Exchange India keys. The user types
@@ -2503,13 +2503,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if (config.MARKETS.get(market) or {}).get("market_provider") == "kite":
             info = (user_kite.summary(user) if (user and _state["mode"] != "free")
                     else {"state": "ok", "detail": "", "connected": True})
+            funds = user_kite.funds(user) if (user and info.get("connected") and _state["mode"] != "free") else None
             return {"name": "Zerodha", "connect_url": "/connect", "connected": bool(info.get("connected")),
                     "state": info.get("state"), "detail": info.get("detail") or "",
-                    "needed_for": "prices and live orders"}
+                    "needed_for": "prices and live orders", "funds": funds}
         import user_delta
         info = user_delta.summary(user) if user else {"state": "missing", "detail": "", "connected": False}
+        usd = next((w for w in (info.get("wallet") or []) if (w.get("asset") or "").upper() in ("USD", "USDT")), None)
         return {"name": "Delta Exchange", "connect_url": "/connect-delta", "connected": bool(info.get("connected")),
-                "state": info.get("state"), "detail": info.get("detail") or "", "needed_for": "live orders only"}
+                "state": info.get("state"), "detail": info.get("detail") or "", "needed_for": "live orders only",
+                "funds": ({"asset": usd["asset"], "available": usd["available"], "balance": usd["balance"]} if usd else None)}
 
     # ------------------------------------------------------------- operator
     def _admin(self, qs):
@@ -6909,7 +6912,11 @@ function render(s){
   $("connectmsg").textContent = (s.kite && s.kite.detail) || "";
   // The chip names this market's own venue - Zerodha on the Indian indices,
   // Delta Exchange on Bitcoin - never Zerodha over a crypto page.
-  $("kite").textContent = br.connected ? br.name : "Connect " + br.name;
+  // With the venue connected, the chip carries the account's own money too:
+  // what is available for a premium (the user asked to see it, 20 Sep 2026).
+  const fundsText = br.funds && br.funds.available != null
+    ? ` · ${br.funds.asset === "INR" ? "₹" : br.funds.asset + " "}${num(br.funds.available, br.funds.asset === "INR" ? 0 : 2)} available` : "";
+  $("kite").textContent = br.connected ? br.name + fundsText : "Connect " + br.name;
   $("kite").href = br.connect_url || "/connect";
   $("kite").style.color = needs ? "#b07d15" : "";
   // The chip was never shown at all (display:none with nothing to reveal it),
@@ -8151,6 +8158,8 @@ function aiRender(d){
   }
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
   const brk = (LAST && LAST.broker) || {};
+  if(brk.connected && brk.funds && brk.funds.available != null)
+    lines.push(`${brk.name} wallet: ${brk.funds.asset === "INR" ? "₹" : brk.funds.asset + " "}${num(brk.funds.available, brk.funds.asset === "INR" ? 0 : 2)} available for a premium.`);
   if(k === "BTC" && brk.name === "Delta Exchange" && !brk.connected)
     lines.push("Delta Exchange keys not added yet - open \"Connect Delta Exchange\" at the top of the page "
                + "(or /connect-delta) before switching live orders on.");
