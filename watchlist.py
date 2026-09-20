@@ -156,23 +156,32 @@ def quotes(provider, items, market):
                 out[toks[t]] = _row(v.get("last_price"), bid, ask, v.get("oi"))
         return out
 
-    # Deribit: one summary call per coin carries every option's mark, bid and ask,
-    # quoted in the coin, so each is converted at the coin's index price.
+    # Crypto: one call per coin carries every option's mark, bid and ask.
+    # Delta quotes them in dollars against an ISO expiry; Deribit quoted in
+    # the coin against its own tag, converted at the coin's index price.
     import data_providers as dp
+    coin = bool(getattr(provider, "QUOTES_IN_COIN", True))
     for idx in {x["index"] for x in items}:
         try:
-            rows, px = provider._chain_rows(idx), float(provider.spot(idx))
+            rows = provider._chain_rows(idx)
+            px = float(provider.spot(idx)) if coin else 1.0
         except Exception:
             rows, px = [], None
         for x in (i for i in items if i["index"] == idx):
-            exp = x["expiry"].upper()
-            tag = exp if _DERIBIT_TAG.match(exp) else dp._deribit_tag(x["expiry"])
             kind = "C" if x["side"] == "CE" else "P"
+            if coin:
+                exp = x["expiry"].upper()
+                tag = exp if _DERIBIT_TAG.match(exp) else dp._deribit_tag(x["expiry"])
+            else:
+                tag = str(x["expiry"])[:10]
             r = next((r for r in rows if r["expiry"] == tag and r["strike"] == int(float(x["strike"]))
                       and r["kind"] == kind), None)
             if r is None or px is None:
                 out[x["id"]] = dict(gone)
                 continue
-            usd = lambda c: None if c is None else c * px
-            out[x["id"]] = _row(usd(r.get("mark_coin")), usd(r.get("bid_coin")), usd(r.get("ask_coin")), r.get("oi"))
+            if coin:
+                usd = lambda c: None if c is None else c * px
+                out[x["id"]] = _row(usd(r.get("mark_coin")), usd(r.get("bid_coin")), usd(r.get("ask_coin")), r.get("oi"))
+            else:
+                out[x["id"]] = _row(r.get("mark"), r.get("bid"), r.get("ask"), r.get("oi"))
     return out

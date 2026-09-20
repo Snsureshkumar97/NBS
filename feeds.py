@@ -52,6 +52,7 @@ import signal_engine
 import ticket_watch
 import tickets
 import user_kite
+from delta_provider import DeltaDataProvider, DeltaStreamer
 from data_providers import (KITE_ENGINE_RESTART, DeribitDataProvider,
                             DeribitStreamer, FreeDataProvider,
                             KiteDataProvider, KiteStreamer,
@@ -872,9 +873,10 @@ class Feed:
         provider fails on every pass with an error about an instrument token
         that was never going to exist.
         """
-        if config.market_for(name)["market_provider"] == "deribit":
+        mp = config.market_for(name)["market_provider"]
+        if mp in ("delta", "deribit"):
             if self._crypto is None:
-                self._crypto = DeribitDataProvider()
+                self._crypto = DeltaDataProvider() if mp == "delta" else DeribitDataProvider()
             return self._crypto
         return kite_provider
 
@@ -894,7 +896,8 @@ class Feed:
             # call" and analysed nothing: it was waiting on a credential it
             # never uses, for a venue that needs no credential at all.
             if self._crypto is None:
-                self._crypto = DeribitDataProvider()
+                mp = config.MARKETS[self.market]["market_provider"]
+                self._crypto = DeltaDataProvider() if mp == "delta" else DeribitDataProvider()
             return self._crypto, "ok", ""
         state, detail = user_kite.status(self.email)
         if state != "ok":
@@ -1127,7 +1130,8 @@ class Feed:
                            for k, v in list(self.live_errors.items()) if now - v[1] < 600}}
 
     def _start_crypto_stream(self):
-        """Open Deribit's socket and take the index for every instrument.
+        """Open the crypto venue's socket (Delta Exchange India; Deribit before
+        20 Sep 2026) and take the index for every instrument.
 
         Replaces a once-a-second REST poll. The index alone was smooth enough
         to watch, but the premium only moved when the analysis ran - and the
@@ -1135,14 +1139,15 @@ class Feed:
         """
         if self.dstream is not None:
             return
-        st = DeribitStreamer()
+        mp = config.MARKETS[self.market]["market_provider"]
+        st = DeltaStreamer() if mp == "delta" else DeribitStreamer()
         if not st.start():
-            self.stream_error = f"deribit socket: {st.last_error}"
+            self.stream_error = f"{mp} socket: {st.last_error}"
             return
         self.dstream = st
         self.stream_error = None
-        st.subscribe([f"deribit_price_index.{config.INSTRUMENTS[n]['deribit_index']}"
-                      for n in self.instruments()])
+        for n in self.instruments():
+            st.subscribe_index(config.crypto_index(n))
 
     def _crypto_suggested(self, name):
         """Stream the premium of the strike currently being suggested.
@@ -1178,7 +1183,7 @@ class Feed:
         if have and have[2] == inst:
             return                            # already streaming this one
         self.sug_tokens[name] = (strike, opt, inst)
-        st.subscribe([f"ticker.{inst}.100ms"])
+        st.subscribe_ticker(inst)
 
     def _crypto_ticket(self, name):
         """Stream the contract an OPEN ticket is actually tracked on.
@@ -1203,7 +1208,7 @@ class Feed:
             return
         self.opt_tokens[name] = inst
         self.opt_for[name] = trade.get("trade_id")
-        st.subscribe([f"ticker.{inst}.100ms"])
+        st.subscribe_ticker(inst)
 
     def _crypto_track(self):
         """Price an open ticket and check its levels, on the tick.
@@ -1222,7 +1227,7 @@ class Feed:
             inst = self.opt_tokens.get(name)
             if not inst:
                 continue
-            px = st.mark_usd(inst, config.INSTRUMENTS[name]["deribit_index"])
+            px = st.mark_usd(inst, config.crypto_index(name))
             if px is None:
                 continue
             self.tickets.live_price(name, px)
@@ -1246,8 +1251,7 @@ class Feed:
                 self._subscribe_chain_crypto(name)
             except Exception as exc:
                 self._note_fault(f"{name} chain stream", f"{type(exc).__name__}: {exc}")
-            meta = config.INSTRUMENTS[name]
-            px = st.index_price(meta["deribit_index"])
+            px = st.index_price(config.crypto_index(name))
             if px is not None:
                 with self.lock:
                     self.spots[name] = float(px)
@@ -1255,7 +1259,7 @@ class Feed:
             self._crypto_suggested(name)
             ent = self.sug_tokens.get(name)
             if ent:
-                mk = st.mark_usd(ent[2], meta["deribit_index"])
+                mk = st.mark_usd(ent[2], config.crypto_index(name))
                 if mk is not None:
                     with self.lock:
                         self.sug_px[name] = float(mk)
@@ -1481,17 +1485,21 @@ class Feed:
         ds, have = self.dstream, self.chain_toks.get(name)
         if ds is None or not have or have.get("on") is not ds:
             return {}
-        spot = ds.index_price(config.INSTRUMENTS[name]["deribit_index"])
+        spot = ds.index_price(config.crypto_index(name))
         if not spot:
             return {}
+        # Deribit quotes in the coin and is converted at the index; Delta
+        # quotes in dollars already and is not.
+        coin = bool(getattr(ds, "QUOTES_IN_COIN", True))
         out = {}
         for key, inst in list(have["map"].items()):
             b = ds.book(inst, max_age=CHAIN_TICK_MAX_AGE)
             if not b:
                 continue
             def usd(v):
-                return None if v in (None, 0) else round(v * spot, 2)
-            out[key] = {"ltp": usd(b.get("last") or b.get("mark")), "bid": usd(b.get("bid")),
+                return None if v in (None, 0) else round(v * spot if coin else v, 2)
+            ltp = (b.get("last") or b.get("mark")) if coin else b.get("mark")
+            out[key] = {"ltp": usd(ltp), "bid": usd(b.get("bid")),
                         "ask": usd(b.get("ask")), "oi": b.get("oi"), "at": b["at"]}
         return out
 
@@ -1518,7 +1526,7 @@ class Feed:
             provider = self._provider_for(name, None)
         except Exception:
             return
-        mapping, channels = {}, []
+        mapping = {}
         for k in want:
             for kind in ("CE", "PE"):
                 try:
@@ -1527,11 +1535,10 @@ class Feed:
                     inst = None
                 if inst:
                     mapping[(float(k), kind)] = inst
-                    channels.append(f"ticker.{inst}.100ms")
         if not mapping:
             return
         try:
-            ds.subscribe(channels)
+            ds.subscribe_tickers(list(mapping.values()))     # one frame for the whole window
         except Exception:
             return
         self.chain_toks[name] = {"expiry": expiry, "map": mapping, "streamed": set(mapping.values()),
@@ -1677,8 +1684,7 @@ class Feed:
             # only moved when the candles were refetched, which on a market
             # that never closes is the one place you would notice.
             ds = self.dstream
-            bar = (ds.forming_bar(config.INSTRUMENTS[name]["deribit_index"])
-                   if ds else None)
+            bar = ds.forming_bar(config.crypto_index(name)) if ds else None
             if not bar:
                 return df
         else:
@@ -1843,7 +1849,7 @@ class Feed:
                 return {}
             out = {}
             for name in self.instruments():
-                bar = ds.forming_bar(config.INSTRUMENTS[name]["deribit_index"])
+                bar = ds.forming_bar(config.crypto_index(name))
                 if bar:
                     out[name] = {"t": int(bar["start"]), "o": bar["o"],
                                  "h": bar["h"], "l": bar["l"], "c": bar["c"]}

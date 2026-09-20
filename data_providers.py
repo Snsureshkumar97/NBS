@@ -626,6 +626,7 @@ class DeribitDataProvider:
     """
 
     BASE = "https://www.deribit.com/api/v2/public"
+    QUOTES_IN_COIN = True            # an option's mark is in the coin, not in dollars
 
     # Deribit takes chart resolution in minutes as a bare string.
     RESOLUTION = {"1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
@@ -1020,6 +1021,7 @@ class DeribitStreamer:
     """
 
     HOST, PATH = "www.deribit.com", "/ws/api/v2"
+    QUOTES_IN_COIN = True
 
     def __init__(self):
         self._ws = None
@@ -1088,6 +1090,16 @@ class DeribitStreamer:
                 self._send_subscribe(fresh)
             except Exception as exc:
                 self.last_error = f"subscribe failed: {exc}"
+
+    def subscribe_index(self, index_name):
+        """The shared surface with DeltaStreamer: the index by its own name."""
+        self.subscribe([f"deribit_price_index.{index_name}"])
+
+    def subscribe_ticker(self, instrument):
+        self.subscribe([f"ticker.{instrument}.100ms"])
+
+    def subscribe_tickers(self, instruments):
+        self.subscribe([f"ticker.{i}.100ms" for i in instruments])
 
     # ------------------------------------------------------------------
     def _run(self):

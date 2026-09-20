@@ -12,6 +12,7 @@ import types
 
 os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()           # nothing touches the real logs
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import config
 import data_providers as dp
 import feeds
 
@@ -169,17 +170,19 @@ n0 = len(LOOKUPS); g._subscribe_chain("BTC")
 check("crypto, with no Zerodha socket, is left alone", len(LOOKUPS) == n0 and not g.chain_toks)
 
 
-print("3b. BITCOIN: THE CHAIN STREAMS OFF DERIBIT")
+print("3b. BITCOIN: THE CHAIN STREAMS OFF THE CRYPTO SOCKET")
 import data_providers
 
 
 class FakeDeribit:
-    """The Deribit socket: channels in, coin-denominated quotes out."""
+    """A crypto socket with the shared surface, quoting in the COIN (Deribit's
+    way): contracts in, coin-denominated quotes out."""
+    QUOTES_IN_COIN = True
 
     def __init__(self):
         self.subs, self.books, self.index = [], {}, 77000.0
-    def subscribe(self, channels):
-        self.subs.append(sorted(channels))
+    def subscribe_tickers(self, insts):
+        self.subs.append(sorted(insts))
     def book(self, inst, max_age=None):
         b = self.books.get(inst)
         if not b:
@@ -205,9 +208,8 @@ g.spots["BTC"] = 77000.0
 g._subscribe_chain_crypto("BTC")
 chans = ds.subs[0] if ds.subs else []
 strikes = sorted({int(c.split("-")[2]) for c in chans})
-check("25 strikes either side of the money, calls and puts, on the 100ms ticker",
-      len(chans) == 50 and all(c.endswith(".100ms") for c in chans)
-      and strikes[0] == 65000 and strikes[-1] == 89000, (len(chans), strikes[:1], strikes[-1:]))
+check("25 strikes either side of the money, calls and puts, subscribed in one batch",
+      len(chans) == 50 and strikes[0] == 65000 and strikes[-1] == 89000, (len(chans), strikes[:1], strikes[-1:]))
 g._subscribe_chain_crypto("BTC")
 check("nothing new while the expiry and the neighbourhood hold", len(ds.subs) == 1)
 g.spots["BTC"] = 78200.0
@@ -230,6 +232,25 @@ check("a stale tick is not shown as live", (78000.0, "CE") not in g.chain_live("
 ds.books[inst]["at"] = time.time()
 ds.index = None
 check("no index price, no conversion - nothing is shown rather than a wrong number", g.chain_live("BTC") == {})
+
+
+class FakeDelta(FakeDeribit):
+    """Delta Exchange India's way: the same surface, quotes already in dollars."""
+    QUOTES_IN_COIN = False
+
+
+ds2 = FakeDelta()
+g.dstream = ds2
+g.chain_toks.pop("BTC", None)
+g._subscribe_chain_crypto("BTC")
+inst2 = g.chain_toks["BTC"]["map"][(78000.0, "CE")]
+ds2.books[inst2] = {"mark": 1510.25, "bid": 1500.0, "ask": 1520.0, "last": 1490.0, "oi": 16.4, "at": time.time()}
+row2 = g.chain_live("BTC").get((78000.0, "CE")) or {}
+check("Delta quotes dollars: nothing is multiplied, and the mark (not a stale last trade) is the price",
+      row2.get("ltp") == 1510.25 and row2.get("bid") == 1500.0 and row2.get("ask") == 1520.0 and row2.get("oi") == 16.4, row2)
+check("Bitcoin's index symbol on Delta, and its settlement at 17:30 IST",
+      config.crypto_index("BTC") == ".DEXBTUSD" and config.crypto_settle_time("BTC").hour == 17
+      and config.MARKETS["crypto"]["market_provider"] == "delta")
 ds.index = 77000.0
 ds2 = FakeDeribit()
 ds2.books[inst] = {"mark": 0.09, "bid": 0.088, "ask": 0.092, "last": 0.09, "oi": 1.0, "at": time.time()}

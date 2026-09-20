@@ -156,16 +156,25 @@ INSTRUMENTS = {
         "kite_exchange": None,
         "kite_tradingsymbol": None,
         "market": "crypto",
-        "provider": "deribit",
+        # Delta Exchange India since 20 Sep 2026 (the user's choice): the
+        # venue the live orders go through, so a ticket and a real order are
+        # the same contract. Prices are in dollars per 1 BTC of underlying and
+        # one contract is 0.001 BTC - so lot_size is 0.001 and "lots" are
+        # contracts. The Deribit names stay for the provider that came before.
+        "provider": "delta",
+        "delta_perpetual": "BTCUSD",
+        "delta_index": ".DEXBTUSD",
+        "delta_asset": "BTC",
         "deribit_instrument": "BTC-PERPETUAL",
         "deribit_index": "btc_usd",
         "deribit_currency": "BTC",
         "quote_ccy": "USD",
-        "strike_step": 1000,
-        "lot_size": 1,
-        # Deribit's smallest order is 0.1 BTC. Sized in whole contracts, one
-        # ticket on a $2,000 account paid 46% of it in premium and risked 7%.
-        "qty_step": 0.1,
+        # Delta lists strikes 200 and 400 apart near the money; the engine's
+        # suggested strike is snapped to a listed one (signal_engine).
+        "strike_step": 400,
+        "lot_size": 0.001,
+        "qty_step": 1,
+        "lot_choices": [10, 25, 50, 100, 250, 500],
         "has_free_option_chain": False,
     },
 }
@@ -540,7 +549,7 @@ MARKETS = {
         # reason a market had to stop being a global.
         "label": "crypto, 24/7",
         "currency": "USD",
-        "market_provider": "deribit",
+        "market_provider": "delta",
         "always_open": True,
         "weekends": True,
         "holidays": False,
@@ -575,6 +584,10 @@ def lot_choices(market=None):
     small account can size down to the exchange minimum and a large one is not
     stuck clicking 0.1 fifty times.
     """
+    listed = [v["lot_choices"] for v in INSTRUMENTS.values()
+              if v.get("market", DEFAULT_MARKET) == (market or DEFAULT_MARKET) and v.get("lot_choices")]
+    if listed:
+        return [float(x) for x in listed[0]]      # a venue that names its own sizes (Delta: contracts)
     steps = [v.get("qty_step", 1) for v in INSTRUMENTS.values()
              if v.get("market", DEFAULT_MARKET) == (market or DEFAULT_MARKET)]
     step = min(steps) if steps else 1
@@ -584,6 +597,20 @@ def lot_choices(market=None):
     n = int(round(1 / step))
     fr = [round(i * step, 4) for i in range(1, n + 1)]
     return fr + [float(i) for i in range(2, top + 1)]
+
+
+def crypto_index(name):
+    """The streamed index symbol of a crypto instrument on its provider:
+    Delta's ".DEXBTUSD" or Deribit's "btc_usd"."""
+    m = INSTRUMENTS.get(name) or {}
+    return m.get("delta_index") if m.get("provider") == "delta" else m.get("deribit_index")
+
+
+def crypto_settle_time(name):
+    """When a crypto option settles on its expiry day, in IST: Delta at
+    12:00 UTC (17:30 IST), Deribit at 08:00 UTC (13:30 IST)."""
+    import datetime as _dt
+    return _dt.time(17, 30) if (INSTRUMENTS.get(name) or {}).get("provider") == "delta" else _dt.time(13, 30)
 
 
 def active_instruments():

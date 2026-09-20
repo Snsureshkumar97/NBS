@@ -342,8 +342,8 @@ def _trading_hours_until(expiry_date, now: dt.datetime, index_key=None) -> tuple
     if config.market_for(index_key)["always_open"]:
         if expiry_date is None:
             return sess, sess
-        # Deribit settles at 08:00 UTC, which is 13:30 IST.
-        end = dt.datetime.combine(expiry_date, dt.time(13, 30))
+        # Delta settles at 12:00 UTC (17:30 IST); Deribit did at 08:00 UTC.
+        end = dt.datetime.combine(expiry_date, config.crypto_settle_time(index_key))
         if now.tzinfo is not None:
             end = end.replace(tzinfo=now.tzinfo)
         total = max((end - now).total_seconds() / 3600.0, 0.25)
@@ -923,6 +923,15 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         confidence = "Low"
     if bias == "NEUTRAL":
         confidence = "N/A"
+
+    # The strike must exist. Delta lists Bitcoin strikes 200 and 400 apart in
+    # no fixed pattern, so a strike rounded to the step can be one nobody can
+    # buy; when the chain is known, the nearest listed strike is used. On the
+    # Indian indices the grid is regular and this changes nothing.
+    listed = [s_["strike"] for s_ in (oi or {}).get("strikes") or [] if s_.get("strike") is not None]
+    if listed and suggested_strike is not None:
+        suggested_strike = min(listed, key=lambda k: abs(k - suggested_strike))
+        atm_strike = min(listed, key=lambda k: abs(k - atm_strike))
 
     return {
         "index": index_key,

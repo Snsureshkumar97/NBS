@@ -752,7 +752,7 @@ class AIDesk:
                 return None
         if self.feed.streamer is feeds._NO_STREAM:
             ds = self.feed.dstream
-            return ds.mark_usd(handle, config.INSTRUMENTS[name]["deribit_index"]) if ds else None
+            return ds.mark_usd(handle, config.crypto_index(name)) if ds else None
         st = self.feed.streamer
         return st.price(handle) if st is not None else None
 
@@ -765,7 +765,7 @@ class AIDesk:
                     name, trade["strike"], trade["option_type"], trade.get("expiry"))
                 if ds is None or not inst:
                     return None
-                ds.subscribe([f"ticker.{inst}.100ms"])
+                ds.subscribe_ticker(inst)
                 return inst
             import user_kite
             from data_providers import KiteDataProvider

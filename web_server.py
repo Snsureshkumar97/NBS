@@ -919,9 +919,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         with the downside puts bid over the upside calls on Nifty and Sensex -
         the put skew an equity index always carries.
 
-        Crypto is refused rather than guessed at. Deribit's BTC options are
-        inverse and quoted in the coin, so rupee-style Black-Scholes would
-        produce confident nonsense.
+        Crypto is refused rather than guessed at: Delta Exchange India's
+        options carry their own greeks and implied volatility from the venue,
+        not yet wired into this tab, and a rupee-style Black-Scholes on them
+        would produce confident nonsense.
         """
         import datetime as _dt
         import greeks as gk
@@ -929,10 +930,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         market = self._current_market()
         if market != "nse_index":
             return self._send(json.dumps({
-                "note": "These are European cash-settled index options priced "
-                        "with Black-Scholes. Deribit's contracts are inverse "
-                        "and quoted in the coin, so the same model does not "
-                        "apply and is not pretended to."}), "application/json")
+                "note": "These are the Indian indices' cash-settled options priced "
+                        "with Black-Scholes. Bitcoin's greeks and implied volatility come "
+                        "from Delta Exchange India itself and are not wired into this tab "
+                        "yet, so nothing is pretended here."}), "application/json")
 
         names = config.instruments_in(market)
         name = (qs.get("index") or [""])[0].upper()
@@ -2165,7 +2166,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         market = self._current_market()
         if config.MARKETS.get(market, {}).get("market_provider") != "kite":
-            # Deribit has no equivalent history call wired up here, so say so
+            # Delta's option candles are not wired into this chart yet, so say so
             # rather than drawing an empty box the user has to interpret.
             return self._send(json.dumps({
                 "candles": [], "index": key, "strike": strike, "option_type": side,
@@ -4641,7 +4642,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   P&amp;L, the session total and the Record are the premium move times the lot size,
   <b>before</b> brokerage, STT, exchange charges, GST and slippage, all of which come off
   what you actually keep. Figures marked &ldquo;after charges&rdquo; include Zerodha&rsquo;s
-  charges but not slippage. Crypto figures are in dollars, before Deribit&rsquo;s fees.
+  charges but not slippage. Crypto figures are in dollars, before Delta Exchange&rsquo;s fees.
   Past behaviour of a rule set does not predict its future behaviour. Options can lose
   their entire value. Verify every number with your own broker before risking money.
  </footer>
@@ -4752,7 +4753,7 @@ let LMODE = "auto";
 let LOTS = 1;
 let LOTS_SYNCED = false;
 
-// A Deribit contract IS one coin, so "5 lots of 1" is a unit that does not
+// A Delta Exchange contract is 0.001 BTC and is counted in contracts, so "5 lots of 1" is a unit that does not
 // exist; index options are genuinely sold in lots of 65 or 30. Set here rather
 // than inside the no-ticket branch, because ladder() returns early once a
 // ticket is open - which is exactly when you are most likely to be reading it.
@@ -4918,8 +4919,8 @@ function ladder(r, tk){
 
   // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
   // list, so raising the cap in config raises it here too.
-  // Choices come from the server: whole lots for index options, 0.1 steps
-  // for BTC, whose smallest order on Deribit is a tenth of a contract.
+  // Choices come from the server: whole lots for index options; for BTC a
+  // count of Delta Exchange contracts of 0.001 BTC each.
   const sess = (LAST && LAST.session) || {};
   const choices = sess.lot_choices || [1,2,3,4,5];
   const sel = $("lots");
@@ -5579,7 +5580,7 @@ function rrBox(r, tk){
   if(!prem) notes.push("In index points - there is no live option price for this strike, so no rupee figures.");
   else if(ch) notes.push(`After Zerodha's charges at ${esc(size)}: brokerage of ₹20 an order, STT on the sell side, `
                        + `exchange, SEBI and stamp charges, and GST. Slippage is not included - a wide spread costs more.`);
-  else if(CCY === "USD") notes.push("Deribit's trading fees are not included.");
+  else if(CCY === "USD") notes.push("Delta Exchange's trading fees are not included.");
   else notes.push("Charges could not be worked out, so these are before costs.");
   notes.push(`"× risk" is how far each level is from entry compared with the stop. The Reward : risk tile above is `
            + `a different number: how far the market has room to run against the stop - the check that decides `
@@ -7099,9 +7100,9 @@ function greet(s){
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
   if(s.market === "crypto"){
-    $("said").textContent = "Bitcoin options on Deribit, priced live in dollars - "
+    $("said").textContent = "Bitcoin options on Delta Exchange India, priced live in dollars - "
                           + "one screen, around the clock.";
-    const bs = $("brandsub"); if(bs) bs.textContent = "BTC · Deribit · 24/7";
+    const bs = $("brandsub"); if(bs) bs.textContent = "BTC · Delta Exchange · 24/7";
     return;
   }
   $("said").textContent = k.connected
@@ -7819,7 +7820,7 @@ function watchDraw(d){
           + `<td${col ? ` style="color:${col}"` : ""}>${since}</td>${acts}</tr>`;
       }).join("") + `</tbody>`;
   note.textContent = (crypto
-      ? "Deribit marks in dollars, refreshed every few seconds while this page is open. "
+      ? "Delta Exchange marks in dollars, refreshed every few seconds while this page is open. "
       : "Zerodha prices, refreshed every few seconds while this page is open. Bid and ask are empty outside market hours. ")
     + "A spread over 3% shows in red - the tool holds a ticket at that width. Since added is measured from the price when you starred it.";
 }

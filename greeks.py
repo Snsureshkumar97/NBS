@@ -18,9 +18,11 @@ WHAT IT IS NOT
     * Not a prediction. Implied volatility is what the market is charging, not
       what will happen.
     * Not a fit for American options, dividends paid mid-life, or anything
-      settled in the underlying coin rather than cash. Deribit's BTC options
-      are inverse and quoted in coin - they need their own handling before any
-      of this is applied to them, so this module refuses rather than guesses.
+      settled in the underlying coin rather than cash. Bitcoin options on
+      Delta Exchange India are dollar-settled Europeans, but the venue
+      publishes its own greeks and implied volatility, which are the right
+      figures to show - until they are wired in, this module refuses rather
+      than guesses.
     * Not exact on expiry day. As time to expiry approaches zero the greeks
       stop being smooth and implied volatility gets very sensitive to a stale
       quote. Everything here carries the time it used so that can be seen.

@@ -1436,7 +1436,7 @@ def how_page(user=None, record=None):
    picked. The lots are still yours to choose &mdash; and they are the lots a
    live order uses, if you switch live orders on for that index &mdash; but the
    number is in front of you before you do. BTC sizes in
-   tenths of a contract, Deribit&rsquo;s minimum, so a small account is not
+   contracts of 0.001 BTC, Delta Exchange India&rsquo;s size, so a small account is not
    forced into a whole coin.</p>
   <p><b>Review.</b> The Review page reads your own finished tickets back &mdash;
    win rate, average per lot, profit factor, by index, by entry time, by
@@ -2686,7 +2686,7 @@ def market_page(user=None, markets=None, error=None):
             head, sub = "Crypto", "BTC and ETH, priced in US dollars"
             detail = ("Runs around the clock &mdash; no open, no close, no "
                       "weekend. Candles, spot and the option chain all come "
-                      "from Deribit.")
+                      "from Delta Exchange India.")
         else:
             head, sub = "Indian indices", "Nifty, Bank Nifty and Sensex, in rupees"
             detail = (f"{_esc(_session_open())} to {_esc(_session_close())} IST, "

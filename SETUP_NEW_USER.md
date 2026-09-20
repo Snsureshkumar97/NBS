@@ -154,6 +154,39 @@ billed like a question. It is set per market.
 
 ---
 
+## Step 7 — Optional: Bitcoin on Delta Exchange India
+
+The Bitcoin market's prices, candles and option chain come from Delta
+Exchange India (since 20 Sep 2026) and need no account there: Delta's market
+data is public. Options are settled in dollars, one contract is 0.001 BTC, and
+"lots" on the Bitcoin pages are counts of contracts.
+
+Only real orders need keys. In the tool, with the Bitcoin market selected,
+the header chip says **Connect Delta Exchange** and opens the Delta page:
+
+1. On delta.exchange (India), create an API key **with trading permission**.
+2. Whitelist the static IP this server connects from on that key — the same
+   address registered with Zerodha. Delta refuses trading calls from any
+   other IP, and the page names the IP Delta saw if the keys are refused for
+   that reason.
+3. Paste the key and the secret into the page. They are checked against
+   Delta before they are kept, never shown again, and removed with one click
+   or with the account.
+
+The Indian indices keep their own page (**Connect Zerodha**) with its own
+steps for live orders; the two never appear over each other's market.
+
+**Also in the tool now:** *AI trades* has a lots selector per market and
+shows what each trade cost (premium × lot size × lots); the *Journal* has an
+*AI trades* source beside your trades and the tool's tickets; *Analysis →
+Gann levels* is a Square of Nine calculator with a volume oscillator (tested
+as a filter and found not to improve the rules — reference levels only); and
+the *TradingView* tab frames TradingView's own chart for the index on screen.
+Ask TradePicker and the AI desk see every one of these sections except the
+TradingView frame, which is not the tool's data.
+
+---
+
 ## If something goes wrong
 
 Run:
