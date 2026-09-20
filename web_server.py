@@ -6912,6 +6912,11 @@ function render(s){
   $("kite").textContent = br.connected ? br.name : "Connect " + br.name;
   $("kite").href = br.connect_url || "/connect";
   $("kite").style.color = needs ? "#b07d15" : "";
+  // The chip was never shown at all (display:none with nothing to reveal it),
+  // so on the Bitcoin market there was no way to reach the Delta page - the
+  // user's report on 20 Sep 2026. Shown whenever the venue is not Zerodha,
+  // and on the Indian indices when Zerodha needs connecting.
+  $("kite").style.display = (needs || br.name !== "Zerodha") ? "" : "none";
   $("stale").style.display = (!needs && s.stale) ? "flex" : "none";
   $("stalemsg").textContent = s.feed==="expired"
     ? "Zerodha clears access tokens every morning and today's has not been renewed."
@@ -8145,6 +8150,10 @@ function aiRender(d){
                 failed: "Live: no position"}[lp.state] || "");
   }
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
+  const brk = (LAST && LAST.broker) || {};
+  if(k === "BTC" && brk.name === "Delta Exchange" && !brk.connected)
+    lines.push("Delta Exchange keys not added yet - open \"Connect Delta Exchange\" at the top of the page "
+               + "(or /connect-delta) before switching live orders on.");
   lstat.textContent = lines.filter(Boolean).join("  —  ");
   lstat.style.display = lstat.textContent ? "" : "none";
   lstat.classList.toggle("err", !!((lnote && lnote.level === "error") || (lp && lp.state === "attention")));
@@ -8861,8 +8870,9 @@ function gkPaint(){
         + "usual shape for an index, where protection costs more than upside. "
       : "Upside calls carry as much implied volatility as the puts, which is "
         + "unusual for an index and worth a second look. ")
-    + `Priced at a ${d.rate}% rate, ${d.minutes} minutes to the close on expiry `
-    + `day. ${d.note || ""}`;
+    + (d.source
+        ? `${d.source}'s own figures, ${d.minutes} minutes to settlement. ${d.note || ""}`
+        : `Priced at a ${d.rate}% rate, ${d.minutes} minutes to the close on expiry day. ${d.note || ""}`);
 
   const cell = (o, k, dp) => `<td>${!o || o[k] == null ? "—" : num(o[k], dp)}</td>`;
   scrTable("gkchain", d.rows || [],
