@@ -307,6 +307,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_admin_action(form)
             if path == "/connect":
                 return self._do_connect(form)
+            if path == "/connect-delta":
+                return self._do_connect_delta(form)
             if path == "/api/ticket":
                 return self._do_ticket(form)
             if path == "/api/alwayson":
@@ -459,6 +461,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._redirect("/")
             if path == "/connect":
                 return self._connect(user)
+            if path == "/connect-delta":
+                return self._connect_delta(user)
 
             # ---- the tool itself ------------------------------------------
             if path == "/app":
@@ -600,6 +604,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         market = self._current_market()
         feed = feeds.for_user(user, market)
         snap = feed.snapshot()
+        mprov = (config.MARKETS.get(market) or {}).get("market_provider")
         kite = user_kite.summary(user) if _state["mode"] != "free" else {
             "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
         payload = {
@@ -629,7 +634,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # tick socket looks like a working page.
             "stream_error": snap.get("stream_error"),
             "kite": kite,
-            "needs_connect": not kite["connected"],
+            # Only a Zerodha market needs Zerodha. The crypto market's prices
+            # need no key at all, so this used to put "Connect Zerodha" over a
+            # Bitcoin page that had nothing to connect (the user's complaint,
+            # 20 Sep 2026). Each market names its own venue in "broker".
+            "needs_connect": (not kite["connected"]) and mprov == "kite",
+            "broker": self._broker(user, market),
             "indices": snap["indices"],
             "why": snap["why"],
             "tickets": snap.get("tickets") or {},
@@ -2331,6 +2341,49 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as exc:
             return self._connect(user, error=str(exc))
         return self._redirect(url)
+
+    # ------------------------------------------------------------- delta exchange
+    def _connect_delta(self, user, error=None, notice=None):
+        import user_delta
+        info = user_delta.summary(user)
+        return self._send(nbs_site.delta_connect_page(
+            user, info["state"], info["detail"], user_id=info["user_id"], since=info["since"],
+            error=error, notice=notice))
+
+    def _do_connect_delta(self, form):
+        """Keep or drop this account's Delta Exchange India keys. The user types
+        them into this page; they are checked against Delta before they are
+        kept, and never appear in a page or a log after that."""
+        import user_delta
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        if not self._same_origin():
+            return self._connect_delta(user, error="Refused: that request did not come from this site.")
+        action = form.get("action")
+        if action == "disconnect":
+            user_delta.disconnect(user)
+            return self._connect_delta(user, notice="Delta Exchange keys removed from this account.")
+        if action != "save":
+            return self._connect_delta(user)
+        ok, msg = user_delta.connect(user, form.get("api_key"), form.get("api_secret"))
+        return self._connect_delta(user, notice=msg if ok else None, error=None if ok else msg)
+
+    def _broker(self, user, market):
+        """Which venue this market's live orders go through and whether this
+        account is connected to it - for the header chip and the notices.
+        Zerodha on the Indian indices; Delta Exchange India on Bitcoin, where
+        prices need no key and the keys are only for live orders."""
+        if (config.MARKETS.get(market) or {}).get("market_provider") == "kite":
+            info = (user_kite.summary(user) if (user and _state["mode"] != "free")
+                    else {"state": "ok", "detail": "", "connected": True})
+            return {"name": "Zerodha", "connect_url": "/connect", "connected": bool(info.get("connected")),
+                    "state": info.get("state"), "detail": info.get("detail") or "",
+                    "needed_for": "prices and live orders"}
+        import user_delta
+        info = user_delta.summary(user) if user else {"state": "missing", "detail": "", "connected": False}
+        return {"name": "Delta Exchange", "connect_url": "/connect-delta", "connected": bool(info.get("connected")),
+                "state": info.get("state"), "detail": info.get("detail") or "", "needed_for": "live orders only"}
 
     # ------------------------------------------------------------- operator
     def _admin(self, qs):
@@ -6684,14 +6737,19 @@ function render(s){
   // different fixes, so they are different notices — and only ever one of
   // them, because "connect your account" also explains the missing data.
   const needs = !!s.needs_connect;
+  const br = s.broker || {name: "Zerodha", connect_url: "/connect", connected: !needs};
   $("connect").style.display = needs ? "flex" : "none";
   $("connectmsg").textContent = (s.kite && s.kite.detail) || "";
-  $("kite").textContent = needs ? "Connect Zerodha" : "Zerodha";
+  // The chip names this market's own venue - Zerodha on the Indian indices,
+  // Delta Exchange on Bitcoin - never Zerodha over a crypto page.
+  $("kite").textContent = br.connected ? br.name : "Connect " + br.name;
+  $("kite").href = br.connect_url || "/connect";
   $("kite").style.color = needs ? "#b07d15" : "";
   $("stale").style.display = (!needs && s.stale) ? "flex" : "none";
   $("stalemsg").textContent = s.feed==="expired"
     ? "Zerodha clears access tokens every morning and today's has not been renewed."
-    : "The connection to Zerodha is not returning data.";
+    : (br.name === "Zerodha" ? "The connection to Zerodha is not returning data."
+                             : "The crypto price feed is not returning data.");
 
   const r=s.indices[CUR];
   if(!r){ blank("No data yet for "+CUR,

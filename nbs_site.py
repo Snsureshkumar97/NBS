@@ -2051,6 +2051,9 @@ def security_page(user=None, record=None):
     deleted with the account</td></tr>
    <tr><td>Kite user id</td><td>user file</td><td>so the connect page can say
     which Zerodha login this is</td></tr>
+   <tr><td>Delta Exchange API key and secret</td><td>user file</td><td>only if
+    you add them, for live Bitcoin orders; checked against Delta before they
+    are kept; removed with one click, and with the account</td></tr>
    <tr><td>Created / last login</td><td>user file</td><td>so the owner can see
     a dormant account</td></tr>
    <tr><td>Closed trades</td><td>trade file</td><td>the tickets this server
@@ -2762,7 +2765,8 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
   <p style="font-size:14px;color:var(--ink-2);margin:10px 0 0">
    Connecting lets this server read index candles and the option chain under
    your own Kite session, which is what the signals are computed from.
-   <b>No order is ever placed.</b> The token is stored only on this server, is
+   <b>No order is placed unless you switch live orders on for an index</b> -
+   see the steps below. The token is stored only on this server, is
    never shown in a page or written to a log, and is deleted with your
    account.</p>
   <p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">
@@ -2771,9 +2775,103 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
    whenever it was issued, so this is a step you repeat each morning rather
    than one you do once. <a href="/security">More on what is stored.</a></p>
  </div>
+
+ <div class="panel" style="margin-top:16px;box-shadow:none">
+  <h1 style="font-size:16px">Live orders on Nifty, Bank Nifty and Sensex - step by step</h1>
+  <ol style="font-size:14px;color:var(--ink-2);margin:10px 0 0;padding-left:20px;line-height:1.55">
+   <li>Connect Zerodha above, today.</li>
+   <li>Register the static IP this server connects from on
+    <b>developers.kite.trade</b> (your app &rarr; IP whitelist). Zerodha rejects
+    every API order from an unregistered IP; prices and the chain still work
+    without it.</li>
+   <li>On the Signal page, set this account to <b>runs all session</b>.</li>
+   <li>Switch <b>Live orders</b> on per index - on the Signal card for the rule
+    tickets, on the AI trades tab for the AI desk's. Each is off by default and
+    separate from the other.</li>
+   <li>Before every entry the tool reads your Kite funds. If the premium plus
+    charges is more than the cash available, no order is sent and the ticket
+    stays on paper, and the note says by how much it fell short.</li>
+   <li>Every position is intraday (MIS): a stop-loss order sits at Zerodha from
+    the fill, the exit is a limit sell repriced every five seconds, and
+    anything still open is closed at 15:20. No entry after 15:10.</li>
+  </ol>
+  <p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">Bitcoin is
+   separate: its prices come from Delta Exchange India and need no key, and
+   its live orders use your own Delta keys - see
+   <a href="/connect-delta">the Delta Exchange page</a>.</p>
+ </div>
  <div class="alt" style="margin-top:20px"><a href="/app">Back to the tool</a></div>
 </div></div>"""
     return shell("Zerodha connection", body, user=user, active="", noindex=True)
+
+
+def delta_connect_page(user, state, detail, user_id="", since="", error=None, notice=None):
+    """The Delta Exchange India keys screen - the crypto twin of connect_page.
+    Prices need no key; the keys are only for live Bitcoin orders."""
+    good = state == "ok"
+    label = {"ok": "Keys accepted", "missing": "No keys yet", "invalid": "Keys refused",
+             "unknown": "Unverified"}.get(state, state)
+    pill = (f'<span class="state {"on" if good else "off"}"><span class="d"></span>'
+            f'{_esc(label)}</span>')
+    rows = ""
+    if user_id or since:
+        rows = ('<div class="rows">'
+                + (f'<div class="row"><b>Delta user</b><span>{_esc(user_id)}</span></div>' if user_id else "")
+                + (f'<div class="row"><b>Keys added</b><span>{_esc(since)}</span></div>' if since else "")
+                + f'<div class="row"><b>Account</b><span>{_esc(user)}</span></div>'
+                + "</div>")
+    field = ('style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);'
+             'border-radius:8px;margin:6px 0 12px;font:inherit;background:transparent;color:var(--ink)"')
+    action = (f'<form method="post" action="/connect-delta" autocomplete="off">'
+              f'<label style="font-size:13px;font-weight:700">API key<input name="api_key" type="text" '
+              f'autocomplete="off" spellcheck="false" required {field}></label>'
+              f'<label style="font-size:13px;font-weight:700">API secret<input name="api_secret" '
+              f'type="password" autocomplete="new-password" required {field}></label>'
+              f'<button class="btn wide" name="action" value="save">'
+              f'{"Replace the keys" if state != "missing" else "Save the keys"}</button></form>')
+    if state != "missing":
+        action += ('<form method="post" action="/connect-delta" style="text-align:center;margin-top:14px">'
+                   '<button class="link" name="action" value="disconnect">Remove the keys from this account'
+                   '</button></form>')
+    body = f"""<div class="wrap"><div class="mid">
+ <div class="panel">
+  <h1>Your Delta Exchange India connection</h1>
+  <p class="sub">{pill}</p>
+  {f'<div class="err">{_esc(error)}</div>' if error else ''}
+  {f'<div class="ok">{_esc(notice)}</div>' if notice else ''}
+  <p style="font-size:14.5px;color:var(--ink-2);margin:0">{_esc(detail)}</p>
+  {rows}
+  {action}
+ </div>
+
+ <div class="panel" style="margin-top:16px;box-shadow:none">
+  <h1 style="font-size:16px">Live Bitcoin orders - step by step</h1>
+  <ol style="font-size:14px;color:var(--ink-2);margin:10px 0 0;padding-left:20px;line-height:1.55">
+   <li>Bitcoin prices, candles and the option chain are public on Delta
+    Exchange India. Nothing here is needed to see the market or run paper
+    tickets - only to place real orders.</li>
+   <li>On <b>delta.exchange</b> (India), go to your account &rarr; API keys and
+    create a key <b>with trading permission</b>.</li>
+   <li>Whitelist the static IP this server connects from on that key - the
+    same address registered with Zerodha. Delta refuses trading calls from
+    any other IP and names the IP it saw, which this page shows you if the
+    keys are refused for that reason.</li>
+   <li>Paste the key and the secret above. They are checked against Delta
+    before they are kept; the secret is never shown again.</li>
+   <li>Fund the Delta account. Options there are settled in dollars and one
+    contract is 0.001 BTC, so a ticket's cost is small per contract.</li>
+   <li>Then switch <b>Live orders</b> on for Bitcoin - on the Signal card for
+    the rule tickets, on the AI trades tab for the AI desk's - once that
+    switch is offered for Bitcoin. It is off by default.</li>
+  </ol>
+  <p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">The keys are
+   stored only in this server's user file, readable by the server alone, and
+   are removed with the button above or with your account. This server never
+   sees your Delta password. <a href="/security">More on what is stored.</a></p>
+ </div>
+ <div class="alt" style="margin-top:20px"><a href="/app">Back to the tool</a></div>
+</div></div>"""
+    return shell("Delta Exchange connection", body, user=user, active="", noindex=True)
 
 
 def result_page(title, message, ok=True, user=None, back="/connect",
