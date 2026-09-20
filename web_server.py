@@ -641,6 +641,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # Real Zerodha orders: which indices are switched on, today's
             # positions and the latest steps. None on a market that has none.
             "live": feed.live.public() if getattr(feed, "live", None) else None,
+            # The index futures, the heavyweights and the traded contracts'
+            # order flow, as the bot sees them (Zerodha only; {} elsewhere).
+            "flow": snap.get("flow") or {},
             "record": track_record(user, market),
             # Only this market's instruments. Returning all of them put NIFTY
             # cards on a crypto screen with no data behind them, because the

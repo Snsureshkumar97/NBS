@@ -318,10 +318,46 @@ class AIDesk:
             return f"Cooling down after the last AI exit on {name}."
         return None
 
+    def _live_info(self, name):
+        """Whether this index's AI tickets are also placed as real Zerodha orders
+        and, only when they are, whether the account's cash covers one ticket at
+        about the suggested premium - yes or no and any shortfall, never the
+        balance itself."""
+        live = getattr(self.feed, "live", None)
+        if live is None or not live.enabled_ai.get(name):
+            return {"on": False}
+        with self.feed.lock:
+            pub = (self.feed.state["indices"].get(name) or {}).get("public") or {}
+        try:
+            need = float(pub.get("ltp")) * int(pub.get("lot_size")) * float(self.feed.tickets.lots or 1)
+        except (TypeError, ValueError):
+            need = None
+        return {"on": True, "funds_for_one_ticket_at_the_suggested_premium":
+                live.funds_check(need) if need else {"enough": None, "note": "no suggested premium right now"}}
+
+    def _ticket_flow(self, name):
+        """Order flow on an open AI ticket's own contract, off the tick socket."""
+        import feeds
+        import kite_flow
+        trade = self._open_trade(name)
+        st = self.feed.streamer
+        tok = self._tok.get(trade.get("trade_id")) if trade else None
+        if tok is None or st is None or st is feeds._NO_STREAM or not hasattr(st, "book"):
+            return None
+        return kite_flow.order_flow(st.book(tok, max_age=kite_flow.MAX_AGE_S))
+
     def _desk_info(self, name):
-        return {"paper_only": True, "your_open_tickets": {k: self.book.public(k).get("ticket")
-                                                          for k in self.feed.instruments()
-                                                          if self._open_trade(k)},
+        tickets = {}
+        for k in self.feed.instruments():
+            if self._open_trade(k):
+                t = self.book.public(k).get("ticket")
+                if isinstance(t, dict):
+                    flow = self._ticket_flow(k)
+                    if flow:
+                        t = dict(t, order_flow=flow)
+                tickets[k] = t
+        live = self._live_info(name)
+        return {"paper_only": not live.get("on"), "real_orders": live, "your_open_tickets": tickets,
                 "entries_today": dict(self.entries), "max_entries_per_day": MAX_ENTRIES_PER_DAY,
                 "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": list(self.contracts),
                 "cooldown_minutes_after_an_exit": COOLDOWN_MIN, "min_reward_to_risk": MIN_REWARD_RISK,
@@ -368,6 +404,34 @@ class AIDesk:
         except OSError:
             pass
         return out
+
+    def _fills(self):
+        """{trade_id: real fill} of the AI tickets that ran as live Zerodha orders."""
+        live = getattr(self.feed, "live", None)
+        if live is None:
+            return {}
+        try:
+            return {f.get("trade_id"): f for f in live.fills("ai")}
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _real_fills(pairs):
+        """Paper against real, over the AI trades that were live: Zerodha's own
+        average prices, both gross of charges like the paper figures."""
+        def mean(xs):
+            return round(sum(xs) / len(xs), 2) if xs else None
+        ent = [float(f["entry_avg"]) - float(f["paper_entry"]) for _r, f in pairs
+               if f.get("entry_avg") is not None and f.get("paper_entry") not in (None, "")]
+        ext = [float(f["exit_avg"]) - float(r["exit"]) for r, f in pairs
+               if f.get("exit_avg") is not None and r.get("exit") not in (None, "")]
+        gross = [float(f["gross_pnl"]) for _r, f in pairs if f.get("gross_pnl") is not None]
+        return {"live_trades": len(pairs), "real_gross_pnl": round(sum(gross), 2) if gross else None,
+                "paper_pnl_of_the_same_trades": round(sum(float(r["pnl"]) for r, _f in pairs), 2),
+                "avg_entry_slippage_points": mean(ent), "avg_exit_slippage_points": mean(ext),
+                "how_to_read": ("real = Zerodha's average buy and sell prices; paper = the ticket's. Entry "
+                                "slippage above 0 means the real buy cost more than paper; exit slippage below 0 "
+                                "means the real sell got less. Both P&L figures are before charges.")}
 
     def track_record(self, name):
         """What its own closed trades in this market did - overall, on this index,
@@ -416,6 +480,7 @@ class AIDesk:
                 g.setdefault(fn(r), []).append(r)
             groups[key] = {k: stats(v) for k, v in g.items()}
         reasons = self._entry_reasons()
+        fills = self._fills()
         last = []
         for r in mine[-RECORD_LAST:][::-1]:
             o = opens.get(r.get("trade_id")) or {}
@@ -426,9 +491,16 @@ class AIDesk:
                 "at_entry": {k: o.get(k) or None for k in ("adx", "rsi", "macd_hist", "vwap_gap")},
                 "your_reason_then": (reasons.get((o.get("date") or r.get("date"), name, str(r.get("strike")),
                                                   r.get("option_type"))) or "")[:220] or None})
+            f = fills.get(r.get("trade_id"))
+            if f:
+                last[-1]["real_fill"] = {"bought_at": f.get("entry_avg"), "sold_at": f.get("exit_avg"),
+                                         "qty": f.get("qty"), "gross_pnl": f.get("gross_pnl")}
         out = {"closed_trades": len(done), "abandoned_no_exit_price": abandoned,
                "all_indices": stats(done), "this_index": stats(mine), **groups,
                "your_last_trades_on_this_index": last}
+        pairs = [(r, fills[r.get("trade_id")]) for r in done if r.get("trade_id") in fills]
+        if pairs:
+            out["real_fills"] = self._real_fills(pairs)
         if len(done) < RECORD_MIN_SAMPLE:
             out["caution"] = (f"Only {len(done)} closed trades so far - too few to trust any pattern here. Note it; "
                               f"do not change how you trade because of it until there are at least "
@@ -672,7 +744,7 @@ class AIDesk:
                 name, trade["strike"], trade["option_type"], str(trade.get("expiry") or "")[:10] or None)
             if not tok:
                 return None
-            st.subscribe([tok], quote=True)
+            st.subscribe([tok], full=True)       # FULL carries its order flow, for the bot
             return tok
         except Exception:
             return None

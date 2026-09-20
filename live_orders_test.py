@@ -49,6 +49,16 @@ class FakeKite:
         self.raise_on_place = []         # exceptions to raise on the next place_order calls
         self.manual_sold = 0
         self.positions_fail = False
+        self.cash = 10_000_000.0          # plenty, unless a test says otherwise
+        self.collateral_net = None        # a `net` inflated by pledged holdings
+        self.margins_fail = False
+
+    def margins(self, segment=None):
+        self.calls.append(("margins", segment))
+        if self.margins_fail:
+            raise NetworkException("margins timed out")
+        net = self.cash if self.collateral_net is None else self.collateral_net
+        return {"enabled": True, "net": net, "available": {"live_balance": self.cash, "cash": self.cash}}
 
     def instruments(self, exch):
         self.calls.append(("instruments", exch))
@@ -737,6 +747,136 @@ check("status text is set as text, never HTML", 'st.textContent = lines' in SRC)
 FSRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "feeds.py")).read()
 check("only the Indian-indices feed gets an executor, and it listens to that feed's tickets",
       'self.market == "nse_index"' in FSRC and "self.tickets.listeners.append(self.live.on_ticket_event)" in FSRC)
+
+print("16. FUNDS ARE CHECKED BEFORE AN ENTRY IS SENT")
+ex, fk, clk, closed = rig()
+fk.cash = 10_000.0                               # 130 lots x 131 x 1.02 is ~17,400
+fk.last["NIFTY2026092225000CE"] = 131.0
+ex.on_ticket_event("opened", ticket())
+drain(ex)
+pos = ex.positions[ticket()["trade_id"]]
+check("short of cash: no order is sent at all", not fk.places(), fk.places())
+need = 133.65 * 130 + lo.CHARGES_ALLOWANCE
+check("the position fails with the shortfall, and the ticket stays on paper",
+      pos["state"] == "failed" and abs(pos["funds_short"] - round(need - 10_000.0, 2)) < 0.01
+      and "short by Rs 7,434" in ex.notes[0]["text"] and "paper ticket" in ex.notes[0]["text"], ex.notes[0]["text"])
+check("the entry counts against the day's cap like any refused entry", ex.entries_today == 1)
+
+ex, fk, clk, closed = rig()
+fk.cash, fk.collateral_net = 10_000.0, 500_000.0
+ex.on_ticket_event("opened", ticket())
+drain(ex)
+check("pledged collateral in `net` does not pay a premium: the cash figure decides",
+      not fk.places() and ex.positions[ticket()["trade_id"]]["state"] == "failed")
+
+ex, fk, clk, closed = rig()
+fk.cash = 17_500.0                               # just enough for 130 x 133.65 + charges (17,434.5)
+ex.on_ticket_event("opened", ticket())
+drain(ex)
+check("enough cash: the order goes", len(fk.places(transaction_type="BUY")) == 1)
+
+ex, fk, clk, closed = rig()
+fk.margins_fail = True
+ex.on_ticket_event("opened", ticket())
+drain(ex)
+check("funds that cannot be read do not block the order - Zerodha checks them itself",
+      len(fk.places(transaction_type="BUY")) == 1
+      and any("Could not read the account's funds" in n["text"] for n in ex.notes))
+
+ex, fk, clk, closed = rig()
+fk.cash = 20_000.0
+r = ex.funds_check(19_000.0)
+check("funds_check: enough -> yes and no shortfall", r == {"enough": True, "shortfall": None}, r)
+r = ex.funds_check(25_000.0)
+check("funds_check: short -> no, with the shortfall", r == {"enough": False, "shortfall": 5_060.0}, r)
+check("funds_check never carries the balance", "20000" not in json.dumps(r) and "20,000" not in json.dumps(r))
+n = sum(1 for c in fk.calls if c[0] == "margins")
+ex.funds_check(1.0)
+check("funds_check reuses a recent read instead of asking Zerodha each time",
+      sum(1 for c in fk.calls if c[0] == "margins") == n)
+clk.advance(lo.FUNDS_CACHE_S + 1)
+ex.funds_check(1.0)
+check("...and asks again once it is old", sum(1 for c in fk.calls if c[0] == "margins") == n + 1)
+fk.margins_fail = True
+clk.advance(lo.FUNDS_CACHE_S + 1)
+r = ex.funds_check(1.0)
+check("funds_check when Zerodha does not answer: unknown, not a guess", r["enough"] is None, r)
+
+print("17. REAL FILLS ARE WRITTEN WHEN A POSITION CLOSES")
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk, price=131.0)
+stop = [o for o in fk.orders_.values() if o["order_type"] == "SL"][0]
+fk.fill(stop["order_id"], qty=30, price=97.0)    # the stop fills a little, then T2 closes the rest
+clk.advance(lo.SETTLE_S + 1)
+ex.on_ticket_event("closed", dict(t, status="CLOSED — T2 hit (full target reached)"))
+drain(ex)
+sell = [o for o in fk.orders_.values() if o["transaction_type"] == "SELL" and o["order_type"] == "LIMIT"][0]
+fk.fill(sell["order_id"], price=180.0)
+drain(ex)
+drain(ex)
+rows = lo.read_fills(ex.log_path)
+row = rows[0] if rows else {}
+want_exit = round((30 * 97.0 + 100 * 180.0) / 130, 2)
+check("one line, once", len(rows) == 1, rows)
+check("what was bought, at Zerodha's average", row.get("qty") == 130 and row.get("entry_avg") == 131.0
+      and row.get("paper_entry") == 130.0, row)
+check("the sell price is weighted over the stop's fills and the sell's", row.get("exit_avg") == want_exit
+      and row.get("exit_qty_priced") == 130, row)
+check("gross result = (sold - bought) x quantity", row.get("gross_pnl") == round((want_exit - 131.0) * 130, 2), row)
+check("source and contract are kept", row.get("source") == "rule" and row.get("contract") == "NIFTY2026092225000CE")
+drain(ex)
+check("never written twice", len(lo.read_fills(ex.log_path)) == 1)
+
+ex, fk, clk, closed = rig(enabled=(), ai=("NIFTY",))
+ex.on_ticket_event("opened", ticket(tid="NIFTY-AI-1"), source="ai")
+drain(ex)
+buy = [o for o in fk.orders_.values() if o["transaction_type"] == "BUY"][-1]
+fk.fill(buy["order_id"], price=128.0)
+drain(ex)
+stop = [o for o in fk.orders_.values() if o["order_type"] == "SL"][0]
+fk.fill(stop["order_id"], price=96.5)
+drain(ex)
+drain(ex)
+ai_rows = lo.read_fills(ex.log_path, "ai")
+check("an AI position's stop fill is written with source ai", len(ai_rows) == 1 and ai_rows[0]["exit_avg"] == 96.5
+      and ai_rows[0]["gross_pnl"] == round((96.5 - 128.0) * 130, 2), ai_rows)
+check("read_fills filters by source", lo.read_fills(ex.log_path, "rule") == [])
+
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk, price=130.0)
+stop = [o for o in fk.orders_.values() if o["order_type"] == "SL"][0]
+fk.fill(stop["order_id"], qty=30, price=99.0)    # the stop sells 30...
+fk.orders_[stop["order_id"]]["status"] = "OPEN"
+fk.manual_sold = 30                               # ...and 30 more go by hand in Kite
+clk.advance(lo.VERIFY_S + 1)
+drain(ex)
+pos = ex.positions[t["trade_id"]]
+check("sold partly outside: the old stop's 30 are banked with their price", pos.get("banked_qty") == 30
+      and pos.get("banked_value") == 30 * 99.0, {k: pos.get(k) for k in ("banked_qty", "banked_value", "filled_qty")})
+ex.on_ticket_event("closed", dict(t, status="CLOSED — AI exit"))
+clk.advance(lo.SETTLE_S + 1)
+drain(ex)
+sell = [o for o in fk.orders_.values() if o["transaction_type"] == "SELL" and o["order_type"] == "LIMIT"]
+if sell:
+    fk.fill(sell[0]["order_id"], price=150.0)
+drain(ex)
+drain(ex)
+row = (lo.read_fills(ex.log_path) or [{}])[0]
+check("bought quantity survives the re-placed stop", row.get("qty") == 130, row)
+check("hand-sold quantity is left out of the price and counted apart",
+      row.get("sold_outside_qty") == 30 and row.get("exit_qty_priced") == 130 - 30, row)
+check("the weighted exit covers the banked stop fills and the sell",
+      row.get("exit_avg") == round((30 * 99.0 + 70 * 150.0) / 100, 2), row)
+
+ex, fk, clk, closed = rig()
+fk.last["NIFTY2026092225000CE"] = 131.0
+ex.on_ticket_event("opened", ticket())
+drain(ex)
+buy = [o for o in fk.orders_.values() if o["transaction_type"] == "BUY"][-1]
+clk.advance(lo.FILL_WAIT_S + 1)
+drain(ex)
+drain(ex)
+check("an entry that never filled writes no fill line", lo.read_fills(ex.log_path) == [])
 
 print("LIVE ORDERS TEST PASSED" if not fails else f"LIVE ORDERS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

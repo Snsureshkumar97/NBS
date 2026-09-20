@@ -247,6 +247,26 @@ def _best_bid_ask(depth):
         return None, None
 
 
+def _as_date(v):
+    """An instrument row's expiry as a date - Kite hands back a date, a cached
+    or faked row may carry the ISO string."""
+    if isinstance(v, dt.datetime):
+        return v.date()
+    if isinstance(v, dt.date):
+        return v
+    return dt.date.fromisoformat(str(v)[:10])
+
+
+def _depth_qty(depth):
+    """(quantity bid, quantity offered) summed over the five levels Kite sends.
+    Padded levels carry quantity 0, so they add nothing."""
+    try:
+        return (sum(int(x.get("quantity") or 0) for x in depth.get("buy") or []),
+                sum(int(x.get("quantity") or 0) for x in depth.get("sell") or []))
+    except Exception:
+        return None, None
+
+
 def _compute_max_pain(strikes: list) -> Optional[float]:
     """Classic max-pain calc: for each candidate expiry strike, total option
     writers' payout if index settles there; max pain = strike with min payout."""
@@ -269,6 +289,9 @@ def _compute_max_pain(strikes: list) -> Optional[float]:
 # is rebuilt every cycle, and the instruments dump is several megabytes.
 _FUT_TOKENS = {}
 _FUT_VOLUME = {}
+# Every futures row on an exchange, per day: (exchange, date) -> rows. The
+# index futures and the heavyweights' stock futures are all looked up here.
+_FUT_ROWS = {}
 
 
 # =============================================================================
@@ -371,6 +394,31 @@ class KiteDataProvider:
         tok = min(futs, key=lambda i: i["expiry"])["instrument_token"]
         _FUT_TOKENS[index_key] = (today, tok)
         return tok
+
+    def near_future(self, exch, name):
+        """The near-month future on `exch` (NFO or BFO) whose underlying is
+        `name` - an index such as NIFTY or a stock such as RELIANCE - as its
+        instrument row, or None. One download of each exchange's list a day,
+        kept only to its futures, which is a few hundred rows of several MB."""
+        today = _now_ist_naive().date()
+        key = (exch, today)
+        rows = _FUT_ROWS.get(key)
+        if rows is None:
+            rows = [i for i in self.kite.instruments(exch) if i.get("instrument_type") == "FUT"]
+            for old in [k for k in _FUT_ROWS if k[1] != today]:
+                _FUT_ROWS.pop(old, None)
+            _FUT_ROWS[key] = rows
+        futs = [i for i in rows if i.get("name") == name and i.get("expiry")
+                and _as_date(i["expiry"]) >= today]
+        return min(futs, key=lambda i: _as_date(i["expiry"])) if futs else None
+
+    def futures_oi_history(self, token, days=7):
+        """Fifteen-minute candles WITH open interest for one futures contract,
+        the last `days` calendar days: the previous session's last bar gives
+        yesterday's closing OI, today's bars give the OI through the day."""
+        to_date = _now_ist_naive()
+        return self.kite.historical_data(token, to_date - dt.timedelta(days=days), to_date,
+                                         "15minute", oi=True) or []
 
     def _with_future_volume(self, index_key, df, kite_interval, from_date, to_date):
         try:
@@ -1487,12 +1535,29 @@ class KiteStreamer:
                 b["oi"] = int(t["oi"])
             if t.get("depth"):
                 b["bid"], b["ask"] = _best_bid_ask(t["depth"])
+                b["depth_bid_qty"], b["depth_ask_qty"] = _depth_qty(t["depth"])
+            # The traded side, for the bot's order-flow reading: the day's
+            # volume-weighted price, volume, and the quantity waiting to buy
+            # and to sell across the whole book.
+            for src, dst, kind in (("average_traded_price", "vwap", float),
+                                   ("volume_traded", "volume", int),
+                                   ("total_buy_quantity", "buy_qty", int),
+                                   ("total_sell_quantity", "sell_qty", int),
+                                   ("oi_day_high", "oi_high", int),
+                                   ("oi_day_low", "oi_low", int)):
+                if t.get(src) is not None:
+                    b[dst] = kind(t[src])
+            prev = (t.get("ohlc") or {}).get("close")
+            if prev:
+                b["prev_close"] = float(prev)
             b["at"] = now
             self._book[tok] = b
 
     def book(self, token, max_age=None):
-        """Latest streamed price, OI and best bid/ask of a FULL-mode token, or
-        None when nothing has arrived - or when it is older than max_age."""
+        """Latest streamed price, OI, best bid/ask and order flow (vwap, volume,
+        buy_qty/sell_qty, depth_bid_qty/depth_ask_qty, prev_close) of a
+        FULL-mode token, or None when nothing has arrived - or when it is
+        older than max_age."""
         if token is None:
             return None
         with self._lock:

@@ -33,6 +33,19 @@ RESTARTS
     position found open on start is sold too - the record and the account must
     not disagree about whether you are in a trade.
 
+FUNDS (added 18 Sep 2026)
+    Before an entry is sent, the account's cash is read from Zerodha and the
+    order is not sent when it cannot pay for it - the note says by how much it
+    falls short. funds_check() gives the AI desk the same answer for one
+    ticket: yes or no and any shortfall, never the balance. If the funds cannot
+    be read the order goes anyway: Zerodha checks them itself.
+
+REAL FILLS (added 18 Sep 2026)
+    Every closed position writes one line to <trade log>.live.fills.jsonl: what
+    was really bought and at what average, the quantity-weighted average it was
+    sold at (stop, sells, both), and the gross result. The AI desk's track
+    record and Ask TradePicker read it beside the paper figures.
+
 *** Zerodha rejects API orders from an IP that is not registered on the
 *** developer console (SEBI, from 1 Apr 2026). That rejection is shown as-is.
 """
@@ -64,6 +77,8 @@ SETTLE_S = 10                # positions can lag a fill by a moment; not trusted
 PLACING_WAIT_S = 15          # how long an unanswered entry is looked for before it is taken as never sent
 POLL_S = 1.0
 NOTES_KEPT = 30
+FUNDS_CACHE_S = 30           # funds read for the AI desk are reused this long
+CHARGES_ALLOWANCE = 60.0     # rupees kept aside for a buy's brokerage, fees and stamp duty
 
 ACTIVE = ("placing", "entering", "open", "exiting", "attention")
 
@@ -85,6 +100,29 @@ def for_account(email, log_path, close_ticket, kite=None):
     ex.close_ticket = close_ticket
     ex.recover_all("the tool's ticket tracking restarted while this position was open")
     return ex
+
+
+def fills_path(log_path):
+    return (log_path + ".live.fills.jsonl") if log_path else None
+
+
+def read_fills(log_path, source=None):
+    """The real fills of this account's closed live positions, oldest first -
+    only those of `source` ("rule" or "ai") when given."""
+    path = fills_path(log_path)
+    out = []
+    try:
+        with open(path) as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if source is None or r.get("source", "rule") == source:
+                    out.append(r)
+    except (OSError, TypeError):
+        pass
+    return out
 
 
 def _floor_tick(x, tick):
@@ -119,6 +157,7 @@ class Executor:
     def __init__(self, email, log_path, kite=None, close_ticket=None, now=None, clock=None, start=True):
         self.email = email
         self.path = (log_path + ".live.json") if log_path else None
+        self.log_path = log_path
         self.make_kite = kite or _kite_factory(email)
         self.close_ticket = close_ticket or (lambda index, status: None)
         self.now = now or now_ist
@@ -136,6 +175,7 @@ class Executor:
         self._instruments = {}       # (exchange, day) -> rows
         self._kite = None
         self._kite_day = None
+        self._funds = None           # (read at, cash available) - never shown to the bot
         self._load()
         self._recover()
         self.thread = None
@@ -294,6 +334,45 @@ class Executor:
             variety="regular", exchange=pos["exchange"], tradingsymbol=pos["tradingsymbol"],
             product=PRODUCT, validity="DAY", tag=pos["tag"], **kw))
 
+    # ------------------------------------------------------------ funds
+    def _available(self, fresh=False):
+        """Cash that can pay an option premium, from Zerodha: the smaller of
+        `net` and `live_balance`. A premium is paid in cash - pledged collateral
+        counts in `net` but cannot pay for a bought option. None if Zerodha
+        does not say."""
+        now = self.clock()
+        if not fresh and self._funds and now - self._funds[0] < FUNDS_CACHE_S:
+            return self._funds[1]
+        m = self.kite().margins("equity") or {}
+        vals = []
+        for v in (m.get("net"), (m.get("available") or {}).get("live_balance")):
+            try:
+                if v is not None:
+                    vals.append(float(v))
+            except (TypeError, ValueError):
+                pass
+        avail = min(vals) if vals else None
+        self._funds = (now, avail)
+        return avail
+
+    def funds_check(self, need):
+        """Would the account's cash pay for an order costing `need` rupees, with
+        charges? {"enough": True/False, "shortfall": rupees or None}, or
+        {"enough": None} when it cannot be read. This is all the AI desk is
+        told - the balance itself never leaves this class."""
+        try:
+            avail = self._available()
+        except Exception:
+            avail = None
+        if avail is None or not need:
+            return {"enough": None, "note": "Zerodha's funds could not be read just now."}
+        short = round(float(need) + CHARGES_ALLOWANCE - avail, 2)
+        return {"enough": short <= 0, "shortfall": short if short > 0 else None}
+
+    def fills(self, source=None):
+        """The real fills of closed positions - see read_fills."""
+        return read_fills(self.log_path, source)
+
     # ------------------------------------------------------------ entry
     def _enter(self, trade, source="rule"):
         index, tid = trade["index"], trade.get("trade_id")
@@ -327,6 +406,7 @@ class Executor:
                 "strike": trade.get("strike"), "option_type": trade.get("option_type"),
                 "expiry": str(trade.get("expiry") or "")[:10], "lots": trade.get("lots") or 1,
                 "stop_trigger": trade.get("premium_sl"), "t2": (trade.get("premium_targets") or [None, None])[1],
+                "paper_entry": trade.get("entry_ltp"),
                 "tag": ("TP" + index[:2] + now.strftime("%H%M%S")),
                 "entry_order_id": None, "stop_order_id": None, "exit_order_id": None,
                 "filled_qty": 0, "avg_price": None, "stop_filled": 0, "exit_filled": 0,
@@ -350,6 +430,18 @@ class Executor:
                 return self._fail(pos, "No live order: no live price for the contract.")
             limit = _ceil_tick(float(ltp) * (1 + ENTRY_BUFFER), pos["tick"])
             pos["entry_limit"] = limit
+            need = limit * pos["qty"] + CHARGES_ALLOWANCE
+            try:
+                avail = self._available(fresh=True)
+            except Exception as exc:
+                avail = None
+                self._note(index, f"Could not read the account's funds ({self._why(exc)}) - sending the "
+                                  "order anyway; Zerodha checks funds itself.", "warn", pos)
+            if avail is not None and need > avail:
+                pos["funds_short"] = round(need - avail, 2)
+                return self._fail(pos, f"Not enough funds in Kite: this order needs about Rs {need:,.0f} "
+                                       f"({pos['qty']} x {limit} plus charges) and the account is short by "
+                                       f"Rs {need - avail:,.0f}. No order sent.")
             pos["sending"] = True
             pos["entry_order_id"] = self._place(pos, transaction_type="BUY", quantity=pos["qty"],
                                                 order_type="LIMIT", price=limit)
@@ -450,6 +542,8 @@ class Executor:
         if status == "COMPLETE":
             pos["state"] = "closed"
             pos["exit_price"] = float(h.get("average_price") or 0) or None
+            pos["stop_avg"] = pos["exit_price"]
+            pos.setdefault("exit_reason", "the stop-loss order filled at Zerodha")
             self._note(pos["index"], f"Stop-loss order filled at Zerodha at {pos['exit_price']}. Position closed.",
                        "warn", pos)
             return
@@ -488,6 +582,8 @@ class Executor:
                     pass
                 h = self._history(pos["stop_order_id"])
             pos["stop_filled"] = int(h.get("filled_quantity") or 0)
+            if h.get("average_price") and pos["stop_filled"]:
+                pos["stop_avg"] = float(h["average_price"])
         pos["exit_reason"] = reason
         self._sell_rest(pos)
 
@@ -519,12 +615,15 @@ class Executor:
                 pass
             h = self._history(pos["stop_order_id"])
             pos["stop_filled"] = int(h.get("filled_quantity") or 0)
+            if h.get("average_price") and pos["stop_filled"]:
+                pos["stop_avg"] = float(h["average_price"])
             held = self._held(pos)
         net = max(0, net)
         if net < held:
             pos["outside_sold"] = int(pos.get("outside_sold") or 0) + held - net
         if self._held(pos) <= 0:
             pos["state"] = "closed"
+            pos.setdefault("exit_reason", "it was closed outside the tool")
             self._note(pos["index"], "The position was closed outside the tool (in Kite?). Its stop-loss "
                                      "order is cancelled so it cannot sell what is no longer held.", "warn", pos)
             return
@@ -537,9 +636,17 @@ class Executor:
             pos["stop_order_id"] = self._place(pos, transaction_type="SELL", quantity=remaining,
                                                order_type="SL", trigger_price=trig, price=limit)
             # A new stop order counts its own fills from zero; what the old one
-            # sold is folded into filled_qty so the holding stays the same number.
+            # sold is folded into filled_qty so the holding stays the same number,
+            # and banked - quantity and value - so the real fills still count it.
+            old_sf = int(pos.get("stop_filled") or 0)
+            if old_sf:
+                pos["banked_qty"] = int(pos.get("banked_qty") or 0) + old_sf
+                pos["banked_value"] = float(pos.get("banked_value") or 0) + old_sf * float(pos.get("stop_avg") or 0)
+                if not pos.get("stop_avg"):
+                    pos["banked_unpriced"] = int(pos.get("banked_unpriced") or 0) + old_sf
             pos["filled_qty"] = remaining + int(pos.get("exit_filled") or 0) + int(pos.get("outside_sold") or 0)
             pos["stop_filled"] = 0
+            pos.pop("stop_avg", None)
         except Exception as exc:
             self._note(pos["index"], f"Stop-loss order refused: {self._why(exc)} - selling the rest.", "error", pos)
             self._exit(pos, "the stop-loss order could not be re-placed")
@@ -595,6 +702,8 @@ class Executor:
             pos["exit_filled"] = int(pos.get("exit_filled") or 0) + filled
             if h.get("average_price") and filled:
                 pos["exit_price"] = float(h["average_price"])
+                pos["exit_value"] = float(pos.get("exit_value") or 0) + filled * pos["exit_price"]
+                pos["exit_priced"] = int(pos.get("exit_priced") or 0) + filled
             pos["exit_order_id"] = None
             if status != "COMPLETE":
                 self._note(pos["index"], f"Sell order {status.lower()}: {h.get('status_message') or 'no reason given'}.",
@@ -617,8 +726,59 @@ class Executor:
                 self._note(pos["index"], f"Could not reprice the sell: {self._why(exc)}.", "error", pos)
                 pos["exit_at"] = self.clock()
 
+    # ------------------------------------------------------------ real fills
+    @staticmethod
+    def _sold(pos):
+        """(quantity-weighted average sell price, quantity it covers) over the
+        stop orders and the sells. What was sold in Kite by hand has no price
+        here and is left out."""
+        qty = int(pos.get("banked_qty") or 0) - int(pos.get("banked_unpriced") or 0)
+        val = float(pos.get("banked_value") or 0)
+        sf = int(pos.get("stop_filled") or 0)
+        if sf and pos.get("stop_avg"):
+            qty += sf
+            val += sf * float(pos["stop_avg"])
+        if pos.get("exit_priced"):
+            qty += int(pos["exit_priced"])
+            val += float(pos.get("exit_value") or 0)
+        return (round(val / qty, 2) if qty > 0 else None), max(qty, 0)
+
+    def _log_fills(self):
+        """One line per closed position that bought anything, written once."""
+        path = fills_path(self.log_path)
+        if not path:
+            return
+        wrote = False
+        for pos in list(self.positions.values()):
+            if pos.get("state") != "closed" or pos.get("fills_logged"):
+                continue
+            bought = int(pos.get("filled_qty") or 0) + int(pos.get("banked_qty") or 0)
+            if bought <= 0 or pos.get("avg_price") is None:
+                pos["fills_logged"] = True
+                continue
+            exit_avg, priced = self._sold(pos)
+            row = {"trade_id": pos.get("trade_id"), "index": pos.get("index"),
+                   "source": pos.get("source", "rule"), "day": pos.get("day"),
+                   "contract": pos.get("tradingsymbol"), "qty": bought,
+                   "entry_avg": pos.get("avg_price"), "paper_entry": pos.get("paper_entry"),
+                   "exit_avg": exit_avg, "exit_qty_priced": priced,
+                   "sold_outside_qty": int(pos.get("outside_sold") or 0),
+                   "gross_pnl": (round((exit_avg - float(pos["avg_price"])) * priced, 2)
+                                 if exit_avg is not None else None),
+                   "exit_reason": pos.get("exit_reason"), "logged": self.now().isoformat()}
+            try:
+                with open(path, "a") as fh:
+                    fh.write(json.dumps(row, default=str) + "\n")
+                pos["fills_logged"] = True
+                wrote = True
+            except OSError:
+                pass
+        if wrote:
+            self._save()
+
     # ------------------------------------------------------------ the loop's work
     def poll(self):
+        self._log_fills()
         active = [p for p in list(self.positions.values()) if p.get("state") in ACTIVE]
         if not active:
             return

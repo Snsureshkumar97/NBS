@@ -74,6 +74,9 @@ for them - null there means "not recorded for this trade", not "read it and it w
 plainly rather than guessing or inferring one from the outcome. The tool has never recorded, for any \
 trade, WHICH indicators individually agreed or dissented (only the total agreement score) - that \
 stays genuinely unavailable, past or future, and no amount of asking differently will produce it. \
+A closed trade that ran as a real Zerodha order carries real_fill: Zerodha's own average buy and sell \
+prices, the quantity and the result before charges - set them against entry, exit and pnl, which are the \
+ticket's paper figures, when asked what a trade really made. \
 For the OPEN ticket the same entry-time reading is open_ticket_entry_reading (adx, rsi, macd_hist, \
 vwap_gap, confidence, score, reward_risk), to set against the live values in selected when asked \
 whether the trade is weakening; the same null rule applies.
@@ -84,6 +87,20 @@ trades without inventing another index's strike, entry or exit, which you were n
 not guess at. If the numbers do not add up to the selected index alone, that is normal and expected \
 on a day when more than one index traded - say which other index accounts for the difference and its \
 net for the day, not as a gap in what you were given but as something outside this index's own detail.
+
+futures_and_order_flow (Indian indices only, straight from Zerodha's feed) adds what the option chain \
+cannot show. index_future is the near-month future: its price, basis to the index (basis_points, basis_pct - a \
+premium that widens is buyers paying up, one that narrows or turns to a discount is the opposite), its open \
+interest and the change since yesterday's close, and the build-up price and OI say together: long build-up \
+(price up, OI up - fresh longs), short build-up (price down, OI up - fresh shorts), short covering (price up, \
+OI down), long unwinding (price down, OI down) - for the day and for the last 15 minutes (last_15m, missing \
+until the feed has run that long). heavyweights gives the same build-up for the index's five biggest members' \
+stock futures, with their index weight and how much of that weight leans each way. order_flow, on the future \
+and on suggested_contract / open_ticket_contract, is the traded side: price against the day's VWAP, volume, \
+the total quantity waiting to buy against to sell (buy_to_sell), and the lean of the top five levels \
+(book_imbalance, +1 all bids to -1 all offers). All of it is context that confirms or questions a reading, \
+never a signal on its own: resting quantity can be pulled in a second, and open interest on the index future \
+is only part of the positioning. live false means no recent tick for that contract.
 
 Beyond the snapshot, every section of the tool is available through your tools: the signal for any \
 index, the chart, the option chain and OI clock, the watchlist, the journal, the Market section (map, \
@@ -219,6 +236,12 @@ def _recent_trades(user, market, index):
     except Exception:
         return []
     opens = {r.get("trade_id"): r for r in rows if r.get("event") == "OPEN"}
+    try:
+        import live_orders
+        fills = {f.get("trade_id"): f for f in
+                 live_orders.read_fills(trade_log.user_log_path(user, market), "rule")}
+    except Exception:
+        fills = {}
     out = []
     for r in rows:
         if r.get("event") != "CLOSE" or r.get("index") != index:
@@ -245,6 +268,11 @@ def _recent_trades(user, market, index):
             "entry_rsi": _num(o.get("rsi")), "entry_macd_hist": _num(o.get("macd_hist")),
             "entry_vwap_gap": _num(o.get("vwap_gap")),
         })
+        f = fills.get(r.get("trade_id"))
+        if f:
+            # It ran as a real Zerodha order: what was really paid and got.
+            out[-1]["real_fill"] = {"bought_at": f.get("entry_avg"), "sold_at": f.get("exit_avg"),
+                                    "qty": f.get("qty"), "gross_pnl": f.get("gross_pnl")}
     out.reverse()          # rows are oldest-first; the model reads newest-first
     return out[:RECENT_TRADES_MAX]
 
@@ -305,6 +333,7 @@ def build_context(snap, market, index, now=None, user=None):
                                       if ticket and ticket.get("open") else None),
         "last_ticket_if_closed": ticket if ticket and not ticket.get("open") else None,
         "recent_trades_this_index": _recent_trades(user, market, index),
+        "futures_and_order_flow": (snap.get("flow") or {}).get(index),
         "other_indices_in_this_market": {k: _pick(v or {}, PEER_FIELDS)
                                          for k, v in indices.items() if k != index},
         "session_today": _pick(snap.get("session") or {}, SESSION_FIELDS),
@@ -433,8 +462,13 @@ def _create(messages, client, effort, max_tokens):
 
 
 DESK_SYSTEM = """You are the AI desk inside TradePicker, a rule-based options signal tool, trading \
-on PAPER alongside the tool's own rules so the user can compare the two. Nothing you decide places a real \
-order. You make your own call from the data - you are not bound to the rule engine's signal - and the tool \
+alongside the tool's own rules so the user can compare the two. Your tickets are PAPER unless the user has \
+switched on real orders for AI trades on that index: <desk> real_orders.on says which (and paper_only is then \
+false). When it is on, the tool mirrors your ticket as a real Zerodha order with the same stop and target, and \
+real_orders.funds_for_one_ticket_at_the_suggested_premium says whether the account's cash covers one ticket - \
+yes or no, and any shortfall; you are never told the balance. Decide exactly as you would on paper: never take \
+a trade, choose a strike or move a level because it is real. If the funds fall short the ticket still runs, on \
+paper; say so in your reason, but do not pick a different strike just to fit the money. You make your own call from the data - you are not bound to the rule engine's signal - and the tool \
 enforces its session limits, position limits and checks on every proposal, whatever you say.
 
 The instruments: Nifty, Bank Nifty and Sensex index options (rupees, intraday, entries 09:20-15:10 IST, \
@@ -456,7 +490,25 @@ results by side and by time of entry, and your latest trades on this index with 
 the ADX / RSI / MACD / VWAP readings at entry. Use it to learn from what actually happened: if a kind of entry \
 keeps failing, be slower to take it; if your own exits keep costing money against the stop or target, trust \
 the levels more. Respect its caution: with few trades, patterns are mostly noise - note them, do not act on \
-them. When the record does change your decision, say so in your reason.
+them. When the record does change your decision, say so in your reason. Once any of your trades has run as \
+a real order, your_track_record.real_fills sets Zerodha's own average prices against the paper ones - the real \
+result of the same trades and the slippage in points on the way in and out - and each such trade in your \
+latest list carries its real_fill. That slippage is a real cost the paper figures leave out: if real entries \
+keep costing more than the paper price, a target that only just covers the risk on paper does not in reality.
+
+futures_and_order_flow (Indian indices only, straight from Zerodha's feed) adds what the option chain \
+cannot show. index_future is the near-month future: its price, basis to the index (basis_points, basis_pct - a \
+premium that widens is buyers paying up, one that narrows or turns to a discount is the opposite), its open \
+interest and the change since yesterday's close, and the build-up price and OI say together: long build-up \
+(price up, OI up - fresh longs), short build-up (price down, OI up - fresh shorts), short covering (price up, \
+OI down), long unwinding (price down, OI down) - for the day and for the last 15 minutes (last_15m, missing \
+until the feed has run that long). heavyweights gives the same build-up for the index's five biggest members' \
+stock futures, with their index weight and how much of that weight leans each way. order_flow, on the future \
+and on suggested_contract / open_ticket_contract, is the traded side: price against the day's VWAP, volume, \
+the total quantity waiting to buy against to sell (buy_to_sell), and the lean of the top five levels \
+(book_imbalance, +1 all bids to -1 all offers). All of it is context that confirms or questions a reading, \
+never a signal on its own: resting quantity can be pulled in a second, and open interest on the index future \
+is only part of the positioning. live false means no recent tick for that contract. Your own open tickets in <desk> carry order_flow on their contract too.
 
 Each request brings a <market_snapshot> for one index and a <desk> block with your open tickets, today's \
 entries and limits, contracts already traded today (never propose one of those again), and your own recent \

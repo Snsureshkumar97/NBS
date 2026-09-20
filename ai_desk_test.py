@@ -559,6 +559,59 @@ import market_bot as real_mb
 check("the desk's instructions explain it and warn about small samples",
       "your_track_record" in real_mb.DESK_SYSTEM and "mostly noise" in real_mb.DESK_SYSTEM)
 
+print("5e. REAL ORDERS: TOLD WHEN THEY ARE ON, FUNDS AS YES/NO, REAL FILLS IN THE RECORD")
+info = d._desk_info("NIFTY")
+check("no executor: paper only, and it is told so", info["paper_only"] is True and info["real_orders"] == {"on": False})
+
+
+class FakeLive:
+    def __init__(self, rows):
+        self.enabled_ai = {"NIFTY": True, "BANKNIFTY": False, "SENSEX": False}
+        self.rows, self.asked = rows, []
+    def funds_check(self, need):
+        self.asked.append(need)
+        return {"enough": False, "shortfall": 1234.5}
+    def fills(self, source=None):
+        return [r for r in self.rows if source is None or r.get("source") == source]
+
+
+closes = [r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE" and r["index"] == "NIFTY"]
+first, last_close = closes[0], closes[-1]
+d.feed.live = FakeLive([
+    {"trade_id": first["trade_id"], "source": "ai", "qty": 130, "entry_avg": float(first["entry"]) + 1.0,
+     "paper_entry": float(first["entry"]), "exit_avg": float(first["exit"]) - 2.0, "gross_pnl": 3500.0},
+    {"trade_id": last_close["trade_id"], "source": "ai", "qty": 130, "entry_avg": float(last_close["entry"]) + 0.5,
+     "paper_entry": float(last_close["entry"]), "exit_avg": float(last_close["exit"]) - 1.0, "gross_pnl": -1500.0},
+    {"trade_id": "SOMEONE-ELSES", "source": "rule", "qty": 130, "entry_avg": 1, "paper_entry": 1, "exit_avg": 1,
+     "gross_pnl": 99999.0}])
+with d.feed.lock:
+    d.feed.state["indices"]["NIFTY"]["public"] = {"ltp": 140.0, "lot_size": 65}
+info = d._desk_info("NIFTY")
+check("AI live orders on for this index: not paper, and it is told", info["paper_only"] is False
+      and info["real_orders"]["on"] is True)
+check("the funds check is for one ticket at the suggested premium x lot x the user's lots",
+      d.feed.live.asked == [140.0 * 65 * 2], d.feed.live.asked)
+check("it sees yes/no and the shortfall - nothing else about the account",
+      info["real_orders"]["funds_for_one_ticket_at_the_suggested_premium"] == {"enough": False, "shortfall": 1234.5})
+info_b = d._desk_info("BANKNIFTY")
+check("an index whose AI live switch is off stays paper", info_b["paper_only"] is True
+      and info_b["real_orders"] == {"on": False} and len(d.feed.live.asked) == 1)
+tr = d.track_record("NIFTY")
+rf = tr.get("real_fills") or {}
+check("real fills: only the AI's own live trades are counted", rf.get("live_trades") == 2
+      and rf.get("real_gross_pnl") == 2000.0, rf)
+check("paper P&L of the same trades sits beside the real one",
+      rf.get("paper_pnl_of_the_same_trades") == round(float(first["pnl"]) + float(last_close["pnl"]), 2), rf)
+check("slippage in points: the buy cost more, the sell got less",
+      rf.get("avg_entry_slippage_points") == 0.75 and rf.get("avg_exit_slippage_points") == -1.5, rf)
+lt = {x["contract"]: x for x in tr["your_last_trades_on_this_index"]}
+withfill = [x for x in tr["your_last_trades_on_this_index"] if x.get("real_fill")]
+check("each live trade in its latest list carries its real fill", len(withfill) == 2
+      and withfill[0]["real_fill"]["qty"] == 130, withfill)
+check("the desk's instructions say what real_orders means and that it must not trade differently for it",
+      "real_orders" in real_mb.DESK_SYSTEM and "real_fills" in real_mb.DESK_SYSTEM)
+del d.feed.live
+
 print("6. AFTER A RESTART")
 at(13, 0, 50)
 f, d = desk(email="restart@example.invalid")
@@ -711,6 +764,9 @@ check("the feed prices AI tickets on both tick loops and checks them on every re
 check("squared off at the bell with the rule tickets", "self.ai.book.close_all_at_bell()" in FSRC)
 ASRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai_desk.py")).read()
 check("nothing in the AI desk itself touches live orders", "live_orders" not in ASRC and "place_order" not in ASRC)
+check("from the executor it only READS - funds yes/no and past fills - never switches, enters or sells",
+      all(x not in ASRC for x in ("on_ticket_event", "set_enabled", "._enter(", "._exit(", "_sell_rest", "cancel_order"))
+      and "live.funds_check(" in ASRC and 'live.fills("ai")' in ASRC)
 check("the feed bridges AI tickets to the executor under their own source, so they need their own switch",
       'self.live.on_ticket_event(kind, trade, source="ai")' in FSRC)
 check("the AI tab has the AI live-orders switch, and it names real money",

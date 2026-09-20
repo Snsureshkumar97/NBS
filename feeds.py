@@ -46,6 +46,7 @@ import pandas as pd
 import accounts
 import config
 import explain
+import kite_flow
 import market_map
 import signal_engine
 import ticket_watch
@@ -544,6 +545,10 @@ class Feed:
         self.live_errors = {}     # "tick loop" or index name -> (what went wrong, when)
         self._fault_said = {}     # (where, what) -> when it was last written to the log
         self.spots = {}           # index name -> newest streamed spot
+        # The index futures and the heavyweights' futures, for the bot: open
+        # interest, build-up, basis and order flow. Zerodha only.
+        self.flow = (kite_flow.Flow(config.instruments_in("nse_index"), self._flow_provider)
+                     if self.market == "nse_index" else None)
         self.stream_error = None  # why the tick socket is not up, if it is not
         self.stage = "starting"   # where the analysis loop currently is
         self.state = {
@@ -1315,10 +1320,16 @@ class Feed:
         except Exception as exc:
             self.stream_error = f"tick socket rebuild failed: {exc}"
             return
-        toks = (list(self.tokens.values()) + list(self.opt_tokens.values())
-                + [v[2] for v in self.sug_tokens.values()]
-                + list(self.eq_tokens.values()))
+        toks = list(self.tokens.values()) + list(self.eq_tokens.values())
+        # The contracts whose order flow the bot reads go back in FULL mode -
+        # the tickets', the suggestion's, and the AI desk's own open tickets,
+        # which were not carried across at all before, so an AI ticket lost its
+        # streamed premium at the first rebuild. The chain's strikes and the
+        # futures re-stream themselves when they see a new socket.
+        full = (list(self.opt_tokens.values()) + [v[2] for v in self.sug_tokens.values()]
+                + list(getattr(getattr(self, "ai", None), "_tok", {}).values()))
         new.subscribe([t for t in toks if t], quote=True)
+        new.subscribe([t for t in full if isinstance(t, int)], full=True)
         self.streamer = new
         self._stream_born = time.time()
         self.stream_error = (f"tick socket rebuilt at {now_ist():%H:%M:%S} "
@@ -1554,7 +1565,7 @@ class Feed:
         self.opt_tokens[name] = tok
         self.opt_for[name] = trade.get("trade_id")
         try:
-            self.streamer.subscribe([tok], quote=True)
+            self.streamer.subscribe([tok], full=True)     # with its order flow, for the bot
         except Exception:
             pass
 
@@ -1599,9 +1610,52 @@ class Feed:
             return
         self.sug_tokens[name] = (strike, opt, tok)
         try:
-            self.streamer.subscribe([tok], quote=True)
+            # FULL, not QUOTE: the bot reads this contract's own order flow -
+            # its VWAP, buy and sell quantity and five-level book.
+            self.streamer.subscribe([tok], full=True)
         except Exception:
             pass
+
+    # ------------------------------------------------- futures and order flow
+    def _flow_provider(self):
+        token = user_kite.token_for(self.email)
+        return KiteDataProvider(config.KITE_API_KEY, token) if token else None
+
+    def _flow_tick(self, st):
+        """Find and stream the futures kite_flow reads, and sample them. Cheap:
+        the lookup runs once a day on a thread of its own."""
+        if self.flow is None or st is None or st is _NO_STREAM or not hasattr(st, "book"):
+            return
+        self.flow.ensure(st)
+        self.flow.sample(st, market_open=lambda: is_market_open(now_ist(), self._ref()))
+
+    def flow_readings(self):
+        """Per Indian index, for the bot: the index future's open interest,
+        build-up, basis and order flow, the heavyweights' build-up, and the
+        order flow of the suggested contract and the open ticket's contract."""
+        st = self.streamer
+        if st is None or st is _NO_STREAM or not hasattr(st, "book"):
+            return {}
+        out = {}
+        for name in self.instruments():
+            try:
+                r = dict((self.flow.reading(name, st, self.spots.get(name)) if self.flow else None) or {})
+                sug = self.sug_tokens.get(name)
+                if sug:
+                    f = kite_flow.order_flow(st.book(sug[2], max_age=kite_flow.MAX_AGE_S))
+                    if f:
+                        r["suggested_contract"] = {"contract": f"{sug[0]} {sug[1]}", **f}
+                tok = self.opt_tokens.get(name)
+                if tok:
+                    f = kite_flow.order_flow(st.book(tok, max_age=kite_flow.MAX_AGE_S))
+                    if f:
+                        r["open_ticket_contract"] = f
+            except Exception as exc:
+                self._note_fault(f"{name} flow", f"{type(exc).__name__}: {exc}")
+                continue
+            if r:
+                out[name] = r
+        return out
 
     # ------------------------------------------------- the live recompute
     def _df_with_live_bar(self, name):
@@ -1916,6 +1970,7 @@ class Feed:
                 st = self.streamer
                 self._subscribe_indices()
                 self._subscribe_constituents()
+                self._flow_tick(st)
                 for name, tok in list(self.tokens.items()):
                     px = st.price(tok)
                     if px is not None:
@@ -2093,6 +2148,7 @@ class Feed:
         return out
 
     def snapshot(self):
+        flow = self.flow_readings()            # off the feed lock: it reads the socket's
         with self.lock:
             return {
                 "market_open": self.state["market_open"],
@@ -2110,6 +2166,7 @@ class Feed:
                 "tickets": self._tickets_with_odds(),
                 "session": self.tickets.session(),
                 "events": list(self.events[:8]),
+                "flow": flow,
             }
 
     def candles(self, name):

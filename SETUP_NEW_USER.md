@@ -134,9 +134,16 @@ pip3 install anthropic
    key again on the next question.
 
 It never sends his name, email or Zerodha ID. With each question it sends the
-selected market's signal and open ticket, and — only when a question needs
-them — the other sections, including his watchlist and journal. It never
-places, changes or cancels an order.
+selected market's signal and open ticket, and on the Indian indices the near-
+month future's open interest and build-up, the five heaviest constituents'
+futures build-up, and the order flow (VWAP, buy vs sell quantity, order book)
+of the future and of the contract being suggested or held — all read off the
+same Zerodha feed. Only when a question needs them, it sends the other
+sections, including his watchlist and journal. It never places, changes or
+cancels an order. The AI trades desk gets the same data; when AI trades are
+switched to real orders on an index it is also told whether the account's cash
+covers one ticket (yes or no, and the shortfall — never the balance) and, for
+its closed live trades, Zerodha's real fill prices beside the paper ones.
 
 **Auto updates** (the button at the top of the Ask TradePicker tab, off by default):
 while a ticket is open, the bot writes an update by itself when T1 is hit, the
