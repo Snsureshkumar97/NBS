@@ -18,12 +18,14 @@ import sys
 import time
 import zoneinfo
 
-APP = "/Users/sureshkumar/CLAUDE WORKSPACE/trading-tool 4"
+# The Mac's paths by default; the VM's systemd unit passes its own
+# (deploy/gcp/setup.sh), so one script serves both.
+APP = os.environ.get("NBS_APP") or "/Users/sureshkumar/CLAUDE WORKSPACE/trading-tool 4"
 sys.path.insert(0, APP)
 os.chdir(APP)
 
 IST = zoneinfo.ZoneInfo("Asia/Kolkata")
-SERVER_LOG = os.path.expanduser("~/Library/Logs/nbs-signal-tool.log")
+SERVER_LOG = os.environ.get("NBS_SERVER_LOG") or os.path.expanduser("~/Library/Logs/nbs-signal-tool.log")
 SAMPLES = 21          # one a minute, 09:15 -> 09:35
 INTERVAL = 60
 
