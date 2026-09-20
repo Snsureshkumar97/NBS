@@ -161,10 +161,17 @@ class DeltaDataProvider:
             if not m or exp is None or m.group(2) != asset:
                 continue
             q = x.get("quotes") or {}
+            g = x.get("greeks") or {}
+            iv = _f(q.get("mark_iv"))
             parsed.append({"symbol": sym, "expiry": exp.isoformat(), "strike": int(m.group(3)), "kind": m.group(1),
                            "oi": _f(x.get("oi")) or 0.0, "mark": _f(x.get("mark_price")),
                            "last": _f(x.get("close")), "bid": _f(q.get("best_bid")), "ask": _f(q.get("best_ask")),
-                           "spot": _f(x.get("spot_price"))})
+                           "spot": _f(x.get("spot_price")),
+                           # The venue's own greeks and mark implied volatility (a
+                           # fraction on the wire), for the Greeks tab - no model here.
+                           "iv": round(iv * 100, 2) if iv is not None else None,
+                           "delta": _f(g.get("delta")), "gamma": _f(g.get("gamma")),
+                           "theta": _f(g.get("theta")), "vega": _f(g.get("vega")), "rho": _f(g.get("rho"))})
         self._chain_cache[asset] = (time.time(), parsed)
         return parsed
 
@@ -249,6 +256,34 @@ class DeltaDataProvider:
             if r["expiry"] == exp and r["strike"] == want and r["kind"] == kind:
                 return r["symbol"]
         return None
+
+    def option_token(self, index_key: str, strike, option_type: str, expiry=None):
+        """What the contract chart and the streams key a contract on: Delta has
+        no numeric token, the symbol is the token."""
+        return self.option_instrument(index_key, strike, option_type, expiry)
+
+    KITE_INTERVALS = {"minute": "1m", "3minute": "3m", "5minute": "5m", "15minute": "15m",
+                      "30minute": "30m", "60minute": "1h", "day": "1d"}
+
+    def candles_for_token(self, token, interval="day", days=90):
+        """Candles for ONE contract by its symbol, lower-case columns with a
+        `ts` column - the shape the contract chart reads from the Kite
+        provider. Kite's interval names are accepted so the chart does not
+        learn a second vocabulary; an unknown one raises."""
+        res = self.KITE_INTERVALS.get(interval) or (interval if interval in self.RESOLUTION.values() else None)
+        if res is None:
+            raise ValueError(f"unknown interval {interval!r}")
+        end = int(time.time())
+        start = end - int(days) * 86400
+        rows = self._get("/v2/history/candles", symbol=str(token), resolution=res, start=start, end=end) or []
+        seen = {int(x["time"]): x for x in rows}
+        ts = sorted(seen)
+        df = pd.DataFrame({
+            "ts": pd.to_datetime(ts, unit="s", utc=True).tz_convert("Asia/Kolkata"),
+            "open": [float(seen[t]["open"]) for t in ts], "high": [float(seen[t]["high"]) for t in ts],
+            "low": [float(seen[t]["low"]) for t in ts], "close": [float(seen[t]["close"]) for t in ts],
+            "volume": [float(seen[t].get("volume") or 0.0) for t in ts]})
+        return df
 
     def get_option_chain(self, index_key: str, expiry: str = None):
         """The same shape the NSE, Kite and Deribit providers return."""

@@ -87,9 +87,10 @@ check("a strike that is not a number is refused", code == 400, (code, p.get("err
 p, code, _ = call("NIFTY/23100/XX")
 check("something that is neither CE nor PE is refused", code == 400, (code, p.get("error")))
 p, code, prov = call("BTC/76000/PE", market="crypto")
-check("crypto says so instead of drawing an empty box",
-      p["candles"] == [] and "Indian indices" in (p.get("error") or ""), p.get("error"))
-check("...and Zerodha is never asked for a Deribit contract", prov.asked == [], prov.asked)
+check("crypto charts the contract from its own venue (Delta Exchange India since 20 Sep 2026) - no refusal",
+      code == 200 and "Indian indices" not in (p.get("error") or ""), p.get("error"))
+check("...asking the market's own provider for that exact contract, once",
+      prov.asked == [("BTC", 76000.0, "PE", None)], prov.asked)
 
 print("2. THE CONTRACT'S OWN CANDLES")
 web_server.Handler._OPT_CACHE.clear()

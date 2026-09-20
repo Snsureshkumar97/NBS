@@ -906,6 +906,95 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return reply(False, "Unknown action.", 400)
         return reply(ok, msg)
 
+    def _api_greeks_venue(self, user, market, qs):
+        """The Greeks tab for a market whose venue publishes its own greeks and
+        implied volatility - Bitcoin on Delta Exchange India. Nothing is
+        solved here: the venue's figures are shown in the same shape the
+        Indian branch builds, so the page and the bot read one thing."""
+        import datetime as _dt
+        names = config.instruments_in(market)
+        name = (qs.get("index") or [""])[0].upper()
+        if name not in names:
+            name = names[0] if names else ""
+        feed = feeds.for_user(user, market)
+        try:
+            provider, _state, _detail = feed._provider()
+        except Exception:
+            provider = None
+        if provider is None or not hasattr(provider, "_chain_rows") or getattr(provider, "QUOTES_IN_COIN", True):
+            return self._send(json.dumps({"index": name, "rows": [],
+                                          "note": "This venue does not publish greeks; nothing is pretended."}),
+                              "application/json")
+        try:
+            rows_all = provider._chain_rows(name)
+            expiry = provider.pick_expiry(name)
+        except Exception:
+            rows_all, expiry = [], None
+        if not rows_all or not expiry:
+            return self._send(json.dumps({"index": name, "rows": [], "note": "No chain from the venue right now."}),
+                              "application/json")
+        spot = next((r["spot"] for r in rows_all if r.get("spot")), None)
+        by = {}
+        for r in rows_all:
+            if r["expiry"] != expiry:
+                continue
+            by.setdefault(r["strike"], {})[r["kind"]] = r
+        strikes = sorted(by)
+        atm = min(strikes, key=lambda k: abs(k - (spot or 0))) if (strikes and spot) else None
+        step = (config.INSTRUMENTS.get(name) or {}).get("strike_step") or 400
+        if atm is not None:
+            strikes = [k for k in strikes if abs(k - atm) <= 12 * step]
+        rows, solved, quotes = [], 0, 0
+        for k in strikes:
+            row = {"strike": k, "atm": (k == atm)}
+            for kind, tag in (("C", "ce"), ("P", "pe")):
+                r = by[k].get(kind) or {}
+                quotes += 1
+                if r.get("iv") is not None and r.get("delta") is not None:
+                    solved += 1
+                    oi = r.get("oi")
+                    row[tag] = {"ltp": r.get("mark"), "oi": oi, "iv": r["iv"],
+                                "delta": round(r["delta"], 4),
+                                "gamma": round(r["gamma"], 7) if r.get("gamma") is not None else None,
+                                "theta": round(r["theta"], 2) if r.get("theta") is not None else None,
+                                "vega": round(r["vega"], 2) if r.get("vega") is not None else None,
+                                "gxoi": round((r.get("gamma") or 0) * (oi or 0), 4)}
+                else:
+                    row[tag] = {"ltp": r.get("mark"), "oi": r.get("oi"), "iv": None}
+            rows.append(row)
+
+        def _avg(vals):
+            vals = [v for v in vals if v is not None]
+            return round(sum(vals) / len(vals), 2) if vals else None
+
+        atm_iv = _avg([(r.get("ce") or {}).get("iv") for r in rows if r["atm"]]
+                      + [(r.get("pe") or {}).get("iv") for r in rows if r["atm"]])
+        put_wing = _avg([(r.get("pe") or {}).get("iv") for r in rows if spot and r["strike"] < spot * 0.99])
+        call_wing = _avg([(r.get("ce") or {}).get("iv") for r in rows if spot and r["strike"] > spot * 1.01])
+        conc = []
+        for r in rows:
+            v = ((r.get("ce") or {}).get("gxoi") or 0) - ((r.get("pe") or {}).get("gxoi") or 0)
+            if v:
+                conc.append({"strike": r["strike"], "v": round(v, 4)})
+        conc.sort(key=lambda c: -abs(c["v"]))
+        try:
+            y, mo, dd = (int(x) for x in str(expiry).split("-"))
+            settle = _dt.datetime(y, mo, dd, 12, 0, tzinfo=_dt.timezone.utc)
+            minutes = (settle - _dt.datetime.now(_dt.timezone.utc)).total_seconds() / 60.0
+        except Exception:
+            minutes = 0.0
+        return self._send(json.dumps({
+            "index": name, "spot": spot, "expiry": expiry, "atm": atm,
+            "minutes": round(minutes), "days": round(minutes / 1440, 2),
+            "t": round(max(minutes, 0) / (365.0 * 1440), 6), "rate": None,
+            "atm_iv": atm_iv, "put_wing": put_wing, "call_wing": call_wing,
+            "skew": (round(put_wing - call_wing, 2) if (put_wing is not None and call_wing is not None) else None),
+            "solved": solved, "quotes": quotes, "concentration": conc[:8], "rows": rows,
+            "source": "Delta Exchange India",
+            "note": "Delta Exchange India's own greeks and mark implied volatility, straight from the venue - "
+                    "nothing is solved here. Theta is per day in dollars per 1 BTC of underlying; one contract "
+                    "is 0.001 BTC. Expiry is at 12:00 UTC (17:30 IST)."}), "application/json")
+
     def _api_greeks(self, user, qs):
         """The chain restated as volatility and sensitivities.
 
@@ -929,11 +1018,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         market = self._current_market()
         if market != "nse_index":
-            return self._send(json.dumps({
-                "note": "These are the Indian indices' cash-settled options priced "
-                        "with Black-Scholes. Bitcoin's greeks and implied volatility come "
-                        "from Delta Exchange India itself and are not wired into this tab "
-                        "yet, so nothing is pretended here."}), "application/json")
+            return self._api_greeks_venue(user, market, qs)
 
         names = config.instruments_in(market)
         name = (qs.get("index") or [""])[0].upper()
@@ -2177,12 +2262,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         interval, days = self._OPT_INTERVAL.get(tf, self._OPT_INTERVAL["5m"])
 
         market = self._current_market()
-        if config.MARKETS.get(market, {}).get("market_provider") != "kite":
-            # Delta's option candles are not wired into this chart yet, so say so
-            # rather than drawing an empty box the user has to interpret.
+        if config.MARKETS.get(market, {}).get("market_provider") not in ("kite", "delta"):
             return self._send(json.dumps({
                 "candles": [], "index": key, "strike": strike, "option_type": side,
-                "error": "Contract charts are available for the Indian indices only."}),
+                "error": "Contract charts are not available for this market."}),
                 "application/json")
 
         ck = (key, strike, side, str(expiry), tf)
@@ -2192,10 +2275,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         feed = feeds.for_user(user, market)
         provider, state, detail = feed._provider()
-        if provider is None:
+        if provider is None or not hasattr(provider, "candles_for_token"):
             return self._send(json.dumps({
                 "candles": [], "index": key, "strike": strike, "option_type": side,
-                "error": detail or "Zerodha is not connected."}), "application/json")
+                "error": detail or "The data provider is not connected."}), "application/json")
         try:
             token = provider.option_token(key, strike, side, expiry)
         except Exception as exc:
@@ -2207,11 +2290,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "error": "No contract found for that strike and expiry."}),
                 "application/json")
         try:
-            df = provider.candles_for_token(int(token), interval=interval, days=days)
+            # Kite keys a contract on a numeric token, Delta on its symbol.
+            df = provider.candles_for_token(int(token) if str(token).isdigit() else token,
+                                            interval=interval, days=days)
         except Exception as exc:
             return self._send(json.dumps({
                 "candles": [], "index": key, "strike": strike, "option_type": side,
-                "error": f"Zerodha did not return this contract's history: {exc}"}),
+                "error": f"The venue did not return this contract's history: {exc}"}),
                 "application/json")
 
         bars = []
@@ -2228,7 +2313,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         payload = {"index": key, "strike": strike, "option_type": side,
                    "expiry": expiry, "interval": tf, "candles": bars,
-                   "token": int(token)}
+                   "token": int(token) if str(token).isdigit() else str(token)}
         # If the open ticket IS this contract, its frozen premium levels belong
         # on the chart - that is what the trade is actually being judged against.
         try:
