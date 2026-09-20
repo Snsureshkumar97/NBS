@@ -130,5 +130,52 @@ try:
 finally:
     feeds.for_user = orig
 
+print("5. WHAT THE AI DESK AND ASK TRADEPICKER ARE HANDED WITH EVERY DECISION")
+import market_bot as mb
+snap = {"indices": {"NIFTY": {"spot": 25010.0}}, "tickets": {}, "session": {}, "why": {}}
+seen = []
+def fake_for_user(email, market=None, start=True):
+    seen.append(start)
+    return FakeFeed()
+orig = feeds.for_user
+feeds.for_user = fake_for_user
+try:
+    ctx = json.loads(mb.build_context(snap, "nse_index", "NIFTY", user="me@example.invalid"))
+    g = ctx.get("gann_and_volume") or {}
+    check("the snapshot carries the Gann levels, their distance in ATR and the volume oscillator - no lookup needed",
+          g.get("nearest_support") == 24964.0 and g.get("nearest_resistance") == 25043.06 and g.get("atr14") == 80.0
+          and g.get("resistance_in_atr") == round(33.06 / 80, 2) and g.get("volume_rising") is True
+          and g.get("volume_oscillator_pct", 0) > 0 and "future" in g.get("volume_of", ""), g)
+    check("reading them never starts a feed (start=False)", seen == [False], seen)
+    check("and it stays small enough to send every time", len(json.dumps(g)) < 500, len(json.dumps(g)))
+    check("no signed-in user: nothing, and no feed touched",
+          json.loads(mb.build_context(snap, "nse_index", "NIFTY", user=None))["gann_and_volume"] is None)
+    check("no spot yet: nothing",
+          json.loads(mb.build_context({"indices": {"NIFTY": {}}}, "nse_index", "NIFTY", user="me@example.invalid"))["gann_and_volume"] is None)
+    feeds.for_user = lambda email, market=None, start=True: None
+    check("no feed running: nothing, and the decision goes ahead",
+          json.loads(mb.build_context(snap, "nse_index", "NIFTY", user="me@example.invalid"))["gann_and_volume"] is None)
+    class Boom(FakeFeed):
+        def candles(self, name):
+            raise RuntimeError("candles unavailable")
+    feeds.for_user = lambda email, market=None, start=True: Boom()
+    check("a failure while computing them never breaks a decision",
+          json.loads(mb.build_context(snap, "nse_index", "NIFTY", user="me@example.invalid"))["gann_and_volume"] is None)
+    feeds.for_user = lambda email, market=None, start=True: FakeFeed()
+    check("an index with no candles still gets the levels from the price (volume says why it is missing)",
+          json.loads(mb.build_context({"indices": {"SENSEX": {"spot": 82000.0}}, "tickets": {}, "session": {}, "why": {}},
+                                       "nse_index", "SENSEX", user="me@example.invalid"))["gann_and_volume"].get("nearest_support") is not None)
+finally:
+    feeds.for_user = orig
+check("both instruction texts explain it, as reference levels the tool's own study found no edge in",
+      all("gann_and_volume" in t and "did not improve its rules on their own" in t for t in (mb.SYSTEM, mb.DESK_SYSTEM)))
+check("Ask TradePicker's list of sections names the Gann levels", "Gann levels with the volume oscillator" in mb.SYSTEM)
+check("the desk must look at what could stand in the way BEFORE an entry - chain, levels, Gann, order flow, news - and say so; a wait needs no checklist",
+      "Before you submit an ENTRY" in mb.DESK_SYSTEM and "Gann levels for room to your target" in mb.DESK_SYSTEM
+      and "a wait needs no checklist" in mb.DESK_SYSTEM)
+check("the desk is offered every tool Ask TradePicker has, get_gann included, with room for the lookups the checklist needs",
+      {t["name"] for t in bot_data.tool_specs()} >= {"get_gann", "get_option_chain", "get_analytics", "get_news", "get_signal"}
+      and mb.MAX_TOOL_CALLS >= 8)
+
 print("GANN TEST PASSED" if not fails else f"GANN TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
