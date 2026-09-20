@@ -31,8 +31,10 @@ fi
 
 say "Installing packages"
 sudo apt-get update -qq
-sudo apt-get install -y -qq python3 python3-pip python3-venv git curl rsync \
+sudo apt-get install -y -qq python3 python3-pip python3-venv python3-tk git curl rsync \
                            build-essential python3-dev tzdata
+# python3-tk: web_server imports chart_panel, which imports tkinter (a separate
+# package on Debian) - the first VM start on 20 Sep 2026 died without it.
 
 if [ -d "$APP_DIR/.git" ]; then
   say "Updating the existing checkout in $APP_DIR"
