@@ -1711,7 +1711,8 @@ class Feed:
         feed already holds. Never raises and never changes the reading's action:
         a failure here is a missing checklist, nothing else."""
         try:
-            if (rec or {}).get("option_type") not in ("CE", "PE"):
+            if (rec or {}).get("option_type") not in ("CE", "PE") \
+                    and str((rec or {}).get("raw_bias") or "").upper() not in ("BULLISH", "BEARISH"):
                 return None
             g = None
             try:

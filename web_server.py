@@ -3097,6 +3097,10 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   transition:left .35s ease,width .35s ease,background .25s ease}
 .gauge .gt u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;
   background:var(--bd);transform:translateX(-.5px)}
+.gauge.wide{grid-template-columns:110px 1fr minmax(130px,250px)}
+.gauge.wide .gv{white-space:normal}
+.ck-sum{color:var(--ink-3);font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px}
+@media (max-width:560px){.gauge.wide{grid-template-columns:96px 1fr}.gauge.wide .gv{grid-column:1/-1;text-align:left}}
 .gauge .gv{text-align:right;font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums}
 .gnote{color:var(--ink-3);font-size:12px;margin-top:9px}
@@ -4304,6 +4308,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   </div>
   <div class="gauges" id="gauges"></div>
   <div class="room" id="room"></div>
+  <div class="room" id="checksbox"></div>
   <div class="gnote" id="gnote"></div>
   </div>
   <div class="top3" data-panel="trend">
@@ -7108,6 +7113,34 @@ $("cvout").onclick   = () => chartZoom(1.3, null);
 $("cvreset").onclick = () => chartReset();
 addEventListener("resize", () => { chartDraw(); sparkline(); heatMap(true); });
 
+// The same checks as bars, in the Signal section itself, drawn like the
+// indicator gauges: a bar to the right for agrees, to the left for against, none
+// for neutral or no data, and the few words that matter beside it. The glyph
+// carries the answer too, so it never rests on colour alone.
+function checkGauges(c){
+  const el = $("checksbox");
+  if(!el) return;
+  if(!c || !(c.items || []).length){ el.innerHTML = ""; return; }
+  const V = {agrees: 1, against: -1, neutral: 0, no_data: null};
+  const COL = {agrees: "var(--up)", against: "var(--down)", neutral: "var(--ink-3)", no_data: "var(--ink-3)"};
+  const MARK = {agrees: "✓", against: "✕", neutral: "·", no_data: "–"};
+  const rows = (c.items || []).map(i => {
+    const st = i.status in V ? i.status : "no_data";
+    const vote = V[st];
+    const w = vote == null || vote === 0 ? 0 : 25;
+    const left = vote > 0 ? 50 : 50 - w;
+    return `<div class="gauge wide" title="${esc(i.detail || "")}">
+      <div class="gn">${esc(i.label)}</div>
+      <div class="gt"><u></u><i style="left:${left}%;width:${w}%;background:${COL[st]}"></i></div>
+      <div class="gv" style="color:${COL[st]}">${MARK[st]} ${esc(i.short || "—")}</div>
+    </div>`;
+  }).join("");
+  el.innerHTML = `<div class="rr-h">The AI desk's checks · for a ${esc(c.side === "CE" ? "call" : "put")}`
+    + `<span class="ck-sum">${esc(c.summary || "")}</span></div>` + rows
+    + `<div class="gnote">${c.waiting ? "The rules are waiting, so this is what the checks would say if they leaned that way - not a signal. " : ""}`
+    + `Reference only: the rules do not use these to enter or skip a trade.</div>`;
+}
+
 // The checklist beside the rule signal: what the AI desk looks at, each as
 // agrees / against / neutral / no data. Reference only - the rules do not use
 // it to enter or skip a trade (signal_checks.py says why). Glyph and word, so
@@ -7117,7 +7150,8 @@ const CHECK_GLYPH = {agrees: ["✓", "var(--up)", "agrees"], against: ["✕", "v
 function checksRows(c){
   if(!c || !(c.items || []).length) return "";
   let h = `<div class="wrow verdict"><div class="g" style="color:var(--accent)">=</div>
-    <div class="n">The AI desk's checks</div><div class="t">${esc(c.summary || "")} - for a ${esc(c.side === "CE" ? "call" : "put")}.</div></div>`;
+    <div class="n">The AI desk's checks</div><div class="t">${esc(c.summary || "")} - for a ${esc(c.side === "CE" ? "call" : "put")}${c.waiting
+      ? ". The rules are waiting, so this is what the checks would say if they leaned that way - not a signal" : ""}.</div></div>`;
   (c.items || []).forEach(i => {
     const g = CHECK_GLYPH[i.status] || CHECK_GLYPH.no_data;
     h += `<div class="wrow"><div class="g" style="color:${g[1]}">${g[0]}</div>
@@ -7293,6 +7327,7 @@ function render(s){
   const w=(s.why||{})[CUR];
   gauges(r, w);
   roomRun(r);
+  checkGauges(r.checks);
   ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.

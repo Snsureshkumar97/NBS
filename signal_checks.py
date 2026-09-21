@@ -47,8 +47,10 @@ def _f(v):
         return None
 
 
-def _item(key, label, status, detail):
-    return {"key": key, "label": label, "status": status, "detail": detail}
+def _item(key, label, status, detail, short=None):
+    """`short` is the few words the Signal page shows on the bar itself; `detail`
+    is the full sentence, kept for the Why card and the tooltip."""
+    return {"key": key, "label": label, "status": status, "detail": detail, "short": short}
 
 
 def _num(v, dp=0):
@@ -60,27 +62,28 @@ def _gann(rec, g, side, dp):
     spot, risk = _f(rec.get("spot")), _f(rec.get("risk_points"))
     lvl = _f((g or {}).get("nearest_resistance" if side == "CE" else "nearest_support"))
     if spot is None or lvl is None:
-        return _item("gann", label, NO_DATA, "No Gann level without a price.")
+        return _item("gann", label, NO_DATA, "No Gann level without a price.", "no price")
     dist = abs(lvl - spot)
     tg = rec.get("index_targets") or []
     t1 = abs(_f(tg[0]) - spot) if tg and _f(tg[0]) is not None else None
     where = "resistance" if side == "CE" else "support"
     base = f"The next Gann {where} is {_num(lvl, dp)}, {_num(dist, dp)} points away"
+    short = f"{_num(lvl, dp)} · {_num(dist, dp)} pts"
     if risk and dist < risk:
-        return _item("gann", label, AGAINST, f"{base}: nearer than the stop ({_num(risk, dp)} points).")
+        return _item("gann", label, AGAINST, f"{base}: nearer than the stop ({_num(risk, dp)} points).", short)
     if t1 and dist >= t1:
-        return _item("gann", label, AGREES, f"{base}: past the first target ({_num(t1, dp)} points).")
-    return _item("gann", label, NEUTRAL, f"{base}: beyond the stop but short of the first target.")
+        return _item("gann", label, AGREES, f"{base}: past the first target ({_num(t1, dp)} points).", short)
+    return _item("gann", label, NEUTRAL, f"{base}: beyond the stop but short of the first target.", short)
 
 
 def _volume(g):
     label = "Volume"
     vo = ((g or {}).get("volume_oscillator") or {}).get("value_pct")
     if vo is None:
-        return _item("volume", label, NO_DATA, "No volume on these candles yet.")
+        return _item("volume", label, NO_DATA, "No volume on these candles yet.", "no volume")
     if vo > 0:
-        return _item("volume", label, AGREES, f"Participation is rising (oscillator {vo:+.1f}%).")
-    return _item("volume", label, AGAINST, f"Participation is fading (oscillator {vo:+.1f}%).")
+        return _item("volume", label, AGREES, f"Participation is rising (oscillator {vo:+.1f}%).", f"rising {vo:+.1f}%")
+    return _item("volume", label, AGAINST, f"Participation is fading (oscillator {vo:+.1f}%).", f"fading {vo:+.1f}%")
 
 
 def _flow_crypto(flow, sign, index=None):
@@ -91,25 +94,27 @@ def _flow_crypto(flow, sign, index=None):
     except Exception:
         reads = True
     if not reads:                    # gold: no tape is kept, so "not covered yet" would be the wrong reason
-        return _item("flow", label, NO_DATA, "Taker flow is only read for Bitcoin.")
+        return _item("flow", label, NO_DATA, "Taker flow is only read for Bitcoin.", "Bitcoin only")
     w = ((flow or {}).get("windows") or {}).get("15m")
     if not w or not w.get("complete") or w.get("cvd_pct_of_volume") is None:
         covers = (flow or {}).get("tape_covers_minutes")
         return _item("flow", label, NO_DATA, "The tape does not yet cover 15 minutes"
-                     + (f" (it holds {covers:g})." if covers is not None else "."))
+                     + (f" (it holds {covers:g})." if covers is not None else "."),
+                     f"tape {covers:g} of 15 min" if covers is not None else "no tape")
     c = w["cvd_pct_of_volume"]
     said = (flow or {}).get("in_words") or f"Takers {c:+.0f}% of volume over 15 minutes."
+    short = f"{c:+.0f}% of volume"
     if c * sign >= FLOW_MIN_PCT:
-        return _item("flow", label, AGREES, said)
+        return _item("flow", label, AGREES, said, short)
     if c * sign <= -FLOW_MIN_PCT:
-        return _item("flow", label, AGAINST, said)
-    return _item("flow", label, NEUTRAL, said)
+        return _item("flow", label, AGAINST, said, short)
+    return _item("flow", label, NEUTRAL, said, short)
 
 
 def _flow_india(flow, sign):
     label = "Futures flow"
     fut = (flow or {}).get("index_future") or {}
-    parts, notes = [], []
+    parts, notes, bits = [], [], []
     try:
         import kite_flow
         lean = kite_flow.LEAN.get(fut.get("buildup_today") or "")
@@ -118,19 +123,22 @@ def _flow_india(flow, sign):
     if lean:
         parts.append(1 if lean.startswith("bullish") else -1)
         notes.append(f"the day's build-up is {fut['buildup_today']}")
+        bits.append(str(fut["buildup_today"]))
     bi = (fut.get("order_flow") or {}).get("book_imbalance")
     if bi is not None:
         parts.append(1 if bi >= BOOK_LEAN else -1 if bi <= -BOOK_LEAN else 0)
         notes.append(f"the top five levels lean {bi:+.2f}")
+        bits.append(f"book {bi:+.2f}")
     if not notes:
-        return _item("flow", label, NO_DATA, "No futures reading yet.")
+        return _item("flow", label, NO_DATA, "No futures reading yet.", "no reading")
     said = "The near-month future: " + ", ".join(notes) + "."
+    short = " · ".join(bits)
     with_side = [p * sign for p in parts if p]
     if with_side and all(p > 0 for p in with_side):
-        return _item("flow", label, AGREES, said)
+        return _item("flow", label, AGREES, said, short)
     if with_side and all(p < 0 for p in with_side):
-        return _item("flow", label, AGAINST, said)
-    return _item("flow", label, NEUTRAL, said)
+        return _item("flow", label, AGAINST, said, short)
+    return _item("flow", label, NEUTRAL, said, short)
 
 
 def _walls(rec, side, dp):
@@ -142,36 +150,38 @@ def _walls(rec, side, dp):
     t1 = _f(tg[0]) if tg else None
     kind = "call" if side == "CE" else "put"
     if wall is None or spot is None:
-        return _item("walls", label, NO_DATA, "No option chain to read the largest open interest from.")
+        return _item("walls", label, NO_DATA, "No option chain to read the largest open interest from.", "no chain")
     ahead = (spot < wall) if side == "CE" else (spot > wall)
+    short = f"{kind} OI {_num(wall, dp)}"
     if not ahead:
-        return _item("walls", label, AGREES, f"Spot is already through the largest {kind} open interest ({_num(wall, dp)}).")
+        return _item("walls", label, AGREES, f"Spot is already through the largest {kind} open interest ({_num(wall, dp)}).", short)
     if t1 is None:
-        return _item("walls", label, NEUTRAL, f"The largest {kind} open interest is at {_num(wall, dp)}, ahead of spot.")
+        return _item("walls", label, NEUTRAL, f"The largest {kind} open interest is at {_num(wall, dp)}, ahead of spot.", short)
     blocks = (wall <= t1) if side == "CE" else (wall >= t1)
     if blocks:
-        return _item("walls", label, AGAINST, f"The largest {kind} open interest ({_num(wall, dp)}) sits between spot and the first target.")
-    return _item("walls", label, AGREES, f"The largest {kind} open interest ({_num(wall, dp)}) is beyond the first target.")
+        return _item("walls", label, AGAINST, f"The largest {kind} open interest ({_num(wall, dp)}) sits between spot and the first target.", short)
+    return _item("walls", label, AGREES, f"The largest {kind} open interest ({_num(wall, dp)}) is beyond the first target.", short)
 
 
 def _spread(rec, index):
     label = "Spread"
     pct = _f((rec.get("spread") or {}).get("pct"))
     if pct is None:
-        return _item("spread", label, NO_DATA, "No live bid and offer for the contract.")
+        return _item("spread", label, NO_DATA, "No live bid and offer for the contract.", "no quote")
     try:
         import config
         limit = float(config.max_spread_pct(index) or 0)
     except Exception:
         limit = 0.0
     if not limit:
-        return _item("spread", label, NEUTRAL, f"Spread {pct:.2f}%.")
+        return _item("spread", label, NEUTRAL, f"Spread {pct:.2f}%.", f"{pct:.2f}%")
     txt = f"Spread {pct:.2f}% against a limit of {limit:g}%."
+    short = f"{pct:.2f}% of {limit:g}%"
     if pct <= limit / 2:
-        return _item("spread", label, AGREES, txt)
+        return _item("spread", label, AGREES, txt, short)
     if pct <= limit:
-        return _item("spread", label, NEUTRAL, txt)
-    return _item("spread", label, AGAINST, txt)
+        return _item("spread", label, NEUTRAL, txt, short)
+    return _item("spread", label, AGAINST, txt, short)
 
 
 def _heavy(flow, sign):
@@ -181,14 +191,15 @@ def _heavy(flow, sign):
         return None
     up, down = _f(w.get("bullish_buildup")) or 0.0, _f(w.get("bearish_buildup")) or 0.0
     if up + down <= 0:
-        return _item("heavyweights", label, NO_DATA, "None of the heaviest members shows a clear build-up.")
+        return _item("heavyweights", label, NO_DATA, "None of the heaviest members shows a clear build-up.", "no build-up")
     mine = (up if sign > 0 else down) / (up + down)
     said = f"By index weight, {up:.0f}% of the heaviest members show bullish build-up and {down:.0f}% bearish."
+    short = f"{up:.0f}% up · {down:.0f}% down"
     if mine >= HEAVY_SHARE:
-        return _item("heavyweights", label, AGREES, said)
+        return _item("heavyweights", label, AGREES, said, short)
     if mine <= 1 - HEAVY_SHARE:
-        return _item("heavyweights", label, AGAINST, said)
-    return _item("heavyweights", label, NEUTRAL, said)
+        return _item("heavyweights", label, AGAINST, said, short)
+    return _item("heavyweights", label, NEUTRAL, said, short)
 
 
 def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None):
@@ -197,8 +208,16 @@ def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None):
     a check without its data reports no_data."""
     rec = rec or {}
     side = rec.get("option_type")
+    waiting = False
     if side not in ("CE", "PE"):
-        return None
+        # The rules are waiting - but often they lean one way and something vetoed
+        # it (a weak trend, momentum against). The checklist is then shown for that
+        # leaning side as a what-if, and says so: it is not a signal and no ticket
+        # is opened on it, so it is never stamped on a trade.
+        side = {"BULLISH": "CE", "BEARISH": "PE"}.get(str(rec.get("raw_bias") or "").upper())
+        if side is None:
+            return None
+        waiting = True
     sign = 1 if side == "CE" else -1
     dp = 0 if (index or rec.get("index")) in ("BTC", "NIFTY", "BANKNIFTY", "SENSEX") else 2
     items = [_gann(rec, gann_report, side, dp), _volume(gann_report),
@@ -214,13 +233,13 @@ def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None):
         parts.append(f"{n[NEUTRAL]} neutral")
     if n[NO_DATA]:
         parts.append(f"{n[NO_DATA]} without data")
-    return {"side": side, "items": items, "agree": n[AGREES], "against": n[AGAINST], "neutral": n[NEUTRAL],
+    return {"side": side, "waiting": waiting, "items": items, "agree": n[AGREES], "against": n[AGAINST], "neutral": n[NEUTRAL],
             "no_data": n[NO_DATA], "summary": " · ".join(parts), "note": NOTE}
 
 
 def stamp(checks):
     """(agree, against, 'gann+ volume- flow0 ...') for the trade log, or Nones."""
-    if not checks:
+    if not checks or checks.get("waiting"):
         return None, None, None
     text = " ".join(f"{i['key']}{SYMBOL.get(i['status'], '?')}" for i in checks.get("items") or [])
     return checks.get("agree"), checks.get("against"), text
