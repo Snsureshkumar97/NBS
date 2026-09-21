@@ -47,6 +47,7 @@ import accounts
 import config
 import explain
 import kite_flow
+import taker_flow
 import market_map
 import signal_engine
 import ticket_watch
@@ -1160,6 +1161,9 @@ class Feed:
         self.stream_error = None
         for n in self.instruments():
             st.subscribe_index(config.crypto_index(n))
+            meta = config.INSTRUMENTS.get(n) or {}
+            if meta.get("taker_flow") and hasattr(st, "subscribe_trades") and meta.get("delta_perpetual"):
+                st.subscribe_trades(meta["delta_perpetual"])
 
     def _crypto_suggested(self, name):
         """Stream the premium of the strike currently being suggested.
@@ -1699,10 +1703,28 @@ class Feed:
         self.flow.ensure(st)
         self.flow.sample(st, market_open=lambda: is_market_open(now_ist(), self._ref()))
 
+    def taker_flow(self, name):
+        """One crypto instrument's taker flow (taker_flow.py), or None: not an
+        instrument that reads it, no socket yet, or no print has arrived."""
+        meta = config.INSTRUMENTS.get(name) or {}
+        st = self.dstream
+        if not meta.get("taker_flow") or st is None or not hasattr(st, "tape_for"):
+            return None
+        try:
+            return taker_flow.reading(st.tape_for(meta.get("delta_perpetual")), unit=meta.get("delta_asset") or "BTC",
+                                      unit_per_contract=float(meta.get("flow_unit_per_contract") or 0.001),
+                                      symbol=meta.get("delta_perpetual") or "")
+        except Exception as exc:
+            self._note_fault(f"{name} taker flow", f"{type(exc).__name__}: {exc}")
+            return None
+
     def flow_readings(self):
         """Per Indian index, for the bot: the index future's open interest,
         build-up, basis and order flow, the heavyweights' build-up, and the
-        order flow of the suggested contract and the open ticket's contract."""
+        order flow of the suggested contract and the open ticket's contract.
+        On the crypto market: each instrument's taker flow."""
+        if self.market != "nse_index":
+            return {n: r for n in self.instruments() for r in [self.taker_flow(n)] if r}
         st = self.streamer
         if st is None or st is _NO_STREAM or not hasattr(st, "book"):
             return {}

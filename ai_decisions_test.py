@@ -30,6 +30,7 @@ tmp = tempfile.mkdtemp()
 
 def desk():
     d = ai_desk.AIDesk.__new__(ai_desk.AIDesk)
+    d.feed = object()                                        # no taker_flow: the Indian feed's shape
     d.lock = threading.RLock()
     d.recent, d.decision_no, d.day = [], {}, None
     d.decisions_path = os.path.join(tmp, "ai_decisions.jsonl")

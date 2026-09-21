@@ -212,6 +212,17 @@ class AIDesk:
             self.decision_no[index] = n
         entry = {"at": at, "index": index, "kind": kind, "action": action, "reason": reason, "n": n}
         entry.update(extra or {})
+        # What the taker flow read at the moment of the decision (Bitcoin), kept
+        # so that whether it means anything can be studied later. Never blocks
+        # or changes a decision - it is only written down.
+        if kind in ("entry", "review") and hasattr(self.feed, "taker_flow"):
+            try:
+                import taker_flow
+                tf = taker_flow.brief(self.feed.taker_flow(index))
+            except Exception:
+                tf = None
+            if tf:
+                entry["taker_flow"] = tf
         with self.lock:
             self.recent.insert(0, entry)
             del self.recent[RECENT_KEPT:]

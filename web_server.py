@@ -1550,7 +1550,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             df, _rec = feed.candles(k)
         except Exception:
             df = None
-        return self._send(json.dumps(gann.report(k, spot, df), default=str), "application/json")
+        out = gann.report(k, spot, df)
+        try:
+            tf = feed.taker_flow(k)
+        except Exception:
+            tf = None
+        if tf:
+            out["taker_flow"] = tf              # Bitcoin's taker flow rides with its volume oscillator
+        return self._send(json.dumps(out, default=str), "application/json")
 
     def _api_analytics(self, user, qs):
         """The analyst's numbers: volatility, levels, internals, strength,
@@ -4624,6 +4631,13 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <p class="eyebrow" role="heading" aria-level="2">Volume oscillator &middot; EMA5 against EMA20 of volume</p>
    <div class="aistats" id="gannvo"></div>
    <div class="gnote" id="gannvonote"></div>
+  </div>
+  <div class="card" data-panel="gannflow" id="gannflowcard" hidden>
+   <p class="eyebrow" role="heading" aria-level="2">Taker flow &middot; who is hitting the book on the perpetual</p>
+   <div class="aistats" id="gannflowstats"></div>
+   <div class="scrwrap"><table class="scr" id="gannflowwin"></table></div>
+   <div class="scrwrap"><table class="scr" id="gannflowsteps"></table></div>
+   <div class="gnote" id="gannflownote"></div>
   </div>
   <div class="gnote" id="gannstudy"></div>
  </section>
@@ -9251,6 +9265,7 @@ function gannPaint(){
   if(d.error || d.spot == null){
     if($("gannstats")) $("gannstats").innerHTML = `<div class="st"><b>—</b><span>${esc(d.error || d.note || "No live price yet.")}</span></div>`;
     scrTable("gannladder", [], [], "No levels without a price."); scrTable("gannrungs", [], [], "");
+    gannFlowPaint(null);
     if($("gannstudy")) $("gannstudy").textContent = d.study || "";
     return;
   }
@@ -9287,7 +9302,43 @@ function gannPaint(){
   }
   if($("gannvonote")) $("gannvonote").textContent = vo.value_pct == null ? "" : "Above zero, the last five bars carried more "
     + "volume than the last twenty; below, less. On the indices the volume is the near-month future's.";
+  gannFlowPaint(d.taker_flow);
   if($("gannstudy")) $("gannstudy").textContent = d.study || "";
+}
+// Taker flow: contracts where the buyer crossed the spread against ones where
+// the seller did. Bitcoin only. Every window says whether the tape covers it.
+function gannFlowPaint(f){
+  const card = $("gannflowcard");
+  if(!card) return;
+  card.hidden = !f;
+  if(!f) return;
+  const sgn = v => v == null ? "—" : (v >= 0 ? "+" : "−") + num(Math.abs(v), 1);
+  const col = v => v == null || v === 0 ? "" : v > 0 ? "var(--up)" : "var(--down)";
+  const w15 = (f.windows || {})["15m"] || {};
+  $("gannflowstats").innerHTML = [
+    [w15.cvd_pct_of_volume == null ? "—" : sgn(w15.cvd_pct_of_volume) + "%", "takers, last 15 min", col(w15.cvd_pct_of_volume)],
+    [f.live ? "live" : "no recent prints", `${f.seconds_since_last_print}s since the last`, f.live ? "" : "var(--warn)"],
+    [num(f.tape_covers_minutes, 0) + " min", "of tape held", ""],
+  ].map(([v, a, c]) => `<div class="st"><b style="color:${c}">${esc(v)}</b><span>${esc(a)}</span></div>`).join("");
+  const u = f.unit || "BTC";
+  const wins = Object.entries(f.windows || {}).map(([k, w]) => Object.assign({k}, w));
+  scrTable("gannflowwin", wins,
+    [["Window", r => `<td class="sym">${esc(r.k)}${r.complete ? "" : " · partial"}</td>`],
+     [`Taker buy ${u}`, r => `<td style="color:var(--up)">${esc(num(r.taker_buy, 2))}</td>`],
+     [`Taker sell ${u}`, r => `<td style="color:var(--down)">${esc(num(r.taker_sell, 2))}</td>`],
+     ["Net (CVD)", r => `<td style="color:${col(r.cvd)}">${esc(sgn(r.cvd))}</td>`],
+     ["Share of volume", r => `<td style="color:${col(r.cvd_pct_of_volume)}">${r.cvd_pct_of_volume == null ? "—" : esc(sgn(r.cvd_pct_of_volume) + "%")}</td>`],
+     ["Price moved", r => `<td>${r.price_change_pct == null ? "—" : esc(sgn(r.price_change_pct) + "%")}</td>`]],
+    "No prints yet.");
+  scrTable("gannflowsteps", (f.five_minute_steps || []).slice().reverse(),
+    [["Until (IST)", r => `<td class="sym">${esc(r.until)}${r.forming ? " · forming" : ""}</td>`],
+     ["Net (CVD)", r => `<td style="color:${col(r.cvd)}">${esc(sgn(r.cvd))}</td>`],
+     ["Volume", r => `<td>${esc(num(r.volume, 2))}</td>`],
+     ["Close", r => `<td>${r.close == null ? "—" : esc(num(r.close, 1))}</td>`]],
+    "");
+  const big = (f.large_prints_15m || []).map(b => `${b.at} ${b.side} ${num(b.size, 2)} @ ${num(b.price, 1)}`).join(" · ");
+  $("gannflownote").textContent = [f.in_words, big ? "Largest prints, 15 min: " + big + "." : "", f.note]
+    .filter(Boolean).join(" ");
 }
 setInterval(() => { if(TAB === "gann" && !document.hidden) gannFetch(); }, 15000);
 

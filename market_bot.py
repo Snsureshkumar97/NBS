@@ -117,6 +117,18 @@ more piece of context - a target that sits just under a Gann resistance has less
 on falling volume is weaker than one on rising volume - never as a reason by themselves. The Gann levels \
 lookup has the full ladder and the bigger 90/180/360-degree rungs.
 
+taker_flow (Bitcoin only, always in the snapshot) is who is hitting the book on Delta's BTCUSD perpetual: \
+in each window (1, 5, 15 and 60 minutes) taker_buy and taker_sell are the BTC bought by buyers who crossed the \
+spread against BTC sold by sellers who did, cvd is buy minus sell, and cvd_pct_of_volume is that as a share of \
+all volume (+100 all takers buying, -100 all selling). five_minute_steps is the same in five-minute pieces \
+over the last hour, large_prints_15m the biggest single prints, and in_words is a plain sentence about whether \
+the last 15 minutes' price move and the flow agree. It is context only and has not been tested - there is no \
+history of prints to test it on: a window with complete false covers less time than its name says (see \
+tape_covers_minutes), so do not lean on it, and live false means no print for 90 seconds. Flow that agrees \
+with a move says more about how it happened than that it will continue, and flow that disagrees is a reason to \
+look harder, not a reason to fade it. It is stamped on each of your decisions, so say in your reason if it \
+changed your mind.
+
 Beyond the snapshot, every section of the tool is available through your tools: the signal for any \
 index, the chart, the option chain and OI clock, the watchlist, the journal, the Market section (map, \
 constituents, pulse, sector scope, momentum spikes, screener), the Analysis section (volatility, greeks and \
@@ -373,7 +385,9 @@ def build_context(snap, market, index, now=None, user=None):
                                       if ticket and ticket.get("open") else None),
         "last_ticket_if_closed": ticket if ticket and not ticket.get("open") else None,
         "recent_trades_this_index": _recent_trades(user, market, index),
-        "futures_and_order_flow": (snap.get("flow") or {}).get(index),
+        # One key per market: the Indian indices' futures and order flow, or the
+        # crypto instruments' taker flow. Both come out of the feed's `flow`.
+        ("futures_and_order_flow" if market == "nse_index" else "taker_flow"): (snap.get("flow") or {}).get(index),
         "gann_and_volume": _gann_reading(user, market, index, (indices.get(index) or {}).get("spot")),
         "other_indices_in_this_market": {k: _pick(v or {}, PEER_FIELDS)
                                          for k, v in indices.items() if k != index},
@@ -565,6 +579,18 @@ tested them as entry filters over three years and they did not improve its rules
 more piece of context - a target that sits just under a Gann resistance has less room than it looks, a breakout \
 on falling volume is weaker than one on rising volume - never as a reason by themselves. The Gann levels \
 lookup has the full ladder and the bigger 90/180/360-degree rungs.
+
+taker_flow (Bitcoin only, always in the snapshot) is who is hitting the book on Delta's BTCUSD perpetual: \
+in each window (1, 5, 15 and 60 minutes) taker_buy and taker_sell are the BTC bought by buyers who crossed the \
+spread against BTC sold by sellers who did, cvd is buy minus sell, and cvd_pct_of_volume is that as a share of \
+all volume (+100 all takers buying, -100 all selling). five_minute_steps is the same in five-minute pieces \
+over the last hour, large_prints_15m the biggest single prints, and in_words is a plain sentence about whether \
+the last 15 minutes' price move and the flow agree. It is context only and has not been tested - there is no \
+history of prints to test it on: a window with complete false covers less time than its name says (see \
+tape_covers_minutes), so do not lean on it, and live false means no print for 90 seconds. Flow that agrees \
+with a move says more about how it happened than that it will continue, and flow that disagrees is a reason to \
+look harder, not a reason to fade it. It is stamped on each of your decisions, so say in your reason if it \
+changed your mind.
 
 Each request brings a <market_snapshot> for one index and a <desk> block with your open tickets, today's \
 entries and limits, contracts already traded today (never propose one of those again), and your own recent \

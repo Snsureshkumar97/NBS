@@ -35,6 +35,7 @@ import pandas as pd
 import requests
 
 import config
+import taker_flow
 from config import INSTRUMENTS
 from data_providers import _WSClient, _compute_max_pain
 
@@ -351,6 +352,7 @@ class DeltaStreamer:
         self._tick = {}           # symbol -> {mark, bid, ask, last, oi, at}, in USD
         self._bars = {}           # ".DEXBTUSD" -> the 15-minute bar being built
         self._subs = set()        # (channel, symbol)
+        self._tapes = {}          # perpetual symbol -> taker_flow.Tape, filled by the all_trades channel
         self._stop = threading.Event()
         self.connected = False
         self.last_error = None
@@ -410,6 +412,17 @@ class DeltaStreamer:
     def subscribe_tickers(self, instruments):
         self.subscribe([("v2/ticker", i) for i in instruments])
 
+    def subscribe_trades(self, symbol):
+        """Every print of one contract, for taker_flow. The socket answers with
+        a snapshot of the latest few dozen and then each new print."""
+        with self._lock:
+            self._tapes.setdefault(symbol, taker_flow.Tape())
+        self.subscribe([("all_trades", symbol)])
+
+    def tape_for(self, symbol):
+        with self._lock:
+            return self._tapes.get(symbol)
+
     # ------------------------------------------------------------------
     def _run(self):
         backoff = 1.0
@@ -453,6 +466,14 @@ class DeltaStreamer:
             return True
         if typ == "v2/ticker":
             return self.on_ticker(msg, now)
+        if typ in ("all_trades", "all_trades_snapshot"):
+            tape = self.tape_for(msg.get("symbol"))
+            if tape is not None:
+                if typ == "all_trades_snapshot":
+                    tape.add(msg.get("trades") or [], snapshot=True, now=now)
+                else:
+                    tape.add([msg], now=now)
+            return False              # a print is not a price move; last_tick_at keeps meaning the index
         return False
 
     def on_ticker(self, data, now=None):

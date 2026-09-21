@@ -176,6 +176,9 @@ INSTRUMENTS = {
         "qty_step": 1,
         "lot_choices": [10, 25, 50, 100, 250, 500],
         "settle_hour_utc": 12,               # its options settle at 12:00 UTC (17:30 IST)
+        # Taker flow (taker_flow.py) is read on the perpetual's prints, in
+        # contracts of this many BTC. Bitcoin only: gold's perpetual is thin.
+        "taker_flow": True, "flow_unit_per_contract": 0.001,
         "has_free_option_chain": False,
     },
     # Gold, from Delta Exchange India - added 21 Sep 2026 at the user's request,

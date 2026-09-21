@@ -356,7 +356,9 @@ SOURCES = [
      "description": "The Gann levels tab: Square of Nine levels around the live spot - the 45-degree grid with the "
                     "nearest support and resistance and their distance in ATR, the 90/180/360-degree rungs - and the "
                     "volume oscillator (EMA5 against EMA20 of volume). Reference levels the tool tested and does not "
-                    "trade on; say so if asked whether they carry an edge.",
+                    "trade on; say so if asked whether they carry an edge. On Bitcoin the payload also carries taker_flow: "
+                    "taker buy against taker sell volume on the BTCUSD perpetual over 1, 5, 15 and 60 minutes, in "
+                    "five-minute steps, and the largest prints - context, never tested.",
      "params": {"index": INDEX}},
     {"name": "get_greeks", "tabs": ("greeks",), "routes": ("/api/greeks",), "fn": _greeks,
      "description": "The Greeks & IV tab: implied volatility at the money and across the wings, skew, and each "
