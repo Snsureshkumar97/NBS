@@ -643,7 +643,32 @@ d.set_on(True)
 T["now"] = dt.datetime(2026, 9, 19, 2, 45, 50, tzinfo=IST)    # a Saturday night
 ASKED.clear()
 d.step()
-check("Bitcoin is asked around the clock, weekends included", [a[1] for a in ASKED] == ["BTC"])
+check("Bitcoin is asked around the clock, weekends included - and gold, the market's second instrument, with it",
+      [a[1] for a in ASKED] == ["BTC", "GOLD"], [a[1] for a in ASKED])
+
+def gold_rec(spread_abs, index="GOLD"):
+    strikes = []
+    for k in range(4300, 4450, 10):
+        c = max(28 + (4370 - k) * 0.5, 1); p_ = max(27 - (4370 - k) * 0.5, 1)
+        strikes.append({"strike": float(k), "call_ltp": round(c, 2), "put_ltp": round(p_, 2),
+                        "call_bid": round(c - spread_abs / 2, 2), "call_ask": round(c + spread_abs / 2, 2),
+                        "put_bid": round(p_ - spread_abs / 2, 2), "put_ask": round(p_ + spread_abs / 2, 2),
+                        "call_oi": 100, "put_oi": 100})
+    return {"index": index, "spot": 4371.0, "bias": "BULLISH", "option_type": "CE", "confidence": "Medium",
+            "suggested_strike": 4370, "option_chain": {"available": True, "expiry": "2026-09-23", "spot": 4371.0,
+                                                      "strikes": strikes, "pcr": 0.8}, "technical": {"adx": 24.0}}
+
+plan_g = {"option_type": "CE", "strike": 4370, "target": 34.0, "stop": 25.0}
+ok, why, _ = d.validate("GOLD", gold_rec(2.0), plan_g)             # 2.0 on 28 = 7.1%
+check("gold: a 7% spread passes the desk's own check - gold's limit is 8%", ok, why)
+ok, why, _ = d.validate("GOLD", gold_rec(3.0), plan_g)             # 10.7%
+check("gold: 10.7% is refused, naming gold's 8% limit", not ok and "over the 8% limit" in why, why)
+ok, why, _ = d.validate("BTC", gold_rec(2.0, "BTC"), plan_g)
+check("Bitcoin: the same 7% is refused under ITS 3% limit", not ok and "over the 3% limit" in why, why)
+dg, db = d._desk_info("GOLD"), d._desk_info("BTC")
+check("the desk is told each index's own spread limit and how many contracts a lot is",
+      dg["max_spread_pct_on_this_index"] == 8.0 and dg["contracts_per_lot"] == 100
+      and db["max_spread_pct_on_this_index"] == 3.0 and db["contracts_per_lot"] == 1, (dg.get("max_spread_pct_on_this_index"), db.get("contracts_per_lot")))
 check("with its own decision cap", ad.MAX_DECISIONS_PER_DAY["crypto"] >= 96)
 
 print("8. THE MODEL CALL")

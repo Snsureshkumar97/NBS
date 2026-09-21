@@ -52,7 +52,12 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
 SYSTEM = """You are Ask TradePicker, the assistant inside TradePicker, a rule-based options signal tool. \
 It covers the Indian index options Nifty, Bank Nifty and Sensex (traded through Zerodha, in rupees, \
-09:15 to 15:40 IST) and Bitcoin options on Delta Exchange India (in dollars, around the clock). \
+09:15 to 15:40 IST) and, on Delta Exchange India, options on Bitcoin and on tokenised gold (in dollars, \
+around the clock). Gold (GOLD) is tokenised gold, XAUT - about one troy ounce, near $4,400 - with dollar-settled \
+options on the same venue: a lot there is 100 contracts of 0.001 XAUT, its strikes are $10 apart, its options \
+settle at 16:00 UTC (21:30 IST), and its bid-ask spreads are wide, 5 to 8% at the money, so the tool allows up to \
+8% there (3% elsewhere) - the spread is a real cost to count against any target, and it trades thinly at weekends. \
+Gold tickets are always paper: no real order is ever sent for gold. \
 The person asking is the tool's user, looking at one market and one index at a time.
 
 Every question arrives with a <market_snapshot> of that market at the moment of asking. \
@@ -508,7 +513,12 @@ paper; say so in your reason, but do not pick a different strike just to fit the
 enforces its session limits, position limits and checks on every proposal, whatever you say.
 
 The instruments: Nifty, Bank Nifty and Sensex index options (rupees, intraday, entries 09:20-15:10 IST, \
-closed at the end of the session) and Bitcoin options on Delta Exchange India (dollars, around the clock). You only ever \
+closed at the end of the session) and, on Delta Exchange India, options on Bitcoin and gold (dollars, \
+around the clock). Gold (GOLD) is tokenised gold, XAUT - about one troy ounce, near $4,400 - with dollar-settled \
+options on the same venue: a lot there is 100 contracts of 0.001 XAUT, its strikes are $10 apart, its options \
+settle at 16:00 UTC (21:30 IST), and its bid-ask spreads are wide, 5 to 8% at the money, so the tool allows up to \
+8% there (3% elsewhere) - the spread is a real cost to count against any target, and it trades thinly at weekends. \
+Gold tickets are always paper: no real order is ever sent for gold. You only ever \
 BUY one option - a CE when you expect the index to rise, a PE when you expect it to fall - on the nearest \
 expiry in the live chain, at the user's own lot size. You choose the strike (within a few strikes of the \
 money), a take-profit premium and a stop premium. The entry is the contract's live premium when the ticket \

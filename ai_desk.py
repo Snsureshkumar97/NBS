@@ -394,6 +394,8 @@ class AIDesk:
                 "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": list(self.contracts),
                 "cooldown_minutes_after_an_exit": COOLDOWN_MIN, "min_reward_to_risk": MIN_REWARD_RISK,
                 "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.lots,
+                "max_spread_pct_on_this_index": config.max_spread_pct(name),
+                "contracts_per_lot": (config.INSTRUMENTS.get(name) or {}).get("contracts_per_lot", 1),
                 "give_back_rule": (f"the tool closes a trade on its own once it has covered "
                                    f"{GIVEBACK_ARM * 100:.0f}% of the way to its target and then hands back "
                                    f"{GIVEBACK_GIVE * 100:.0f}% of that best gain"),
@@ -631,7 +633,7 @@ class AIDesk:
         if contract in self.contracts:
             return False, ("that contract was already traded today - a second buy would average into the "
                            "first in a real account"), None
-        cap = getattr(config, "MAX_SPREAD_PCT", 0)
+        cap = config.max_spread_pct(name)
         q = signal_engine._find_strike_quote(chain, strike, side) or {}
         if cap and q.get("pct") is not None and q["pct"] > cap:
             return False, f"the spread is {q['pct']:.1f}%, over the {cap:g}% limit", None

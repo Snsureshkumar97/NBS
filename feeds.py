@@ -402,7 +402,9 @@ def _public(rec, name=None):
         # only and the number a buyer actually pays was missing from it.
         "ltp": rec.get("live_ltp"),
         "spread": rec.get("spread"),
-        "max_spread": getattr(config, "MAX_SPREAD_PCT", 0),
+        "max_spread": config.max_spread_pct(name or rec.get("index")),
+        # Gold's lot is 100 contracts of 0.001 XAUT; the page says so.
+        "contracts_per_lot": meta.get("contracts_per_lot"),
         "premium_targets": rec.get("premium_targets") or [None, None, None],
         "premium_stop": rec.get("premium_stop_loss"),
         "premium_source": rec.get("premium_source"),

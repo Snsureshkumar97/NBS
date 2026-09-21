@@ -83,6 +83,16 @@ def volume_oscillator(volume, fast=VO_FAST, slow=VO_SLOW):
     return (ef - es) / es.replace(0, float("nan")) * 100.0
 
 
+def _crypto(index):
+    """True for an instrument on the crypto/Delta side, whose volume is the
+    perpetual's (an Indian index's is the near-month future's)."""
+    try:
+        import config
+        return (config.INSTRUMENTS.get(index) or {}).get("market") == "crypto"
+    except Exception:
+        return index == "BTC"
+
+
 def report(index, spot, df=None):
     """Everything the Gann tab and the bot's get_gann show for one index."""
     if spot is None:
@@ -116,7 +126,7 @@ def report(index, spot, df=None):
             vo = {"value_pct": round(val, 1), "rising": val > 0, "fast": VO_FAST, "slow": VO_SLOW,
                   "previous_bar_pct": round(prev, 1) if prev is not None else None,
                   "recent": [round(float(x), 1) for x in last.iloc[-24:]],
-                  "volume_of": "the near-month future" if index != "BTC" else "the perpetual"}
+                  "volume_of": "the perpetual" if _crypto(index) else "the near-month future"}
     out["volume_oscillator"] = vo or {"value_pct": None,
                                      "note": ("No volume on this index's candles yet - it arrives from the "
                                               "near-month future once Zerodha is connected.")}

@@ -176,6 +176,15 @@ the header chip says **Connect Delta Exchange** and opens the Delta page:
 The Indian indices keep their own page (**Connect Zerodha**) with its own
 steps for live orders; the two never appear over each other's market.
 
+**Gold (paper only).** The Bitcoin market also carries gold — Delta's Tether
+Gold (XAUT) options, chain, chart, Greeks and Gann levels — with the same
+paper tickets and AI desk. It needs nothing extra. Differences to know:
+strikes are $10 apart, one lot is 100 contracts (0.1 XAUT), options settle at
+16:00 UTC (21:30 IST), and spreads are 5–8%, so the tool's spread limit for
+gold is 8% (3% elsewhere). Paper entries do not pay that spread, which flatters
+gold's results, and the rules were never backtested on it. Gold cannot place a
+real order — there is no live switch for it, and the tool refuses one.
+
 **Also in the tool now:** *AI trades* has a lots selector per market and
 shows what each trade cost (premium × lot size × lots); the *Journal* has an
 *AI trades* source beside your trades and the tool's tickets; *Analysis →

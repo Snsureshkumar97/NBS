@@ -175,6 +175,41 @@ INSTRUMENTS = {
         "lot_size": 0.001,
         "qty_step": 1,
         "lot_choices": [10, 25, 50, 100, 250, 500],
+        "settle_hour_utc": 12,               # its options settle at 12:00 UTC (17:30 IST)
+        "has_free_option_chain": False,
+    },
+    # Gold, from Delta Exchange India - added 21 Sep 2026 at the user's request,
+    # PAPER ONLY (no real order is ever sent for it: delta_orders.INDICES is
+    # BTC alone). It is XAUT, Tether's tokenised gold (about one troy ounce),
+    # priced ~ $4,370: a perpetual (XAUTUSD, for candles), the .DEXAUTUSD index,
+    # and dollar-settled European options in daily/weekly expiries, $10 apart
+    # near the money. Three differences from Bitcoin drive the settings here:
+    #   * its at-the-money spreads are 5.8-7.8% (Bitcoin's 1-2.7%), so it has its
+    #     own limit, max_spread_pct 8 - the price of trading it is the spread,
+    #     and paper entries do not pay it, so paper results will flatter it;
+    #   * its options settle at 16:00 UTC (21:30 IST), not 12:00;
+    #   * a contract is 0.001 XAUT, worth ~ $0.017 of premium - so a "lot" here is
+    #     100 contracts (0.1 XAUT, ~ $1.74 of premium), which makes the same lots
+    #     selector (10..500) mean a comparable amount of money as Bitcoin's.
+    #     contracts_per_lot carries that for the page; lot_size is the money
+    #     multiplier per lot, as everywhere else.
+    "GOLD": {
+        "yahoo_ticker": "GC=F",
+        "nse_symbol": None,
+        "kite_exchange": None,
+        "kite_tradingsymbol": None,
+        "market": "crypto",
+        "provider": "delta",
+        "delta_perpetual": "XAUTUSD",
+        "delta_index": ".DEXAUTUSD",
+        "delta_asset": "XAUT",
+        "quote_ccy": "USD",
+        "strike_step": 10,
+        "lot_size": 0.1,
+        "contracts_per_lot": 100,
+        "qty_step": 1,
+        "settle_hour_utc": 16,
+        "max_spread_pct": 8.0,
         "has_free_option_chain": False,
     },
 }
@@ -607,10 +642,24 @@ def crypto_index(name):
 
 
 def crypto_settle_time(name):
-    """When a crypto option settles on its expiry day, in IST: Delta at
-    12:00 UTC (17:30 IST), Deribit at 08:00 UTC (13:30 IST)."""
+    """When a crypto option settles on its expiry day, in IST. Delta names its
+    own hour per instrument (Bitcoin 12:00 UTC = 17:30 IST, gold 16:00 UTC =
+    21:30 IST); Deribit settled at 08:00 UTC (13:30 IST)."""
     import datetime as _dt
-    return _dt.time(17, 30) if (INSTRUMENTS.get(name) or {}).get("provider") == "delta" else _dt.time(13, 30)
+    m = INSTRUMENTS.get(name) or {}
+    if m.get("provider") != "delta":
+        return _dt.time(13, 30)
+    minutes = int(m.get("settle_hour_utc", 12)) * 60 + 330          # UTC -> IST is +5:30
+    return _dt.time((minutes // 60) % 24, minutes % 60)
+
+
+def max_spread_pct(index_key=None):
+    """The widest bid-ask spread, in % of the mid, a ticket may open on: the
+    instrument's own max_spread_pct when it has one (gold, whose spreads are
+    5-8%), else the global MAX_SPREAD_PCT. Read at call time, so a test or a
+    setting that changes the global still moves every instrument without one."""
+    v = (INSTRUMENTS.get(index_key) or {}).get("max_spread_pct")
+    return float(v) if v is not None else float(globals().get("MAX_SPREAD_PCT", 0) or 0)
 
 
 def active_instruments():

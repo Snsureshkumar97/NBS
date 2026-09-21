@@ -981,9 +981,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if v:
                 conc.append({"strike": r["strike"], "v": round(v, 4)})
         conc.sort(key=lambda c: -abs(c["v"]))
+        imeta = config.INSTRUMENTS.get(name) or {}
+        hour = int(imeta.get("settle_hour_utc", 12))          # Bitcoin 12:00 UTC, gold 16:00 UTC
+        asset = imeta.get("delta_asset") or "BTC"
         try:
             y, mo, dd = (int(x) for x in str(expiry).split("-"))
-            settle = _dt.datetime(y, mo, dd, 12, 0, tzinfo=_dt.timezone.utc)
+            settle = _dt.datetime(y, mo, dd, hour, 0, tzinfo=_dt.timezone.utc)
             minutes = (settle - _dt.datetime.now(_dt.timezone.utc)).total_seconds() / 60.0
         except Exception:
             minutes = 0.0
@@ -996,8 +999,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "solved": solved, "quotes": quotes, "concentration": conc[:8], "rows": rows,
             "source": "Delta Exchange India",
             "note": "Delta Exchange India's own greeks and mark implied volatility, straight from the venue - "
-                    "nothing is solved here. Theta is per day in dollars per 1 BTC of underlying; one contract "
-                    "is 0.001 BTC. Expiry is at 12:00 UTC (17:30 IST)."}), "application/json")
+                    f"nothing is solved here. Theta is per day in dollars per 1 {asset} of underlying; one contract "
+                    f"is 0.001 {asset}. Expiry is at {hour:02d}:00 UTC ({config.crypto_settle_time(name):%H:%M} IST)."}),
+            "application/json")
 
     def _api_greeks(self, user, qs):
         """The chain restated as volatility and sensitivities.
@@ -4018,7 +4022,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 <aside class="side" id="side">
  <a class="sbrand" href="/" style="color:inherit;text-decoration:none">
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><rect x="4.6" y="11.5" width="2.2" height="6" rx="1" fill="#3a4050"/><rect x="8.3" y="9.5" width="2.2" height="8" rx="1" fill="#3a4050"/><rect x="12" y="6.5" width="2.6" height="11" rx="1.1" fill="#4d94e8"/><rect x="16.4" y="12.5" width="2.2" height="5" rx="1" fill="#3a4050"/><circle cx="13.3" cy="4.4" r="2.1" fill="#4caf50"/><path d="M12.4 4.4l.7.7 1.3-1.4" stroke="#0d1117" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
+  <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin · Gold</small></div>
  </a>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
   <button class="tab on" data-tab="home" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i>Home</button>
@@ -4934,11 +4938,15 @@ let LOTS_SYNCED = false;
 // than inside the no-ticket branch, because ladder() returns early once a
 // ticket is open - which is exactly when you are most likely to be reading it.
 function unitLabel(r){
-  const perLot = (r.lot_size || 1) > 1;
+  // Gold's lot is 100 contracts of 0.001 XAUT (contracts_per_lot), so it reads
+  // "Lots" like the Indian indices, not "Contracts" like Bitcoin.
+  const cpl = r.contracts_per_lot || 1;
+  const perLot = (r.lot_size || 1) > 1 || cpl > 1;
   const ll = $("lotslabel");
   if(ll) ll.textContent = perLot ? "Lots" : "Contracts";
   const w = $("lotswrap");
-  if(w) w.title = perLot ? (r.lot_size + " per lot")
+  if(w) w.title = cpl > 1 ? (`one lot is ${cpl} contracts (${r.lot_size} of the underlying)`)
+                : perLot ? (r.lot_size + " per lot")
                          : ("one contract is one " + String(CUR||"").toUpperCase());
 }
 
@@ -5157,7 +5165,7 @@ function riskBox(r, tk, sess){
   }
   sel.value = String(rp);
 
-  const unit = (r.lot_size || 1) > 1 ? "lot" : "contract";
+  const unit = ((r.lot_size || 1) > 1 || (r.contracts_per_lot || 1) > 1) ? "lot" : "contract";
   const parts = [];
   let perLot = null, lots = LOTS, what = "this signal", chg = null;
   if(tk && tk.open){
@@ -7410,9 +7418,9 @@ function greet(s){
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
   if(s.market === "crypto"){
-    $("said").textContent = "Bitcoin options on Delta Exchange India, priced live in dollars - "
+    $("said").textContent = "Bitcoin and gold options on Delta Exchange India, priced live in dollars - "
                           + "one screen, around the clock.";
-    const bs = $("brandsub"); if(bs) bs.textContent = "BTC · Delta Exchange · 24/7";
+    const bs = $("brandsub"); if(bs) bs.textContent = "BTC · Gold · Delta Exchange · 24/7";
     return;
   }
   $("said").textContent = k.connected
@@ -9167,7 +9175,8 @@ setInterval(() => { if(TAB === "gann" && !document.hidden) gannFetch(); }, 15000
 // ============================================================ TradingView
 // TradingView's own chart page in a frame - the official embed that needs no
 // script of theirs. Rebuilt only when the symbol or theme changes.
-const TV_SYMBOL = {NIFTY: "NSE:NIFTY", BANKNIFTY: "NSE:BANKNIFTY", SENSEX: "BSE:SENSEX", BTC: "BITSTAMP:BTCUSD"};
+const TV_SYMBOL = {NIFTY: "NSE:NIFTY", BANKNIFTY: "NSE:BANKNIFTY", SENSEX: "BSE:SENSEX", BTC: "BITSTAMP:BTCUSD",
+                   GOLD: "TVC:GOLD"};   // spot gold; the tool trades XAUT, the gold token, which tracks it
 let TV_LAST = "";
 function tvPaint(){
   const wrap = $("tvwrap");

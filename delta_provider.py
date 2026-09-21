@@ -65,9 +65,12 @@ def tag_of(expiry):
     return f"{d.day:02d}{d.month:02d}{d.year % 100:02d}"
 
 
-def hours_left(expiry):
+def hours_left(expiry, hour=None):
+    """Hours until an expiry settles, at `hour` UTC (Bitcoin 12, gold 16 - see
+    config.INSTRUMENTS[..]["settle_hour_utc"]); 12 when not given."""
     d = dt.date.fromisoformat(str(expiry)[:10])
-    settle = dt.datetime(d.year, d.month, d.day, SETTLE_HOUR_UTC, 0, tzinfo=dt.timezone.utc)
+    settle = dt.datetime(d.year, d.month, d.day, SETTLE_HOUR_UTC if hour is None else int(hour), 0,
+                         tzinfo=dt.timezone.utc)
     return (settle - dt.datetime.now(dt.timezone.utc)).total_seconds() / 3600.0
 
 
@@ -210,10 +213,11 @@ class DeltaDataProvider:
         if not rows:
             return None
         tags = sorted({r["expiry"] for r in rows})
-        cap = float(getattr(config, "MAX_SPREAD_PCT", 0) or 0)
+        cap = config.max_spread_pct(index_key)          # gold has its own, wider limit
         if not cap:
             return tags[0]
         asset = INSTRUMENTS[index_key]["delta_asset"]
+        hour = INSTRUMENTS[index_key].get("settle_hour_utc")
         hit = _PICK_AT.get(asset)
         if hit and time.time() - hit < CHAIN_CACHE_S and _PICK.get(asset) in tags:
             return _PICK[asset]
@@ -225,7 +229,7 @@ class DeltaDataProvider:
             except Exception:
                 return _PICK.get(asset) or tags[0]
         now = time.time()
-        live = [t for t in tags if hours_left(t) > 24]
+        live = [t for t in tags if hours_left(t, hour) > 24]
         prev = _PICK.get(asset)
         if prev in live:
             sp = self._atm_spread(rows, prev, spot)

@@ -48,6 +48,9 @@ import time
 import config
 from main import now_ist
 
+# BITCOIN ONLY, on purpose: gold (GOLD, added 21 Sep 2026) is paper-only - it must
+# not be added here without converting a ticket's lots (100 contracts each) to
+# whole contracts, and without a paper record that justifies its 6-8% spreads.
 INDICES = ("BTC",)
 ENTRY_BUFFER = 0.02
 EXIT_BUFFER = 0.03

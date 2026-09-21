@@ -822,7 +822,7 @@ class TicketBook:
     def _spread_hold(self, rec):
         """Held when the contract's bid-ask spread is wider than
         MAX_SPREAD_PCT of its mid. Unknown spreads never block."""
-        cap = _cfg("MAX_SPREAD_PCT", 0)
+        cap = config.max_spread_pct(rec.get("index"))     # per instrument: gold's spreads are 5-8%
         sp = rec.get("spread") or {}
         pct = sp.get("pct")
         if not cap or pct is None or pct <= cap:
