@@ -32,6 +32,7 @@ Both expose the same interface:
 """
 
 import base64
+import gzip
 import json
 import os
 import socket
@@ -306,6 +307,58 @@ _INSTR_BLOCK = {}                 # exchange -> epoch until which Zerodha refuse
 _INSTR_BLOCK_S = 300
 
 
+def _instr_cache_path(exchange, day):
+    import config
+    d = os.path.join(config.home_config_dir(), "cache")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, f"instruments-{exchange}-{day.isoformat()}.json.gz")
+
+
+def _instr_from_disk(exchange, day):
+    """Today's list as this machine last downloaded it, or None. A restart
+    then needs no download at all - the outage on 21 Sep 2026 began with two
+    restarts an hour apart, each re-fetching every exchange from cold."""
+    path = _instr_cache_path(exchange, day)
+    try:
+        with gzip.open(path, "rt") as fh:
+            rows = json.load(fh)
+    except Exception:
+        return None
+    if not isinstance(rows, list) or not rows:
+        return None
+    for r in rows:                      # Kite hands back dates; JSON brought strings
+        if r.get("expiry"):
+            try:
+                r["expiry"] = _as_date(r["expiry"])
+            except Exception:
+                r["expiry"] = None
+    return rows
+
+
+def _instr_to_disk(exchange, day, rows):
+    """Keep today's copy, and drop every older one. Failure is never fatal:
+    the list is still in memory, the cache is only there to save the next
+    start a download."""
+    path = _instr_cache_path(exchange, day)
+    try:
+        tmp = path + ".tmp"
+        with gzip.open(tmp, "wt") as fh:
+            json.dump(rows, fh, default=str)
+        os.replace(tmp, path)
+        d = os.path.dirname(path)
+        for name in os.listdir(d):
+            if name.startswith("instruments-") and not name.endswith(f"-{day.isoformat()}.json.gz"):
+                try:
+                    os.remove(os.path.join(d, name))
+                except OSError:
+                    pass
+    except Exception:
+        try:
+            os.remove(path + ".tmp")
+        except OSError:
+            pass
+
+
 def _instruments_cached(kite, exchange):
     """Zerodha's instrument list for one exchange, downloaded at most once a
     day per process. While Zerodha is refusing the endpoint, the refusal is
@@ -313,6 +366,10 @@ def _instruments_cached(kite, exchange):
     key = (exchange, _now_ist_naive().date())
     rows = _INSTR_ROWS.get(key)
     if rows is not None:
+        return rows
+    rows = _instr_from_disk(exchange, key[1])
+    if rows is not None:
+        _INSTR_ROWS[key] = rows
         return rows
     until = _INSTR_BLOCK.get(exchange) or 0
     if time.time() < until:
@@ -328,6 +385,7 @@ def _instruments_cached(kite, exchange):
     for old in [k for k in _INSTR_ROWS if k[1] != key[1]]:
         _INSTR_ROWS.pop(old, None)
     _INSTR_ROWS[key] = rows
+    _instr_to_disk(exchange, key[1], rows)
     return rows
 
 
@@ -442,10 +500,10 @@ class KiteDataProvider:
             return hit[1]
         futs = [i for i in _instruments_cached(self.kite, exch)
                 if i.get("instrument_type") == "FUT" and i.get("name") == name
-                and i.get("expiry") and i["expiry"] >= today]
+                and i.get("expiry") and _as_date(i["expiry"]) >= today]
         if not futs:
             return None
-        tok = min(futs, key=lambda i: i["expiry"])["instrument_token"]
+        tok = min(futs, key=lambda i: _as_date(i["expiry"]))["instrument_token"]
         _FUT_TOKENS[index_key] = (today, tok)
         return tok
 
