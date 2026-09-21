@@ -83,8 +83,24 @@ d4.lock, d4.now = threading.RLock(), lambda: dt.datetime(2026, 9, 22, 9, 45, 0)
 d4.decisions_path = d3.decisions_path
 check("after a restart the next decision that day is #6, not #1", d4._record("NIFTY", "entry", "wait", "back up")["n"] == 6)
 
+print("3b. THE BOT'S OWN CHANCE OF REACHING THE TARGET")
+check("a number the model gives is kept as a whole percent, and a silly one is pulled into 1-99",
+      (ai_desk._confidence(62), ai_desk._confidence("70.4"), ai_desk._confidence(0), ai_desk._confidence(140))
+      == (62, 70, 1, 99))
+check("no number, or nonsense, means none - the page says it did not give one rather than inventing it",
+      ai_desk._confidence(None) is ai_desk._confidence("") is ai_desk._confidence("soon") is None)
+import market_bot
+check("the model is asked for it with every entry, bounded 1-99, and told what it means",
+      market_bot.DECISION_TOOLS["entry"]["input_schema"]["properties"]["target_confidence"]["maximum"] == 99
+      and "reaches your target before your stop" in market_bot.DESK_SYSTEM
+      and "target_confidence" not in market_bot.DECISION_TOOLS["review"]["input_schema"]["properties"])
+
 print("4. THE PAGE: GROUPED BY DAY, NUMBERED, FILTERED - RUN FOR REAL IN NODE")
 SRC = open(os.path.join(HERE, "web_server.py")).read()
+SRCW = open(os.path.join(HERE, "web_server.py")).read()
+check("the open AI ticket shows the same number, marked as the bot's own call and unproven",
+      "t.confidence_pct != null" in SRCW and "its own chance of reaching the target" in SRCW
+      and "the bot's call at entry, not the tool's - unproven" in SRCW and ".conf b{" in SRCW)
 check("the decisions list, its filter bar and their styles are on the page",
       'id="decbar"' in SRC and 'id="aidecisions"' in SRC and ".aidec .day{" in SRC and ".aidec .d .dn{" in SRC
       and "aiDecisions(d, k);" in SRC)
@@ -104,7 +120,7 @@ const AI = {};
 const day1 = "2026-09-21", day2 = "2026-09-22";
 const rows = [
   {at: day2 + " 09:45:00", index: "NIFTY", kind: "entry", action: "enter", n: 2, reason: "Trend is with it.",
-   contract: "NIFTY|23400|CE|2026-09-22", entry: 91.5, target: 120, stop: 70, looked_at: ["Option chain", "Gann levels"]},
+   contract: "NIFTY|23400|CE|2026-09-22", entry: 91.5, target: 120, stop: 70, confidence: 64, looked_at: ["Option chain", "Gann levels"]},
   {at: day2 + " 09:30:00", index: "NIFTY", kind: "entry", action: "wait", n: 1, reason: "ADX too low."},
   {at: day2 + " 09:29:00", index: "BTC", kind: "entry", action: "wait", n: 1, reason: "other market"},
   {at: day1 + " 14:00:00", index: "NIFTY", kind: "review", action: "exit", n: 3, reason: "Momentum gone."},
@@ -127,6 +143,9 @@ assert.deepStrictEqual((html.match(/class="dn">#(\d+)</g) || []).map(s => s.slic
                        ["2", "1", "3", "2", "1"], "each day numbered from its own first, newest first");
 assert.ok(html.includes(">Entry <b>91.5<") && html.includes(">Target <b>120<") && html.includes(">Stop <b>70<"),
           "an entry shows what it paid and where it was going");
+assert.ok(html.includes(">Its chance of the target <b>64%<"), "...and the bot's own chance of reaching it");
+assert.strictEqual((html.match(/Its chance of the target/g) || []).length, 1,
+                   "only the decision that gave a number shows one - a wait, or an entry from before this was asked for, shows none");
 assert.ok(html.includes("23400 CE") && html.includes("09:45") && !html.includes(day2 + " 09:45"),
           "the contract and the time of day, without repeating the date on every row");
 assert.ok(html.includes("Not taken: the spread is 4.1%"), "a rejected proposal says why the tool refused it");

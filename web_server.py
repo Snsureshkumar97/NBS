@@ -3213,6 +3213,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   color:var(--ink-3);font-weight:700}
 .tstat .v{font-size:19px;font-weight:700;letter-spacing:-.4px;margin-top:3px;
   font-variant-numeric:tabular-nums}
+.conf{margin-top:12px;font-size:13px;color:var(--ink-2);display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.conf b{font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums}
+.conf span{font-size:12px;color:var(--ink-3)}
 .whyhold{font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.65;
   background:var(--surface);border:1px solid var(--bd-soft);
   border-radius:var(--r-sm);padding:11px 13px}
@@ -8258,6 +8261,9 @@ function aiTicketCard(k, t){
     + `<div class="ladder">${ladder}</div>`
     + `<div class="lnote">Closes at its target or its stop, checked on every tick - or earlier, whenever the `
     + `AI desk decides to exit at a 15-minute close.</div>`
+    + (t.confidence_pct != null
+        ? `<div class="conf"><b>${esc(t.confidence_pct)}%</b> its own chance of reaching the target`
+          + `<span>the bot's call at entry, not the tool's - unproven</span></div>` : "")
     + (t.reason ? `<div class="whyhold">${esc(t.reason)}</div>` : "")
     + `</div>`;
 }
@@ -8377,9 +8383,11 @@ function aiDecisions(d, k){
       const con = c.length > 1 ? `${c[1]} ${c[2] || ""}`.trim() : "";
       const p = r.proposal || {};
       const plan = r.action === "enter"
-        ? [["Entry", r.entry], ["Target", r.target], ["Stop", r.stop]]
+        ? [["Entry", r.entry], ["Target", r.target], ["Stop", r.stop],
+           ["Its chance of the target", r.confidence == null ? null : r.confidence + "%"]]
         : r.action === "rejected" ? [["Wanted", p.strike ? `${p.strike} ${p.option_type || ""}`.trim() : null],
-                                     ["Target", p.target], ["Stop", p.stop]] : [];
+                                     ["Target", p.target], ["Stop", p.stop],
+                                     ["Its chance of the target", r.confidence == null ? null : r.confidence + "%"]] : [];
       const chips = plan.filter(([, v]) => v != null && v !== "")
         .map(([a, v]) => `<i>${esc(a)} <b>${esc(v)}</b></i>`).join("");
       return `<div class="d ${cls}"><div class="dn">#${n}</div><div>`

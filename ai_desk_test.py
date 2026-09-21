@@ -115,8 +115,9 @@ def desk(market="nse_index", email=None):
     return f, d
 
 
-def enter(strike=25000, side="CE", target=160.0, stop=110.0):
+def enter(strike=25000, side="CE", target=160.0, stop=110.0, confidence=62):
     return {"action": "enter", "option_type": side, "strike": strike, "target": target, "stop": stop,
+            "target_confidence": confidence,
             "reason": "Trend and VWAP agree; chain shows puts building."}
 
 
@@ -178,6 +179,10 @@ check("target and stop frozen as proposed; T1 is the exit", t["premium_targets"]
       and t["exit_at"] == "T1")
 check("lots are the user's own setting", t["lots"] == 2)
 check("the reason rides with the ticket", "VWAP" in t["ai_reason"])
+check("...and so does the bot's own chance of reaching the target, asked for on 21 Sep 2026",
+      t["ai_confidence"] == 62
+      and next(r for r in d.recent if r["action"] == "enter")["confidence"] == 62)
+check("the page is handed it with the open ticket", ((d.public().get("open") or {}).get("NIFTY") or {}).get("confidence_pct") == 62)
 orow = trade_log._read_rows(d.book.path)[0]
 check("the log's signal columns describe the AI trade, not the rule signal",
       orow["confidence"] == "AI" and orow["strictness"] == "ai" and float(orow["reward_risk"]) == 1.5

@@ -77,6 +77,18 @@ RECORD_MIN_SAMPLE = 30        # under this many trades, patterns are flagged as 
 LOOP_S = 15
 
 
+def _confidence(v):
+    """The bot's own chance, in percent, that a trade reaches its target before
+    its stop. Anything unusable becomes None - the page then says it did not
+    give one, rather than showing a made-up number. Asked for by the user on
+    21 Sep 2026."""
+    try:
+        n = int(round(float(v)))
+    except (TypeError, ValueError):
+        return None
+    return min(99, max(1, n))
+
+
 class AIDesk:
     def __init__(self, feed, now=None, clock=None, start=True):
         self.feed = feed
@@ -446,7 +458,8 @@ class AIDesk:
                         continue
                     c = str(r.get("contract") or "").split("|")
                     if len(c) >= 3:
-                        out[(str(r.get("at", ""))[:10], c[0], c[1], c[2])] = r.get("reason") or ""
+                        out[(str(r.get("at", ""))[:10], c[0], c[1], c[2])] = (r.get("reason") or "",
+                                                                              r.get("confidence"))
         except OSError:
             pass
         return out
@@ -535,8 +548,10 @@ class AIDesk:
                 "contract": f"{r.get('strike')} {r.get('option_type')}", "entry": r.get("entry"), "exit": r.get("exit"),
                 "pnl": float(r["pnl"]), "how_it_ended": self._exit_kind(r.get("status")),
                 "at_entry": {k: o.get(k) or None for k in ("adx", "rsi", "macd_hist", "vwap_gap")},
-                "your_reason_then": (reasons.get((o.get("date") or r.get("date"), name, str(r.get("strike")),
-                                                  r.get("option_type"))) or "")[:220] or None})
+                **dict(zip(("your_reason_then", "your_confidence_then_pct"),
+                           ((lambda w: ((w[0] or "")[:220] or None, w[1]))
+                            (reasons.get((o.get("date") or r.get("date"), name, str(r.get("strike")),
+                                          r.get("option_type"))) or ("", None)))))})
             f = fills.get(r.get("trade_id"))
             if f:
                 last[-1]["real_fill"] = {"bought_at": f.get("entry_avg"), "sold_at": f.get("exit_avg"),
@@ -589,16 +604,18 @@ class AIDesk:
         if not ok:
             return self._record(name, "entry", "rejected", d.get("reason") or "",
                                 {"proposal": {k: d.get(k) for k in ("option_type", "strike", "target", "stop")},
+                                 "confidence": _confidence(d.get("target_confidence")),
                                  "rejected_because": why, "looked_at": meta.get("looked_at")})
         if self.thread is not None and not self._alive():
             return None                  # this desk's feed was replaced while it decided
         if not self.enabled.get(name):
             return self._record(name, "entry", "rejected", d.get("reason") or "",
                                 {"rejected_because": f"the AI desk for {name} was switched off while it decided"})
-        self._open(name, rec, plan, d.get("reason") or "")
+        conf = _confidence(d.get("target_confidence"))
+        self._open(name, rec, plan, d.get("reason") or "", conf)
         return self._record(name, "entry", "enter", d.get("reason") or "",
                             {"contract": plan["contract"], "entry": plan["ltp"], "target": plan["target"],
-                             "stop": plan["stop"], "looked_at": meta.get("looked_at")})
+                             "stop": plan["stop"], "confidence": conf, "looked_at": meta.get("looked_at")})
 
     def _review(self, name, trade, rec, client, why=None):
         import market_bot
@@ -661,7 +678,7 @@ class AIDesk:
         return True, "", {"side": side, "strike": strike, "target": round(target, 2), "stop": round(stop, 2),
                           "ltp": ltp, "expiry": expiry, "contract": contract, "rr": round(rr, 2)}
 
-    def _open(self, name, rec, plan, reason):
+    def _open(self, name, rec, plan, reason, confidence=None):
         self._sync_rules()
         r = dict(rec)
         r.update(option_type=plan["side"], bias="BULLISH" if plan["side"] == "CE" else "BEARISH",
@@ -678,6 +695,7 @@ class AIDesk:
             self.book._open(b, r)
             b.trade["exit_at"] = "T1"
             b.trade["ai_reason"] = reason
+            b.trade["ai_confidence"] = confidence
         self.entries[name] = self.entries.get(name, 0) + 1
         self.contracts.append(plan["contract"])
 
@@ -823,6 +841,7 @@ class AIDesk:
                     t = self.book.public(k).get("ticket")
                     if t is not None:
                         t["reason"] = self.book.books[k].trade.get("ai_reason")
+                        t["confidence_pct"] = self.book.books[k].trade.get("ai_confidence")
                     opened[k] = t
             fresh_day = self.day == today
             return {"on": self.on, "enabled": {k: bool(self.enabled.get(k)) for k in names},
