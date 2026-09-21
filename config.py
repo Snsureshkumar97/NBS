@@ -197,6 +197,11 @@ INSTRUMENTS = {
     #     contracts_per_lot carries that for the page; lot_size is the money
     #     multiplier per lot, as everywhere else.
     "GOLD": {
+        # SWITCHED OFF on 22 Sep 2026 at the user's request ("remove gold, I am
+        # losing on that market"). Everything else here is kept exactly as it was
+        # so that turning it back on is this one line - `enabled` is read by
+        # instruments_in(), which is what every market, feed, desk and page asks.
+        "enabled": False,
         "yahoo_ticker": "GC=F",
         "nse_symbol": None,
         "kite_exchange": None,
@@ -611,6 +616,7 @@ def instruments_in(market):
     """The instrument keys trading in one market, in declaration order."""
     return [k for k, v in INSTRUMENTS.items()
             if v.get("market", DEFAULT_MARKET) == market
+            and v.get("enabled", True)
             and (market != "crypto" or ENABLE_CRYPTO)]
 
 

@@ -4069,7 +4069,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
 <aside class="side" id="side">
  <a class="sbrand" href="/" style="color:inherit;text-decoration:none">
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><rect x="4.6" y="11.5" width="2.2" height="6" rx="1" fill="#3a4050"/><rect x="8.3" y="9.5" width="2.2" height="8" rx="1" fill="#3a4050"/><rect x="12" y="6.5" width="2.6" height="11" rx="1.1" fill="#4d94e8"/><rect x="16.4" y="12.5" width="2.2" height="5" rx="1" fill="#3a4050"/><circle cx="13.3" cy="4.4" r="2.1" fill="#4caf50"/><path d="M12.4 4.4l.7.7 1.3-1.4" stroke="#0d1117" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin · Gold</small></div>
+  <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
  </a>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
   <button class="tab on" data-tab="home" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i>Home</button>
@@ -7523,9 +7523,10 @@ function greet(s){
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
   if(s.market === "crypto"){
-    $("said").textContent = "Bitcoin and gold options on Delta Exchange India, priced live in dollars - "
-                          + "one screen, around the clock.";
-    const bs = $("brandsub"); if(bs) bs.textContent = "BTC · Gold · Delta Exchange · 24/7";
+    const gold = (s.order || []).includes("GOLD");        // gold is switched off; this reads what the market really lists
+    $("said").textContent = (gold ? "Bitcoin and gold options" : "Bitcoin options")
+                          + " on Delta Exchange India, priced live in dollars - one screen, around the clock.";
+    const bs = $("brandsub"); if(bs) bs.textContent = (gold ? "BTC · Gold" : "BTC") + " · Delta Exchange · 24/7";
     return;
   }
   $("said").textContent = k.connected

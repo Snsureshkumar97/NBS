@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import ai_desk as ad
 import config
+config.INSTRUMENTS["GOLD"]["enabled"] = True      # gold is switched off by default (22 Sep 2026); this test covers its desk rules (gold_off_test.py covers the off state)
 import market_bot as mb
 import tickets
 import trade_log

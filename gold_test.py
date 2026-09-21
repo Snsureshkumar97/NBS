@@ -18,6 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import config
 config.ENABLE_CRYPTO = True
+config.INSTRUMENTS["GOLD"]["enabled"] = True      # gold is switched off by default (22 Sep 2026); this test is about it (gold_off_test.py covers the off state)
 import delta_orders
 import delta_provider as dpv
 import feeds
@@ -245,7 +246,8 @@ SRC = open(os.path.join(HERE, "web_server.py")).read()
 check("the TradingView tab shows spot gold for gold, and Bitcoin's own for Bitcoin", 'GOLD: "TVC:GOLD"' in SRC and 'BTC: "BITSTAMP:BTCUSD"' in SRC)
 check("a lot of 100 contracts reads as Lots, and its title says how many contracts", "const cpl = r.contracts_per_lot || 1;" in SRC
       and "one lot is ${cpl} contracts" in SRC and '(r.contracts_per_lot || 1) > 1) ? "lot" : "contract"' in SRC)
-check("the crypto screen says Bitcoin and gold", "Bitcoin and gold options on Delta Exchange India" in SRC and "BTC · Gold · Delta Exchange · 24/7" in SRC)
+check("the crypto screen says Bitcoin and gold when the market lists gold", '(gold ? "Bitcoin and gold options" : "Bitcoin options")' in SRC
+      and '(gold ? "BTC · Gold" : "BTC") + " · Delta Exchange · 24/7"' in SRC and '(s.order || []).includes("GOLD")' in SRC)
 check("both instruction texts describe gold - its lot, its spread limit, its settlement, its thin weekends - and that it is always paper",
       all("Gold (GOLD) is tokenised gold" in t and "100 contracts of 0.001 XAUT" in t and "allows up to 8% there" in t
           and "21:30 IST" in t and "thinly at weekends" in t and "Gold tickets are always paper" in t
