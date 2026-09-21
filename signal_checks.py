@@ -83,8 +83,15 @@ def _volume(g):
     return _item("volume", label, AGAINST, f"Participation is fading (oscillator {vo:+.1f}%).")
 
 
-def _flow_crypto(flow, sign):
+def _flow_crypto(flow, sign, index=None):
     label = "Taker flow"
+    try:
+        import config
+        reads = bool((config.INSTRUMENTS.get(index) or {}).get("taker_flow")) if index else True
+    except Exception:
+        reads = True
+    if not reads:                    # gold: no tape is kept, so "not covered yet" would be the wrong reason
+        return _item("flow", label, NO_DATA, "Taker flow is only read for Bitcoin.")
     w = ((flow or {}).get("windows") or {}).get("15m")
     if not w or not w.get("complete") or w.get("cvd_pct_of_volume") is None:
         covers = (flow or {}).get("tape_covers_minutes")
@@ -195,7 +202,7 @@ def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None):
     sign = 1 if side == "CE" else -1
     dp = 0 if (index or rec.get("index")) in ("BTC", "NIFTY", "BANKNIFTY", "SENSEX") else 2
     items = [_gann(rec, gann_report, side, dp), _volume(gann_report),
-             _flow_crypto(flow, sign) if market == "crypto" else _flow_india(flow, sign),
+             _flow_crypto(flow, sign, index or rec.get("index")) if market == "crypto" else _flow_india(flow, sign),
              _walls(rec, side, dp), _spread(rec, index or rec.get("index"))]
     if market != "crypto":
         h = _heavy(flow, sign)

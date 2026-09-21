@@ -74,6 +74,9 @@ check("takers buying agree with a call and are against a put; a lean under 10% i
 c = sc.evaluate(r_btc, None, tf(+25.0, complete=False, covers=9.5), "crypto", "BTC")
 check("a tape that does not cover 15 minutes gives no answer, and says how much it holds",
       item(c, "flow")["status"] == "no_data" and "9.5" in item(c, "flow")["detail"], item(c, "flow"))
+check("gold keeps no tape, so it says so - not that the tape has not covered 15 minutes",
+      item(sc.evaluate(rec("CE", index="GOLD"), None, None, "crypto", "GOLD"), "flow")["status"] == "no_data"
+      and "only read for Bitcoin" in item(sc.evaluate(rec("CE", index="GOLD"), None, None, "crypto", "GOLD"), "flow")["detail"])
 check("no taker flow at all gives no answer", item(sc.evaluate(r_btc, None, None, "crypto", "BTC"), "flow")["status"] == "no_data")
 check("the crypto checklist has no heavyweights line, even if a reading carried the numbers",
       "heavyweights" not in [i["key"] for i in sc.evaluate(r_btc, None, dict(tf(1.0), heavyweights_weight_pct={"bullish_buildup": 30, "bearish_buildup": 1}), "crypto", "BTC")["items"]])
