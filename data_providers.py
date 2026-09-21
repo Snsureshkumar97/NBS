@@ -292,6 +292,43 @@ _FUT_VOLUME = {}
 # Every futures row on an exchange, per day: (exchange, date) -> rows. The
 # index futures and the heavyweights' stock futures are all looked up here.
 _FUT_ROWS = {}
+# The whole instrument dump, per exchange per day, and each index's own token.
+# Zerodha's instrument list is several megabytes and it rate-limits the
+# endpoint hard: on 21 Sep 2026 the tool lost the Indian market for the open
+# because a provider is rebuilt on every failed cycle, each new one downloaded
+# the list again, and Zerodha answered "Too many requests" to all of them - so
+# no index token could be resolved, no candles were fetched, and the failure
+# fed itself. These caches are module-level so a rebuilt provider costs
+# nothing, and a refusal is remembered rather than retried at once.
+_INSTR_ROWS = {}                  # (exchange, date) -> rows
+_INDEX_TOKENS = {}                # (index_key, date) -> instrument_token
+_INSTR_BLOCK = {}                 # exchange -> epoch until which Zerodha refused
+_INSTR_BLOCK_S = 300
+
+
+def _instruments_cached(kite, exchange):
+    """Zerodha's instrument list for one exchange, downloaded at most once a
+    day per process. While Zerodha is refusing the endpoint, the refusal is
+    raised again without another call."""
+    key = (exchange, _now_ist_naive().date())
+    rows = _INSTR_ROWS.get(key)
+    if rows is not None:
+        return rows
+    until = _INSTR_BLOCK.get(exchange) or 0
+    if time.time() < until:
+        raise RuntimeError(f"Zerodha is refusing its instrument list for {exchange} "
+                           f"(too many requests); trying again in {int(until - time.time())}s")
+    try:
+        rows = kite.instruments(exchange)
+    except Exception as exc:
+        if "too many" in str(exc).lower():
+            _INSTR_BLOCK[exchange] = time.time() + _INSTR_BLOCK_S
+        raise
+    _INSTR_BLOCK.pop(exchange, None)
+    for old in [k for k in _INSTR_ROWS if k[1] != key[1]]:
+        _INSTR_ROWS.pop(old, None)
+    _INSTR_ROWS[key] = rows
+    return rows
 
 
 # =============================================================================
@@ -324,16 +361,33 @@ class KiteDataProvider:
     def _instrument_token(self, index_key: str) -> int:
         if index_key in self._instrument_cache:
             return self._instrument_cache[index_key]
+        day = _now_ist_naive().date()
+        hit = _INDEX_TOKENS.get((index_key, day))
+        if hit:
+            self._instrument_cache[index_key] = hit
+            return hit
 
         meta = INSTRUMENTS[index_key]
+        # The quote endpoint names the token itself and is a few hundred bytes,
+        # so the multi-megabyte instrument dump below is only the fallback. It
+        # also keeps working while Zerodha is rate-limiting that dump.
+        try:
+            sym = f"{meta['kite_exchange']}:{meta['kite_tradingsymbol']}"
+            tok = int(self.kite.ltp([sym])[sym]["instrument_token"])
+            if tok:
+                self._instrument_cache[index_key] = _INDEX_TOKENS[(index_key, day)] = tok
+                return tok
+        except Exception:
+            pass
         # NSE/BSE indices live under exchange "NSE"/"BSE" with segment INDICES
-        instruments = self.kite.instruments(meta["kite_exchange"])
+        instruments = _instruments_cached(self.kite, meta["kite_exchange"])
         for inst in instruments:
             if inst["tradingsymbol"] == meta["kite_tradingsymbol"] and inst["segment"] in (
                 "INDICES",
                 "BSE-INDICES",
             ):
                 self._instrument_cache[index_key] = inst["instrument_token"]
+                _INDEX_TOKENS[(index_key, day)] = inst["instrument_token"]
                 return inst["instrument_token"]
         raise RuntimeError(f"Could not find instrument token for {index_key}")
 
@@ -386,7 +440,7 @@ class KiteDataProvider:
         hit = _FUT_TOKENS.get(index_key)
         if hit and hit[0] == today:
             return hit[1]
-        futs = [i for i in self.kite.instruments(exch)
+        futs = [i for i in _instruments_cached(self.kite, exch)
                 if i.get("instrument_type") == "FUT" and i.get("name") == name
                 and i.get("expiry") and i["expiry"] >= today]
         if not futs:
@@ -404,7 +458,7 @@ class KiteDataProvider:
         key = (exch, today)
         rows = _FUT_ROWS.get(key)
         if rows is None:
-            rows = [i for i in self.kite.instruments(exch) if i.get("instrument_type") == "FUT"]
+            rows = [i for i in _instruments_cached(self.kite, exch) if i.get("instrument_type") == "FUT"]
             for old in [k for k in _FUT_ROWS if k[1] != today]:
                 _FUT_ROWS.pop(old, None)
             _FUT_ROWS[key] = rows
@@ -453,7 +507,7 @@ class KiteDataProvider:
         market heat map to stream every index constituent at once."""
         wanted = set(symbols)
         if self._equity_token_cache is None:
-            rows = self.kite.instruments("NSE")
+            rows = _instruments_cached(self.kite, "NSE")
             self._equity_token_cache = {
                 r["tradingsymbol"]: r["instrument_token"]
                 for r in rows if r.get("segment") == "NSE" and r.get("instrument_type") == "EQ"
@@ -527,7 +581,7 @@ class KiteDataProvider:
         cached = self._option_inst_cache.get(index_key)
         if cached is not None:
             return exchange, cached
-        instruments = self.kite.instruments(exchange)
+        instruments = _instruments_cached(self.kite, exchange)
         filtered = [
             i
             for i in instruments

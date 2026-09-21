@@ -3684,15 +3684,15 @@ table.chain .wide{color:var(--down)}
   text-align:right;padding-top:2px}
 .aidec .d .dhd{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:3px}
 .aidec .d .dhd .tm{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
-.aidec .d .pill{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+.aidec .d .pill{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
   padding:2px 8px;border-radius:999px;border:1px solid var(--bd);color:var(--ink-2);background:var(--sunken)}
 .aidec .d .ct{font-size:12px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
 .aidec .d .why{color:var(--ink-2)}
 .aidec .d .plan{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 2px}
-.aidec .d .plan i{font-style:normal;font-size:11px;color:var(--ink-2);background:var(--sunken);
+.aidec .d .plan i{font-style:normal;font-size:12px;color:var(--ink-2);background:var(--sunken);
   border:1px solid var(--bd-soft);border-radius:6px;padding:2px 7px;font-variant-numeric:tabular-nums}
 .aidec .d .plan i b{color:var(--ink);font-weight:700}
-.aidec .d .saw{font-size:11px;color:var(--ink-3);margin-top:5px}
+.aidec .d .saw{font-size:12px;color:var(--ink-3);margin-top:5px}
 .aidec .d .rej{color:var(--down);margin-top:4px;font-size:12px}
 .aidec .d.enter{border-left-color:var(--up)}
 .aidec .d.enter .pill{color:var(--up);border-color:rgba(76,175,80,.45)}
