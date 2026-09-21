@@ -54,7 +54,9 @@ check("cooldown_skipped is still exactly where it always was",
                                    "reach_points", "reward_risk", "score", "confidence", "adx",
                                    "strictness", "cooldown_skipped"])
 check("the three new columns come strictly after it, in this order",
-      trade_log.FIELDS[i + 1:] == ["rsi", "macd_hist", "vwap_gap"])
+      trade_log.FIELDS[i + 1:i + 4] == ["rsi", "macd_hist", "vwap_gap"])
+check("anything added since (the 21 Sep signal-checks stamp) goes after them, at the very end",
+      trade_log.FIELDS[i + 4:] == ["checks_agree", "checks_against", "checks"])
 
 print("2. A FRESH ROW CARRIES THE READING AT THAT CALL")
 row = trade_log._base_row(trade(), rec(), NOW)

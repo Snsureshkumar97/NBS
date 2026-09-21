@@ -47,6 +47,7 @@ import accounts
 import config
 import explain
 import kite_flow
+import signal_checks
 import taker_flow
 import market_map
 import signal_engine
@@ -398,6 +399,7 @@ def _public(rec, name=None):
         "option_type": rec.get("option_type"),
         "targets": rec.get("index_targets"),
         "stop": rec.get("index_stop_loss"),
+        "checks": rec.get("checks"),
         # The premium side. The engine has computed these all along — the web
         # layer simply never forwarded them, so the site showed index points
         # only and the number a buyer actually pays was missing from it.
@@ -961,6 +963,7 @@ class Feed:
                         # levels. Fed before the snapshot is published so the
                         # page never shows a reading the tickets have not
                         # seen yet.
+                        rec["checks"] = self._signal_checks(name, rec)
                         try:
                             evs = self.tickets.update(name, rec)
                         except Exception:
@@ -1703,6 +1706,25 @@ class Feed:
         self.flow.ensure(st)
         self.flow.sample(st, market_open=lambda: is_market_open(now_ist(), self._ref()))
 
+    def _signal_checks(self, name, rec):
+        """The checklist beside the rule signal (signal_checks.py), from what the
+        feed already holds. Never raises and never changes the reading's action:
+        a failure here is a missing checklist, nothing else."""
+        try:
+            if (rec or {}).get("option_type") not in ("CE", "PE"):
+                return None
+            g = None
+            try:
+                import gann
+                g = gann.report(name, rec.get("spot"), rec.get("candles"))
+            except Exception:
+                g = None
+            flow = (self.flow_readings() or {}).get(name)
+            return signal_checks.evaluate(rec, g, flow, self.market, name)
+        except Exception as exc:
+            self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
+            return None
+
     def taker_flow(self, name):
         """One crypto instrument's taker flow (taker_flow.py), or None: not an
         instrument that reads it, no socket yet, or no print has arrived."""
@@ -1843,6 +1865,7 @@ class Feed:
                 self._note_fault(name, f"{type(exc).__name__}: {exc}")
                 continue
 
+            rec["checks"] = self._signal_checks(name, rec)
             try:
                 evs = self.tickets.update(name, rec)
             except Exception as exc:

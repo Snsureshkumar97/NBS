@@ -692,6 +692,7 @@ class AIDesk:
     def _open(self, name, rec, plan, reason, confidence=None):
         self._sync_rules()
         r = dict(rec)
+        r["checks"] = None            # the checklist is for the rule signal's side; the desk may trade the other
         r.update(option_type=plan["side"], bias="BULLISH" if plan["side"] == "CE" else "BEARISH",
                  suggested_strike=int(plan["strike"]) if float(plan["strike"]).is_integer() else plan["strike"],
                  premium_source="live", live_ltp=plan["ltp"],

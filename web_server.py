@@ -7108,6 +7108,24 @@ $("cvout").onclick   = () => chartZoom(1.3, null);
 $("cvreset").onclick = () => chartReset();
 addEventListener("resize", () => { chartDraw(); sparkline(); heatMap(true); });
 
+// The checklist beside the rule signal: what the AI desk looks at, each as
+// agrees / against / neutral / no data. Reference only - the rules do not use
+// it to enter or skip a trade (signal_checks.py says why). Glyph and word, so
+// the meaning never rests on colour alone.
+const CHECK_GLYPH = {agrees: ["✓", "var(--up)", "agrees"], against: ["✕", "var(--down)", "against"],
+                     neutral: ["·", "var(--ink-3)", "neutral"], no_data: ["–", "var(--ink-3)", "no data"]};
+function checksRows(c){
+  if(!c || !(c.items || []).length) return "";
+  let h = `<div class="wrow verdict"><div class="g" style="color:var(--accent)">=</div>
+    <div class="n">The AI desk's checks</div><div class="t">${esc(c.summary || "")} - for a ${esc(c.side === "CE" ? "call" : "put")}.</div></div>`;
+  (c.items || []).forEach(i => {
+    const g = CHECK_GLYPH[i.status] || CHECK_GLYPH.no_data;
+    h += `<div class="wrow"><div class="g" style="color:${g[1]}">${g[0]}</div>
+      <div class="n">${esc(i.label)}</div><div class="t"><b>${esc(g[2])}.</b> ${esc(i.detail)}</div></div>`;
+  });
+  return h + `<div class="gnote" style="margin-top:8px">${esc(c.note || "")}</div>`;
+}
+
 function render(s){
   if(!s) return;
   // Reset ONLY when CUR isn't a real index. Resetting because an index hasn't
@@ -7294,6 +7312,7 @@ function render(s){
       rows+=`<div class="wrow"><div class="g" style="color:var(--warn)">${i?"·":"▸"}</div>
         <div class="n">${i?"":"Levels"}</div><div class="t">${esc(l)}</div></div>`;
     });
+    rows += checksRows(r.checks);
     $("why").innerHTML=rows;
   }
 

@@ -40,6 +40,11 @@ FIELDS = [
     # New columns always go at the very end - _upgrade_header() only ever
     # appends to an old header, and never reorders it.
     "rsi", "macd_hist", "vwap_gap",
+    # Added 21 Sep 2026: the checklist beside the rule signal (signal_checks.py)
+    # as it read when the ticket opened - how many checks agreed and how many
+    # were against, and each one as key+symbol (+ agrees, - against, 0 neutral,
+    # x no data) - so that whether it means anything can be studied later.
+    "checks_agree", "checks_against", "checks",
 ]
 
 
@@ -159,6 +164,14 @@ def _append(row, path=None):
         return False
 
 
+def _check_stamp(checks):
+    try:
+        import signal_checks
+        return signal_checks.stamp(checks)
+    except Exception:
+        return (None, None, None)
+
+
 def _base_row(trade, rec, now):
     targets = trade["premium_targets"] if trade["use_premium"] else trade["index_targets"]
     stop = trade["premium_sl"] if trade["use_premium"] else trade["index_sl"]
@@ -198,6 +211,7 @@ def _base_row(trade, rec, now):
         "rsi": round(tech["last_rsi"], 1) if tech.get("last_rsi") is not None else None,
         "macd_hist": tech.get("macd_hist"),
         "vwap_gap": tech.get("vwap_gap"),
+        **dict(zip(("checks_agree", "checks_against", "checks"), _check_stamp(r.get("checks")))),
     }
 
 
