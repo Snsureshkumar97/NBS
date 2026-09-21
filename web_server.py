@@ -3662,12 +3662,45 @@ table.chain .wide{color:var(--down)}
 .aistats .st{background:var(--raised);border:1px solid var(--bd);border-radius:10px;padding:9px 12px}
 .aistats .st b{display:block;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
 .aistats .st span{font-size:12px;color:var(--ink-3)}
-.aidec{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.aidec .d{border-left:3px solid var(--bd);padding:4px 0 4px 10px;font-size:13px;color:var(--ink-2);line-height:1.5}
-.aidec .d .t{font-size:12px;color:var(--ink-3)}
-.aidec .d.enter{border-color:var(--up)}.aidec .d.exit{border-color:var(--warn)}
-.aidec .d.rejected,.aidec .d.error{border-color:var(--down)}
-.aidec .d .rej{color:var(--down)}
+/* The decision log: newest day first, each day's decisions numbered from its
+   first. Asked for by the user on 21 Sep 2026 - the old flat list ran the time,
+   the action and the reason into one paragraph with nothing to refer to. */
+.aidec{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.decbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.decbar .lbtn{padding:3px 10px;font-size:12px;line-height:1.6}
+.decbar .cnt{font-size:12px;color:var(--ink-3);margin-left:auto}
+.aidec .day{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;
+  margin:12px 0 2px;padding-bottom:5px;border-bottom:1px solid var(--bd-soft)}
+.aidec .day:first-child{margin-top:2px}
+.aidec .day b{font-size:13px;color:var(--ink);letter-spacing:.3px}
+.aidec .day span{font-size:12px;color:var(--ink-3)}
+.aidec .d{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:start;
+  background:var(--raised);border:1px solid var(--bd);border-left:3px solid var(--bd);
+  border-radius:10px;padding:9px 12px;font-size:13px;color:var(--ink-2);line-height:1.5}
+.aidec .d .dn{font-size:12px;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums;
+  text-align:right;padding-top:2px}
+.aidec .d .dhd{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:3px}
+.aidec .d .dhd .tm{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.aidec .d .pill{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  padding:2px 8px;border-radius:999px;border:1px solid var(--bd);color:var(--ink-2);background:var(--sunken)}
+.aidec .d .ct{font-size:12px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.aidec .d .why{color:var(--ink-2)}
+.aidec .d .plan{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 2px}
+.aidec .d .plan i{font-style:normal;font-size:11px;color:var(--ink-2);background:var(--sunken);
+  border:1px solid var(--bd-soft);border-radius:6px;padding:2px 7px;font-variant-numeric:tabular-nums}
+.aidec .d .plan i b{color:var(--ink);font-weight:700}
+.aidec .d .saw{font-size:11px;color:var(--ink-3);margin-top:5px}
+.aidec .d .rej{color:var(--down);margin-top:4px;font-size:12px}
+.aidec .d.enter{border-left-color:var(--up)}
+.aidec .d.enter .pill{color:var(--up);border-color:rgba(76,175,80,.45)}
+.aidec .d.exit{border-left-color:var(--warn)}
+.aidec .d.exit .pill{color:var(--warn);border-color:rgba(246,165,0,.45)}
+.aidec .d.rejected,.aidec .d.error{border-left-color:var(--down)}
+.aidec .d.rejected .pill,.aidec .d.error .pill{color:var(--down);border-color:rgba(255,87,34,.45)}
+.aidec .d.hold .pill{color:var(--accent);border-color:rgba(77,148,232,.4)}
+@media (max-width:560px){
+  .aidec .d{grid-template-columns:34px 1fr;gap:8px;padding:8px 10px}
+}
 .botwatch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
 .botwatch .lbtn{flex:none}
 .botwatchnote{flex:1 1 260px;min-width:0;font-size:12px;color:var(--ink-3);line-height:1.5}
@@ -4418,6 +4451,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    <div class="aistats" id="aistats"></div>
    <div id="aiopen"></div>
    <p class="eyebrow" role="heading" aria-level="3" style="margin-top:18px">Decisions on <span id="aiidx2">&mdash;</span></p>
+   <div class="decbar" id="decbar"></div>
    <div class="aidec" id="aidecisions"><div class="gnote">No decisions yet.</div></div>
    <p class="eyebrow" role="heading" aria-level="3" style="margin-top:18px">Closed AI trades on <span id="aiidx3">&mdash;</span></p>
    <div class="watchwrap"><table class="watch" id="aiclosed"></table></div>
@@ -8282,6 +8316,87 @@ function aiSpot(){
   if(lbl) lbl.textContent = (LIVE && LIVE.live) ? "live spot" : "last spot";
 }
 
+// The decision log, grouped by day and numbered within each day. DEC.filter is
+// the user's own choice of what to show and survives the poll's re-render.
+const DEC = {filter: "all"};
+const DEC_WORD = {enter: "Entered", wait: "Waited", hold: "Held", exit: "Exited",
+                  rejected: "Rejected", error: "No decision", none: "Cap reached"};
+const DEC_KIND = {entry: "on entering", review: "on the open trade", rule: "by the tool's own rule",
+                  cap: "the day's cap"};
+
+function decDay(iso){
+  const t = new Date().toISOString().slice(0, 10) === iso;
+  const d = new Date(iso + "T00:00:00");
+  const s = isNaN(d) ? iso : d.toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "short"});
+  return t ? `Today · ${s}` : s;
+}
+
+function aiDecisions(d, k){
+  const box = $("aidecisions");
+  if(!box) return;
+  const all = (d.recent || []).filter(r => r.index === k);          // newest first
+  if(!all.length){
+    box.innerHTML = `<div class="gnote">No decisions on ${esc(k)} yet.</div>`;
+    const b = $("decbar"); if(b) b.innerHTML = "";
+    return;
+  }
+  const isTrade = r => ["enter", "exit", "rejected"].includes(r.action);
+  const rows = DEC.filter === "trades" ? all.filter(isTrade)
+             : DEC.filter === "waits" ? all.filter(r => !isTrade(r)) : all;
+
+  const bar = $("decbar");
+  if(bar) bar.innerHTML = [["all", "All", all.length],
+                           ["trades", "Trades & rejects", all.filter(isTrade).length],
+                           ["waits", "Waits & holds", all.filter(r => !isTrade(r)).length]]
+    .map(([f, label, n]) => `<button class="lbtn${DEC.filter === f ? " on" : ""}" type="button" data-decf="${f}">`
+      + `${esc(label)} · ${n}</button>`).join("")
+    + `<span class="cnt">newest first · the tool keeps the last ${all.length === 40 ? "40" : all.length}</span>`;
+
+  // Each day's own block, and each day's own numbering: #1 is that day's first
+  // decision on this index. The desk stamps the number when it decides; older
+  // entries from before that are numbered by counting up the day.
+  const days = [];
+  rows.forEach(r => {
+    const iso = String(r.at || "").slice(0, 10);
+    if(!days.length || days[days.length - 1].iso !== iso) days.push({iso, rows: []});
+    days[days.length - 1].rows.push(r);
+  });
+
+  box.innerHTML = days.map(g => {
+    const ent = g.rows.filter(r => r.action === "enter").length;
+    const ex = g.rows.filter(r => r.action === "exit").length;
+    const parts = [`${g.rows.length} decision${g.rows.length === 1 ? "" : "s"}`];
+    if(ent) parts.push(`${ent} entry${ent === 1 ? "" : " entries"}`);
+    if(ex) parts.push(`${ex} exit${ex === 1 ? "" : "s"}`);
+    const fallback = g.rows.length;                       // oldest in the block is #1 of those shown
+    return `<div class="day"><b>${esc(decDay(g.iso))}</b><span>${esc(parts.join(" · "))}</span></div>`
+      + g.rows.map((r, i) => {
+      const n = r.n != null ? r.n : fallback - i;
+      const cls = ["enter", "exit", "rejected", "error", "hold"].includes(r.action) ? r.action : "";
+      const c = String(r.contract || "").split("|");
+      const con = c.length > 1 ? `${c[1]} ${c[2] || ""}`.trim() : "";
+      const p = r.proposal || {};
+      const plan = r.action === "enter"
+        ? [["Entry", r.entry], ["Target", r.target], ["Stop", r.stop]]
+        : r.action === "rejected" ? [["Wanted", p.strike ? `${p.strike} ${p.option_type || ""}`.trim() : null],
+                                     ["Target", p.target], ["Stop", p.stop]] : [];
+      const chips = plan.filter(([, v]) => v != null && v !== "")
+        .map(([a, v]) => `<i>${esc(a)} <b>${esc(v)}</b></i>`).join("");
+      return `<div class="d ${cls}"><div class="dn">#${n}</div><div>`
+        + `<div class="dhd"><span class="tm">${esc(String(r.at || "").slice(11, 16))}</span>`
+        + `<span class="pill">${esc(DEC_WORD[r.action] || r.action)}</span>`
+        + (con ? `<span class="ct">${esc(con)}</span>` : "")
+        + (DEC_KIND[r.kind] ? `<span class="tm">${esc(DEC_KIND[r.kind])}</span>` : "") + `</div>`
+        + (chips ? `<div class="plan">${chips}</div>` : "")
+        + (r.reason ? `<div class="why">${esc(r.reason)}</div>` : "")
+        + (r.rejected_because ? `<div class="rej">Not taken: ${esc(r.rejected_because)}</div>` : "")
+        + (r.looked_at && r.looked_at.length
+            ? `<div class="saw">Looked at ${esc(r.looked_at.join(", "))}</div>` : "")
+        + `</div></div>`;
+    }).join("");
+  }).join("");
+}
+
 function aiRender(d){
   AI.data = d;
   const tog = $("aitog");
@@ -8359,18 +8474,7 @@ function aiRender(d){
   lstat.style.display = lstat.textContent ? "" : "none";
   lstat.classList.toggle("err", !!((lnote && lnote.level === "error") || (lp && lp.state === "attention")));
 
-  const rec = (d.recent || []).filter(r => r.index === k);
-  $("aidecisions").innerHTML = rec.length ? rec.map(r => {
-    const word = {enter: "Entered", wait: "Waited", hold: "Held", exit: "Exited", rejected: "Proposal rejected",
-                  error: "Could not decide", none: "Decision cap reached"}[r.action] || r.action;
-    const c = String(r.contract || "").split("|");
-    const extra = r.action === "enter" ? ` · ${c.slice(0, 3).join(" ")} at ${r.entry} · target ${r.target} · stop ${r.stop}` : "";
-    const cls = ["enter", "exit", "rejected", "error"].includes(r.action) ? r.action : "";
-    return `<div class="d ${cls}"><div class="t">${esc(r.at)} · ${esc(word)}${esc(extra)}`
-      + (r.looked_at && r.looked_at.length ? ` · looked at ${esc(r.looked_at.join(", "))}` : "") + `</div>`
-      + `<div>${esc(r.reason)}</div>`
-      + (r.rejected_because ? `<div class="rej">Not taken: ${esc(r.rejected_because)}</div>` : "") + `</div>`;
-  }).join("") : `<div class="gnote">No decisions on ${esc(k)} yet.</div>`;
+  aiDecisions(d, k);
 
   const last = R.last || [];
   $("aiclosed").innerHTML = last.length
@@ -8407,7 +8511,14 @@ async function aiFetch(){
   finally{ AI.busy = false; }
 }
 
-{ const picker = $("aipicker");
+{ const bar = $("decbar");
+  if(bar) bar.addEventListener("click", e => {
+    const b = e.target.closest ? e.target.closest("[data-decf]") : null;
+    if(!b) return;
+    DEC.filter = b.dataset.decf;
+    if(AI.data) aiDecisions(AI.data, aiIndex(AI.data));
+  });
+  const picker = $("aipicker");
   if(picker) picker.addEventListener("click", e => {
     const b = e.target.closest ? e.target.closest("[data-aik]") : null;
     if(!b) return;

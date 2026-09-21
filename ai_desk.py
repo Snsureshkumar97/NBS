@@ -99,6 +99,7 @@ class AIDesk:
         self.last_candle = {}        # index -> iso of the candle close last decided on
         self.last_exit = {}          # index -> epoch of the last AI exit
         self.recent = []             # newest first
+        self.decision_no = {}        # {"day": iso, index: the day's count so far}
         self.busy = None
         # The same six triggers the automatic updates watch for. Used here to
         # wake the bot between candle closes when a trade turns.
@@ -148,6 +149,7 @@ class AIDesk:
         self.last_candle = s.get("last_candle") or {}
         self.last_exit = s.get("last_exit") or {}
         self.recent = s.get("recent") or []
+        self.decision_no = s.get("decision_no") or {}
         self._lots = float(s["lots"]) if s.get("lots") not in (None, "") else None
 
     def _save(self):
@@ -156,7 +158,8 @@ class AIDesk:
                     "decisions_by_index": self.decisions_by_index,
                     "tokens_today": self.tokens_today, "entries": self.entries, "contracts": self.contracts,
                     "last_candle": self.last_candle, "last_exit": self.last_exit,
-                    "recent": self.recent[:RECENT_KEPT], "lots": self._lots}
+                    "recent": self.recent[:RECENT_KEPT], "lots": self._lots,
+                    "decision_no": self.decision_no}
             tmp = self.state_path + ".tmp"
             with open(tmp, "w") as fh:
                 json.dump(data, fh, default=str)
@@ -168,6 +171,7 @@ class AIDesk:
             self.day, self.decisions_today, self.decisions_by_index = today, 0, {}
             self.tokens_today = {"input": 0, "output": 0}
             self.entries, self.contracts = {}, []
+            self.decision_no = {}                    # the day's numbering starts again
 
     @property
     def on(self):
@@ -185,8 +189,16 @@ class AIDesk:
         return self.enabled.get(index) if index else self.on
 
     def _record(self, index, kind, action, reason, extra=None):
-        entry = {"at": self.now().strftime("%Y-%m-%d %H:%M:%S"), "index": index, "kind": kind,
-                 "action": action, "reason": reason}
+        at = self.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self.lock:
+            # Each index numbers its own decisions within the day, so the page can
+            # say "#4 today on NIFTY" and the number still means that after a
+            # restart or once older entries fall off the list.
+            if self.decision_no.get("day") != at[:10]:
+                self.decision_no = {"day": at[:10]}
+            n = int(self.decision_no.get(index) or 0) + 1
+            self.decision_no[index] = n
+        entry = {"at": at, "index": index, "kind": kind, "action": action, "reason": reason, "n": n}
         entry.update(extra or {})
         with self.lock:
             self.recent.insert(0, entry)

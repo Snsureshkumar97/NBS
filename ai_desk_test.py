@@ -736,7 +736,7 @@ SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.
 check("an AI trades tab, in the tab list, with a label", 'data-tab="aidesk"' in SRC and '"aidesk"];' in SRC
       and 'aidesk:"AI trades"' in SRC)
 check("the model's words reach the page through esc() in element text",
-      "<div>${esc(r.reason)}</div>" in SRC and '<div class="whyhold">${esc(t.reason)}</div>' in SRC)
+      '<div class="why">${esc(r.reason)}</div>' in SRC and '<div class="whyhold">${esc(t.reason)}</div>' in SRC)
 check("the tab has an index picker, a live spot line and a switch per index",
       'id="aipicker"' in SRC and 'id="aispot"' in SRC and "body: new URLSearchParams({index: k, on: on ? \"1\" : \"0\"})" in SRC)
 check("the fast price poll moves the AI tab (spot and open AI tickets)", "  aiTick(t);" in SRC
@@ -744,7 +744,10 @@ check("the fast price poll moves the AI tab (spot and open AI tickets)", "  aiTi
 check("an open AI ticket is drawn as the Signal page's ticket card - badge, stats row, ladder",
       "function aiTicketCard(" in SRC and '<span class="badge open">OPEN</span>' in SRC
       and '`<div class="tstats">`' in SRC and '`<div class="ladder">${ladder}</div>`' in SRC)
-check("the decision's css class comes from a fixed list", 'const cls = ["enter", "exit", "rejected", "error"].includes(r.action)' in SRC)
+check("the decision's css class comes from a fixed list",
+      'const cls = ["enter", "exit", "rejected", "error", "hold"].includes(r.action)' in SRC)
+check("decisions are grouped by day and numbered within the day - see ai_decisions_test.py",
+      'id="decbar"' in SRC and 'class="dn">#${n}' in SRC and "days[days.length - 1].rows.push(r)" in SRC)
 check("the page says paper only", "on paper - nothing is ever sent to Zerodha" in SRC)
 
 at(10, 0, 50)
