@@ -48,7 +48,9 @@ DIVERGE_MIN_CVD_PCT = 10.0        # ... and takers lean this hard the other way,
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 NOTE = ("Taker flow on the perpetual: contracts where the buyer crossed the spread against contracts where the "
         "seller did. Not backtested - Delta keeps no history of prints to test it on - so it is context, "
-        "not a signal. A window that is not `complete` covers less time than its name says.")
+        "not a signal. A window that is not `complete` covers less time than its name says. A candle stand-in "
+        "for it (where each bar closed in its range, weighted by volume) did not improve the tool's rules on three "
+        "years of Bitcoin history (flow_study.py, 21 Sep 2026); the real flow itself cannot be tested.")
 
 
 def _num(v):

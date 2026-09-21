@@ -196,12 +196,15 @@ try:
     check("starting the crypto socket asks for the Bitcoin perpetual's trades - and only that",
           ("trades", "BTCUSD") in f.dstream.subs and not any(k == "trades" and s != "BTCUSD" for k, s in f.dstream.subs), f.dstream.subs)
     check("before any print there is no reading", f.taker_flow("BTC") is None and f.flow_readings() == {})
-    f.dstream.tapes["BTCUSD"].add([pr(20, 85000, 10), pr(5, 85010, 4, "sell")], snapshot=True, now=time.time())
+    # The feed reads the wall clock, so these prints are stamped against it - a fixed NOW would age out of the
+    # one-minute window as the day goes on (this test passed for hours and then failed on a clock, not a bug).
+    live = lambda ago, price, size, taker="buy": dict(pr(0, price, size, taker), timestamp=int((time.time() - ago) * 1e6))
+    f.dstream.tapes["BTCUSD"].add([live(20, 85000, 10), live(5, 85010, 4, "sell")], snapshot=True, now=time.time())
     real_time = time.time
     r = f.taker_flow("BTC")
     check("once prints arrive the feed serves the reading", r and r["symbol"] == "BTCUSD perpetual" and r["windows"]["1m"]["taker_buy"] == 0.01, r and r["windows"]["1m"])
     f.dstream.tapes["XAUTUSD"] = tf.Tape()
-    f.dstream.tapes["XAUTUSD"].add([pr(20, 4400, 10), pr(5, 4401, 4, "sell")], snapshot=True, now=time.time())
+    f.dstream.tapes["XAUTUSD"].add([live(20, 4400, 10), live(5, 4401, 4, "sell")], snapshot=True, now=time.time())
     check("gold and anything else without the flag get none - even if a tape for it existed",
           f.taker_flow("GOLD") is None and f.taker_flow("NIFTY") is None)
     check("the snapshot's `flow` for the crypto market is the taker flow per instrument", list(f.flow_readings()) == ["BTC"])
