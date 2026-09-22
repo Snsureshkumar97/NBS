@@ -122,6 +122,26 @@ check("most of the weight building long agrees with a call and is against a put"
 check("an even split is neutral; nothing classified is no data", hv(20, 18)[0]["status"] == "neutral" and hv(0, 0)[0]["status"] == "no_data")
 check("no heavyweights in the reading, no line at all", hv.__call__(0, 0) and not [i for i in sc.evaluate(rec(), None, {}, "nse_index", "NIFTY")["items"] if i["key"] == "heavyweights"])
 
+print("8b. FII + DII NET FLOW - INDIAN INDICES ONLY")
+def fd(fii, dii, date="21-Sep-2026", stale=False):
+    return {"date": date, "fii": {"buy_cr": 0, "sell_cr": 0, "net_cr": fii}, "dii": {"buy_cr": 0, "sell_cr": 0, "net_cr": dii}, "stale": stale}
+inst = lambda fd_, side="CE": item(sc.evaluate(rec(side), None, None, "nse_index", "NIFTY", fii_dii=fd_), "institutions")
+check("both net inflow agrees with a call, both net outflow is against", inst(fd(500, 300))["status"] == "agrees"
+      and inst(fd(-500, -300))["status"] == "against")
+check("...and the mirror for a put", inst(fd(-500, -300), "PE")["status"] == "agrees" and inst(fd(500, 300), "PE")["status"] == "against")
+check("FII and DII pulling opposite ways nets out - whichever is bigger decides, not a coin flip",
+      inst(fd(800, -300))["status"] == "agrees" and inst(fd(-800, 300))["status"] == "against")
+check("an exact offset is neutral, not no data - it is a real reading that says nothing either way",
+      inst(fd(500, -500))["status"] == "neutral")
+check("no reading at all is no data, not neutral", item(sc.evaluate(rec("CE"), None, None, "nse_index", "NIFTY"), "institutions")["status"] == "no_data")
+check("the sentence names the date and both figures, and flags a stale (yesterday's) reading",
+      "21-Sep-2026" in inst(fd(500, 300))["detail"] and "FII net +500" in inst(fd(500, 300))["detail"] and "DII net +300" in inst(fd(500, 300))["detail"]
+      and "not yet refreshed today" in inst(fd(500, 300, stale=True))["detail"] and "not yet refreshed today" not in inst(fd(500, 300))["detail"])
+check("the short reading on the bar has both figures too", inst(fd(500, -300))["short"] == "FII +500 · DII -300 cr")
+check("crypto has no institutions line - FII/DII has nothing to do with Bitcoin",
+      "institutions" not in [i["key"] for i in sc.evaluate(rec("CE", spot=85000, risk=300, targets=(85400, 85800, 86200), index="BTC"),
+                                                            None, None, "crypto", "BTC", fii_dii=fd(500, 300))["items"]])
+
 print("9. THE SUMMARY AND THE LOG STAMP")
 c = sc.evaluate(rec("CE", wall=23450.0), {"nearest_resistance": 23500.0, "volume_oscillator": {"value_pct": -2.0}}, fut("long build-up", 0.3), "nse_index", "NIFTY")
 check("counts add up to the checks made and the sentence says them", c["agree"] + c["against"] + c["neutral"] + c["no_data"] == len(c["items"])
@@ -129,7 +149,7 @@ check("counts add up to the checks made and the sentence says them", c["agree"] 
 check("the note says the rules do not use it", "do not use them to enter or skip" in c["note"])
 a, b, text = sc.stamp(c)
 check("the stamp is the agree and against counts and one word-and-symbol per check", a == c["agree"] and b == c["against"]
-      and text == "gann+ volume- flow+ walls- spread+", text)
+      and text == "gann+ volume- flow+ walls- spread+ institutionsx", text)
 check("no checklist, no stamp", sc.stamp(None) == (None, None, None))
 
 print("10. THE TRADE LOG KEEPS IT - AND OLD FILES STILL READ")
@@ -141,7 +161,7 @@ trade = {"trade_id": "NIFTY-1", "index": "NIFTY", "strike": 23400, "option_type"
 trade_log.log_open(trade, {"checks": c, "technical": {}}, now, path=path)
 row = trade_log._read_rows(path)[0]
 check("the ticket's row carries how many agreed, how many were against, and each check", row["checks_agree"] == str(c["agree"])
-      and row["checks_against"] == str(c["against"]) and row["checks"] == "gann+ volume- flow+ walls- spread+", {k: row[k] for k in ("checks_agree", "checks_against", "checks")})
+      and row["checks_against"] == str(c["against"]) and row["checks"] == "gann+ volume- flow+ walls- spread+ institutionsx", {k: row[k] for k in ("checks_agree", "checks_against", "checks")})
 trade_log.log_open(dict(trade, trade_id="NIFTY-2"), {"technical": {}}, now, path=path)
 check("a ticket with no checklist leaves the three columns blank", trade_log._read_rows(path)[1]["checks"] == "" and trade_log._read_rows(path)[1]["checks_agree"] == "")
 old = os.path.join(tempfile.mkdtemp(), "trades.csv")
@@ -151,14 +171,27 @@ with open(old, "w", newline="") as fh:
 trade_log.log_open(trade, {"checks": c, "technical": {}}, now, path=old)
 rows = trade_log._read_rows(old)
 check("a log written before these columns is upgraded, keeps its old row intact and reads the new one", len(rows) == 2 and rows[0]["trade_id"] == "OLD-1"
-      and rows[0]["checks"] == "" and rows[1]["checks"] == "gann+ volume- flow+ walls- spread+", [r.get("checks") for r in rows])
+      and rows[0]["checks"] == "" and rows[1]["checks"] == "gann+ volume- flow+ walls- spread+ institutionsx", [r.get("checks") for r in rows])
 
 print("11. THE FEED BUILDS IT WITHOUT EVER GETTING IN THE WAY")
 f = feeds.Feed("t:chk", "chk@example.invalid", "nse_index")
 f.flow_readings = lambda: {"NIFTY": fut("long build-up", 0.3)}
+f._fii_dii = lambda: fd(500, 300)
 got = f._signal_checks("NIFTY", rec("CE", wall=23600.0))
 check("the feed hands the checklist the futures' flow for that index and the Gann report for its spot", got and item(got, "flow")["status"] == "agrees"
       and item(got, "gann")["status"] in ("agrees", "neutral", "against"), got and got["summary"])
+check("...and its own FII/DII reading", item(got, "institutions")["status"] == "agrees")
+check("a crypto feed's own _fii_dii is None - FII/DII is an Indian-market fetch", feeds.Feed("t:chknob", "chknob@example.invalid", "crypto")._fii_dii() is None)
+del f._fii_dii                # back to the real method, which reads the (now patched) module
+class BoomFD:
+    def reading(self): raise RuntimeError("nse down")
+real_fd_mod = feeds.fii_dii
+feeds.fii_dii = BoomFD()
+try:
+    check("a failed FII/DII fetch is a missing check, not a crash - the rest of the checklist still comes back",
+          f._signal_checks("NIFTY", rec("CE", wall=23600.0)) is not None and f._fii_dii() is None)
+finally:
+    feeds.fii_dii = real_fd_mod
 check("no side suggested and no lean, no checklist, and no error", f._signal_checks("NIFTY", {"option_type": None, "spot": 1}) is None)
 check("a wait that leans is built as a what-if", (f._signal_checks("NIFTY", dict(rec("CE"), option_type=None, raw_bias="BULLISH")) or {}).get("waiting") is True)
 def boom(): raise RuntimeError("socket gone")

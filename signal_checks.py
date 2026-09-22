@@ -24,6 +24,7 @@ THE CHECKS - each one agrees, is against, is neutral, or has no data
                  the first target is against, beyond it (or already behind) agrees
     spread       the option's bid-ask spread against the limit
     heavyweights Indian indices: the five heaviest members' futures build-up, by weight
+    institutions Indian indices: FII + DII net cash flow the most recent session (fii_dii.py)
     News is left out: it is a judgment about words, not a pass or fail.
 
 Nothing here reads the network or writes anything: it takes what the feed
@@ -202,7 +203,27 @@ def _heavy(flow, sign):
     return _item("heavyweights", label, NEUTRAL, said, short)
 
 
-def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None):
+def _institutions(fd, sign):
+    """FII + DII net cash flow the most recent session (fii_dii.py) - the whole
+    market's, not this index's own. Positive combined net (money coming in)
+    agrees with a call, negative agrees with a put."""
+    label = "FII + DII"
+    if not fd:
+        return _item("institutions", label, NO_DATA, "No FII/DII reading yet.", "no reading")
+    import fii_dii
+    lean = fii_dii.net_lean(fd)
+    f, d = fd["fii"]["net_cr"], fd["dii"]["net_cr"]
+    said = (f"{fd['date']}: FII net {f:+,.0f} cr, DII net {d:+,.0f} cr"
+            + (" - the last published figure, not yet refreshed today" if fd.get("stale") else "") + ".")
+    short = f"FII {f:+,.0f} · DII {d:+,.0f} cr"
+    if lean is None or lean == 0:
+        return _item("institutions", label, NEUTRAL if lean == 0 else NO_DATA, said, short)
+    if lean * sign > 0:
+        return _item("institutions", label, AGREES, said, short)
+    return _item("institutions", label, AGAINST, said, short)
+
+
+def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None, fii_dii=None):
     """The checklist for the side the rules suggest, or None when they suggest
     none (a wait has nothing to compare against). Never raises on missing data:
     a check without its data reports no_data."""
@@ -227,6 +248,7 @@ def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None):
         h = _heavy(flow, sign)
         if h:
             items.append(h)
+        items.append(_institutions(fii_dii, sign))
     n = {s: sum(1 for i in items if i["status"] == s) for s in (AGREES, AGAINST, NEUTRAL, NO_DATA)}
     parts = [f"{n[AGREES]} agree", f"{n[AGAINST]} against"]
     if n[NEUTRAL]:

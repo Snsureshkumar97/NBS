@@ -96,6 +96,20 @@ check("the model is asked for it with every entry, bounded 1-99, and told what i
       and "reaches your target before your stop" in market_bot.DESK_SYSTEM
       and "target_confidence" not in market_bot.DECISION_TOOLS["review"]["input_schema"]["properties"])
 
+print("3c. THE BULL CASE AND THE BEAR CASE")
+check("text is kept as given, trimmed of stray whitespace",
+      ai_desk._case("  Momentum and OI agree.  ") == "Momentum and OI agree."
+      and ai_desk._case("no leading space") == "no leading space")
+check("nothing usable becomes None - not a made-up case", ai_desk._case(None) is ai_desk._case("") is ai_desk._case("   ") is ai_desk._case(4) is None)
+check("a runaway string is capped, not rejected outright", len(ai_desk._case("x" * 5000)) == ai_desk.CASE_MAX
+      and ai_desk._case("x" * 5000) == "x" * ai_desk.CASE_MAX)
+check("the model is asked for both with every entry, and told to write the bear case first",
+      "bull_case" in market_bot.DECISION_TOOLS["entry"]["input_schema"]["properties"]
+      and "bear_case" in market_bot.DECISION_TOOLS["entry"]["input_schema"]["properties"]
+      and "Write the bear_case first, before you have committed" in market_bot.DESK_SYSTEM
+      and "bull_case" not in market_bot.DECISION_TOOLS["review"]["input_schema"]["properties"]
+      and "bear_case" not in market_bot.DECISION_TOOLS["review"]["input_schema"]["properties"])
+
 print("4. THE PAGE: GROUPED BY DAY, NUMBERED, FILTERED - RUN FOR REAL IN NODE")
 SRC = open(os.path.join(HERE, "web_server.py")).read()
 SRCW = open(os.path.join(HERE, "web_server.py")).read()
@@ -111,17 +125,20 @@ if not NODE:
 else:
     a = SRC.index("// The decision log, grouped by day")
     b = SRC.index("function aiRender(d){")
+    ca = SRC.index("function casesRows(bull, bear){")
+    cb = SRC.index("function aiIndex(d){")
     prog = """
 const assert = require("assert");
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const EL = {};
 function $(id){ return EL[id] || (EL[id] = {id, innerHTML: ""}); }
 const AI = {};
-""" + SRC[a:b] + r'''
+""" + SRC[ca:cb] + SRC[a:b] + r'''
 const day1 = "2026-09-21", day2 = "2026-09-22";
 const rows = [
   {at: day2 + " 09:45:00", index: "NIFTY", kind: "entry", action: "enter", n: 2, reason: "Trend is with it.",
-   contract: "NIFTY|23400|CE|2026-09-22", entry: 91.5, target: 120, stop: 70, confidence: 64, looked_at: ["Option chain", "Gann levels"]},
+   contract: "NIFTY|23400|CE|2026-09-22", entry: 91.5, target: 120, stop: 70, confidence: 64, looked_at: ["Option chain", "Gann levels"],
+   bull_case: "ADX 27, price above VWAP.", bear_case: "Fourth push into the same wall today."},
   {at: day2 + " 09:30:00", index: "NIFTY", kind: "entry", action: "wait", n: 1, reason: "ADX too low."},
   {at: day2 + " 09:29:00", index: "BTC", kind: "entry", action: "wait", n: 1, reason: "other market"},
   {at: day1 + " 14:00:00", index: "NIFTY", kind: "review", action: "exit", n: 3, reason: "Momentum gone."},
@@ -145,6 +162,14 @@ assert.deepStrictEqual((html.match(/class="dn">#(\d+)</g) || []).map(s => s.slic
 assert.ok(html.includes(">Entry <b>91.5<") && html.includes(">Target <b>120<") && html.includes(">Stop <b>70<"),
           "an entry shows what it paid and where it was going");
 assert.ok(html.includes(">Its chance of the target <b>64%<"), "...and the bot's own chance of reaching it");
+assert.ok(html.includes('<div class="c bull"><b>Bull</b>ADX 27, price above VWAP.</div>')
+          && html.includes('<div class="c bear"><b>Bear</b>Fourth push into the same wall today.</div>'),
+          "the case it wrote for and against the trade, both shown");
+assert.strictEqual((html.match(/class="c bull"/g) || []).length, 1, "only the entry that has a case shows the cases block");
+assert.strictEqual(casesRows(null, null), "", "no case, no block");
+assert.strictEqual(casesRows("only bull", null), '<div class="cases"><div class="c bull"><b>Bull</b>only bull</div></div>',
+                   "one case alone still renders");
+assert.ok(casesRows("<script>x</script>", "y").includes("&lt;script&gt;"), "a case is escaped, never run as markup");
 assert.strictEqual((html.match(/Its chance of the target/g) || []).length, 1,
                    "only the decision that gave a number shows one - a wait, or an entry from before this was asked for, shows none");
 assert.ok(html.includes("23400 CE") && html.includes("09:45") && !html.includes(day2 + " 09:45"),

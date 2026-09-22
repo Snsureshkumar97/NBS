@@ -89,6 +89,21 @@ def _confidence(v):
     return min(99, max(1, n))
 
 
+CASE_MAX = 500   # a case is "one or two sentences"; this is a backstop against a runaway string, not the target length
+
+
+def _case(v):
+    """The bull_case / bear_case text the model gives an entry with, trimmed and
+    capped - or None when it gave nothing usable. Asked for by the user on 22
+    Sep 2026, after reading a stock-research agent design that split the two
+    into separate roles: writing the case against a trade before deciding is
+    cheap insurance against a model that only ever argues for its first idea."""
+    if not isinstance(v, str):
+        return None
+    v = v.strip()
+    return v[:CASE_MAX] or None
+
+
 class AIDesk:
     def __init__(self, feed, now=None, clock=None, start=True):
         self.feed = feed
@@ -616,6 +631,7 @@ class AIDesk:
             return self._record(name, "entry", "rejected", d.get("reason") or "",
                                 {"proposal": {k: d.get(k) for k in ("option_type", "strike", "target", "stop")},
                                  "confidence": _confidence(d.get("target_confidence")),
+                                 "bull_case": _case(d.get("bull_case")), "bear_case": _case(d.get("bear_case")),
                                  "rejected_because": why, "looked_at": meta.get("looked_at")})
         if self.thread is not None and not self._alive():
             return None                  # this desk's feed was replaced while it decided
@@ -623,10 +639,12 @@ class AIDesk:
             return self._record(name, "entry", "rejected", d.get("reason") or "",
                                 {"rejected_because": f"the AI desk for {name} was switched off while it decided"})
         conf = _confidence(d.get("target_confidence"))
-        self._open(name, rec, plan, d.get("reason") or "", conf)
+        bull, bear = _case(d.get("bull_case")), _case(d.get("bear_case"))
+        self._open(name, rec, plan, d.get("reason") or "", conf, bull, bear)
         return self._record(name, "entry", "enter", d.get("reason") or "",
                             {"contract": plan["contract"], "entry": plan["ltp"], "target": plan["target"],
-                             "stop": plan["stop"], "confidence": conf, "looked_at": meta.get("looked_at")})
+                             "stop": plan["stop"], "confidence": conf, "bull_case": bull, "bear_case": bear,
+                             "looked_at": meta.get("looked_at")})
 
     def _review(self, name, trade, rec, client, why=None):
         import market_bot
@@ -689,7 +707,7 @@ class AIDesk:
         return True, "", {"side": side, "strike": strike, "target": round(target, 2), "stop": round(stop, 2),
                           "ltp": ltp, "expiry": expiry, "contract": contract, "rr": round(rr, 2)}
 
-    def _open(self, name, rec, plan, reason, confidence=None):
+    def _open(self, name, rec, plan, reason, confidence=None, bull_case=None, bear_case=None):
         self._sync_rules()
         r = dict(rec)
         r["checks"] = None            # the checklist is for the rule signal's side; the desk may trade the other
@@ -708,6 +726,8 @@ class AIDesk:
             b.trade["exit_at"] = "T1"
             b.trade["ai_reason"] = reason
             b.trade["ai_confidence"] = confidence
+            b.trade["ai_bull_case"] = bull_case
+            b.trade["ai_bear_case"] = bear_case
         self.entries[name] = self.entries.get(name, 0) + 1
         self.contracts.append(plan["contract"])
 
@@ -854,6 +874,8 @@ class AIDesk:
                     if t is not None:
                         t["reason"] = self.book.books[k].trade.get("ai_reason")
                         t["confidence_pct"] = self.book.books[k].trade.get("ai_confidence")
+                        t["bull_case"] = self.book.books[k].trade.get("ai_bull_case")
+                        t["bear_case"] = self.book.books[k].trade.get("ai_bear_case")
                     opened[k] = t
             fresh_day = self.day == today
             return {"on": self.on, "enabled": {k: bool(self.enabled.get(k)) for k in names},

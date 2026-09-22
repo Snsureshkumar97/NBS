@@ -46,6 +46,7 @@ import pandas as pd
 import accounts
 import config
 import explain
+import fii_dii
 import kite_flow
 import signal_checks
 import taker_flow
@@ -1721,7 +1722,7 @@ class Feed:
             except Exception:
                 g = None
             flow = (self.flow_readings() or {}).get(name)
-            return signal_checks.evaluate(rec, g, flow, self.market, name)
+            return signal_checks.evaluate(rec, g, flow, self.market, name, fii_dii=self._fii_dii())
         except Exception as exc:
             self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
             return None
@@ -2262,8 +2263,20 @@ class Feed:
             out[k] = pub
         return out
 
+    def _fii_dii(self):
+        """FII/DII net cash flow (fii_dii.py), Indian indices only - the module
+        caches it market-wide, so this is cheap to call on every snapshot."""
+        if self.market != "nse_index":
+            return None
+        try:
+            return fii_dii.reading()
+        except Exception as exc:
+            self._note_fault("fii/dii", f"{type(exc).__name__}: {exc}")
+            return None
+
     def snapshot(self):
         flow = self.flow_readings()            # off the feed lock: it reads the socket's
+        fd = self._fii_dii()
         with self.lock:
             return {
                 "market_open": self.state["market_open"],
@@ -2282,6 +2295,7 @@ class Feed:
                 "session": self.tickets.session(),
                 "events": list(self.events[:8]),
                 "flow": flow,
+                "fii_dii": fd,
             }
 
     def candles(self, name):

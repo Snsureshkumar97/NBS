@@ -116,9 +116,10 @@ def desk(market="nse_index", email=None):
     return f, d
 
 
-def enter(strike=25000, side="CE", target=160.0, stop=110.0, confidence=62):
+def enter(strike=25000, side="CE", target=160.0, stop=110.0, confidence=62,
+          bull="Trend is up, ADX 27, VWAP holding above.", bear="It is the fourth push into the same wall today."):
     return {"action": "enter", "option_type": side, "strike": strike, "target": target, "stop": stop,
-            "target_confidence": confidence,
+            "target_confidence": confidence, "bull_case": bull, "bear_case": bear,
             "reason": "Trend and VWAP agree; chain shows puts building."}
 
 
@@ -184,6 +185,14 @@ check("...and so does the bot's own chance of reaching the target, asked for on 
       t["ai_confidence"] == 62
       and next(r for r in d.recent if r["action"] == "enter")["confidence"] == 62)
 check("the page is handed it with the open ticket", ((d.public().get("open") or {}).get("NIFTY") or {}).get("confidence_pct") == 62)
+check("...and so do the bull and bear cases it wrote before deciding, asked for on 22 Sep 2026",
+      t["ai_bull_case"] == "Trend is up, ADX 27, VWAP holding above."
+      and t["ai_bear_case"] == "It is the fourth push into the same wall today."
+      and next(r for r in d.recent if r["action"] == "enter")["bull_case"] == "Trend is up, ADX 27, VWAP holding above."
+      and next(r for r in d.recent if r["action"] == "enter")["bear_case"] == "It is the fourth push into the same wall today.")
+opub = (d.public().get("open") or {}).get("NIFTY") or {}
+check("...and the page is handed both with the open ticket too",
+      opub.get("bull_case") == "Trend is up, ADX 27, VWAP holding above." and opub.get("bear_case") == "It is the fourth push into the same wall today.")
 orow = trade_log._read_rows(d.book.path)[0]
 check("the log's signal columns describe the AI trade, not the rule signal",
       orow["confidence"] == "AI" and orow["strictness"] == "ai" and float(orow["reward_risk"]) == 1.5
@@ -225,12 +234,15 @@ ok, _, plan = d.validate("NIFTY", r, {"option_type": "PE", "strike": 25050, "tar
 check("a put, a strike off the money: fine, priced off the put side", ok and plan["ltp"] == 140.0, plan)
 
 d.set_on(True)
-SCRIPT[:] = [{"action": "enter", "option_type": "CE", "strike": 25025, "target": 160, "stop": 110, "reason": "x"}]
+SCRIPT[:] = [{"action": "enter", "option_type": "CE", "strike": 25025, "target": 160, "stop": 110, "reason": "x",
+             "target_confidence": 70, "bull_case": "b1", "bear_case": "b2"}]
 d.step()
 rj = next((r for r in d.recent if r["index"] == "NIFTY"), {})
 check("a refused proposal opens nothing and is recorded with why",
       d._open_trade("NIFTY") is None and rj.get("action") == "rejected"
       and "not a strike" in rj.get("rejected_because", ""), rj)
+check("...and its confidence and cases are kept too, even though the trade never opened - it still made its case",
+      rj.get("confidence") == 70 and rj.get("bull_case") == "b1" and rj.get("bear_case") == "b2", rj)
 
 print("4. NO OVERTRADING, NO SECOND BUY OF THE SAME CONTRACT")
 at(9, 30, 50)
@@ -750,6 +762,8 @@ check("the fast price poll moves the AI tab (spot and open AI tickets)", "  aiTi
 check("an open AI ticket is drawn as the Signal page's ticket card - badge, stats row, ladder",
       "function aiTicketCard(" in SRC and '<span class="badge open">OPEN</span>' in SRC
       and '`<div class="tstats">`' in SRC and '`<div class="ladder">${ladder}</div>`' in SRC)
+check("...and the bull/bear case it wrote for itself, if it gave one - see ai_decisions_test.py for casesRows",
+      "casesRows(t.bull_case, t.bear_case)" in SRC and "function casesRows(bull, bear){" in SRC)
 check("the decision's css class comes from a fixed list",
       'const cls = ["enter", "exit", "rejected", "error", "hold"].includes(r.action)' in SRC)
 check("decisions are grouped by day and numbered within the day - see ai_decisions_test.py",

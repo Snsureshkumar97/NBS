@@ -3227,6 +3227,15 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .conf{margin-top:12px;font-size:13px;color:var(--ink-2);display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
 .conf b{font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums}
 .conf span{font-size:12px;color:var(--ink-3)}
+/* The bull case / bear case the desk wrote before an entry - asked for on 22 Sep
+   2026 so a one-sided argument is visible, not just the reason it settled on. */
+.cases{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.cases .c{font-size:12.5px;line-height:1.5;color:var(--ink-2);padding-left:10px;border-left:3px solid var(--bd)}
+.cases .c b{color:var(--ink);font-weight:700;margin-right:5px}
+.cases .c.bull{border-color:var(--up)}
+.cases .c.bull b{color:var(--up)}
+.cases .c.bear{border-color:var(--down)}
+.cases .c.bear b{color:var(--down)}
 .whyhold{font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.65;
   background:var(--surface);border:1px solid var(--bd-soft);
   border-radius:var(--r-sm);padding:11px 13px}
@@ -8334,6 +8343,18 @@ function aiTicketCard(k, t){
         ? `<div class="conf"><b>${esc(t.confidence_pct)}%</b> its own chance of reaching the target`
           + `<span>the bot's call at entry, not the tool's - unproven</span></div>` : "")
     + (t.reason ? `<div class="whyhold">${esc(t.reason)}</div>` : "")
+    + casesRows(t.bull_case, t.bear_case)
+    + `</div>`;
+}
+
+// The bull case and the bear case it wrote for itself before this entry - see
+// market_bot.DESK_SYSTEM ("write the bear_case first ... if it changes your
+// mind, the answer is wait"). Either may be missing on an older ticket.
+function casesRows(bull, bear){
+  if(!bull && !bear) return "";
+  return `<div class="cases">`
+    + (bull ? `<div class="c bull"><b>Bull</b>${esc(bull)}</div>` : "")
+    + (bear ? `<div class="c bear"><b>Bear</b>${esc(bear)}</div>` : "")
     + `</div>`;
 }
 
@@ -8466,6 +8487,7 @@ function aiDecisions(d, k){
         + (DEC_KIND[r.kind] ? `<span class="tm">${esc(DEC_KIND[r.kind])}</span>` : "") + `</div>`
         + (chips ? `<div class="plan">${chips}</div>` : "")
         + (r.reason ? `<div class="why">${esc(r.reason)}</div>` : "")
+        + casesRows(r.bull_case, r.bear_case)
         + (r.rejected_because ? `<div class="rej">Not taken: ${esc(r.rejected_because)}</div>` : "")
         + (r.looked_at && r.looked_at.length
             ? `<div class="saw">Looked at ${esc(r.looked_at.join(", "))}</div>` : "")
