@@ -7558,7 +7558,15 @@ async function tick(){
 // and the premium move here the way they move in the desktop app, instead of
 // stepping once every poll.
 async function priceTick(){
-  if(document.hidden) return;              // a background tab is not watching
+  // Used to pause here while document.hidden - "a background tab is not
+  // watching". Asked to be removed on 22 Sep 2026: a window that is visibly
+  // on screen but not the OS's frontmost one (a second monitor, a window
+  // beside another app) also reads hidden in most browsers, so the fast tick
+  // was pausing on screens the user plainly was watching, and only the 3 s
+  // full-state poll (tick(), which never checked this) kept moving - looking
+  // like everything had slowed down rather than stopped. This is the user's
+  // own server, not a rate-limited third party, so polling a tab nobody is
+  // looking at costs nothing worth trading this away for.
   let t;
   // A failed poll is itself news. Returning quietly left the tag reading
   // "Live" over prices that had stopped arriving the moment the server or the
