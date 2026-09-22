@@ -59,15 +59,46 @@ MAX_DECISIONS_PER_DAY = {"nse_index": 90, "crypto": 100}
 STRIKE_STEPS = 6
 MIN_REWARD_RISK = 1.0
 # Giving back a profit: once the trade has covered GIVEBACK_ARM of the way from
-# entry to its target, the tool closes it if it hands back GIVEBACK_GIVE of that
-# best gain. Checked on every tick, with no model call - a reversal inside one
-# candle would otherwise run to the stop before the bot's next review.
-GIVEBACK_ARM = 0.6
-GIVEBACK_GIVE = 0.5
+# entry to its target, the tool closes it if its gain falls back to GIVEBACK_RETAIN
+# or less of its own best gain so far - so a GIVEBACK_RETAIN of 0.3 means it can give
+# back up to 70% of the best gain before this closes it, not 30%. Checked on every
+# tick, with no model call - a reversal inside one candle would otherwise run to
+# the stop before the bot's next review.
+#
+# Loosened on 22 Sep 2026: the user compared the AI desk's trades against the
+# rule engine's over 21-22 Sep and found it giving back real profit the rule
+# tickets kept - concretely, a NIFTY put that reached 65% of the way to its
+# target closed here for a fraction of what the matching rule ticket, which has
+# no such rule, rode to target. At the old ARM (0.6) that trade had already
+# armed; at 0.75 it would not have, and would have been left to run to its own
+# target or stop like every rule ticket. GIVEBACK_RETAIN was 0.5 before this -
+# note the OLD reading of that number as "hands back 50%" only happened to be
+# right because 1 - 0.5 = 0.5; it was really always a retain floor, not a
+# hand-back fraction, which is why this comment and the name were rewritten
+# rather than just the values.
+GIVEBACK_ARM = 0.75
+GIVEBACK_RETAIN = 0.3
 # A turn also wakes the bot for an unscheduled review, at most this many times
 # per ticket and no closer together than this.
 MAX_EVENT_REVIEWS = 3
 EVENT_REVIEW_GAP_S = 300
+# Asked for by the user on 22 Sep 2026: entries were only ever considered once
+# per 15-minute candle close, so a setup that formed and was worth taking could
+# sit unconsidered for up to 15 minutes - "checking every 15 minutes may lose
+# some money". The same kind of crossing the desk already names in its own
+# "wait" reasons (an ADX crossing, momentum turning, a VWAP loss or reclaim, an
+# opening-range break) now wakes it for an off-cycle look the moment it
+# happens, at most this many times per index a day and no closer together than
+# this - every other limit (entry_block, the daily cap, the cooldown, spread
+# and reward:risk in validate()) still applies exactly as it does on the
+# scheduled clock; this only changes WHEN it is asked, never what it takes to
+# actually enter.
+MAX_EVENT_ENTRIES = 6
+EVENT_ENTRY_GAP_S = 300
+ENTRY_LABELS = {"trend_started": "ADX crossed above the trend gate",
+               "momentum_turned": "MACD histogram turned - momentum changed side",
+               "vwap_crossed": "Price crossed VWAP",
+               "range_broken": "Price broke the opening range"}
 RECENT_KEPT = 60
 # Its own record, handed to the bot with every decision. Asked for by the user
 # on 18 Sep 2026 as the cheap way for it to learn from its results - nothing is
@@ -132,9 +163,13 @@ class AIDesk:
         # wake the bot between candle closes when a trade turns.
         self.watch = ticket_watch.Watch(None)
         self.watch.on = True
-        self.pending = {}            # index -> [what just happened]
+        self.pending = {}            # index -> [what just happened] (an open ticket's review triggers)
+        self.pending_entry = {}      # index -> [what just happened] (a fresh setup's entry triggers)
+        self._entry_state = {}       # index -> the last reading _watch_entry compared against
         self.event_reviews = {}      # trade_id -> reviews spent
+        self.event_entries = {}      # index -> off-cycle entry looks spent today
         self.last_event_review = {}  # index -> epoch
+        self.last_event_entry = {}   # index -> epoch
         self.peak = {}               # trade_id -> best progress from entry, in premium
         self._tok = {}               # trade_id -> streamed contract handle
         # The desk's own lots, per market - asked for on 20 Sep 2026. None
@@ -199,6 +234,8 @@ class AIDesk:
             self.tokens_today = {"input": 0, "output": 0}
             self.entries, self.contracts = {}, []
             self.decision_no = {}                    # the day's numbering starts again
+            self.event_entries = {}
+            self._entry_state = {}                    # so the first reading of a new day cannot look like a "crossing"
 
     @property
     def on(self):
@@ -274,6 +311,7 @@ class AIDesk:
         self._roll_day()
         now = self.now()
         self._event_reviews(client)
+        self._event_entries(client)
         for name in self.feed.instruments():
             if not self.enabled.get(name):
                 continue
@@ -331,6 +369,80 @@ class AIDesk:
             self.last_event_review[name] = self.clock()
             self._review(name, trade, rec, client, why=sorted(set(why)))
             self._save()
+
+    def _event_entries(self, client=None):
+        """A fresh setup, considered before the next candle close - see
+        MAX_EVENT_ENTRIES above for why and what still gates it."""
+        import market_bot
+        for name in list(self.pending_entry):
+            if self._open_trade(name) is not None:
+                # A ticket opened (on the scheduled clock, or from an earlier
+                # entry this same pass) since this was queued - nothing to enter.
+                with self.lock:
+                    self.pending_entry.pop(name, None)
+                continue
+            with self.lock:
+                why = self.pending_entry.pop(name, [])
+            if not why or not self.enabled.get(name) or not self._fresh():
+                continue
+            if not market_bot.key_present() or self.decisions_today >= MAX_DECISIONS_PER_DAY.get(self.market, 90):
+                continue
+            if self.event_entries.get(name, 0) >= MAX_EVENT_ENTRIES:
+                continue
+            last = self.last_event_entry.get(name)
+            if last and self.clock() - last < EVENT_ENTRY_GAP_S:
+                continue
+            if self.entry_block(name):
+                continue
+            with self.feed.lock:
+                rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec")
+            if not rec:
+                continue
+            self.event_entries[name] = self.event_entries.get(name, 0) + 1
+            self.last_event_entry[name] = self.clock()
+            self._entry(name, rec, client, why=sorted(set(why)))
+            self._save()
+
+    def _watch_entry(self, name, rec):
+        """The same kind of crossing the desk already names in its own "wait"
+        reasons, noticed the moment it happens rather than only at the next
+        candle close: ADX crossing the trend gate, momentum (MACD) turning,
+        price crossing VWAP, or breaking the opening range. Fires at most once
+        per crossing - the state is only a comparison point, never a signal by
+        itself, and the first reading after a restart or a fresh day seeds it
+        without firing."""
+        tech = rec.get("technical") or {}
+        adx_ok, macd, vwap = tech.get("adx_ok"), tech.get("macd_score"), tech.get("vwap_gap")
+        orr, spot = rec.get("opening_range") or {}, rec.get("spot")
+        range_break = None
+        if orr.get("ready") and spot is not None and orr.get("high") is not None and orr.get("low") is not None:
+            if spot > orr["high"]:
+                range_break = "up"
+            elif spot < orr["low"]:
+                range_break = "down"
+        cur = {"adx_ok": bool(adx_ok) if adx_ok is not None else None,
+              "macd_side": (1 if macd > 0 else -1 if macd < 0 else 0) if macd is not None else None,
+              "vwap_side": (1 if vwap > 0 else -1 if vwap < 0 else 0) if vwap is not None else None,
+              "range_break": range_break}
+        prev = self._entry_state.get(name)
+        self._entry_state[name] = cur
+        if prev is None:
+            return
+        fired = []
+        if prev["adx_ok"] is False and cur["adx_ok"] is True:
+            fired.append("trend_started")
+        if (prev["macd_side"] is not None and cur["macd_side"] not in (None, 0)
+                and prev["macd_side"] != cur["macd_side"]):
+            fired.append("momentum_turned")
+        if (prev["vwap_side"] is not None and cur["vwap_side"] not in (None, 0)
+                and prev["vwap_side"] != cur["vwap_side"]):
+            fired.append("vwap_crossed")
+        if prev["range_break"] is None and cur["range_break"] is not None:
+            fired.append("range_broken")
+        if fired:
+            with self.lock:
+                self.pending_entry.setdefault(name, [])
+                self.pending_entry[name] += [ENTRY_LABELS[f] for f in fired]
 
     def _fresh(self):
         """Whether the feed's analysis is current. A feed whose Zerodha token
@@ -448,7 +560,7 @@ class AIDesk:
                 "contracts_per_lot": (config.INSTRUMENTS.get(name) or {}).get("contracts_per_lot", 1),
                 "give_back_rule": (f"the tool closes a trade on its own once it has covered "
                                    f"{GIVEBACK_ARM * 100:.0f}% of the way to its target and then hands back "
-                                   f"{GIVEBACK_GIVE * 100:.0f}% of that best gain"),
+                                   f"{(1 - GIVEBACK_RETAIN) * 100:.0f}% of that best gain"),
                 "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4],
                 "your_track_record": self.track_record(name)}
 
@@ -616,10 +728,10 @@ class AIDesk:
         self.tokens_today["output"] += meta.get("output_tokens") or 0
         return decision, meta
 
-    def _entry(self, name, rec, client):
+    def _entry(self, name, rec, client, why=None):
         import market_bot
         try:
-            d, meta = self._ask("entry", name, client)
+            d, meta = self._ask("entry", name, client, why=why)
         except market_bot.BotError as exc:
             return self._record(name, "entry", "error", str(exc))
         if d.get("action") != "enter":
@@ -733,11 +845,14 @@ class AIDesk:
 
     # ------------------------------------------------------------ prices
     def track(self, name, rec):
-        """A fresh reading from the analysis: check the open AI ticket's levels."""
+        """A fresh reading from the analysis: check the open AI ticket's levels,
+        or - with none open - watch for a fresh entry trigger (_watch_entry)."""
         evs = self.book.track(name, rec)
         self._after(name, evs)
         trade = self._open_trade(name)
         if trade is None:
+            if self.enabled.get(name):
+                self._watch_entry(name, rec)
             return
         self._giveback(name, trade, self.book._price_for(trade, rec))
         with self.feed.lock:
@@ -770,7 +885,7 @@ class AIDesk:
         gain, room = price - entry, target - entry
         best = max(self.peak.get(tid, 0.0), gain)
         self.peak[tid] = best
-        if best < GIVEBACK_ARM * room or gain > best * GIVEBACK_GIVE:
+        if best < GIVEBACK_ARM * room or gain > best * GIVEBACK_RETAIN:
             return
         pct, back = best / room * 100.0, (best - gain) / best * 100.0
         self.book.close_ticket(name, f"CLOSED — AI give-back rule: {pct:.0f}% of the way to the target, "

@@ -550,9 +550,14 @@ opens, not a price you name. The stop and target are checked on every tick; at e
 are also asked whether to hold or exit an open ticket, and may exit at any time for any reason. You are also \
 asked straight away, between closes, when a trade turns - it reaches halfway to its stop, ADX falls below the \
 trend gate, the MACD histogram turns against it, or it makes no progress for half an hour - and <desk> then \
-carries what_just_happened. Separately, the tool closes a trade by itself once it has covered most of the way \
-to its target and then hands back half of that best gain, so a profit that reverses hard inside one candle is \
-not left to run to the stop; see give_back_rule in <desk>.
+carries what_just_happened. The same is true before an entry: waiting for the next candle close used to mean a \
+setup could sit unconsidered for up to 15 minutes, so you are now also asked straight away, with no ticket open, \
+the moment ADX crosses the trend gate, momentum (MACD) turns, price crosses VWAP, or the opening range breaks - \
+again with what_just_happened in <desk>. This changes only WHEN you are asked, never what counts as a reason to \
+enter; a fresh trigger with nothing genuinely new to say is still a wait. Separately, the tool closes a trade by \
+itself once it has covered most of the way to its target and then given back 70% of that best gain, so a profit \
+that reverses hard inside one candle is not left to run to the stop; see give_back_rule in <desk> for the exact \
+numbers, which may not always read 70%.
 
 <desk> also carries your_track_record: your own closed AI trades in this market - win rate and net overall \
 and on this index, how they ended (target, stop, your own exit, the give-back rule, the session close), \

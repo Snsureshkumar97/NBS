@@ -452,6 +452,15 @@ check("a desk saved with the old market-wide switch comes back with every index 
       d3.enabled == {"NIFTY": True, "BANKNIFTY": True, "SENSEX": True})
 
 print("5c. A PROFIT THAT TURNS: THE GIVE-BACK RULE AND AN UNSCHEDULED REVIEW")
+# Loosened on 22 Sep 2026, after the user compared the AI desk against the rule
+# engine over 21-22 Sep: a NIFTY put that reached 65% of the way to its target
+# closed here for a fraction of what the matching rule ticket - which has no
+# such rule - rode to target. GIVEBACK_ARM 0.6 -> 0.75, and the constant that
+# used to be misread as "give back 50%" (it was really a retain floor, right
+# only by coincidence at 0.5) is renamed GIVEBACK_RETAIN and set to 0.3: it can
+# now give back up to 70% of its best gain, not 50%, before this closes it.
+check("the numbers this test leans on", ad.GIVEBACK_ARM == 0.75 and ad.GIVEBACK_RETAIN == 0.3,
+      (ad.GIVEBACK_ARM, ad.GIVEBACK_RETAIN))
 at(10, 0, 50)
 f, d = desk()
 d.set_on(True)
@@ -459,18 +468,28 @@ SCRIPT[:] = [enter(target=160.0, stop=110.0)]     # entry 130, so the target is 
 d.step()
 tid = d._open_trade("NIFTY")["trade_id"]
 d._tok[tid] = "tok1"
-f.streamer.px["tok1"] = 148.0                      # 60% of the way
+f.streamer.px["tok1"] = 148.0                      # 60% of the way - today's real trade, almost exactly
 d.price_tick()
-check("60% of the way to the target: still open", d._open_trade("NIFTY") is not None)
-f.streamer.px["tok1"] = 142.0                      # gave back a third of the best gain
+check("60% of the way to the target: still open - below the new 75% arm", d._open_trade("NIFTY") is not None)
+f.streamer.px["tok1"] = 132.0                      # gave back almost all of that 60% peak
 d.price_tick()
-check("gave back a third of it: still open", d._open_trade("NIFTY") is not None)
-f.streamer.px["tok1"] = 138.0                      # gave back half of the 18-point best gain
+check("...and giving back nearly all of that peak still does not close it - the rule never armed",
+      d._open_trade("NIFTY") is not None)
+f.streamer.px["tok1"] = 155.0                      # 83% of the way - now past the 75% arm
+d.price_tick()
+check("83% of the way: armed, no give-back yet, still open", d._open_trade("NIFTY") is not None)
+f.streamer.px["tok1"] = 140.0                      # retains 40% of the 25-point peak (10/25)
+d.price_tick()
+check("gave back 60% of the peak: still open - under the new 70% hand-back threshold",
+      d._open_trade("NIFTY") is not None)
+f.streamer.px["tok1"] = 136.0                      # retains 24% of the peak (6/25) - past the 70% hand-back line
 d.price_tick()
 rows = [r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"]
-check("gave back half the best gain: closed by the rule, in profit, before the stop",
+check("gave back three quarters of the peak: closed by the rule, in profit, before the stop",
       d._open_trade("NIFTY") is None and "give-back rule" in rows[-1]["status"]
       and float(rows[-1]["pnl"]) > 0, rows[-1:])
+check("...and the fired message itself still speaks in hand-back terms, correctly now",
+      "70%" in rows[-1]["status"] or "gave back" in rows[-1]["status"], rows[-1]["status"])
 check("...and it is in the decisions list as the tool's own exit, not the bot's",
       any(r["kind"] == "rule" and r["action"] == "exit" and "give-back" in r["reason"] for r in d.recent))
 check("...and it starts the cooldown", d.last_exit.get("NIFTY") == T["clock"])
@@ -502,6 +521,9 @@ check("the bot is asked straight away, told what happened, and can exit in betwe
       ASKED and ASKED[0][0] == "review" and ASKED[0][2].get("what_just_happened")
       and d._open_trade("NIFTY") is None, ASKED[:1])
 check("the desk block also tells it the give-back rule exists", "give_back_rule" in ASKED[0][2])
+check("...and says the hand-back share correctly - 70%, not the 30% retain floor the code checks against",
+      "75% of the way" in ASKED[0][2]["give_back_rule"] and "70% of that best gain" in ASKED[0][2]["give_back_rule"],
+      ASKED[0][2]["give_back_rule"])
 
 f, d = desk()
 d.set_on(True)
@@ -548,10 +570,10 @@ check("an AI exit is logged at the contract's streamed price, not the chain's ol
       float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 150.0)
 trade_on(24, 14, "SENSEX", "CE", 25000, 160, 110, "Range break on Sensex.")
 trade_on(24, 14, "NIFTY", "CE", 25100, 120, 70, "Late-day squeeze.")
-d._giveback("NIFTY", d._open_trade("NIFTY"), 108.0)                   # 60% of the way (entry 90 -> 120)
-d._giveback("NIFTY", d._open_trade("NIFTY"), 99.0)                    # then half of that gain back
+d._giveback("NIFTY", d._open_trade("NIFTY"), 115.0)                   # 83% of the way (entry 90 -> 120)
+d._giveback("NIFTY", d._open_trade("NIFTY"), 97.0)                    # then most of that gain back
 check("the give-back rule's close is logged at the price that fired it",
-      float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 99.0)
+      float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 97.0)
 d.book.tick_price("SENSEX", 109.0)
 tr = d.track_record("NIFTY")
 check("counts every closed AI trade in the market", tr["closed_trades"] == 5, tr["closed_trades"])
