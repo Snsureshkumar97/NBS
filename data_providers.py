@@ -640,10 +640,19 @@ class KiteDataProvider:
         if cached is not None:
             return exchange, cached
         instruments = _instruments_cached(self.kite, exchange)
+        # Zerodha's own daily dump does not always drop a contract the day it
+        # expires - NIFTY's Tuesday expiry was still listed, with zero OI and
+        # no quotes, on the Wednesday morning after (23 Sep 2026). Without
+        # this, that dead contract sorted first as "the nearest expiry" and
+        # every reading off it - PCR, targets, spread, the lot - was for an
+        # instrument that had already settled. Expiry day itself still
+        # trades, so today counts; only what is strictly in the past is cut.
+        today = _now_ist_naive().date()
         filtered = [
             i
             for i in instruments
             if i["name"] == underlying_prefix and i["instrument_type"] in ("CE", "PE")
+            and i["expiry"] >= today
         ]
         self._option_inst_cache[index_key] = filtered
         return exchange, filtered
