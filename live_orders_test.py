@@ -105,6 +105,8 @@ class FakeKite:
     def modify_order(self, variety, order_id, price=None, **kw):
         self.calls.append(("modify", order_id, price))
         self.orders_[order_id]["price"] = price
+        if "trigger_price" in kw:
+            self.orders_[order_id]["trigger_price"] = kw["trigger_price"]
 
     def orders(self):
         return [dict(o) for o in self.orders_.values()]
@@ -877,6 +879,76 @@ clk.advance(lo.FILL_WAIT_S + 1)
 drain(ex)
 drain(ex)
 check("an entry that never filled writes no fill line", lo.read_fills(ex.log_path) == [])
+
+print("18. THE STOP AT ZERODHA TRAILS AS THE TICKET DOES")
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)                        # sl=97.5, entry 130.0
+stop_id = [o for o in fk.orders_.values() if o["order_type"] == "SL"][0]["order_id"]
+check("the resting order starts at the ticket's entry-time stop", fk.orders_[stop_id]["trigger_price"] == 97.5)
+ex.on_ticket_event("trailed", dict(t, premium_sl=156.0))  # T1 crossed
+drain(ex)
+check("modify_order moves the SAME resting order - never cancel and re-place",
+      ("modify", stop_id, round(156.0 * (1 - lo.STOP_LIMIT_GAP), 2)) in fk.calls
+      and ("cancel", stop_id) not in fk.calls, fk.calls)
+check("the position's own record of the stop moves with it",
+      ex.positions[t["trade_id"]]["stop_trigger"] == 156.0)
+check("the resting order at Zerodha itself now reads the new trigger",
+      fk.orders_[stop_id]["trigger_price"] == 156.0)
+check("the position is still open - a trail is not a close", ex.positions[t["trade_id"]]["state"] == "open")
+
+ncalls = len(fk.calls)
+ex.on_ticket_event("trailed", dict(t, premium_sl=182.0))  # T2 crossed - trails further
+drain(ex)
+check("a second rung trails the same order again, past the first",
+      ex.positions[t["trade_id"]]["stop_trigger"] == 182.0 and fk.orders_[stop_id]["trigger_price"] == 182.0)
+
+ex.on_ticket_event("trailed", dict(t, premium_sl=170.0))  # a stale/lower reading - never moves the stop backward
+drain(ex)
+check("a level below where the stop already is sends nothing - it can only ever improve",
+      len(fk.calls) == ncalls + 1 and ex.positions[t["trade_id"]]["stop_trigger"] == 182.0, fk.calls[ncalls:])
+
+orig_modify = fk.modify_order
+def refuse(*a, **kw):
+    raise Exception("price out of circuit limit")
+fk.modify_order = refuse
+ex.on_ticket_event("trailed", dict(t, premium_sl=200.0))
+drain(ex)
+check("a refused reprice leaves the older order exactly as it was - never left unprotected",
+      ex.positions[t["trade_id"]]["stop_trigger"] == 182.0 and fk.orders_[stop_id]["trigger_price"] == 182.0)
+check("...and does not sell the position either - a failed trail is not treated as an exit",
+      ex.positions[t["trade_id"]]["state"] == "open" and not fk.places(transaction_type="SELL", order_type="LIMIT"))
+fk.modify_order = orig_modify
+
+ex2, fk2, clk2, closed2 = rig()
+ex2.on_ticket_event("opened", ticket(tid="NIFTY-entering"))
+drain(ex2)                                                 # bought, but not yet protected (no fill sent)
+ex2.on_ticket_event("trailed", dict(ticket(tid="NIFTY-entering"), premium_sl=156.0))
+drain(ex2)
+check("a trail before the stop is even placed is a no-op, not an error",
+      not [c for c in fk2.calls if c[0] == "modify"])
+
+# A position mid-exit still carries its (already cancelled) stop_order_id -
+# the "open" state check, not just "does a stop_order_id exist", is what
+# must stop a trail from repricing an order that is on its way out.
+ex4, fk4, clk4, closed4 = rig()
+t4, _ = open_and_fill(ex4, fk4, clk4)
+stop_id4 = [o for o in fk4.orders_.values() if o["order_type"] == "SL"][0]["order_id"]
+ex4.on_ticket_event("closed", dict(t4, status="CLOSED — AI exit"))
+drain(ex4)
+pos4 = ex4.positions[t4["trade_id"]]
+check("mid-exit: the cancelled stop's id is still on the position, but it is no longer 'open'",
+      pos4["state"] != "open" and pos4.get("stop_order_id") == stop_id4, pos4["state"])
+ncalls4 = len(fk4.calls)
+ex4.on_ticket_event("trailed", dict(t4, premium_sl=156.0))
+drain(ex4)
+check("...so a trail arriving mid-exit sends nothing - there is nothing left to protect",
+      not [c for c in fk4.calls[ncalls4:] if c[0] == "modify"], fk4.calls[ncalls4:])
+
+ex3, fk3, clk3, closed3 = rig(enabled=())                 # NIFTY switched off: never entered at all
+ex3.on_ticket_event("trailed", dict(ticket(), premium_sl=156.0))
+drain(ex3)
+check("a trail for a ticket this executor never took is dropped, not mistaken for anything else",
+      not fk3.calls and not closed3)
 
 print("LIVE ORDERS TEST PASSED" if not fails else f"LIVE ORDERS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

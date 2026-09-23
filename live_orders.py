@@ -15,6 +15,12 @@ WHAT A TICKET BECOMES, WHEN ITS INDEX IS SWITCHED ON
        index options, and a stop that lives at the exchange still works when
        this Mac is asleep, offline or restarting. If the stop cannot be placed
        the position is sold at once - it is never left unprotected.
+       As the ticket's own staircase trailing stop moves (see tickets.py's
+       _check_price(), added 22 Sep 2026), this resting order is repriced to
+       match - modify_order(), never cancel-and-replace, so protection is
+       never briefly absent. If a reprice is refused by Zerodha, the OLDER
+       resting order is simply left in place: still real protection, just not
+       trailed as tight as the ticket now reads.
     3. The ticket closes on T2 (or the stop, or Clear ticket): the stop order is
        cancelled and whatever is still held is sold with a LIMIT a little below
        the last price, repriced every REPRICE_S until it fills.
@@ -259,6 +265,8 @@ class Executor:
         elif kind == "closed":
             self.q.put(("close", {"trade_id": trade.get("trade_id"), "index": trade.get("index"),
                                   "status": trade.get("status")}, info))
+        elif kind == "trailed":
+            self.q.put(("trail", dict(trade), info))
 
     def _loop(self):
         while True:
@@ -280,6 +288,10 @@ class Executor:
             for index in INDICES:
                 if self.enabled.get(index) or self.enabled_ai.get(index):
                     self._rows(EXCHANGE[index])
+        elif what == "trail":
+            pos = self.positions.get(trade.get("trade_id"))
+            if pos is not None:
+                self._reprice_stop(pos, trade.get("premium_sl"))
         else:
             pos = self.positions.get(trade.get("trade_id"))
             if pos is not None:
@@ -521,6 +533,32 @@ class Executor:
             self._note(pos["index"], f"Stop-loss order refused: {self._why(exc)} - selling now rather than "
                                      "hold an unprotected position.", "error", pos)
             self._exit(pos, "the stop-loss order could not be placed")
+
+    def _reprice_stop(self, pos, new_sl):
+        """Move the resting stop-loss order up to a rung the ticket just
+        trailed to (tickets.py's staircase trailing stop, 22 Sep 2026).
+
+        Only while there is a resting order to move - not yet placed, or
+        already being cancelled on the way out, and this is a no-op. A
+        refused reprice leaves the OLDER order exactly as it was: still real
+        protection at the exchange, just not as tight as the ticket now reads.
+        Never cancel-and-replace - the position would sit unprotected, even
+        briefly, between the two calls.
+        """
+        if pos.get("state") != "open" or not pos.get("stop_order_id") or new_sl is None:
+            return
+        trig = _floor_tick(float(new_sl), pos["tick"])
+        if trig <= pos["stop_trigger"]:
+            return                      # not an improvement once rounded to a tick - nothing to send
+        limit = _floor_tick(trig * (1 - STOP_LIMIT_GAP), pos["tick"])
+        try:
+            self.kite().modify_order(variety="regular", order_id=pos["stop_order_id"],
+                                     trigger_price=trig, price=limit)
+            pos.update(stop_trigger=trig, stop_limit=limit)
+            self._note(pos["index"], f"Stop-loss trailed to {trig} (order {pos['stop_order_id']}).", pos=pos)
+        except Exception as exc:
+            self._note(pos["index"], f"Could not trail the stop-loss to {trig}: {self._why(exc)} - the order "
+                                     f"resting at {pos['stop_trigger']} still protects the position.", "warn", pos)
 
     # ------------------------------------------------------------ holding
     def _check_open(self, pos):

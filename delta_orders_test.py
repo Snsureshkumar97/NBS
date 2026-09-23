@@ -388,5 +388,54 @@ check("the live-status line for Bitcoin says the stop is the tool's and not at D
       and WS.count("stop-loss order at Zerodha, trigger") == 1)
 check("the AI payload carries whether the stop is at the venue", 'payload["live_stop_at_venue"] = pub.get("stop_at_venue", True)' in WS)
 
+print("11. THE LEVEL THIS TOOL WATCHES TRAILS AS THE TICKET DOES")
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk, price=1505.0)           # sl=1200.0
+pos = ex.positions[t["trade_id"]]
+check("starts at the ticket's entry-time stop", pos["stop_trigger"] == 1200.0)
+ex.on_ticket_event("trailed", dict(t, premium_sl=1350.0))  # T1 crossed
+drain(ex)
+check("no order to move - Delta holds none - just the level this tool compares the mark against",
+      pos["stop_trigger"] == 1350.0 and not [c for c in fk.calls if c[0] in ("modify", "sell")])
+fk.mark = 1300.0
+drain(ex)
+check("the mark falling below the TRAILED level closes it, well above the original 1200 stop",
+      pos["state"] != "open" and closed and "stop-loss hit" in closed[-1][1], closed)
+
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk, price=1505.0)
+pos = ex.positions[t["trade_id"]]
+ex.on_ticket_event("trailed", dict(t, premium_sl=1350.0))
+drain(ex)
+ex.on_ticket_event("trailed", dict(t, premium_sl=1300.0))  # a stale/lower reading never moves it backward
+drain(ex)
+check("the level can only ever improve, never fall back", pos["stop_trigger"] == 1350.0)
+
+ex2, fk2, clk2, closed2 = rig()
+ex2.on_ticket_event("opened", ticket(tid="BTC-entering"))
+drain(ex2)                                                 # bought, but the fill hasn't been sent yet
+ex2.on_ticket_event("trailed", dict(ticket(tid="BTC-entering"), premium_sl=1350.0))
+drain(ex2)
+check("a trail before the position is held is a no-op, not an error - the level stays at the entry-time stop",
+      ex2.positions["BTC-entering"]["state"] != "open"
+      and ex2.positions["BTC-entering"]["stop_trigger"] == 1200.0)
+
+ex5, fk5, clk5, closed5 = rig()
+t5, _ = open_and_fill(ex5, fk5, clk5, price=1505.0)
+pos5 = ex5.positions[t5["trade_id"]]
+ex5.on_ticket_event("closed", dict(t5, status="CLOSED — AI exit"))
+drain(ex5)
+check("mid-exit: no longer 'open'", pos5["state"] != "open", pos5["state"])
+ex5.on_ticket_event("trailed", dict(t5, premium_sl=1350.0))
+drain(ex5)
+check("...so a trail arriving mid-exit is dropped, not applied to a position already on its way out",
+      pos5["stop_trigger"] == 1200.0, pos5["stop_trigger"])
+
+ex3, fk3, clk3, closed3 = rig(enabled=())                 # Bitcoin switched off: never entered at all
+ex3.on_ticket_event("trailed", dict(ticket(), premium_sl=1350.0))
+drain(ex3)
+check("a trail for a ticket this executor never took is dropped, not mistaken for a close",
+      not fk3.calls and not closed3)
+
 print("DELTA ORDERS TEST PASSED" if not fails else f"DELTA ORDERS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

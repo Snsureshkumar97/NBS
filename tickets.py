@@ -603,6 +603,7 @@ class TicketBook:
             trade["sl_hit_time"] = now_ist().strftime("%H:%M:%S")
             events.append({"kind": "stop", "index": book.name, "price": price, "level": sl_before})
 
+        ratcheted = False
         for i, key in enumerate(TARGET_KEYS):
             tv = targets[i] if targets and len(targets) > i else None
             if not trade["hit"][key] and hit_t(price, tv):
@@ -611,6 +612,7 @@ class TicketBook:
                 events.append({"kind": "target", "index": book.name, "target": key, "price": price, "level": tv})
                 if tv is not None and i < exit_i and not trade["sl_hit"]:
                     trade[sl_field] = tv
+                    ratcheted = True
 
         if trade["hit"][exit_key]:
             trade["status"] = f"CLOSED — {exit_key} hit (full target reached)"
@@ -621,6 +623,14 @@ class TicketBook:
 
         if trade["status"] != "OPEN":
             events.append(self._close(book, trade, price, rec))
+        elif ratcheted:
+            # A live order (Zerodha SL order, or Delta's own tool-held level)
+            # follows this so the real stop actually moves too - see
+            # live_orders.py / delta_orders.py's on_ticket_event("trailed", ...).
+            # Never fired on a tick that also closes the trade: the close
+            # itself cancels/exits the real position a moment later, so
+            # repricing first would be a wasted broker call.
+            self._emit("trailed", trade)
         return events
 
     # -------------------------------------------------------------- issuing

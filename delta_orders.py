@@ -17,6 +17,10 @@ WHAT A TICKET BECOMES, WHEN BITCOIN IS SWITCHED ON
        works while this server is running - if it is off, the stop is not
        watched. The Zerodha executor is different: its stop sits at the
        exchange. Say so to anyone switching this on.
+       As the ticket's own staircase trailing stop moves (tickets.py's
+       _check_price(), added 22 Sep 2026), the level this tool watches moves
+       with it - no order to reprice, since none rests at Delta; the next
+       mark read simply compares against the new level.
     3. The ticket closes (target, stop, AI exit, cleared): whatever is held is
        sold with a limit a little under the mark, repriced every REPRICE_S; if
        the limit will not fill after LIMIT_ATTEMPTS tries, a market sell that
@@ -284,6 +288,8 @@ class Executor:
         elif kind == "closed":
             self.q.put(("close", {"trade_id": trade.get("trade_id"), "index": trade.get("index"),
                                   "status": trade.get("status")}, info))
+        elif kind == "trailed":
+            self.q.put(("trail", dict(trade), info))
 
     def _loop(self):
         while True:
@@ -301,6 +307,10 @@ class Executor:
     def handle(self, what, trade, info):
         if what == "open":
             self._enter(trade, (info or {}).get("source") or "rule")
+        elif what == "trail":
+            pos = self.positions.get(trade.get("trade_id"))
+            if pos is not None:
+                self._reprice_stop(pos, trade.get("premium_sl"))
         else:
             pos = self.positions.get(trade.get("trade_id"))
             if pos is not None:
@@ -526,6 +536,21 @@ class Executor:
             return self._exit(pos, pos["ticket_closed"])
         if pos["avg_price"] is not None and float(pos["avg_price"]) <= float(pos["stop_trigger"]):
             return self._exit(pos, "it filled at or below the stop")
+
+    def _reprice_stop(self, pos, new_sl):
+        """Move the level this tool watches up to a rung the ticket just
+        trailed to (tickets.py's staircase trailing stop, 22 Sep 2026).
+
+        No broker order to modify - Delta holds none on an option - so this
+        is just the in-memory level _check_open() compares the mark against.
+        """
+        if pos.get("state") != "open" or new_sl is None:
+            return
+        trig = _floor_tick(float(new_sl), pos.get("tick", 0.1))
+        if trig <= pos["stop_trigger"]:
+            return                      # not an improvement once rounded to a tick - nothing to do
+        pos["stop_trigger"] = trig
+        self._note(pos["index"], f"Stop trailed to {trig} - still watched by this tool, not at Delta.", pos=pos)
 
     # ------------------------------------------------------------ holding
     def _check_open(self, pos):
