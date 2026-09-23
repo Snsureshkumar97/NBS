@@ -170,9 +170,12 @@ finally:
 check("both instruction texts explain it, as reference levels the tool's own study found no edge in",
       all("gann_and_volume" in t and "did not improve its rules on their own" in t for t in (mb.SYSTEM, mb.DESK_SYSTEM)))
 check("Ask TradePicker's list of sections names the Gann levels", "Gann levels with the volume oscillator" in mb.SYSTEM)
-check("the desk must look at what could stand in the way BEFORE an entry - chain, levels, Gann, order flow, news - and say so; a wait needs no checklist",
+check("the desk looks at what is relevant BEFORE an entry - chain, levels, Gann, order flow, news are all "
+      "available, but checking all five out of habit is not required; a wait needs no checklist",
       "Before you submit an ENTRY" in mb.DESK_SYSTEM and "Gann levels for room to your target" in mb.DESK_SYSTEM
-      and "a wait needs no checklist" in mb.DESK_SYSTEM)
+      and "a wait needs no checklist" in mb.DESK_SYSTEM
+      and "whatever is actually relevant to THIS setup" in mb.DESK_SYSTEM
+      and "not a fixed checklist run every time" in mb.DESK_SYSTEM)
 check("the desk is offered every tool Ask TradePicker has, get_gann included, with room for the lookups the checklist needs",
       {t["name"] for t in bot_data.tool_specs()} >= {"get_gann", "get_option_chain", "get_analytics", "get_news", "get_signal"}
       and mb.MAX_TOOL_CALLS >= 8)
