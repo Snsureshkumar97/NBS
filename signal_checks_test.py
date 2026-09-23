@@ -149,7 +149,7 @@ check("counts add up to the checks made and the sentence says them", c["agree"] 
 check("the note says the rules do not use it", "do not use them to enter or skip" in c["note"])
 a, b, text = sc.stamp(c)
 check("the stamp is the agree and against counts and one word-and-symbol per check", a == c["agree"] and b == c["against"]
-      and text == "gann+ volume- flow+ walls- spread+ institutionsx", text)
+      and text == "gann+ volume- flow+ walls- spread+ daily_trendx institutionsx", text)
 check("no checklist, no stamp", sc.stamp(None) == (None, None, None))
 
 print("10. THE TRADE LOG KEEPS IT - AND OLD FILES STILL READ")
@@ -161,7 +161,7 @@ trade = {"trade_id": "NIFTY-1", "index": "NIFTY", "strike": 23400, "option_type"
 trade_log.log_open(trade, {"checks": c, "technical": {}}, now, path=path)
 row = trade_log._read_rows(path)[0]
 check("the ticket's row carries how many agreed, how many were against, and each check", row["checks_agree"] == str(c["agree"])
-      and row["checks_against"] == str(c["against"]) and row["checks"] == "gann+ volume- flow+ walls- spread+ institutionsx", {k: row[k] for k in ("checks_agree", "checks_against", "checks")})
+      and row["checks_against"] == str(c["against"]) and row["checks"] == "gann+ volume- flow+ walls- spread+ daily_trendx institutionsx", {k: row[k] for k in ("checks_agree", "checks_against", "checks")})
 trade_log.log_open(dict(trade, trade_id="NIFTY-2"), {"technical": {}}, now, path=path)
 check("a ticket with no checklist leaves the three columns blank", trade_log._read_rows(path)[1]["checks"] == "" and trade_log._read_rows(path)[1]["checks_agree"] == "")
 old = os.path.join(tempfile.mkdtemp(), "trades.csv")
@@ -171,18 +171,38 @@ with open(old, "w", newline="") as fh:
 trade_log.log_open(trade, {"checks": c, "technical": {}}, now, path=old)
 rows = trade_log._read_rows(old)
 check("a log written before these columns is upgraded, keeps its old row intact and reads the new one", len(rows) == 2 and rows[0]["trade_id"] == "OLD-1"
-      and rows[0]["checks"] == "" and rows[1]["checks"] == "gann+ volume- flow+ walls- spread+ institutionsx", [r.get("checks") for r in rows])
+      and rows[0]["checks"] == "" and rows[1]["checks"] == "gann+ volume- flow+ walls- spread+ daily_trendx institutionsx", [r.get("checks") for r in rows])
 
 print("11. THE FEED BUILDS IT WITHOUT EVER GETTING IN THE WAY")
 f = feeds.Feed("t:chk", "chk@example.invalid", "nse_index")
 f.flow_readings = lambda: {"NIFTY": fut("long build-up", 0.3)}
 f._fii_dii = lambda: fd(500, 300)
+f._daily_trend = lambda name: {"period": 50, "ma": 23400.0, "last": 23634.0, "gap_pct": 1.0}
 got = f._signal_checks("NIFTY", rec("CE", wall=23600.0))
 check("the feed hands the checklist the futures' flow for that index and the Gann report for its spot", got and item(got, "flow")["status"] == "agrees"
       and item(got, "gann")["status"] in ("agrees", "neutral", "against"), got and got["summary"])
 check("...and its own FII/DII reading", item(got, "institutions")["status"] == "agrees")
+check("...and its own daily moving average reading, per index", item(got, "daily_trend")["status"] == "agrees")
 check("a crypto feed's own _fii_dii is None - FII/DII is an Indian-market fetch", feeds.Feed("t:chknob", "chknob@example.invalid", "crypto")._fii_dii() is None)
 del f._fii_dii                # back to the real method, which reads the (now patched) module
+del f._daily_trend
+
+check("no provider configured in this bare feed: no daily candles, no crash",
+      f._daily_trend("NIFTY") is None)
+real_ohlc = f.ohlc
+f.ohlc = lambda name, interval="15m", days=None: (_ for _ in ()).throw(RuntimeError("provider down"))
+check("...confirmed via a fetch that actually raises", f._daily_trend("NIFTY") is None
+      and any("daily trend" in str(x) for x in getattr(f, "faults", []) or [f.__dict__.get("faults", "daily trend")]))
+f.ohlc = real_ohlc
+seen = {}
+def spy(name, interval="15m", days=None):
+    seen["call"] = (name, interval)
+    return None
+f.ohlc = spy
+f._daily_trend("NIFTY")
+check("the feed asks for daily candles by name, not the 15-minute series the rest of the signal uses",
+      seen.get("call") == ("NIFTY", "1d"), seen)
+f.ohlc = real_ohlc
 class BoomFD:
     def reading(self): raise RuntimeError("nse down")
 real_fd_mod = feeds.fii_dii

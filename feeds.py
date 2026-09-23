@@ -1722,9 +1722,20 @@ class Feed:
             except Exception:
                 g = None
             flow = (self.flow_readings() or {}).get(name)
-            return signal_checks.evaluate(rec, g, flow, self.market, name, fii_dii=self._fii_dii())
+            return signal_checks.evaluate(rec, g, flow, self.market, name, fii_dii=self._fii_dii(),
+                                          daily_trend=self._daily_trend(name))
         except Exception as exc:
             self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
+            return None
+
+    def _daily_trend(self, name):
+        """Price vs its own N-day daily moving average (signal_engine.
+        compute_daily_trend), for the checklist. self.ohlc() caches daily
+        candles for ten minutes, so this is cheap to call on every pass."""
+        try:
+            return signal_engine.compute_daily_trend(self.ohlc(name, interval="1d"))
+        except Exception as exc:
+            self._note_fault(f"{name} daily trend", f"{type(exc).__name__}: {exc}")
             return None
 
     def taker_flow(self, name):

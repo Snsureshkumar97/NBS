@@ -25,6 +25,8 @@ THE CHECKS - each one agrees, is against, is neutral, or has no data
     spread       the option's bid-ask spread against the limit
     heavyweights Indian indices: the five heaviest members' futures build-up, by weight
     institutions Indian indices: FII + DII net cash flow the most recent session (fii_dii.py)
+    daily_trend  every instrument: price vs its own N-day daily moving average (signal_engine.
+                 compute_daily_trend) - a slower read than the 15-minute Trend vote
     News is left out: it is a judgment about words, not a pass or fail.
 
 Nothing here reads the network or writes anything: it takes what the feed
@@ -35,6 +37,7 @@ SYMBOL = {AGREES: "+", AGAINST: "-", NEUTRAL: "0", NO_DATA: "x"}
 FLOW_MIN_PCT = 10.0             # taker flow: at least this lean, of volume, to count either way
 BOOK_LEAN = 0.15                # the futures' top-five book lean that counts
 HEAVY_SHARE = 0.6               # this share of the classified weight, to count either way
+DAILY_MA_NEUTRAL_PCT = 0.15     # within this % of the daily MA is noise, not a real read - same spirit as RSI's middle band
 NOTE = ("These are the things the AI desk looks at, laid beside the rule signal. The rules do not use them to enter "
         "or skip a trade - each was tested as a filter and none improved the rules, and several cannot be tested. "
         "Every rule ticket is logged with its result so it can be compared with how the trade ended.")
@@ -185,6 +188,26 @@ def _spread(rec, index):
     return _item("spread", label, AGAINST, txt, short)
 
 
+def _daily_trend(reading, sign):
+    """Price against its own N-day daily moving average (signal_engine.
+    compute_daily_trend) - a slower, multi-week read the 15-minute Trend
+    vote cannot see on its own. Every index and BTC alike, not Indian-only:
+    unlike FII/DII this is not a market-wide figure, it is each instrument's
+    own price history."""
+    label = f"{reading['period']}-day MA" if reading else "Daily MA"
+    if not reading:
+        return _item("daily_trend", label, NO_DATA, "Not enough daily history yet for a moving average.", "no history")
+    gap = reading["gap_pct"]
+    said = (f"Price is {abs(gap):.2f}% {'above' if gap >= 0 else 'below'} its "
+            f"{reading['period']}-day average ({reading['ma']:,.2f}).")
+    short = f"{gap:+.2f}% vs {reading['period']}d"
+    if abs(gap) < DAILY_MA_NEUTRAL_PCT:
+        return _item("daily_trend", label, NEUTRAL, said, short)
+    if gap * sign > 0:
+        return _item("daily_trend", label, AGREES, said, short)
+    return _item("daily_trend", label, AGAINST, said, short)
+
+
 def _heavy(flow, sign):
     label = "Heavyweights"
     w = (flow or {}).get("heavyweights_weight_pct")
@@ -223,7 +246,7 @@ def _institutions(fd, sign):
     return _item("institutions", label, AGAINST, said, short)
 
 
-def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None, fii_dii=None):
+def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None, fii_dii=None, daily_trend=None):
     """The checklist for the side the rules suggest, or None when they suggest
     none (a wait has nothing to compare against). Never raises on missing data:
     a check without its data reports no_data."""
@@ -243,7 +266,7 @@ def evaluate(rec, gann_report=None, flow=None, market="nse_index", index=None, f
     dp = 0 if (index or rec.get("index")) in ("BTC", "NIFTY", "BANKNIFTY", "SENSEX") else 2
     items = [_gann(rec, gann_report, side, dp), _volume(gann_report),
              _flow_crypto(flow, sign, index or rec.get("index")) if market == "crypto" else _flow_india(flow, sign),
-             _walls(rec, side, dp), _spread(rec, index or rec.get("index"))]
+             _walls(rec, side, dp), _spread(rec, index or rec.get("index")), _daily_trend(daily_trend, sign)]
     if market != "crypto":
         h = _heavy(flow, sign)
         if h:

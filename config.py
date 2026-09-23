@@ -228,6 +228,16 @@ INSTRUMENTS = {
 EMA_FAST = 20
 EMA_SLOW = 50
 
+# The daily-candle moving average signal_engine.compute_daily_trend() reads -
+# asked for by the user on 22 Sep 2026 as a second, genuinely different
+# timeframe from EMA_FAST/EMA_SLOW above, which only ever see today's 15-min
+# chop. 50 daily candles is about ten trading weeks, one of the two most
+# commonly watched moving-average lengths (with 200) and, unlike EMA_FAST/
+# EMA_SLOW, unbacktested - it feeds signal_checks.py's non-gating checklist,
+# not a vote the rule engine's bias math counts (see that module's own note
+# on why checks it cannot validate inform the AI desk rather than gate entries).
+DAILY_MA_PERIOD = 50
+
 # How many calendar days of 15-minute candles the live feed fetches for the
 # Indian indices on each analysis pass. It was Zerodha's default of five: on
 # Tue 15 Sep 2026, after a weekend and a Monday holiday, that left 50 candles -

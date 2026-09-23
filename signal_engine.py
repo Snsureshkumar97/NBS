@@ -284,6 +284,33 @@ def compute_market_trend(df: pd.DataFrame, index_key: str = None) -> dict:
     }
 
 
+def compute_daily_trend(daily_df: pd.DataFrame, period: int = None) -> dict:
+    """Price against its own N-day simple moving average, on DAILY candles.
+
+    Genuinely different information from compute_technical_signal's trend
+    vote: EMA_FAST/EMA_SLOW there run on 15-minute bars and never see past
+    today, so a clean multi-week trend can look flat or choppy to them on a
+    quiet intraday session. This reads the bigger picture off the daily
+    close instead - asked for by the user on 22 Sep 2026.
+
+    Returns None when there isn't enough daily history yet (a fresh listing,
+    a data gap) rather than guessing from a short window. Unlike the 15-min
+    indicators this has not been through this codebase's backtesting, so it
+    is meant to inform a judgment call, never to gate one - this function
+    only computes the number; nothing here decides what it means for a trade.
+    """
+    period = period or config.DAILY_MA_PERIOD
+    if daily_df is None or daily_df.empty or "Close" not in daily_df or len(daily_df) < period:
+        return None
+    close = daily_df["Close"]
+    sma = float(close.rolling(period).mean().iloc[-1])
+    last = float(close.iloc[-1])
+    if not sma or sma != sma:            # zero or NaN - a bad bar somewhere in the window
+        return None
+    gap_pct = (last - sma) / sma * 100.0
+    return {"period": period, "ma": round(sma, 2), "last": round(last, 2), "gap_pct": round(gap_pct, 2)}
+
+
 def compute_option_chain_signal(chain: dict) -> dict:
     if chain is None or chain.get("pcr") is None:
         return {"available": False, "oi_score": 0, "notes": "Option chain data unavailable."}
