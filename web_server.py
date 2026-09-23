@@ -8304,7 +8304,12 @@ function aiMoney(v){ return v == null ? "—" : money(v); }
 function aiTicketCard(k, t){
   const ce = t.option_type === "CE";
   const dp = t.tracked_on === "index" ? 0 : 2;
-  const target = (t.targets || [])[0];
+  // Which rung actually ends the trade - T1 only while T1==T2==T3 was true for
+  // every AI ticket; now that a target is a real ladder (see ai_desk._open,
+  // 22 Sep 2026) the real exit is whichever rung exit_at names, T3 by default.
+  const exitIdx = {T1: 0, T2: 1, T3: 2}[t.exit_at] ?? ((t.targets || []).length - 1);
+  const exitKey = t.exit_at || "T3";
+  const target = (t.targets || [])[exitIdx];
   const pnl = t.pnl;
   const pc = pnl == null ? "var(--ink-3)" : pnl > 0 ? "var(--up)" : pnl < 0 ? "var(--down)" : "var(--ink-2)";
   const rr = (target != null && t.stop != null && t.entry != null && t.entry > t.stop)
@@ -8313,8 +8318,15 @@ function aiTicketCard(k, t){
   const cell = (l, v, col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
     + `<div class="v"${col ? ` style="color:${col}"` : ""}>${esc(v)}</div></div>`;
   const per = t.lot_size ? t.lot_size * (t.lots || 1) : 0;
-  const rungs = [["Target · exit", target, "var(--up)", (t.hit || {}).T1, (t.hit_time || {}).T1],
-                 ["Stop", t.stop, "var(--down)", t.sl_hit, t.sl_hit_time]];
+  // The stop shown is already wherever it has trailed to (tickets.py updates
+  // it in place), so the ladder needs no extra work to reflect that - only a
+  // note on which rung it last climbed through, if any. Only rungs strictly
+  // before the exit rung can ever trail; reaching the exit rung closes the
+  // trade outright, so it is never itself a "trailed to" rung.
+  const beforeExit = ["T1", "T2", "T3"].slice(0, exitIdx);
+  const trailedRung = beforeExit.slice().reverse().find(rung => (t.hit || {})[rung]);
+  const rungs = [["Target · exit", target, "var(--up)", (t.hit || {})[exitKey], (t.hit_time || {})[exitKey]],
+                 ["Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : ""), t.stop, "var(--down)", t.sl_hit, t.sl_hit_time]];
   const ladder = rungs.map(([name, v, c, done, when]) => {
     let pct = 0;
     if(v != null && t.entry != null && t.now != null && v !== t.entry){
@@ -8641,15 +8653,15 @@ async function aiFetch(){
     if(on && btc && !confirm(`Place REAL Delta Exchange orders for the AI desk's Bitcoin trades?\n\n`
         + "From now on, every ticket the AI desk opens on Bitcoin is also bought on Delta with your money: its "
         + "own contract and your number of contracts, as a limit order a little above the mark.\n\n"
-        + "DELTA HOLDS NO STOP ORDER ON AN OPTION. This tool watches the mark and sells at the stop the bot set - "
-        + "only while this server is running. It also sells when the bot exits, when the give-back rule fires, "
+        + "DELTA HOLDS NO STOP ORDER ON AN OPTION. This tool watches the mark and sells at the stop the bot set "
+        + "when the ticket opened - only while this server is running. It also sells when the bot exits, "
         + "at the target, and 30 minutes before the contract settles.\n\nThe bot decides these trades itself "
         + "and cannot be backtested. Past results do not predict future ones. This is your decision.")) return;
     if(on && !btc && !confirm(`Place REAL Zerodha orders for the AI desk's ${k} trades?\n\n`
         + "From now on, every ticket the AI desk opens on " + k + " is also bought with your money: its own "
         + "contract and your lots, as a limit order a little above the price, with a stop-loss order at Zerodha "
-        + "on the stop the bot set. It is sold when the bot exits, when the give-back rule fires, at its target "
-        + "or stop, and at 15:20 at the latest.\n\nThe bot decides these trades itself and cannot be "
+        + "on the stop the bot set. It is sold when the bot exits, at its target or stop, and at 15:20 at the "
+        + "latest.\n\nThe bot decides these trades itself and cannot be "
         + "backtested. Past results do not predict future ones. This is your decision.")) return;
     if(!on && !confirm(`Stop placing real orders for the AI desk's ${k} trades?\n\nA position already open is `
         + "still managed to its exit.")) return;

@@ -554,13 +554,14 @@ carries what_just_happened. The same is true before an entry: waiting for the ne
 setup could sit unconsidered for up to 15 minutes, so you are now also asked straight away, with no ticket open, \
 the moment ADX crosses the trend gate, momentum (MACD) turns, price crosses VWAP, or the opening range breaks - \
 again with what_just_happened in <desk>. This changes only WHEN you are asked, never what counts as a reason to \
-enter; a fresh trigger with nothing genuinely new to say is still a wait. Separately, the tool closes a trade by \
-itself once it has covered most of the way to its target and then given back 70% of that best gain, so a profit \
-that reverses hard inside one candle is not left to run to the stop; see give_back_rule in <desk> for the exact \
-numbers, which may not always read 70%.
+enter; a fresh trigger with nothing genuinely new to say is still a wait. Separately, the tool moves your stop up \
+on its own as a trade nears its target: the distance to your named target is checked at two points on the way \
+there, and each one crossed becomes your new stop, so a reversal can only cost back to the last point reached, \
+never all the way to your original stop - see trailing_stop_rule in <desk> for the exact points, which may not \
+always be the same split.
 
 <desk> also carries your_track_record: your own closed AI trades in this market - win rate and net overall \
-and on this index, how they ended (target, stop, your own exit, the give-back rule, the session close), \
+and on this index, how they ended (target, stop, your own exit, the session close), \
 results by side and by time of entry, and your latest trades on this index with the reason you gave then and \
 the ADX / RSI / MACD / VWAP readings at entry. Use it to learn from what actually happened: if a kind of entry \
 keeps failing, be slower to take it; if your own exits keep costing money against the stop or target, trust \

@@ -20,6 +20,7 @@ sys.path.insert(0, HERE)
 import ai_desk as ad
 import config
 import market_bot as mb
+import tickets
 
 fails = []
 def check(name, cond, extra=""):
@@ -30,6 +31,7 @@ def check(name, cond, extra=""):
 
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 T = {"now": dt.datetime(2026, 9, 18, 10, 0, 50, tzinfo=IST), "clock": 1_789_000_000.0}
+tickets.now_ist = lambda: T["now"]          # else entry_block() reads the real wall clock, not this test's date
 
 
 def at(h, m, s=50, day=18):
@@ -273,9 +275,10 @@ check("...and the ticket it opens is a normal one - same validate(), same live p
       d._open_trade("NIFTY")["entry_ltp"] == 130.0)
 
 print("7. THE PROMPT AND THE LABELS")
-check("both prompts explain what wakes it early, and no longer misstate the give-back share",
+check("both prompts explain what wakes it early, and the retired give-back rule is gone",
       "ADX crosses the trend gate" in mb.DESK_SYSTEM and "opening range breaks" in mb.DESK_SYSTEM
-      and "hands back half" not in mb.DESK_SYSTEM and "given back 70%" in mb.DESK_SYSTEM)
+      and "give_back_rule" not in mb.DESK_SYSTEM and "given back" not in mb.DESK_SYSTEM
+      and "trailing_stop_rule" in mb.DESK_SYSTEM and "moves your stop up on its own" in mb.DESK_SYSTEM)
 check("every fired label has readable text, and there are no extras nobody triggers",
       set(ad.ENTRY_LABELS) == {"trend_started", "momentum_turned", "vwap_crossed", "range_broken"})
 

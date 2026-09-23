@@ -547,46 +547,44 @@ class TicketBook:
         return events
 
     def _check_price(self, book, price, rec):
-        """One price against the FROZEN targets and stop.
+        """One price against the FROZEN targets and a stop that can only ever
+        move in the trade's favour.
 
         Independent of whatever the live signal says now: an in-progress trade
         keeps being tracked correctly long after the signal itself has moved
         on, which is the entire reason the levels were frozen.
+
+        THE TRAILING STOP — asked for by the user on 22 Sep 2026 ("when the
+        ltp hit target one and cross the stop loss should change to target
+        1 ... if the strike have more way to go we can do the same way"):
+        each target strictly before the trade's own exit rung becomes the new
+        stop the instant price crosses it, so a reversal after reaching T1 (or
+        T2) costs back only to that rung, never all the way to the original
+        stop. The exit rung itself still just closes the trade outright - it
+        is the ceiling, not another waypoint. Rule tickets and AI tickets
+        share this one method (see ai_desk.py's self.book), so both get it.
         """
         trade = book.trade
         if trade is None or trade["status"] != "OPEN":
             return []
         events = []
         opt = trade["option_type"]
+        sl_field = "premium_sl" if trade["use_premium"] else "index_sl"
 
         if trade["use_premium"]:
-            targets, sl = trade["premium_targets"], trade["premium_sl"]
+            targets = trade["premium_targets"]
             # Premium targets are always "premium rising is good", CE or PE
             # alike — that is how build_recommendation computes them.
             hit_t = lambda v, t: v is not None and t is not None and v >= t
-            hit_s = lambda v: v is not None and sl is not None and v <= sl
+            hit_s = lambda v, s: v is not None and s is not None and v <= s
         else:
-            targets, sl = trade["index_targets"], trade["index_sl"]
+            targets = trade["index_targets"]
             if opt == "CE":
                 hit_t = lambda v, t: v is not None and t is not None and v >= t
-                hit_s = lambda v: v is not None and sl is not None and v <= sl
+                hit_s = lambda v, s: v is not None and s is not None and v <= s
             else:                      # PE — the index falling is favourable
                 hit_t = lambda v, t: v is not None and t is not None and v <= t
-                hit_s = lambda v: v is not None and sl is not None and v >= sl
-
-        for i, key in enumerate(TARGET_KEYS):
-            tv = targets[i] if targets and len(targets) > i else None
-            if not trade["hit"][key] and hit_t(price, tv):
-                trade["hit"][key] = True
-                trade["hit_time"][key] = now_ist().strftime("%H:%M:%S")
-                events.append({"kind": "target", "index": book.name, "target": key,
-                               "price": price, "level": tv})
-
-        if not trade["sl_hit"] and hit_s(price):
-            trade["sl_hit"] = True
-            trade["sl_hit_time"] = now_ist().strftime("%H:%M:%S")
-            events.append({"kind": "stop", "index": book.name, "price": price,
-                           "level": sl})
+                hit_s = lambda v, s: v is not None and s is not None and v >= s
 
         # Which target ends the trade — frozen at entry for the same reason
         # the levels and the lots are. Moving the setting at lunchtime must not
@@ -594,10 +592,32 @@ class TicketBook:
         exit_key = trade.get("exit_at") or _cfg("EXIT_AT_TARGET", "T3")
         if exit_key not in TARGET_KEYS:
             exit_key = "T3"
+        exit_i = TARGET_KEYS.index(exit_key)
+
+        # Captured BEFORE this tick's targets can move it - otherwise the very
+        # tick that first reaches a rung would also read as hitting the stop
+        # it just moved to, closing a winning trade as a stop-out.
+        sl_before = trade[sl_field]
+        if not trade["sl_hit"] and hit_s(price, sl_before):
+            trade["sl_hit"] = True
+            trade["sl_hit_time"] = now_ist().strftime("%H:%M:%S")
+            events.append({"kind": "stop", "index": book.name, "price": price, "level": sl_before})
+
+        for i, key in enumerate(TARGET_KEYS):
+            tv = targets[i] if targets and len(targets) > i else None
+            if not trade["hit"][key] and hit_t(price, tv):
+                trade["hit"][key] = True
+                trade["hit_time"][key] = now_ist().strftime("%H:%M:%S")
+                events.append({"kind": "target", "index": book.name, "target": key, "price": price, "level": tv})
+                if tv is not None and i < exit_i and not trade["sl_hit"]:
+                    trade[sl_field] = tv
+
         if trade["hit"][exit_key]:
             trade["status"] = f"CLOSED — {exit_key} hit (full target reached)"
         elif trade["sl_hit"]:
-            trade["status"] = "CLOSED — stop-loss hit"
+            trailed_to = next((k for k in reversed(TARGET_KEYS[:exit_i]) if trade["hit"][k]), None)
+            trade["status"] = (f"CLOSED — stop-loss hit (trailed to {trailed_to})" if trailed_to
+                               else "CLOSED — stop-loss hit")
 
         if trade["status"] != "OPEN":
             events.append(self._close(book, trade, price, rec))
@@ -1101,7 +1121,7 @@ class TicketBook:
 
     def close_ticket(self, name, status, price=None):
         """Close an open ticket for a stated reason - the live-order intraday
-        close at 15:20, an AI exit, the give-back rule - logged at the price
+        close at 15:20, an AI exit - logged at the price
         that caused it when there is one, else the ticket's own streamed price,
         else the chain's (which can be a REST pass old)."""
         with self.lock:

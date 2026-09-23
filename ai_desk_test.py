@@ -177,8 +177,9 @@ d.step()
 t = d._open_trade("NIFTY")
 check("a valid proposal opens an AI ticket", t is not None, d.recent[:1])
 check("entry is the chain's live premium (130), not a number the model named", t["entry_ltp"] == 130.0)
-check("target and stop frozen as proposed; T1 is the exit", t["premium_targets"][0] == 160.0 and t["premium_sl"] == 110.0
-      and t["exit_at"] == "T1")
+check("stop frozen as proposed; the target is a staircase up to it, T3 is the exit",
+      t["premium_targets"] == [145.0, 154.0, 160.0] and t["premium_sl"] == 110.0
+      and t["exit_at"] == "T3", t["premium_targets"])
 check("lots are the user's own setting", t["lots"] == 2)
 check("the reason rides with the ticket", "VWAP" in t["ai_reason"])
 check("...and so does the bot's own chance of reaching the target, asked for on 21 Sep 2026",
@@ -362,8 +363,9 @@ check("the tick prices the AI ticket's own contract", d.book.public("NIFTY")["ti
 f.streamer.px["tok1"] = 161.0
 d.price_tick()
 rows = [r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"]
-check("its target hit on the tick: closed at the target", d._open_trade("NIFTY") is None and rows
-      and "T1 hit" in rows[-1]["status"], rows[-1:])
+check("its target hit on the tick: closed at the target - T3, the model's real ceiling, not the "
+      "T1/T2 waypoints the trailing stop climbs through on the way there",
+      d._open_trade("NIFTY") is None and rows and "T3 hit" in rows[-1]["status"], rows[-1:])
 check("P&L in rupees at the user's lots x the lot size", float(rows[-1]["pnl"]) == round((161 - 130) * 2 * 65, 2),
       rows[-1]["pnl"])
 
@@ -451,48 +453,58 @@ d3 = ad.AIDesk(f3, now=lambda: T["now"], clock=lambda: T["clock"], start=False)
 check("a desk saved with the old market-wide switch comes back with every index on",
       d3.enabled == {"NIFTY": True, "BANKNIFTY": True, "SENSEX": True})
 
-print("5c. A PROFIT THAT TURNS: THE GIVE-BACK RULE AND AN UNSCHEDULED REVIEW")
-# Loosened on 22 Sep 2026, after the user compared the AI desk against the rule
-# engine over 21-22 Sep: a NIFTY put that reached 65% of the way to its target
-# closed here for a fraction of what the matching rule ticket - which has no
-# such rule - rode to target. GIVEBACK_ARM 0.6 -> 0.75, and the constant that
-# used to be misread as "give back 50%" (it was really a retain floor, right
-# only by coincidence at 0.5) is renamed GIVEBACK_RETAIN and set to 0.3: it can
-# now give back up to 70% of its best gain, not 50%, before this closes it.
-check("the numbers this test leans on", ad.GIVEBACK_ARM == 0.75 and ad.GIVEBACK_RETAIN == 0.3,
-      (ad.GIVEBACK_ARM, ad.GIVEBACK_RETAIN))
+print("5c. THE STAIRCASE TRAILING STOP, AND AN UNSCHEDULED REVIEW")
+# A give-back rule (close on a % retracement of peak) used to live here.
+# Retired 22 Sep 2026: once AI tickets got a real target ladder (see
+# ai_desk._open) the trailing stop below always reached a trade first and
+# floored it tighter than any give-back percentage allowed, so give-back could
+# never fire again once a trade passed halfway - see the comment above where
+# GIVEBACK_ARM used to sit in ai_desk.py for the full reasoning.
 at(10, 0, 50)
 f, d = desk()
 d.set_on(True)
-SCRIPT[:] = [enter(target=160.0, stop=110.0)]     # entry 130, so the target is 30 away
+SCRIPT[:] = [enter(target=160.0, stop=110.0)]     # entry 130: ladder is T1 145, T2 154, T3 160
 d.step()
-tid = d._open_trade("NIFTY")["trade_id"]
+t = d._open_trade("NIFTY")
+tid = t["trade_id"]
+check("the ladder is set at entry, stop still at the proposed level",
+      t["premium_targets"] == [145.0, 154.0, 160.0] and t["premium_sl"] == 110.0)
 d._tok[tid] = "tok1"
-f.streamer.px["tok1"] = 148.0                      # 60% of the way - today's real trade, almost exactly
+f.streamer.px["tok1"] = 140.0                      # short of T1 (145): nothing trails yet
 d.price_tick()
-check("60% of the way to the target: still open - below the new 75% arm", d._open_trade("NIFTY") is not None)
-f.streamer.px["tok1"] = 132.0                      # gave back almost all of that 60% peak
+check("short of T1: stop untouched, still open",
+      d._open_trade("NIFTY") is not None and d._open_trade("NIFTY")["premium_sl"] == 110.0)
+f.streamer.px["tok1"] = 147.0                      # past T1: the stop ratchets up to it, on its own
 d.price_tick()
-check("...and giving back nearly all of that peak still does not close it - the rule never armed",
-      d._open_trade("NIFTY") is not None)
-f.streamer.px["tok1"] = 155.0                      # 83% of the way - now past the 75% arm
-d.price_tick()
-check("83% of the way: armed, no give-back yet, still open", d._open_trade("NIFTY") is not None)
-f.streamer.px["tok1"] = 140.0                      # retains 40% of the 25-point peak (10/25)
-d.price_tick()
-check("gave back 60% of the peak: still open - under the new 70% hand-back threshold",
-      d._open_trade("NIFTY") is not None)
-f.streamer.px["tok1"] = 136.0                      # retains 24% of the peak (6/25) - past the 70% hand-back line
+check("T1 crossed: the stop moves up to it, no model call needed",
+      d._open_trade("NIFTY") is not None and d._open_trade("NIFTY")["premium_sl"] == 145.0)
+f.streamer.px["tok1"] = 142.0                      # a reversal - but only back to T1, not the original 110 stop
 d.price_tick()
 rows = [r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"]
-check("gave back three quarters of the peak: closed by the rule, in profit, before the stop",
-      d._open_trade("NIFTY") is None and "give-back rule" in rows[-1]["status"]
+check("the reversal costs back to T1, not all the way to the original stop: closed in profit",
+      d._open_trade("NIFTY") is None and "trailed to T1" in rows[-1]["status"]
       and float(rows[-1]["pnl"]) > 0, rows[-1:])
-check("...and the fired message itself still speaks in hand-back terms, correctly now",
-      "70%" in rows[-1]["status"] or "gave back" in rows[-1]["status"], rows[-1]["status"])
-check("...and it is in the decisions list as the tool's own exit, not the bot's",
-      any(r["kind"] == "rule" and r["action"] == "exit" and "give-back" in r["reason"] for r in d.recent))
-check("...and it starts the cooldown", d.last_exit.get("NIFTY") == T["clock"])
+check("...and it still starts the cooldown, like any close", d.last_exit.get("NIFTY") == T["clock"])
+
+f, d = desk()
+d.set_on(True)
+at(10, 30, 50)
+SCRIPT[:] = [enter(target=190.0, stop=110.0)]      # entry 130: ladder is T1 160, T2 178, T3 190
+d.step()
+trade = d._open_trade("NIFTY")
+tid = trade["trade_id"]
+d._tok[tid] = "tok1"
+f.streamer.px["tok1"] = 165.0                      # past T1
+d.price_tick()
+f.streamer.px["tok1"] = 182.0                      # past T2 too - the stop ratchets again, further up
+d.price_tick()
+check("a second rung crossed trails the stop again, past the first",
+      d._open_trade("NIFTY")["premium_sl"] == 178.0)
+f.streamer.px["tok1"] = 170.0                      # gives back T2, but the stop now reads T2's price, not T1's
+d.price_tick()
+rows = [r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"]
+check("the further it ran, the further the stop had climbed: closed trailed to T2, not T1",
+      d._open_trade("NIFTY") is None and "trailed to T2" in rows[-1]["status"], rows[-1:])
 
 f, d = desk()
 d.set_on(True)
@@ -504,7 +516,8 @@ tid = trade["trade_id"]
 d._tok[tid] = "tok1"
 f.streamer.px["tok1"] = 145.0
 d.price_tick()
-check("a modest gain, no give-back", d._open_trade("NIFTY") is not None)
+check("a modest gain, short of any rung: nothing to trail yet",
+      d._open_trade("NIFTY") is not None and d._open_trade("NIFTY")["premium_sl"] == 110.0)
 ASKED.clear()
 at(11, 5, 50)                                      # not a candle close: only an event can ask now
 half = dict(rec(), option_chain=chain())
@@ -520,10 +533,11 @@ d.step()
 check("the bot is asked straight away, told what happened, and can exit in between closes",
       ASKED and ASKED[0][0] == "review" and ASKED[0][2].get("what_just_happened")
       and d._open_trade("NIFTY") is None, ASKED[:1])
-check("the desk block also tells it the give-back rule exists", "give_back_rule" in ASKED[0][2])
-check("...and says the hand-back share correctly - 70%, not the 30% retain floor the code checks against",
-      "75% of the way" in ASKED[0][2]["give_back_rule"] and "70% of that best gain" in ASKED[0][2]["give_back_rule"],
-      ASKED[0][2]["give_back_rule"])
+check("the desk block tells it about the trailing stop, not the retired give-back rule",
+      "trailing_stop_rule" in ASKED[0][2] and "give_back_rule" not in ASKED[0][2])
+check("...and names the actual rungs - 50% and 80% of the way",
+      "50%" in ASKED[0][2]["trailing_stop_rule"] and "80%" in ASKED[0][2]["trailing_stop_rule"],
+      ASKED[0][2]["trailing_stop_rule"])
 
 f, d = desk()
 d.set_on(True)
@@ -569,11 +583,11 @@ d.book.close_ticket("NIFTY", "CLOSED — AI exit: momentum gone")       # its ow
 check("an AI exit is logged at the contract's streamed price, not the chain's older one",
       float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 150.0)
 trade_on(24, 14, "SENSEX", "CE", 25000, 160, 110, "Range break on Sensex.")
-trade_on(24, 14, "NIFTY", "CE", 25100, 120, 70, "Late-day squeeze.")
-d._giveback("NIFTY", d._open_trade("NIFTY"), 115.0)                   # 83% of the way (entry 90 -> 120)
-d._giveback("NIFTY", d._open_trade("NIFTY"), 97.0)                    # then most of that gain back
-check("the give-back rule's close is logged at the price that fired it",
-      float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 97.0)
+trade_on(24, 14, "NIFTY", "CE", 25100, 120, 70, "Late-day squeeze.")   # entry 90, target 120: ladder 105/114/120
+d.book.tick_price("NIFTY", 116.0)                                     # past T2 (114): stop trails there
+d.book.tick_price("NIFTY", 108.0)                                     # reversal - closes trailed to T2, not the raw stop
+check("the trailing stop's close is logged at the price that fired it",
+      float([r for r in trade_log._read_rows(d.book.path) if r["event"] == "CLOSE"][-1]["exit"]) == 108.0)
 d.book.tick_price("SENSEX", 109.0)
 tr = d.track_record("NIFTY")
 check("counts every closed AI trade in the market", tr["closed_trades"] == 5, tr["closed_trades"])
@@ -589,8 +603,9 @@ check("the record's closed trades carry the cost too",
           for x in d.public()["records"]["NIFTY"]["last"]), d.public()["records"]["NIFTY"]["last"][:1])
 check("this index separately from the rest", tr["this_index"]["n"] == 4 and tr["all_indices"]["n"] == 5)
 ex = tr["by_exit"]
-check("how each one ended: target, stop, its own exit, the give-back rule",
-      ex["target"]["n"] == 1 and ex["stop"]["n"] >= 1 and ex["your_exit"]["n"] == 1 and ex["give_back_rule"]["n"] == 1, ex)
+check("how each one ended: target, stop (plain and trailed alike), its own exit",
+      ex["target"]["n"] == 1 and ex["stop"]["n"] == 3 and ex["your_exit"]["n"] == 1, ex)
+check("no trade ends under the retired give-back bucket any more", "give_back_rule" not in ex)
 check("win rate and net add up", tr["this_index"]["net"] == round(sum(float(r["pnl"]) for r in trade_log._read_rows(d.book.path)
       if r["event"] == "CLOSE" and r["index"] == "NIFTY"), 2))
 check("by side and by time of entry on this index", set(tr["by_side_on_this_index"]) == {"CE", "PE"}
@@ -791,6 +806,65 @@ check("the decision's css class comes from a fixed list",
 check("decisions are grouped by day and numbered within the day - see ai_decisions_test.py",
       'id="decbar"' in SRC and 'class="dn">#${n}' in SRC and "days[days.length - 1].rows.push(r)" in SRC)
 check("the page says paper only", "on paper - nothing is ever sent to Zerodha" in SRC)
+
+print("9b. THE TICKET CARD PICKS THE RIGHT RUNG AS THE EXIT - RUN FOR REAL IN NODE")
+import shutil
+import subprocess
+NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
+if not NODE:
+    check("node is available to run the page's own function", False, "install node to run this section")
+else:
+    fa = SRC.index("function aiMoney(")
+    fb = SRC.index("function casesRows(")
+    prog = """
+const assert = require("assert");
+const esc = s => String(s);
+const money = v => (v >= 0 ? "+" : "-") + "Rs" + Math.round(Math.abs(v));
+const num = (v, d) => v == null ? "—" : String(v);
+const expiryText = () => "";
+const casesRows = () => "";
+const LAST = {};
+""" + SRC[fa:fb] + r'''
+function ticket(exit_at, hit, sl_hit){
+  return {option_type: "CE", tracked_on: "premium", exit_at, targets: [145.0, 154.0, 160.0],
+          stop: 110.0, entry: 130.0, now: 132.0, pnl: null, lots: 1, lot_size: 65,
+          strike: 25000, entry_time: "10:00:00", expiry: null,
+          hit: hit || {}, hit_time: {}, sl_hit: !!sl_hit, sl_hit_time: null};
+}
+
+// exit_at names T3: the exit rung is the real ceiling, not T1
+let html = aiTicketCard("NIFTY", ticket("T3", {}));
+assert.ok(html.includes(">160<"), "T3's own price (160) shows as the exit target: " + html);
+assert.ok(!html.includes("trailed to"), "no rung crossed yet: no trailed-to note");
+
+// T1 crossed, stop trailed there - the exit rung (T3) still untouched
+html = aiTicketCard("NIFTY", ticket("T3", {T1: true}));
+assert.ok(html.includes("trailed to T1"), "T1 crossed shows on the stop rung: " + html);
+
+// T1 and T2 both crossed - the note names the FURTHEST one reached, not the first
+html = aiTicketCard("NIFTY", ticket("T3", {T1: true, T2: true}));
+assert.ok(html.includes("trailed to T2") && !html.includes("trailed to T1"),
+          "the furthest rung crossed wins, not the first: " + html);
+
+// exit_at names T2 (a rule ticket's own default): T1 is still a waypoint,
+// but T2 itself is the exit rung, never a "trailed to" rung for its own card
+html = aiTicketCard("NIFTY", ticket("T2", {}));
+assert.ok(html.includes(">154<"), "T2's own price (154) is the exit target here, not T3's 160: " + html);
+html = aiTicketCard("NIFTY", ticket("T2", {T1: true}));
+assert.ok(html.includes("trailed to T1"), "T1 still trails toward a T2 exit: " + html);
+html = aiTicketCard("NIFTY", ticket("T2", {T1: true, T2: true}));
+assert.ok(!html.includes("trailed to T2"), "T2 is the exit itself here, never its own trailed-to rung: " + html);
+
+// an old ticket with no exit_at at all (from before this feature) falls back
+// to the last rung in its ladder, same as tickets.py's own fallback to T3
+html = aiTicketCard("NIFTY", ticket(undefined, {}));
+assert.ok(html.includes(">160<"), "no exit_at: falls back to the ladder's last rung: " + html);
+
+console.log("ok");
+'''
+    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    check("aiTicketCard shows the real exit rung as the target, and notes the furthest rung the stop has trailed to",
+          r.returncode == 0 and r.stdout.strip() == "ok", (r.stderr or r.stdout)[-800:])
 
 at(10, 0, 50)
 f, d = desk()

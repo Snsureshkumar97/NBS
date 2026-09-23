@@ -58,26 +58,17 @@ NO_ENTRY_AFTER = (15, 10)
 MAX_DECISIONS_PER_DAY = {"nse_index": 90, "crypto": 100}
 STRIKE_STEPS = 6
 MIN_REWARD_RISK = 1.0
-# Giving back a profit: once the trade has covered GIVEBACK_ARM of the way from
-# entry to its target, the tool closes it if its gain falls back to GIVEBACK_RETAIN
-# or less of its own best gain so far - so a GIVEBACK_RETAIN of 0.3 means it can give
-# back up to 70% of the best gain before this closes it, not 30%. Checked on every
-# tick, with no model call - a reversal inside one candle would otherwise run to
-# the stop before the bot's next review.
-#
-# Loosened on 22 Sep 2026: the user compared the AI desk's trades against the
-# rule engine's over 21-22 Sep and found it giving back real profit the rule
-# tickets kept - concretely, a NIFTY put that reached 65% of the way to its
-# target closed here for a fraction of what the matching rule ticket, which has
-# no such rule, rode to target. At the old ARM (0.6) that trade had already
-# armed; at 0.75 it would not have, and would have been left to run to its own
-# target or stop like every rule ticket. GIVEBACK_RETAIN was 0.5 before this -
-# note the OLD reading of that number as "hands back 50%" only happened to be
-# right because 1 - 0.5 = 0.5; it was really always a retain floor, not a
-# hand-back fraction, which is why this comment and the name were rewritten
-# rather than just the values.
-GIVEBACK_ARM = 0.75
-GIVEBACK_RETAIN = 0.3
+# A profit-protection rule used to live here: close the trade once it had given
+# back too much of its best gain (a percentage-of-peak check, on every tick).
+# Retired on 22 Sep 2026 when the staircase trailing stop (see tickets.py,
+# _open() below) replaced it - with real ladder rungs at 50%/80%/100% of the
+# way to target and the old arm point at 75%, the trailing stop always reached
+# a trade first and floored it tighter than any give-back percentage would
+# have allowed, so the give-back check could never fire again once a trade
+# passed halfway. Rather than leave it as dead weight fighting a rule that
+# always wins first, it was removed; the trailing stop now does this job
+# alone. _exit_kind() below still recognises "give-back rule" in a status
+# string so historical trades closed by the old rule still classify correctly.
 # A turn also wakes the bot for an unscheduled review, at most this many times
 # per ticket and no closer together than this.
 MAX_EVENT_REVIEWS = 3
@@ -170,7 +161,6 @@ class AIDesk:
         self.event_entries = {}      # index -> off-cycle entry looks spent today
         self.last_event_review = {}  # index -> epoch
         self.last_event_entry = {}   # index -> epoch
-        self.peak = {}               # trade_id -> best progress from entry, in premium
         self._tok = {}               # trade_id -> streamed contract handle
         # The desk's own lots, per market - asked for on 20 Sep 2026. None
         # means "the same as the rule tickets' lots setting".
@@ -558,9 +548,10 @@ class AIDesk:
                 "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.lots,
                 "max_spread_pct_on_this_index": config.max_spread_pct(name),
                 "contracts_per_lot": (config.INSTRUMENTS.get(name) or {}).get("contracts_per_lot", 1),
-                "give_back_rule": (f"the tool closes a trade on its own once it has covered "
-                                   f"{GIVEBACK_ARM * 100:.0f}% of the way to its target and then hands back "
-                                   f"{(1 - GIVEBACK_RETAIN) * 100:.0f}% of that best gain"),
+                "trailing_stop_rule": ("your stop moves up on its own as a trade nears the target: at 50% and "
+                                       "80% of the way there, whichever is reached becomes your new stop, so a "
+                                       "reversal can only cost back to the last point crossed, never all the "
+                                       "way to your original stop"),
                 "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4],
                 "your_track_record": self.track_record(name)}
 
@@ -568,7 +559,7 @@ class AIDesk:
     @staticmethod
     def _exit_kind(status):
         low = (status or "").lower()
-        if "give-back rule" in low:
+        if "give-back rule" in low:          # retired 22 Sep 2026 - kept so old rows still classify
             return "give_back_rule"
         if "ai exit" in low:
             return "your_exit"
@@ -823,10 +814,19 @@ class AIDesk:
         self._sync_rules()
         r = dict(rec)
         r["checks"] = None            # the checklist is for the rule signal's side; the desk may trade the other
+        # The model names one target - its real ceiling, kept exactly as given
+        # (T3 below). T1 and T2 are waypoints interpolated on the way there,
+        # invisible to the model, that exist only so the trailing stop (see
+        # tickets._check_price) has rungs to climb through instead of the
+        # trade running all the way back to the entry-time stop on a pullback
+        # before ever reaching that one target. Asked for by the user on 22
+        # Sep 2026, extending the same staircase rule tickets already have.
+        ltp, target = plan["ltp"], plan["target"]
+        ladder = [round(ltp + frac * (target - ltp), 2) for frac in (0.5, 0.8, 1.0)]
         r.update(option_type=plan["side"], bias="BULLISH" if plan["side"] == "CE" else "BEARISH",
                  suggested_strike=int(plan["strike"]) if float(plan["strike"]).is_integer() else plan["strike"],
                  premium_source="live", live_ltp=plan["ltp"],
-                 premium_targets=[plan["target"]] * 3, premium_stop_loss=plan["stop"],
+                 premium_targets=ladder, premium_stop_loss=plan["stop"],
                  index_targets=[], index_stop_loss=None, strictness="ai",
                  # The log's signal columns describe THIS trade, not the rule
                  # signal the reading came with.
@@ -835,7 +835,7 @@ class AIDesk:
         with self.book.lock:
             b = self.book.books[name]
             self.book._open(b, r)
-            b.trade["exit_at"] = "T1"
+            b.trade["exit_at"] = "T3"          # the model's own named target - the real ceiling
             b.trade["ai_reason"] = reason
             b.trade["ai_confidence"] = confidence
             b.trade["ai_bull_case"] = bull_case
@@ -854,7 +854,6 @@ class AIDesk:
             if self.enabled.get(name):
                 self._watch_entry(name, rec)
             return
-        self._giveback(name, trade, self.book._price_for(trade, rec))
         with self.feed.lock:
             idx = ((self.feed.state.get("indices") or {}).get(name) or {}).get("public")
         self._events(name, trade, idx)
@@ -874,30 +873,6 @@ class AIDesk:
                 self.pending.setdefault(name, [])
                 self.pending[name] += [e["label"] for e in fired]
 
-    def _giveback(self, name, trade, price):
-        """Hand back too much of a gain and the trade is closed, on the tick."""
-        if price is None:
-            return
-        entry, target = trade.get("entry_ltp"), (trade.get("premium_targets") or [None])[0]
-        if not entry or not target or target <= entry:
-            return
-        tid = trade.get("trade_id")
-        gain, room = price - entry, target - entry
-        best = max(self.peak.get(tid, 0.0), gain)
-        self.peak[tid] = best
-        if best < GIVEBACK_ARM * room or gain > best * GIVEBACK_RETAIN:
-            return
-        pct, back = best / room * 100.0, (best - gain) / best * 100.0
-        self.book.close_ticket(name, f"CLOSED — AI give-back rule: {pct:.0f}% of the way to the target, "
-                                     f"then gave back {back:.0f}% of that", price=price)
-        self.last_exit[name] = self.clock()
-        self.peak.pop(tid, None)
-        self._record(name, "rule", "exit", f"Reached {pct:.0f}% of the way to the target ({target:g}) at "
-                                           f"{entry + best:.2f}, then gave back {back:.0f}% of that gain. Closed by "
-                                           f"the give-back rule, not by the bot.",
-                     {"contract": f"{name}|{trade.get('strike')}|{trade.get('option_type')}"})
-        self._save()
-
     def price_tick(self):
         """The AI ticket's own contract, off the stream, on every tick."""
         for name in self.feed.instruments():
@@ -909,8 +884,6 @@ class AIDesk:
                 continue
             self.book.live_price(name, px)
             self._after(name, self.book.tick_price(name, px))
-            if self._open_trade(name) is not None:
-                self._giveback(name, trade, px)
 
     def _after(self, name, evs):
         if any(ev.get("kind") == "closed" for ev in evs or []):
