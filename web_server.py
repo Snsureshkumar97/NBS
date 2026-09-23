@@ -4997,6 +4997,11 @@ function blank(msg,detail){
 let LMODE = "auto";
 let LOTS = 1;
 let LOTS_SYNCED = false;
+// Until when a lot size picked on this page is held against the figure the next
+// poll brings back. A poll already on its way when the change was sent carries
+// the OLD size and would flip the selector back for a moment; after this the
+// server's own figure wins again - see the sync in ladder().
+let LOTS_HOLD = 0;
 
 // A Delta Exchange contract is 0.001 BTC and is counted in contracts, so "5 lots of 1" is a unit that does not
 // exist; index options are genuinely sold in lots of 65 or 30. Set here rather
@@ -5185,7 +5190,14 @@ function ladder(r, tk){
   const sess = (LAST && LAST.session) || {};
   const choices = sess.lot_choices || [1,2,3,4,5];
   const sel = $("lots");
-  if(!LOTS_SYNCED && sess.lots){ LOTS = sess.lots; LOTS_SYNCED = true; }
+  // The server's figure is the one a ticket is issued with, so it is the one
+  // shown - on every reading, not just the first. This used to sync once per
+  // page load, so a restart that reset the server to 1 lot left a page still
+  // showing 3 (23 Sep 2026: every ticket and real order went out at 1 lot
+  // under a selector that said otherwise). Only a change made here a moment
+  // ago is held against it (LOTS_HOLD), so a poll already in flight cannot
+  // flip the selector back.
+  if(sess.lots != null && (!LOTS_SYNCED || Date.now() >= LOTS_HOLD)){ LOTS = sess.lots; LOTS_SYNCED = true; }
   const sig = choices.join(",");
   if(sel.dataset.sig !== sig){
     sel.innerHTML = "";
@@ -5899,15 +5911,34 @@ $("riskpct").onchange = e => postRisk({risk_pct: e.target.value});
 
 $("lb-index").onclick   = () => { LMODE="index";   if(LAST) render(LAST); };
 $("lb-premium").onclick = () => { LMODE="premium"; if(LAST) render(LAST); };
-$("lots").onchange = e => {
-  LOTS = parseFloat(e.target.value)||1;
+$("lots").onchange = async e => {
+  // The lots a ticket is issued for are frozen with it, so the number has to
+  // be known on the server before the next one fires, not only in this tab.
+  // Shown at once, but the server has the last word: what it settles on (it
+  // snaps to the market's own choices) is what stays, and a change it did not
+  // take is put back and said out loud - it used to be swallowed, leaving a
+  // selector that promised a size no order would use.
+  const sel = e.target, before = LOTS;
+  LOTS = parseFloat(sel.value) || 1;
+  LOTS_HOLD = Date.now() + 5000;
   if(LAST) render(LAST);
-  // Sent to the server too: the lots a ticket is issued for are frozen with
-  // it, so the number has to be known there before the next one fires, not
-  // only in this tab.
-  fetch("/api/ticket", {method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded"},
-    body:new URLSearchParams({lots:String(LOTS)})}).catch(()=>{});
+  sel.disabled = true;
+  try{
+    const r = await fetch("/api/ticket", {method:"POST", cache:"no-store",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({lots:String(LOTS)})});
+    const j = await r.json();
+    if(!j || !j.ok || !j.session || j.session.lots == null) throw new Error("not taken");
+    LOTS = j.session.lots;
+    LOTS_SYNCED = true;
+    if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+    if(LAST) render(LAST);
+  }catch(err){
+    LOTS = (LAST && LAST.session && LAST.session.lots != null) ? LAST.session.lots : before;
+    LOTS_HOLD = 0;
+    if(LAST) render(LAST);
+    alert(`The lot size could not be saved on the server (are you still signed in?). It is still ${LOTS}.`);
+  }finally{ sel.disabled = false; }
 };
 
 $("tclear").onclick = () => {
