@@ -156,6 +156,14 @@ class TicketBook:
             self.capital = float(cap) if cap else None
             if s.get("risk_pct") in _cfg("RISK_PCT_CHOICES", (1.0,)):
                 self.risk_pct = float(s["risk_pct"])
+            # The lot size the user picked. It used to live only in memory, so
+            # every restart quietly put it back to the smallest size while an
+            # open page kept showing the chosen number - on 23 Sep 2026 every
+            # ticket and real order went out at 1 lot after a restart, whatever
+            # the selector said. Snapped to what the market offers now.
+            if s.get("lots") not in (None, ""):
+                choices = config.lot_choices(self.market)
+                self.lots = min(choices, key=lambda c: abs(c - float(s["lots"])))
         except Exception:
             pass
 
@@ -167,7 +175,7 @@ class TicketBook:
             import json, os
             tmp = p + ".tmp"
             with open(tmp, "w") as fh:
-                json.dump({"capital": self.capital, "risk_pct": self.risk_pct}, fh)
+                json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -316,6 +324,7 @@ class TicketBook:
                 # Snap to the nearest size the market offers, so a stale page
                 # asking for "3" on crypto or "0.3" on Nifty still gets a real one.
                 self.lots = min(choices, key=lambda c: abs(c - float(lots)))
+                self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
             if auto_rearm is not None:
