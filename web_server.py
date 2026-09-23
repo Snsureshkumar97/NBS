@@ -5026,13 +5026,21 @@ function ladder(r, tk){
     const dp = prem ? 2 : 0;
     const per = (prem && tk.lot_size) ? tk.lot_size * (tk.lots||1) : 0;
     $("lswitch").style.display = "none";
-    const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
-                 ["T3",tg[2],"var(--up)"],["Stop",tk.stop,"var(--down)"]];
+    // The stop shown is already wherever it has trailed to - tickets.py
+    // updates tk.stop in place as each rung before the exit is crossed (22
+    // Sep 2026) - so only a label naming which rung it last climbed through
+    // is needed, same as the AI tab's ticket card.
+    const exitIdx = {T1: 0, T2: 1, T3: 2}[tk.exit_at] ?? 2;
+    const beforeExit = ["T1", "T2", "T3"].slice(0, exitIdx);
+    const trailedRung = beforeExit.slice().reverse().find(rung => (tk.hit || {})[rung]);
+    const rungs=[["T1","T1",tg[0],"var(--up)"],["T2","T2",tg[1],"var(--up)"],
+                 ["T3","T3",tg[2],"var(--up)"],
+                 ["Stop", "Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : ""), tk.stop, "var(--down)"]];
     // The chance of reaching each of THIS ticket's frozen levels from where the
     // index is now. The live ladder had it; this branch returned before it, so
     // the percentages vanished exactly when a position was open.
     const tod = tk.odds || {};
-    $("ladder").innerHTML = rungs.map(([k,v,c])=>{
+    $("ladder").innerHTML = rungs.map(([k,label,v,c])=>{
       const done = k==="Stop" ? tk.sl_hit : (tk.hit||{})[k];
       const ch = tod[k === "Stop" ? "stop" : k.toLowerCase()];
       const when = k==="Stop" ? tk.sl_hit_time : (tk.hit_time||{})[k];
@@ -5049,7 +5057,7 @@ function ladder(r, tk){
         const amt=(v-base)*per;
         rs = money(amt);
       }
-      return `<div class="rung${done?" done":""}"><div class="k">${k}${
+      return `<div class="rung${done?" done":""}"><div class="k">${esc(label)}${
           done?` <span class="tick">✓ ${esc(when||"")}</span>`:""}</div>
         <div class="bar" title="${done?"reached":Math.round(pct)+"% of the way"}"
           ><i style="width:${done?100:pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
@@ -5070,11 +5078,15 @@ function ladder(r, tk){
           + (crypto ? "On BTC these are rough - the calibration was fitted on Nifty trades and has not been checked on Bitcoin."
                     : "Calibrated estimates - against 3,582 past trades the model lands within about four points.");
     }
-    $("lnote").innerHTML = prem
+    const trailNote = ` The stop shown has already moved up to reflect ${trailedRung} - each rung before `
+      + `${esc(tk.exit_at||"T3")} trails the stop there the moment it is crossed, so a reversal costs back `
+      + `only to the last rung reached, never all the way to the original stop.`;
+    $("lnote").innerHTML = (prem
       ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
       : `No live chain for this strike at entry, so the ticket is tracked on the `
-        + `index itself. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`;
+        + `index itself. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`)
+      + (trailedRung ? trailNote : "");
     return;
   }
 
@@ -5205,6 +5217,13 @@ function ladder(r, tk){
   } else if((r.targets||[]).some(v=>v!=null)){
     note = "No live option chain for this strike right now, so only the index "
          + "levels are available.";
+  }
+  const exitIdx0 = {T1: 0, T2: 1, T3: 2}[exitAt] ?? 2;
+  if(exitIdx0 > 0 && rungs.some(x => x[1] != null)){
+    note += ` Once a ticket is issued, the stop moves up to whichever of `
+          + `${["T1", "T2"].slice(0, exitIdx0).join(" or ")} is reached before `
+          + `${esc(exitAt)}, so a reversal after that costs back only to that `
+          + `level, never all the way to the stop shown here.`;
   }
   $("lnote").innerHTML = note;
 }
@@ -5840,6 +5859,15 @@ function rrBox(r, tk){
                        + `exchange, SEBI and stamp charges, and GST. Slippage is not included - a wide spread costs more.`);
   else if(CCY === "USD") notes.push("Delta Exchange's trading fees are not included.");
   else notes.push("Charges could not be worked out, so these are before costs.");
+  const exitIdxRR = {T1: 0, T2: 1, T3: 2}[exitAt] ?? 1;
+  const beforeExitRR = ["T1", "T2", "T3"].slice(0, exitIdxRR);
+  const waypoints = rows.filter(rw => beforeExitRR.includes(rw.k));
+  if(waypoints.length){
+    notes.push(`The stop moves up as each rung before ${esc(exitAt)} is crossed, and only ever forward - so the `
+             + `risk and break-even figures here are the worst case, from ${open ? "where the stop is now" : "entry"}. `
+             + `Reach ${esc(waypoints.map(rw => rw.k).join(" or "))} first and the real risk from there on is `
+             + `smaller than shown.`);
+  }
   notes.push(`"× risk" is how far each level is from entry compared with the stop. The Reward : risk tile above is `
            + `a different number: how far the market has room to run against the stop - the check that decides `
            + `whether a trade is issued at all - not what the exit pays.`);
