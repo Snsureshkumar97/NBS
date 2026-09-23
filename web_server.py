@@ -5819,6 +5819,12 @@ function rrBox(r, tk){
   });
   const pc = v => v == null ? "" : `${v}%`;
   const lbl = k => k === exitAt ? `${k} · exit` : k === "T3" ? "T3 · room check" : k;
+  // Which rungs the stop can trail up to on its way to the exit - the
+  // staircase trailing stop (tickets.py's _check_price, 22 Sep 2026). None
+  // for a T1 exit: there is no rung before it to trail through.
+  const exitIdxRR = {T1: 0, T2: 1, T3: 2}[exitAt] ?? 1;
+  const beforeExitRR = ["T1", "T2", "T3"].slice(0, exitIdxRR);
+  const waypoints = rows.filter(rw => beforeExitRR.includes(rw.k));
 
   const head = `<thead><tr><th>Level</th><th>Price</th><th>From entry</th><th>× risk</th>`
     + (qty ? `<th>${esc(size)}${ch ? ", after charges" : ", before fees"}</th>` : "")
@@ -5848,6 +5854,11 @@ function rrBox(r, tk){
         + `${num(stop, dp)}${ch ? ", charges included" : ""} - to make <b>${gainTxt}</b> at ${num(x.v, dp)}. `
         + `That is <b>${ratio.toFixed(2)} to 1</b>: each loss takes ${(1 / ratio).toFixed(2)} wins to earn back, `
         + `so it comes out ahead only if it wins more than <b>${x.be.toFixed(0)}%</b> of the time.`;
+    if(waypoints.length){
+      sum += ` That risk is the worst case, though: reach <b>${esc(waypoints.map(rw => rw.k).join(" or "))}</b> `
+           + `first and the stop moves up to it, so a reversal after that costs back only to there - `
+           + `not all the way to ${num(stop, dp)}.`;
+    }
     if(x.od != null && odds.stop != null){
       sum += ` The model gives ${x.k} a ${x.od}% chance of being reached ${esc(odds.horizon || "")} and the stop ${odds.stop}%. `
            + `Those overlap - a trade can touch both - so set them loosely against the ${x.be.toFixed(0)}% it needs; they are not a win rate.`;
@@ -5859,15 +5870,6 @@ function rrBox(r, tk){
                        + `exchange, SEBI and stamp charges, and GST. Slippage is not included - a wide spread costs more.`);
   else if(CCY === "USD") notes.push("Delta Exchange's trading fees are not included.");
   else notes.push("Charges could not be worked out, so these are before costs.");
-  const exitIdxRR = {T1: 0, T2: 1, T3: 2}[exitAt] ?? 1;
-  const beforeExitRR = ["T1", "T2", "T3"].slice(0, exitIdxRR);
-  const waypoints = rows.filter(rw => beforeExitRR.includes(rw.k));
-  if(waypoints.length){
-    notes.push(`The stop moves up as each rung before ${esc(exitAt)} is crossed, and only ever forward - so the `
-             + `risk and break-even figures here are the worst case, from ${open ? "where the stop is now" : "entry"}. `
-             + `Reach ${esc(waypoints.map(rw => rw.k).join(" or "))} first and the real risk from there on is `
-             + `smaller than shown.`);
-  }
   notes.push(`"× risk" is how far each level is from entry compared with the stop. The Reward : risk tile above is `
            + `a different number: how far the market has room to run against the stop - the check that decides `
            + `whether a trade is issued at all - not what the exit pays.`);

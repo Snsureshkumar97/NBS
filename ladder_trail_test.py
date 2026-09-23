@@ -109,27 +109,29 @@ assert.ok(!$("lnote").innerHTML.includes("Once a ticket is issued"),
 
 console.log("ok:ladder");
 
-// ---- rrBox(): THE CAVEAT NAMES THE WAYPOINT AND SAYS IT IS A WORST CASE ---
+// ---- rrBox(): THE MAIN SENTENCE ITSELF SAYS THE STOP TRAILS, NOT A FOOTNOTE
 const openForRR = {open: true, tracked_on: "premium", entry: 130.0, targets: [145.0, 154.0, 160.0],
                    stop: 145.0, exit_at: "T2", lot_size: 65, lots: 1, odds: {}, charges: null};
 rrBox({}, openForRR);
 const rrHtml = $("rr").innerHTML;
-assert.ok(rrHtml.includes("The stop moves up as each rung before T2 is crossed"),
-          "the risk/reward notes explain the stop is not fixed for a T2 exit - " + rrHtml);
-assert.ok(rrHtml.includes("worst case, from where the stop is now"),
-          "...and says these figures are the worst case, phrased for an OPEN ticket - " + rrHtml);
+assert.ok(rrHtml.includes('class="rrsum"') && rrHtml.includes("exits at <b>T2</b>"),
+          "still says which target ends the trade - that part is true, T2 IS the exit - " + rrHtml);
+const rrSum = rrHtml.slice(rrHtml.indexOf('class="rrsum"'), rrHtml.indexOf("</div>", rrHtml.indexOf('class="rrsum"')));
+assert.ok(rrSum.includes("That risk is the worst case, though") && rrSum.includes("<b>T1</b>")
+          && rrSum.includes("the stop moves up to it"),
+          "...but in the SAME sentence, not a separate footnote: reaching T1 first changes the real risk - " + rrSum);
 
 const liveForRR = {ltp: 130.0, premium_targets: [145.0, 154.0, 160.0], premium_stop: 110.0,
                    bias: "BULLISH", exit_at: "T2", lot_size: 65, odds: {}, charges: null};
 rrBox(liveForRR, {open: false});
 const rrHtml2 = $("rr").innerHTML;
-assert.ok(rrHtml2.includes("worst case, from entry"),
-          "...and 'from entry' for a live suggestion with no ticket yet - " + rrHtml2);
+assert.ok(rrHtml2.includes("That risk is the worst case, though") && rrHtml2.includes("<b>T1</b>"),
+          "...and the same, up front, for a live suggestion with no ticket yet - " + rrHtml2);
 
 const t1ExitForRR = Object.assign({}, openForRR, {exit_at: "T1", stop: 110.0});
 rrBox({}, t1ExitForRR);
-assert.ok(!$("rr").innerHTML.includes("The stop moves up as each rung"),
-          "a T1 exit has no rung before it to trail through, so rrBox says nothing about it either - "
+assert.ok(!$("rr").innerHTML.includes("worst case, though"),
+          "a T1 exit has no rung before it to trail through, so nothing claims it does - "
           + $("rr").innerHTML);
 
 console.log("ok:rrbox");
