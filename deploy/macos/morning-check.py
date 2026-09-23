@@ -26,6 +26,11 @@ os.chdir(APP)
 
 IST = zoneinfo.ZoneInfo("Asia/Kolkata")
 SERVER_LOG = os.environ.get("NBS_SERVER_LOG") or os.path.expanduser("~/Library/Logs/nbs-signal-tool.log")
+# Same "Mac default, VM's systemd unit passes its own" split as NBS_APP/
+# NBS_SERVER_LOG above - this one was missed when the VM's unit was written
+# (deploy/gcp/setup.sh), so every run crashed here at the open on both 21 and
+# 22 Sep 2026: ~/Library/Logs does not exist on Linux.
+LOG_DIR = os.environ.get("NBS_LOG_DIR") or os.path.expanduser("~/Library/Logs")
 SAMPLES = 21          # one a minute, 09:15 -> 09:35
 INTERVAL = 60
 
@@ -35,17 +40,29 @@ def ist_now():
 
 
 def agents():
+    """The always-on supervisor's own units: launchd's on the Mac, systemd's
+    on the VM - {name: pid-or-"-"}, "-" meaning registered but not running.
+    Neither being present (a fresh machine, a name mismatch) is not this
+    function's business to diagnose; it returns {} and the caller reports
+    zero running, same as it always could on either machine."""
     try:
         out = subprocess.run(["launchctl", "list"], capture_output=True,
                              text=True, timeout=10).stdout
+        got = {}
+        for line in out.splitlines():
+            if "com.nbs." in line:
+                bits = line.split()
+                got[bits[-1]] = bits[0]
+        if got:
+            return got
+    except Exception:
+        pass
+    try:
+        r = subprocess.run(["systemctl", "is-active", "nbs-signal-tool"],
+                           capture_output=True, text=True, timeout=10)
+        return {"nbs-signal-tool": "1" if r.stdout.strip() == "active" else "-"}
     except Exception:
         return {}
-    got = {}
-    for line in out.splitlines():
-        if "com.nbs." in line:
-            bits = line.split()
-            got[bits[-1]] = bits[0]
-    return got
 
 
 def token_present(email):
@@ -107,8 +124,7 @@ def main():
     users = accounts.always_on_users()
     email = users[0] if users else None
     today = ist_now().strftime("%Y-%m-%d")
-    out_path = os.path.expanduser(
-        f"~/Library/Logs/nbs-morning-check-{today}.log")
+    out_path = os.path.join(LOG_DIR, f"nbs-morning-check-{today}.log")
 
     lines = []
 
@@ -160,9 +176,11 @@ def main():
     if not res:
         say("")
         say("  No feed started. The usual causes, in order of likelihood:")
-        say("    - the Mac was asleep (pmset says it sleeps after 1 minute)")
         say("    - Zerodha's token had not been reconnected after 07:30 IST")
-        say("    - the launchd agents were not running")
+        say("    - the always-on supervisor was not running (launchd on the "
+            "Mac, systemd on the VM - see the agents column above)")
+        say("    - on the Mac only: it was asleep (pmset says it sleeps "
+            "after 1 minute)")
     elif not tks:
         say("")
         say("  The feed ran and the rules issued nothing. That is a result,")

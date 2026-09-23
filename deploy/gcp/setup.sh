@@ -118,6 +118,7 @@ EnvironmentFile=$ENV_FILE
 Environment=TZ=Asia/Kolkata
 Environment=NBS_APP=$APP_DIR
 Environment=NBS_SERVER_LOG=$LOG_DIR/nbs-signal-tool.log
+Environment=NBS_LOG_DIR=$LOG_DIR
 ExecStart=$APP_DIR/.venv/bin/python deploy/macos/morning-check.py
 StandardOutput=append:$LOG_DIR/nbs-morning-check.log
 StandardError=append:$LOG_DIR/nbs-morning-check.log
