@@ -4279,8 +4279,6 @@ button.mgroup:hover{color:var(--ink-2)}
     grid-template-columns:360px minmax(0,1fr);column-gap:36px;align-items:start}
   :root[data-look="kite"] .wrap > *{grid-column:2}
   :root[data-look="kite"] .wrap > footer{grid-column:1 / -1}
-  :root[data-look="kite"] .wrap > #markets{grid-column:1;grid-row:1 / span 6;position:sticky;top:100px;display:flex;
-    flex-direction:column;gap:0;margin:16px 0 0;border:1px solid var(--bd);border-radius:var(--r);background:#fff}
   :root[data-look="kite"] #markets::before{content:"Watchlist";display:block;padding:12px 16px;font-size:12px;
     font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--bd-soft)}
   :root[data-look="kite"] #markets .mkt{display:grid;grid-template-columns:1fr auto;grid-template-areas:"nm px" "ex st";
@@ -4297,6 +4295,138 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #markets .mkt.bear{border-top:0;border-left:3px solid var(--down);padding-left:13px}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]::before{width:3px}
+}
+
+/* -- The twelve upgrades to the Signal page and the left column (25 Sep 2026, "do all") --
+   Everything here is the Zerodha look only; the other looks keep the page as it was. */
+/* the left column wraps the watchlist and the panels under it; in every other look it is not there */
+.kcol{display:contents}
+.kside,.kdash{display:none}
+/* 5. said once: the day's move and the trend's strength are already a card of their own beside the signal */
+:root[data-look="kite"] #sigcard .tile[data-k="day-move"],:root[data-look="kite"] #sigcard .tile[data-k="trend-strength"]{display:none}
+:root[data-look="kite"] #sigcard .tiles{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+/* 6. the figures that matter are large and light, their labels small and grey */
+:root[data-look="kite"] .tile .v{font-size:26px;font-weight:400;letter-spacing:0}
+:root[data-look="kite"] .daymove .big{font-size:28px;font-weight:400}
+:root[data-look="kite"] #snet{font-size:30px;font-weight:400}
+/* 7. the standing risk notice is Kite's pale yellow and one slim line; orange stays for navigation and for real warnings */
+:root[data-look="kite"] .notice.risk{background:#fff8e1;border:1px solid #f1dca0;color:#5f4b00;padding:7px 14px;font-size:13px}
+:root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:#8a5a00}
+:root[data-look="kite"] .notice.stale{background:#fff4ef;border:1px solid #ffd0bd;color:var(--ink-2)}
+:root[data-look="kite"] .notice.stale b{color:#c2410c}
+/* 10. no data yet: one quiet line, not a headline over empty rows */
+:root[data-look="kite"] #sigcard[data-state="blank"] #bias{font-size:18px;font-weight:500}
+:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#checksbox,#risk,#gnote,#tiles,#lswitch){display:none}
+/* 4. the live-orders control is a switch, with its state in colour */
+:root[data-look="kite"] #tlive,:root[data-look="kite"] #ailive{position:relative;padding-left:50px;font-weight:600}
+:root[data-look="kite"] #tlive::before,:root[data-look="kite"] #ailive::before{content:"";position:absolute;left:12px;top:50%;
+  width:28px;height:14px;margin-top:-7px;border-radius:7px;background:#c8c8c8}
+:root[data-look="kite"] #tlive::after,:root[data-look="kite"] #ailive::after{content:"";position:absolute;left:14px;top:50%;
+  width:10px;height:10px;margin-top:-5px;border-radius:50%;background:#fff}
+:root[data-look="kite"] :is(#tlive,#ailive).on::before{background:#fff}
+:root[data-look="kite"] :is(#tlive,#ailive).on::after{left:30px;background:#c62828}
+/* 9. the session's counts are a row of figures with their labels beneath, as Kite sets "Margins used / Opening balance" */
+:root[data-look="kite"] #sfeed{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px 28px;margin:14px 0 4px}
+:root[data-look="kite"] #sfeed > span{display:block;font-size:12px;color:var(--ink-3)}
+:root[data-look="kite"] #sfeed > span b{display:block;font-size:22px;font-weight:400;color:var(--ink);line-height:1.2}
+:root[data-look="kite"] #sfeed > span:has(button){align-self:center}
+@media (min-width:901px){
+  /* 1 and 8. the left column: the watchlist and, under it, the state of the day (the strip that sat under the bar is here) */
+  :root[data-look="kite"] header{display:none}
+  :root[data-look="kite"] .wrap > .kcol{display:flex;flex-direction:column;gap:16px;grid-column:1;grid-row:1 / span 6;
+    position:sticky;top:64px;margin-top:16px;max-height:calc(100vh - 80px);overflow-y:auto}
+  :root[data-look="kite"] .kcol > #markets{margin:0;display:flex;flex-direction:column;gap:0;border:1px solid var(--bd);
+    border-radius:var(--r);background:#fff}
+  :root[data-look="kite"] .kside{display:flex;flex-direction:column;gap:16px}
+  :root[data-look="kite"] .kbox{border:1px solid var(--bd);border-radius:var(--r);background:#fff}
+  :root[data-look="kite"] .kh{padding:11px 16px;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+    color:var(--ink-3);border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .kb{padding:12px 16px}
+  :root[data-look="kite"] .kstat{display:flex;align-items:center;gap:10px;padding:0 4px;font-size:13px;color:var(--ink-3)}
+  :root[data-look="kite"] .kstat b{color:var(--ink);font-weight:500}
+  :root[data-look="kite"] .kliveb .kb{display:flex;align-items:center;justify-content:space-between;font-size:14px}
+  :root[data-look="kite"] .klive{position:relative;min-width:82px;padding:6px 12px 6px 34px;font:inherit;font-size:13px;font-weight:600;
+    color:var(--ink-2);background:#fff;border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;text-align:left}
+  :root[data-look="kite"] .klive::before{content:"";position:absolute;left:8px;top:50%;width:20px;height:10px;margin-top:-5px;
+    border-radius:5px;background:#c8c8c8}
+  :root[data-look="kite"] .klive::after{content:"";position:absolute;left:10px;top:50%;width:6px;height:6px;margin-top:-3px;
+    border-radius:50%;background:#fff}
+  :root[data-look="kite"] .klive.on{color:#fff;background:#c62828;border-color:#c62828}
+  :root[data-look="kite"] .klive.on::before{background:#fff}
+  :root[data-look="kite"] .klive.on::after{left:20px;background:#c62828}
+  :root[data-look="kite"] .knum{font-size:28px;font-weight:400;line-height:1.2;margin-bottom:6px}
+  :root[data-look="kite"] .kr{display:flex;justify-content:space-between;padding:3px 0;font-size:13px;color:var(--ink-3)}
+  :root[data-look="kite"] .kr b{font-weight:500;color:var(--ink)}
+  :root[data-look="kite"] .kmuted{font-size:13px;color:var(--ink-3);margin-top:6px}
+  :root[data-look="kite"] .ktg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 4px;font-size:13px;color:var(--ink-3)}
+  :root[data-look="kite"] .ktg .hit{color:var(--up);font-weight:500}
+  :root[data-look="kite"] .kclear{margin-top:10px;width:100%;justify-content:center}
+  :root[data-look="kite"] .klink{display:inline-block;margin-top:8px;font-size:13px;color:var(--accent)}
+  /* 2 and 3. the signal card: the trade first, the working after; the indicators beside the room to run */
+  :root[data-look="kite"] .pane[data-pane="signal"].on{display:flex;flex-direction:column}
+  :root[data-look="kite"] #sigcard{order:1}
+  :root[data-look="kite"] #posgkcard{order:2}
+  :root[data-look="kite"] .pane[data-pane="signal"] .top3{order:3}
+  :root[data-look="kite"] #session{order:4}
+  :root[data-look="kite"] #sfeed{order:5}
+  :root[data-look="kite"] #sigcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px}
+  :root[data-look="kite"] #sigcard > *{grid-column:1 / -1;min-width:0}
+  :root[data-look="kite"] #sigcard > .thead{order:1}
+  :root[data-look="kite"] #sigcard > .hero{order:2}
+  :root[data-look="kite"] #tcontract{order:3}
+  :root[data-look="kite"] #tissued{order:4}
+  :root[data-look="kite"] #tlivestat{order:5}
+  :root[data-look="kite"] #tstats{order:6}
+  :root[data-look="kite"] #lswitch{order:7}
+  :root[data-look="kite"] #ladder{order:8}
+  :root[data-look="kite"] #laddernote{order:9}
+  :root[data-look="kite"] #lnote{order:10}
+  :root[data-look="kite"] #rr{order:11}
+  :root[data-look="kite"] #reason{order:12}
+  :root[data-look="kite"] #tovernight{order:13}
+  :root[data-look="kite"] #twhy{order:14}
+  :root[data-look="kite"] #tiles{order:15}
+  :root[data-look="kite"] #gauges{order:16;grid-column:1;grid-row:span 2}
+  :root[data-look="kite"] #room{order:17;grid-column:2}
+  :root[data-look="kite"] #checksbox{order:18;grid-column:2}
+  :root[data-look="kite"] #risk{order:19}
+  :root[data-look="kite"] #gnote{order:20}
+  /* 12. the Dashboard: Kite's two big figures, then every index at a glance, the wider markets after */
+  :root[data-look="kite"] .pane[data-pane="home"].on{display:flex;flex-direction:column}
+  :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
+  :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
+  :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#htoday){display:none}
+  :root[data-look="kite"]:has(.pane[data-pane="home"].on) .kside :is(.kb-today,.kb-funds){display:none}
+  :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
+  :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#gmk){order:5}
+  :root[data-look="kite"] .kd-top{display:grid;grid-template-columns:1fr 1fr;gap:36px;padding:8px 0 22px;border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .kd-l{font-size:15px;color:var(--ink-2);margin-bottom:6px}
+  :root[data-look="kite"] .kd-n{font-size:44px;font-weight:300;line-height:1.1;letter-spacing:0}
+  :root[data-look="kite"] .kd-s{font-size:13px;color:var(--ink-3);margin-top:6px}
+  :root[data-look="kite"] table.kd-tab{width:100%;border-collapse:collapse;margin-top:18px;font-size:14px}
+  :root[data-look="kite"] .kd-tab th{text-align:left;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+    color:var(--ink-3);padding:8px 10px;border-bottom:1px solid var(--bd);background:var(--raised)}
+  :root[data-look="kite"] .kd-tab td{padding:12px 10px;border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .kd-tab .r,:root[data-look="kite"] .kd-tab th.r{text-align:right}
+  :root[data-look="kite"] .kd-tab tbody tr{cursor:pointer}
+  :root[data-look="kite"] .kd-tab tbody tr:hover{background:var(--raised)}
+  :root[data-look="kite"] .kd-tab small{color:var(--ink-3)}
+}
+/* in the half-width column the room-to-run rows take the phone's form: name, points and level, the note under them */
+@media (min-width:901px) and (max-width:1499px){
+  :root[data-look="kite"] #room .rr,:root[data-look="kite"] #checksbox .rr{grid-template-columns:72px 1fr 1fr}
+  :root[data-look="kite"] #room .rr-c,:root[data-look="kite"] #room .rr-tag{grid-column:1 / -1}
+}
+/* 11. a very wide screen: the signal and the chart side by side, as a trader wants them */
+@media (min-width:1500px){
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    column-gap:40px;align-items:start}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"]{display:block;position:sticky;top:64px}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #sigcard{grid-template-columns:minmax(0,1fr)}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #gauges,
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #room,
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #checksbox{grid-column:1;grid-row:auto}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) .top3{grid-template-columns:1fr 1fr}
 }
 
 /* the theme switch, in the sidebar footer (the drawer's, on a phone) - every look */
@@ -4539,7 +4669,10 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
    Everything below is the last reading before it stopped — not the current market.</div>
  </div>
 
- <div class="markets" id="markets" role="tablist"></div>
+ <div class="kcol" id="kcol">
+  <div class="markets" id="markets" role="tablist"></div>
+  <div class="kside" id="kside"></div>
+ </div>
 
  <div class="sections">
  <nav class="tabs-legacy" hidden aria-hidden="true">
@@ -4552,6 +4685,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
  <div class="panes">
 
  <section class="pane on" data-pane="home">
+  <div class="kdash" id="kdash"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5292,12 +5426,13 @@ function markets(s){
 }
 
 function tile(l,v,d,cls){
-  return `<div class="tile"><div class="l">${esc(l)}</div>
+  return `<div class="tile" data-k="${esc(String(l).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))}"><div class="l">${esc(l)}</div>
     <div class="v${cls?" "+cls:""}" ${cls?`style="color:${cls}"`:""}>${v}</div>
     <div class="d">${esc(d||"")}</div></div>`;
 }
 
 function blank(msg,detail){
+  { const sc = $("sigcard"); if(sc) sc.dataset.state = "blank"; }
   $("bias").textContent=msg; $("bias").style.color="var(--ink-3)";
   $("conftag").style.display="none"; $("exptag").style.display="none";
   $("reason").textContent=detail||"";
@@ -6566,12 +6701,12 @@ function sessionStrip(sess, order){
   // count is worth seeing even when nothing is capping it.
   const bits = [];
   if(sess.issued != null){
-    bits.push(`<span>${sess.issued} ticket${sess.issued===1?"":"s"} today`
+    bits.push(`<span><b>${sess.issued}</b> ticket${sess.issued===1?"":"s"} today`
       + (sess.limits && sess.max_trades ? ` of ${sess.max_trades}` : "") + `</span>`);
   }
-  if(sess.wins != null) bits.push(`<span>${sess.wins} ran to target</span>`);
-  if(sess.locked) bits.push(`<span>${sess.locked} trailed out in profit</span>`);
-  if(sess.stops != null) bits.push(`<span>${sess.stops} stopped out</span>`);
+  if(sess.wins != null) bits.push(`<span><b>${sess.wins}</b> ran to target</span>`);
+  if(sess.locked) bits.push(`<span><b>${sess.locked}</b> trailed out in profit</span>`);
+  if(sess.stops != null) bits.push(`<span><b>${sess.stops}</b> stopped out</span>`);
   if(!sess.limits) bits.push(`<span>daily limits off</span>`);
   // Unattended running. It belongs on this line because it is the same kind of
   // fact as the ones beside it - how the tool is set to behave today - and
@@ -7674,7 +7809,7 @@ function render(s){
 
   const bull=r.bias==="BULLISH", bear=r.bias==="BEARISH";
   // The signal card glows in the signal's colour, and so does the 3D scene.
-  { const sc = $("sigcard"); if(sc) sc.dataset.bias = bull ? "up" : bear ? "down" : ""; }
+  { const sc = $("sigcard"); if(sc){ sc.dataset.bias = bull ? "up" : bear ? "down" : ""; sc.dataset.state = ""; } }
   SCENE_BIAS = bull ? "up" : bear ? "down" : "";
   $("bias").textContent = bull?"Buy CE":bear?"Buy PE":"No trade";
   $("bias").style.color = bull?"var(--up)":bear?"var(--down)":"var(--ink-3)";
@@ -7738,6 +7873,7 @@ function render(s){
   riskBox(r, tstate && tstate.ticket, s.session);
   rrBox(r, tstate && tstate.ticket);
   sessionStrip(s.session, s.order);
+  kiteSide(s);
   if(TAB === "chain") chainFetch();
   if(TAB === "news") newsFetch();
   recapDraw(s);
@@ -8416,7 +8552,10 @@ let NAVG = {};
 try{ NAVG = JSON.parse(localStorage.getItem(GKEY) || "{}"); }catch(e){}
 // In the Zerodha look on a wide screen the menu is a bar across the top and a group is a dropdown: it opens
 // when it is clicked, never because the page you are on lives in it, and it does not touch the saved folds.
-const KITE_NAV = document.documentElement.dataset.look === "kite" && matchMedia("(min-width:901px)").matches;
+const LOOK_KITE = document.documentElement.dataset.look === "kite";
+const KITE_NAV = LOOK_KITE && matchMedia("(min-width:901px)").matches;
+// a very wide screen shows the chart beside the signal (CSS does it; the chart is told it has room)
+const KITE_SPLIT = () => LOOK_KITE && matchMedia("(min-width:1500px)").matches;
 function navGroup(el, open, byUser){
   if(KITE_NAV && open && !byUser) open = false;
   el.dataset.open = open ? "true" : "false";
@@ -8457,7 +8596,7 @@ function showTab(name, push){
   // none: they are wired again on the way in, which is a no-op for any panel
   // that already has one.
   try{ wireDrag(); }catch(e){}
-  if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }
+  if(name === "chart" || (name === "signal" && KITE_SPLIT())){ try{ chartDraw(); sparkline(); }catch(e){} }
   if(name === "market") heatMap(true);
   if(name === "sector") heatMap(true);
   if(name === "pulse"){ pulseDraw(); screenFetch(); }
@@ -8554,7 +8693,100 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 // The landing screen: where the wider market is, what today has done, and a
 // way into every section. Every number here is one the page already has -
 // the strip's own levels and the session the record is kept in.
+// ============================================================ the Zerodha look's own panels
+// Under the watchlist: whether the market is open, the live-orders switch, the open trade with its live result,
+// today, and the funds. The strip that sat under the top bar lives here now. Only drawn in the Zerodha look;
+// rewritten only when it changes, so it never steals a click or a hover.
+let KSIDE_HTML = "", KDASH_HTML = "";
+function kiteSide(s){
+  const el = $("kside");
+  if(!LOOK_KITE || !el || !s) return;
+  const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+  const box = (title, body, cls) => `<div class="kbox${cls ? " " + cls : ""}"><div class="kh">${title}</div><div class="kb">${body}</div></div>`;
+  const row = (l, v) => `<div class="kr"><span>${esc(l)}</span><b>${v}</b></div>`;
+  const tk = (((s.tickets || {})[CUR]) || {}).ticket;
+  const open = !!(tk && (tk.status === "OPEN" || tk.open));
+  const ses = s.session || {}, br = s.broker || {};
+  let h = `<div class="kstat"><span class="${esc(($("beat") && $("beat").className) || "beat")}"></span>`
+    + `<b>${esc(($("mkt") && $("mkt").textContent) || "")}</b><span>${esc(($("feed") && $("feed").textContent) || "")}</span>`
+    + `<span>${esc(($("upd") && $("upd").textContent) || "")}</span></div>`;
+  const tl = $("tlive");
+  if(tl && tl.style.display !== "none"){
+    const on = tl.getAttribute("aria-pressed") === "true";
+    h += `<div class="kbox kliveb"><div class="kb"><span>Live orders</span>`
+      + `<button type="button" class="klive${on ? " on" : ""}" data-kact="live" role="switch" aria-checked="${on}">${on ? "ON" : "OFF"}</button></div></div>`;
+  }
+  if(open){
+    const name = `${CUR} ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`.trim();
+    let b = `<div class="knum" style="color:${col(tk.pnl)}">${tk.pnl == null ? "—" : money(tk.pnl)}</div>`
+      + row("Entry", num(tk.entry)) + row("Now", num(tk.now)) + row("Stop", num(tk.stop));
+    const T = tk.targets || [], hit = tk.hit || {};
+    b += `<div class="ktg">${T.map((v, i) => { const hh = hit["T" + (i + 1)];
+      return `<span class="${hh ? "hit" : ""}">T${i + 1} ${num(v)}${hh ? " ✓" : ""}</span>`; }).join("")}</div>`;
+    const tc = $("tclear");
+    if(tc && tc.style.display !== "none") b += `<button type="button" class="lbtn kclear" data-kact="clear">Clear ticket</button>`;
+    h += box(`Open trade &middot; ${esc(name)}`, b);
+  } else {
+    h += box("Open trade", `<div class="kmuted">No open trade on ${esc(CUR)}. ${esc(($("bias") && $("bias").textContent) || "")}.</div>`);
+  }
+  const net = ses.net || 0;
+  h += box("Today", `<div class="knum" style="color:${col(net)}">${money(net)}</div>`
+    + row("Booked", money(ses.booked || 0)) + row("Open", money(ses.open || 0))
+    + `<div class="kmuted">${ses.issued == null ? 0 : ses.issued} tickets &middot; ${ses.wins || 0} ran to target &middot; ${ses.stops || 0} stopped out</div>`, "kb-today");
+  let f = "";
+  if(br.connected && br.funds && br.funds.available != null)
+    f = `<div class="knum">${esc(fundsLabel(br.funds))}</div><div class="kmuted">available on ${esc(br.name)}</div>`;
+  else if(br.name)
+    f = `<div class="kmuted">${esc(br.name)} is not connected.</div><a class="klink" href="${esc(br.connect_url || "/connect")}">Connect ${esc(br.name)}</a>`;
+  if(s.market_label) f += `<div><a class="klink" href="/market">Switch market</a></div>`;
+  if(f) h += box("Funds", f, "kb-funds");
+  if(h !== KSIDE_HTML){ KSIDE_HTML = h; el.innerHTML = h; }
+  if(!el.dataset.wired){
+    el.dataset.wired = "1";
+    el.addEventListener("click", e => {
+      const b = e.target.closest("[data-kact]"); if(!b) return;
+      const t = b.dataset.kact === "live" ? $("tlive") : $("tclear");
+      if(t) t.click();
+    });
+  }
+}
+// The Dashboard's summary: today's result and the funds as the two big figures, then every index in a row.
+function kiteDash(s){
+  const el = $("kdash");
+  if(!LOOK_KITE || !el || !s) return;
+  const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+  const ses = s.session || {}, br = s.broker || {}, net = ses.net || 0;
+  const order = s.order || Object.keys(s.indices || {});
+  const rows = order.map(k => {
+    const r = (s.indices || {})[k]; if(!r) return "";
+    const bull = r.bias === "BULLISH", bear = r.bias === "BEARISH";
+    const tk = (((s.tickets || {})[k]) || {}).ticket, open = !!(tk && (tk.status === "OPEN" || tk.open));
+    const conf = r.confidence && r.confidence !== "N/A" ? ` <small>${esc(r.confidence)}</small>` : "";
+    return `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r">${num(r.spot)}</td>`
+      + `<td style="color:${bull ? "var(--up)" : bear ? "var(--down)" : "var(--ink-3)"}">${bull ? "Buy CE" : bear ? "Buy PE" : "No trade"}${conf}</td>`
+      + `<td>${open ? esc(`${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) : "—"}</td>`
+      + `<td class="r" style="color:${open ? col(tk.pnl) : "var(--ink-3)"}">${open ? money(tk.pnl || 0) : "—"}</td></tr>`;
+  }).join("");
+  const funds = br.connected && br.funds && br.funds.available != null
+    ? `<div class="kd-n">${esc(fundsLabel(br.funds))}</div><div class="kd-s">available on ${esc(br.name)}</div>`
+    : `<div class="kd-n">—</div><div class="kd-s">${esc(br.name || "The broker")} is not connected</div>`;
+  const h = `<div class="kd-top"><div><div class="kd-l">Today's result</div><div class="kd-n" style="color:${col(net)}">${money(net)}</div>`
+    + `<div class="kd-s">booked ${money(ses.booked || 0)} &middot; open ${money(ses.open || 0)}</div></div>`
+    + `<div><div class="kd-l">Funds available</div>${funds}</div></div>`
+    + `<table class="kd-tab"><thead><tr><th>Index</th><th class="r">Spot</th><th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
+    + `<tbody>${rows}</tbody></table>`;
+  if(h !== KDASH_HTML){ KDASH_HTML = h; el.innerHTML = h; }
+  if(!el.dataset.wired){
+    el.dataset.wired = "1";
+    el.addEventListener("click", e => {
+      const tr = e.target.closest("tr[data-k]"); if(!tr) return;
+      selectIndex(tr.dataset.k); showTab("signal");
+    });
+  }
+}
+
 function homeDraw(s){
+  kiteDash(s);
   const g = $("gmk");
   if(g && MKT_ROWS){
     g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {

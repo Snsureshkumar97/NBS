@@ -252,7 +252,7 @@ check("...and both of its prompts say what the new words mean",
 print("7. THE PAGE")
 src = open(os.path.join(HERE, "web_server.py")).read()
 check("the Signal page's session bar says how many were trailed out in profit, apart from those stopped out",
-      "${sess.locked} trailed out in profit" in src and "${sess.stops} stopped out" in src)
+      "<b>${sess.locked}</b> trailed out in profit" in src and "<b>${sess.stops}</b> stopped out" in src)
 check("the Record card has a tile for them, and 'Stopped out' says it is at a loss",
       'tile("Trailed out"' in src and 'tile("Stopped out", rec.sl+"%","at a loss")' in src)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)

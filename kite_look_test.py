@@ -230,8 +230,8 @@ check("a group's pages drop down under its name; the group holding the current p
 check("on a laptop width the wordmark goes and the padding closes up so the bar still fits (it ran off the screen at 901px)",
       "@media (max-width:1180px){" in KITE and ".sbrand > div{display:none}" in KITE)
 check("the indices are a watchlist down the left, sticky, with the page beside it",
-      "grid-template-columns:360px minmax(0,1fr)" in KITE and ".wrap > #markets{grid-column:1;grid-row:1 / span 6;position:sticky;" in KITE
-      and '#markets::before{content:"Watchlist"' in KITE)
+      "grid-template-columns:360px minmax(0,1fr)" in KITE and ".wrap > .kcol{display:flex;flex-direction:column;gap:16px;grid-column:1;grid-row:1 / span 6;" in KITE
+      and "position:sticky;top:64px" in KITE and '#markets::before{content:"Watchlist"' in KITE)
 check("each index is a row: name and price on one line, expiry and signal state under; a signal colours the name and the edge",
       'grid-template-areas:"nm px" "ex st"' in KITE and ".mkt.bull .nm{color:var(--up)}" in KITE and ".mkt.bear .nm{color:var(--down)}" in KITE)
 check("the strip under the bar carries plain text, not boxed chips", ".hd .status{background:transparent;border:0;padding:0}" in KITE)
@@ -278,18 +278,18 @@ const groups = {};
 const a1 = new El("a", "tab"), a2 = new El("a", "tab"); bar.appendChild(a1); bar.appendChild(a2); bar.appendChild(tab("admin", "Admin"));
 const looksw = new El("div", "looksw"), foot = new El("div", "sidefoot");
 const docL = {};
-const document = {documentElement: {dataset: {look: LOOK}}, createElement: tag => new El(tag), querySelector: sel => sel === ".sidefoot" ? foot : null,
+const document = {documentElement: {dataset: {look: @@LOOK@@}}, createElement: tag => new El(tag), querySelector: sel => sel === ".sidefoot" ? foot : null,
                   addEventListener: (ev, f) => { (docL[ev] = docL[ev] || []).push(f); }};
 const winL = {};
 const $ = id => id === "tabs" ? bar : id === "looksw" ? looksw : null;
 const TAB_LABEL = {home: "Home"};
 const addEventListener = (ev, f) => { (winL[ev] = winL[ev] || []).push(f); };
-const matchMedia = q => ({matches: WIDE});
+const matchMedia = q => ({matches: @@WIDE@@});
 const api = new Function("document", "matchMedia", "$", "TAB_LABEL", "addEventListener", "bar", "groups",
   """ + __import__("json").dumps("") + r""" + %s + "\n" + %s + "\nreturn {navGroup, KITE_NAV};");
 """ % (__import__("json").dumps(SRC[k0:k1]), __import__("json").dumps(SRC[n0:n1]))
     def run_case(look, wide):
-        return prog.replace("LOOK", '"' + look + '"').replace("WIDE", "true" if wide else "false") + r"""
+        return prog.replace("@@LOOK@@", '"' + look + '"').replace("@@WIDE@@", "true" if wide else "false") + r"""
 const out = (() => { try { return api(document, matchMedia, $, TAB_LABEL, addEventListener, bar, groups); } catch(e){ return {err: e.message + "\n" + e.stack}; } })();
 if(out.err) { console.log("ERR " + out.err); process.exit(1); }
 const kite = out.KITE_NAV;
@@ -350,6 +350,159 @@ console.log(JSON.stringify({openByPage: groups.market.dataset.open === "true"}))
               "and a group still opens for the page you are on",
               r.returncode == 0 and res2.get("kite") is False and "more" not in res2.get("top", []) and res2.get("homeText") == "Home"
               and res2.get("openByPage") is True and res2["top"][:3] == ["home", "signal", "chart"], (res2, (r.stderr or "")[-200:]))
+
+
+print("7. THE TWELVE UPGRADES (25 Sep 2026, 'do all'): the left column, the Signal page's order, the Dashboard")
+check("the left column is a wrapper that is not there in the other looks, holding the watchlist and the day's panels",
+      '<div class="kcol" id="kcol">' in SRC and '<div class="markets" id="markets" role="tablist"></div>\n  <div class="kside" id="kside"></div>' in SRC
+      and ".kcol{display:contents}" in CSS and ".kside,.kdash{display:none}" in CSS)
+check("(8) the strip under the top bar is gone on a wide screen - its state is in the left column", ':root[data-look="kite"] header{display:none}' in KITE)
+sig_order = ["> .thead", "> .hero", "#tcontract", "#tissued", "#tlivestat", "#tstats", "#lswitch", "#ladder", "#laddernote", "#lnote", "#rr",
+             "#reason", "#tovernight", "#twhy", "#tiles", "#gauges", "#room", "#checksbox", "#risk", "#gnote"]
+orders = []
+for sel in sig_order:
+    m = re.search(r':root\[data-look="kite"\] ' + (r"#sigcard " if sel.startswith(">") else "") + re.escape(sel) + r"\{order:(\d+)", KITE)
+    orders.append(int(m.group(1)) if m else None)
+check("(2) the Signal card reads: the verdict and its trade, targets and stop, the risk and reward, why - then the tiles, the indicators, "
+      "then the sizing (Capital) and the footnote last", None not in orders and orders == sorted(orders) and orders[0] == 1, orders)
+check("(2) and the page: the signal first, the session and its counts after", ":root[data-look=\"kite\"] #sigcard{order:1}" in KITE
+      and ":root[data-look=\"kite\"] #session{order:4}" in KITE and ":root[data-look=\"kite\"] #sfeed{order:5}" in KITE)
+check("(3) the indicators are the left column of the card and the room to run the right one; the bars no longer span the page",
+      "#sigcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px}" in KITE
+      and "#gauges{order:16;grid-column:1;grid-row:span 2}" in KITE and "#room{order:17;grid-column:2}" in KITE and "#checksbox{order:18;grid-column:2}" in KITE)
+check("(4) the live-orders control is a switch with its state in colour, on the card and in the left column",
+      "#tlive::before,:root[data-look=\"kite\"] #ailive::before" in KITE and ".klive.on{color:#fff;background:#c62828" in KITE)
+check("(5) the day's move and the trend's strength are said once (their own card beside the signal), the tile that repeated them is hidden",
+      '.tile[data-k="day-move"],:root[data-look="kite"] #sigcard .tile[data-k="trend-strength"]{display:none}' in KITE
+      and 'data-k="${esc(String(l).toLowerCase()' in SRC)
+check("(6) the figures that matter are large and light", ".tile .v{font-size:26px;font-weight:400" in KITE and "#snet{font-size:30px" in KITE and ".kd-n{font-size:44px;font-weight:300" in KITE)
+check("(7) the standing notice is Kite's pale yellow and one slim line; orange is kept for real warnings",
+      ".notice.risk{background:#fff8e1;border:1px solid #f1dca0;color:#5f4b00;padding:7px 14px;font-size:13px}" in KITE
+      and ".notice.stale{background:#fff4ef;" in KITE)
+check("(9) the session's counts are figures with their labels beneath, and the numbers are marked up as such",
+      "#sfeed > span b{display:block;font-size:22px" in KITE and "<span><b>${sess.issued}</b> ticket" in SRC and "<span><b>${sess.wins}</b> ran to target" in SRC)
+check("(10) no data: one quiet line, the empty rows hidden - and the card says when it has none, and when it has some",
+      '#sigcard[data-state="blank"] #bias{font-size:18px' in KITE and 'sc.dataset.state = "blank"' in SRC and 'sc.dataset.state = ""; }' in SRC)
+check("(11) from 1500px the signal and the chart sit side by side, and the chart is told it has room",
+      "@media (min-width:1500px){" in KITE and ".panes:has(.pane[data-pane=\"signal\"].on){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);" in KITE
+      and '> .pane[data-pane="chart"]{display:block;position:sticky;top:64px}' in KITE
+      and 'if(name === "chart" || (name === "signal" && KITE_SPLIT())){ try{ chartDraw(); sparkline(); }catch(e){} }' in SRC
+      and 'const KITE_SPLIT = () => LOOK_KITE && matchMedia("(min-width:1500px)").matches;' in SRC)
+check("(12) the Dashboard leads with its two big figures and every index in a row; the Today recap and the side panels that repeat them step aside, "
+      "and the wider markets come last",
+      ".kdash{display:block;order:2;" in KITE and ".hsec:has(#htoday){display:none}" in KITE and ":has(.pane[data-pane=\"home\"].on) .kside :is(.kb-today,.kb-funds){display:none}" in KITE
+      and ".hsec:has(#gmk){order:5}" in KITE and '<div class="kdash" id="kdash"></div>' in SRC)
+
+if NODE:
+    a0 = SRC.index("let KSIDE_HTML = \"\", KDASH_HTML = \"\";")
+    a1 = SRC.index("function homeDraw(s){", a0)
+    fn_src = SRC[a0:a1]
+    prog = r"""
+const assert = require("assert");
+class Fake { constructor(){ this.style = {}; this.dataset = {}; this.attrs = {}; this.textContent = ""; this.className = ""; this.L = {}; this.clicks = 0; this.writes = 0; this._html = ""; }
+  set innerHTML(v){ this._html = v; this.writes++; } get innerHTML(){ return this._html; }
+  getAttribute(k){ return this.attrs[k] === undefined ? null : this.attrs[k]; } addEventListener(ev, f){ this.L[ev] = f; } click(){ this.clicks++; } }
+function world(look){
+  const els = {kside: new Fake(), kdash: new Fake(), beat: new Fake(), mkt: new Fake(), feed: new Fake(), upd: new Fake(), tlive: new Fake(), tclear: new Fake(), bias: new Fake()};
+  els.beat.className = "beat live"; els.mkt.textContent = "Market open"; els.feed.textContent = "Live"; els.upd.textContent = "23:28:13 IST";
+  els.tlive.style.display = ""; els.tlive.attrs["aria-pressed"] = "false"; els.tclear.style.display = "none"; els.bias.textContent = "No trade";
+  const calls = {selected: [], tabs: []};
+  const env = {LOOK_KITE: look === "kite", CUR: "BTC", $: id => els[id] || null,
+    esc: t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])),
+    money: v => (v >= 0 ? "+" : "−") + "$" + Math.abs(Math.round(v)).toLocaleString("en-US"),
+    num: (v, d = 2) => v === null || v === undefined || isNaN(v) ? "—" : Number(v).toFixed(d),
+    fundsLabel: f => f.asset + " " + f.available.toFixed(2),
+    selectIndex: k => calls.selected.push(k), showTab: t => calls.tabs.push(t)};
+  const f = new Function(...Object.keys(env), """ + __import__("json").dumps(fn_src) + r""" + "; return {kiteSide, kiteDash};")(...Object.values(env));
+  return {els, calls, ...f};
+}
+const S = (over) => Object.assign({
+  indices: {BTC: {bias: "NEUTRAL", spot: 84090.9, confidence: "N/A"}}, order: ["BTC"], tickets: {BTC: {ticket: null}},
+  session: {net: 98, booked: 98, open: 0, issued: 10, wins: 0, stops: 2}, broker: {name: "Delta Exchange", connected: true, funds: {asset: "USD", available: 0.56}},
+  market_label: "Bitcoin"}, over || {});
+const TK = {status: "OPEN", strike: 84000, option_type: "CE", entry: 730, now: 786.5, pnl: 1412.5, stop: 610, targets: [860, 940, 1020], hit: {T1: true, T2: false, T3: false}};
+
+// not the Zerodha look: nothing is written, nothing is wired
+let w = world("terminal"); w.kiteSide(S()); w.kiteDash(S());
+assert.strictEqual(w.els.kside.writes, 0); assert.strictEqual(w.els.kdash.writes, 0); assert.ok(!w.els.kside.L.click);
+
+// a quiet day
+w = world("kite"); w.kiteSide(S());
+let h = w.els.kside.innerHTML;
+assert.ok(h.includes("Market open") && h.includes("beat live") && h.includes("23:28:13 IST"), "the market's state, in the column");
+assert.ok(h.includes("Live orders") && h.includes('aria-checked="false"') && h.includes(">OFF<") && !h.includes("klive on"), "the switch reads OFF");
+assert.ok(h.includes("No open trade on BTC. No trade."), "no trade open");
+assert.ok(h.includes("Today") && h.includes("+$98") && h.includes("10 tickets") && h.includes("2 stopped out"), "today");
+assert.ok(h.includes("Funds") && h.includes("USD 0.56") && h.includes("available on Delta Exchange") && h.includes('href="/market"'), "funds and the way to the other market");
+assert.ok(h.includes("kb-today") && h.includes("kb-funds"), "the panels the Dashboard hides are marked");
+
+// an open trade, live orders on
+w = world("kite"); w.els.tlive.attrs["aria-pressed"] = "true"; w.els.tclear.style.display = "";
+w.kiteSide(S({tickets: {BTC: {ticket: TK}}}));
+h = w.els.kside.innerHTML;
+assert.ok(h.includes("Open trade &middot; BTC 84000 CE") && h.includes("+$1,413"), "the trade and its live result");
+assert.ok(h.includes("730.00") && h.includes("786.50") && h.includes("610.00"), "entry, now and stop");
+assert.ok(h.includes("T1 860.00 ✓") && h.includes("T2 940.00") && !h.includes("T2 940.00 ✓"), "targets, the one that has been hit ticked");
+assert.ok(h.includes("Clear ticket"), "an exit when there is one to make");
+assert.ok(h.includes('aria-checked="true"') && h.includes("klive on") && h.includes(">ON<"), "the switch reads ON");
+assert.ok(!h.includes("No open trade"));
+w.els.tclear.style.display = "none"; KS = null;
+w.kiteSide(S({tickets: {BTC: {ticket: TK}}}));
+assert.ok(!w.els.kside.innerHTML.includes("Clear ticket"), "no exit button when the page has none to press");
+
+// a hidden live switch (the market cannot place real orders) leaves no switch
+w = world("kite"); w.els.tlive.style.display = "none"; w.kiteSide(S());
+assert.ok(!w.els.kside.innerHTML.includes("Live orders"));
+
+// rewritten only when it changes
+w = world("kite"); w.kiteSide(S()); w.kiteSide(S()); w.kiteSide(S());
+assert.strictEqual(w.els.kside.writes, 1, "the same picture is not written again");
+w.kiteSide(S({session: {net: 120, booked: 120, open: 0, issued: 11}}));
+assert.strictEqual(w.els.kside.writes, 2, "a change is");
+
+// the buttons press the real ones
+w = world("kite"); w.kiteSide(S({tickets: {BTC: {ticket: TK}}}));
+const press = k => w.els.kside.L.click({target: {closest: () => ({dataset: {kact: k}})}});
+press("live"); press("clear"); press("clear");
+assert.strictEqual(w.els.tlive.clicks, 1, "the switch presses the card's own switch (which asks you to confirm)");
+assert.strictEqual(w.els.tclear.clicks, 2);
+w.els.kside.L.click({target: {closest: () => null}});
+assert.strictEqual(w.els.tlive.clicks, 1, "a click elsewhere in the column does nothing");
+
+// nothing from outside is trusted as markup
+w = world("kite"); w.els.bias.textContent = "<img src=x onerror=alert(1)>"; w.kiteSide(S());
+assert.ok(!w.els.kside.innerHTML.includes("<img") && w.els.kside.innerHTML.includes("&lt;img"), "escaped");
+w = world("kite"); w.kiteSide(S({broker: {name: "Zerodha", connected: false, connect_url: "/connect"}}));
+assert.ok(w.els.kside.innerHTML.includes("Zerodha is not connected") && w.els.kside.innerHTML.includes('href="/connect"'), "a broker that is not connected says so and links to it");
+
+// the Dashboard
+w = world("kite");
+const D = S({indices: {NIFTY: {bias: "BULLISH", spot: 24000, confidence: "High"}, BANKNIFTY: {bias: "BEARISH", spot: 55000, confidence: "N/A"}, SENSEX: {bias: "NEUTRAL", spot: 78000}},
+             order: ["NIFTY", "BANKNIFTY", "SENSEX"],
+             tickets: {NIFTY: {ticket: {status: "OPEN", strike: 24000, option_type: "CE", pnl: -450}}, BANKNIFTY: {ticket: null}, SENSEX: {}}});
+w.kiteDash(D);
+h = w.els.kdash.innerHTML;
+assert.ok(h.includes("Today's result") && h.includes("+$98") && h.includes("booked +$98") && h.includes("Funds available") && h.includes("USD 0.56"), "the two big figures");
+assert.strictEqual((h.match(/<tr data-k=/g) || []).length, 3, "a row per index");
+const rowOf = k => (h.split('<tr data-k="' + k + '"')[1] || "").split("</tr>")[0];
+assert.ok(rowOf("NIFTY").includes("Buy CE") && rowOf("NIFTY").includes("var(--up)"), "a bullish index reads Buy CE, in green");
+assert.ok(rowOf("BANKNIFTY").includes("Buy PE") && rowOf("BANKNIFTY").includes("var(--down)"), "a bearish one reads Buy PE, in red");
+assert.ok(rowOf("SENSEX").includes("No trade"), "a neutral one reads No trade");
+assert.ok(h.includes("24000 CE") && h.includes("−$450"), "the open trade and its result");
+assert.ok(h.includes(">High<") || h.includes("High"), "confidence, where there is one");
+assert.strictEqual((h.match(/—<\/td>/g) || []).length >= 4, true, "an index with no trade shows dashes, not zeros");
+w.els.kdash.L.click({target: {closest: () => ({dataset: {k: "BANKNIFTY"}})}});
+assert.deepStrictEqual(w.calls.selected, ["BANKNIFTY"]); assert.deepStrictEqual(w.calls.tabs, ["signal"], "a row opens that index's Signal page");
+w.kiteDash(D); assert.strictEqual(w.els.kdash.writes, 1, "not rewritten when nothing changed");
+w = world("kite"); w.kiteDash(S({broker: {name: "Zerodha", connected: false}}));
+assert.ok(w.els.kdash.innerHTML.includes("Zerodha is not connected"));
+console.log("ok:panels");
+"""
+    prog = prog.replace("w.els.tclear.style.display = \"none\"; KS = null;", "w.els.tclear.style.display = \"none\";")
+    import json as _json, subprocess as _sp
+    r = _sp.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    check("the left column's and the Dashboard's own code, run for real: what they say, what they press, what they escape, and that they are silent outside the Zerodha look",
+          "ok:panels" in r.stdout and r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-800:])
 
 print("KITE LOOK TEST PASSED" if not fails else f"KITE LOOK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
