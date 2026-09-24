@@ -584,16 +584,39 @@ def _dots(seed, n, w, h, rgb, alpha, rmax):
     return ",".join(out)
 
 
+_SCENE_CACHE = {}
+
+
 def _scene_candles():
-    """Nifty's latest 14 fifteen-minute candles, or a stand-in shape."""
+    """The background scene's candles, built again only when the history file changes.
+
+    Every public page (login, privacy, terms, ...) draws this scene, and building it
+    reads a compressed price-history file with pandas: measured 24 Sep 2026 at
+    0.25-0.4 s on the server for EVERY page view, against 1 ms for a page that does
+    not. The file changes once a day, so its path, size and modification time are the
+    key, and a new file (or a half-written one being replaced) simply rebuilds it."""
     import glob
-    import math
     import os
+    files = sorted(glob.glob(os.path.expanduser("~/trading-tool-logs/option_history/*.csv.gz")))
+    try:
+        st = os.stat(files[-1]) if files else None
+        key = (files[-1], st.st_mtime_ns, st.st_size) if st else None
+    except OSError:
+        key = None
+    hit = _SCENE_CACHE.get("scene")
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    html = _scene_candles_build(files)
+    _SCENE_CACHE["scene"] = (key, html)
+    return html
+
+
+def _scene_candles_build(files):
+    """Nifty's latest 14 fifteen-minute candles, or a stand-in shape."""
+    import math
     bars = []
     try:
         import pandas as pd
-        files = sorted(glob.glob(os.path.expanduser(
-            "~/trading-tool-logs/option_history/*.csv.gz")))
         if files:
             d = pd.read_csv(files[-1])
             x = d[(d["kind"] == "IDX") & (d["index"] == "NIFTY")].copy()
