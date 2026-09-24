@@ -210,5 +210,146 @@ console.log("ok:switch");
     check("the head script, run for real: dark unless kite or glass is saved, and safe with storage blocked", "ok:head" in r.stdout, out[-500:])
     check("the switch code, run for real: cycling, choosing, staying put, no needless reload", "ok:switch" in r.stdout and r.returncode == 0, out[-500:])
 
+
+print("6. THE LAYOUT OF KITE ITSELF (25 Sep 2026: 'it should be like this' - the user's screenshot of Kite's dashboard)")
+check("sections are flat and run on, separated by thin rules, not drawn as boxes",
+      ':root[data-look="kite"] :is(.card,.session){background:transparent;border:0;border-bottom:1px solid var(--bd-soft);' in KITE
+      and ':root[data-look="kite"] .herocard{background:transparent;border:0;border-bottom:1px solid var(--bd-soft)' in KITE)
+# a :is() takes its most specific member, and .notice.stale once inflated the general rule so the flat rules below it silently lost:
+general = re.search(r':root\[data-look="kite"\] :is\(([^)]*)\)\{\s*background:var\(--surface\);border:1px solid var\(--bd\)', KITE)
+check("...the general rule names only single-class selectors", bool(general) and "notice" not in general.group(1) and
+      all(part.count(".") == 1 for part in general.group(1).split(",")), general.group(1) if general else None)
+check("type is set light, as Kite sets it", ":is(h1,h2,h3,.htitle,.welcome h1,.hero .v,.herocard #bias,.mkt .px,.tile .v){font-weight:400;letter-spacing:0}" in KITE)
+check("on a wide screen the menu is a bar across the top: fixed, full width, 52px, white",
+      "@media (min-width:901px){" in KITE and ":root[data-look=\"kite\"] .side{top:0;left:0;right:0;bottom:auto;width:auto;height:52px;flex-direction:row;" in KITE
+      and ".main{margin-left:0;padding-top:52px}" in KITE and "header{top:52px}" in KITE)
+check("its links are plain text, the current page in Kite's orange with an underline",
+      ".menu .tab.on{background:transparent;border-color:transparent;color:var(--brand);" in KITE and "border-bottom-color:var(--brand)}" in KITE)
+check("a group's pages drop down under its name; the group holding the current page is marked",
+      ".mgrp-items{position:absolute;top:52px;right:0;min-width:230px;" in KITE and ".mgrp:has(.tab.on) > .mtoggle{color:var(--brand)" in KITE)
+check("on a laptop width the wordmark goes and the padding closes up so the bar still fits (it ran off the screen at 901px)",
+      "@media (max-width:1180px){" in KITE and ".sbrand > div{display:none}" in KITE)
+check("the indices are a watchlist down the left, sticky, with the page beside it",
+      "grid-template-columns:360px minmax(0,1fr)" in KITE and ".wrap > #markets{grid-column:1;grid-row:1 / span 6;position:sticky;" in KITE
+      and '#markets::before{content:"Watchlist"' in KITE)
+check("each index is a row: name and price on one line, expiry and signal state under; a signal colours the name and the edge",
+      'grid-template-areas:"nm px" "ex st"' in KITE and ".mkt.bull .nm{color:var(--up)}" in KITE and ".mkt.bear .nm{color:var(--down)}" in KITE)
+check("the strip under the bar carries plain text, not boxed chips", ".hd .status{background:transparent;border:0;padding:0}" in KITE)
+
+if NODE:
+    k0 = SRC.index("// In the Zerodha look on a wide screen the menu is a bar across the top")
+    k1 = SRC.index("document.querySelectorAll(\".mgrp\").forEach(g => {", k0)
+    n0 = SRC.index("// The Zerodha look's bar across the top (wide screens).")
+    n1 = SRC.index('$("navbtn").addEventListener("click", navOpen);', n0)
+    prog = r"""
+const assert = require("assert");
+class El {
+  constructor(tag, cls, data){ this.tag = tag; this.cls = (cls || "").split(" ").filter(Boolean); this.dataset = Object.assign({}, data || {});
+    this.children = []; this.parent = null; this.L = {}; this.attrs = {}; this.childNodes = []; }
+  get className(){ return this.cls.join(" "); }
+  set innerHTML(html){                     // only the markup the bar builds for its More group
+    this.children = [];
+    const toggle = new El("button", "mgroup mtoggle"); const items = new El("div", "mgrp-items");
+    toggle.parent = items.parent = this; this.children.push(toggle, items);
+  }
+  appendChild(el){ if(el.parent) el.parent.children = el.parent.children.filter(c => c !== el); el.parent = this; this.children.push(el); return el; }
+  has(sel){
+    if(sel === "a.tab") return this.tag === "a" && this.cls.includes("tab");
+    const m = /^\.tab\[data-tab="(\w+)"\]$/.exec(sel); if(m) return this.cls.includes("tab") && this.dataset.tab === m[1];
+    if(sel[0] === ".") return this.cls.includes(sel.slice(1));
+    if(sel === "#tabs") return this.id === "tabs";
+    return false;
+  }
+  all(sel){ let out = []; for(const c of this.children){ if(c.has(sel)) out.push(c); out = out.concat(c.all(sel)); } return out; }
+  querySelector(sel){ return this.all(sel)[0] || null; }
+  querySelectorAll(sel){ return this.all(sel); }
+  closest(sel){ for(let e = this; e; e = e.parent) if(e.has(sel)) return e; return null; }
+  setAttribute(k, v){ this.attrs[k] = v; }
+  addEventListener(ev, f){ (this.L[ev] = this.L[ev] || []).push(f); }
+  fire(ev, target){ (this.L[ev] || []).forEach(f => f({target: target || this, key: ev})); }
+}
+const tab = (t, txt) => { const b = new El("button", "tab", {tab: t}); b.childNodes = [{nodeType: 1, textContent: ""}, {nodeType: 3, textContent: txt}]; return b; };
+const bar = new El("nav", "menu"); bar.id = "tabs";
+const home = tab("home", "Home"); bar.appendChild(home);
+["signal", "chart", "tradingview", "chain", "watchlist", "journal", "marketbot", "aidesk"].forEach(t => bar.appendChild(tab(t, t)));
+const groups = {};
+["market", "analysis", "research"].forEach(g => { const grp = new El("div", "mgrp", {grp: g, open: "false"}); const tg = new El("button", "mgroup mtoggle"); const it = new El("div", "mgrp-items");
+  grp.appendChild(tg); grp.appendChild(it); it.appendChild(tab(g + "1", g + " page")); bar.appendChild(grp); groups[g] = grp; });
+const a1 = new El("a", "tab"), a2 = new El("a", "tab"); bar.appendChild(a1); bar.appendChild(a2); bar.appendChild(tab("admin", "Admin"));
+const looksw = new El("div", "looksw"), foot = new El("div", "sidefoot");
+const docL = {};
+const document = {documentElement: {dataset: {look: LOOK}}, createElement: tag => new El(tag), querySelector: sel => sel === ".sidefoot" ? foot : null,
+                  addEventListener: (ev, f) => { (docL[ev] = docL[ev] || []).push(f); }};
+const winL = {};
+const $ = id => id === "tabs" ? bar : id === "looksw" ? looksw : null;
+const TAB_LABEL = {home: "Home"};
+const addEventListener = (ev, f) => { (winL[ev] = winL[ev] || []).push(f); };
+const matchMedia = q => ({matches: WIDE});
+const api = new Function("document", "matchMedia", "$", "TAB_LABEL", "addEventListener", "bar", "groups",
+  """ + __import__("json").dumps("") + r""" + %s + "\n" + %s + "\nreturn {navGroup, KITE_NAV};");
+""" % (__import__("json").dumps(SRC[k0:k1]), __import__("json").dumps(SRC[n0:n1]))
+    def run_case(look, wide):
+        return prog.replace("LOOK", '"' + look + '"').replace("WIDE", "true" if wide else "false") + r"""
+const out = (() => { try { return api(document, matchMedia, $, TAB_LABEL, addEventListener, bar, groups); } catch(e){ return {err: e.message + "\n" + e.stack}; } })();
+if(out.err) { console.log("ERR " + out.err); process.exit(1); }
+const kite = out.KITE_NAV;
+const names = el => el.children.map(c => c.dataset.tab || c.dataset.grp || c.tag + "." + c.className);
+console.log(JSON.stringify({kite, top: names(bar), more: bar.querySelector(".mgrp[data-grp=more]") ? 1 : 0, homeText: home.childNodes[1].textContent, label: TAB_LABEL.home}));
+"""
+    import json, subprocess
+    # a Zerodha look on a wide screen builds the bar
+    prog_k = run_case("kite", True)
+    prog_k += r"""
+const more = bar.children.find(c => c.dataset && c.dataset.grp === "more");
+const moreItems = more.children[1].children.map(c => c.dataset.tab || c.tag + "." + c.className);
+console.log(JSON.stringify({moreItems}));
+// the groups are dropdowns opened by a click, one at a time
+const open = g => g.dataset.open === "true";
+out.navGroup(groups.market, true);                     // the page showing lives in it: NOT a reason to drop it down
+console.log(JSON.stringify({openedByPage: open(groups.market)}));
+out.navGroup(groups.market, true, true); bar.fire("click", groups.market.children[0]);
+console.log(JSON.stringify({openedByClick: open(groups.market)}));
+out.navGroup(groups.analysis, true, true); bar.fire("click", groups.analysis.children[0]);
+console.log(JSON.stringify({afterSecond: {market: open(groups.market), analysis: open(groups.analysis)}}));
+(docL.click || []).forEach(f => f({target: new El("div")}));
+console.log(JSON.stringify({afterOutsideClick: {analysis: open(groups.analysis)}}));
+out.navGroup(groups.research, true, true); (winL.keydown || []).forEach(f => f({key: "Escape"}));
+console.log(JSON.stringify({afterEscape: open(groups.research)}));
+out.navGroup(groups.market, true, true); bar.fire("click", groups.market.children[1].children[0]);
+console.log(JSON.stringify({afterPickingAPage: open(groups.market)}));
+"""
+    r = subprocess.run([NODE, "-e", prog_k], capture_output=True, text=True, timeout=60)
+    lines = [l for l in r.stdout.splitlines() if l.startswith("{")]
+    res = {}
+    for l in lines:
+        res.update(json.loads(l))
+    ok_run = r.returncode == 0 and bool(res)
+    check("the top bar's own code, run for real on a copy of the menu's structure: it runs", ok_run, ((r.stdout or "") + (r.stderr or ""))[-600:])
+    if ok_run:
+        check("the used-most pages stay on the bar, in order, with the three groups and More after them",
+              res["top"][:6] == ["home", "signal", "chart", "chain", "journal", "aidesk"] and res["top"][6:] == ["market", "analysis", "research", "more"], res["top"])
+        check("More holds the rest - TradingView, Watchlist, Ask TradePicker, the two account links, Admin - and the theme switch and sign-out",
+              res["moreItems"] == ["tradingview", "watchlist", "marketbot", "a.tab", "a.tab", "admin", "div.looksw", "div.sidefoot"], res["moreItems"])
+        check("Home is called Dashboard, on the bar and in the phone's title", res["homeText"] == "Dashboard" and res["label"] == "Dashboard")
+        check("a dropdown is not opened by the page you are on living in it", res["openedByPage"] is False)
+        check("...it opens when clicked", res["openedByClick"] is True)
+        check("only one dropdown is open at a time", res["afterSecond"] == {"market": False, "analysis": True}, res["afterSecond"])
+        check("a click anywhere else closes it", res["afterOutsideClick"] == {"analysis": False}, res["afterOutsideClick"])
+        check("Escape closes it", res["afterEscape"] is False)
+        check("choosing a page in it closes it", res["afterPickingAPage"] is False)
+    # anything else leaves the menu as it was
+    for look, wide in (("terminal", True), ("glass", True), ("kite", False)):
+        r = subprocess.run([NODE, "-e", run_case(look, wide) + r"""
+out.navGroup(groups.market, true);
+console.log(JSON.stringify({openByPage: groups.market.dataset.open === "true"}));"""], capture_output=True, text=True, timeout=60)
+        res2 = {}
+        for l in r.stdout.splitlines():
+            if l.startswith("{"):
+                res2.update(json.loads(l))
+        check(f"the {look} look{'' if wide else ' on a phone'} leaves the menu alone: same buttons in the same places, no More, Home still Home, "
+              "and a group still opens for the page you are on",
+              r.returncode == 0 and res2.get("kite") is False and "more" not in res2.get("top", []) and res2.get("homeText") == "Home"
+              and res2.get("openByPage") is True and res2["top"][:3] == ["home", "signal", "chart"], (res2, (r.stderr or "")[-200:]))
+
 print("KITE LOOK TEST PASSED" if not fails else f"KITE LOOK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

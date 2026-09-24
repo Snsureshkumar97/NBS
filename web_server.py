@@ -4151,7 +4151,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .wrap > *,:root[data-look="kite"] .herocard{transform:none !important}
 :root[data-look="kite"] header{background:#fff;border-bottom:1px solid var(--bd)}
 :root[data-look="kite"] .ticker{background:var(--raised);border-bottom:1px solid var(--bd);overflow-x:auto}
-:root[data-look="kite"] :is(.card,.mkt,.session,.notice.stale,.tile,.risk,.tstat){
+:root[data-look="kite"] :is(.card,.mkt,.session,.tile,.risk,.tstat){
   background:var(--surface);border:1px solid var(--bd);border-radius:var(--r)}
 :root[data-look="kite"] :is(.tile,.risk,.tstat){background:var(--raised)}
 :root[data-look="kite"] .notice.risk{border-radius:var(--r-sm)}
@@ -4214,6 +4214,90 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .tk-track{transform:none;width:max-content}
 /* small grey capitals over dense figures, as Kite sets its tables */
 :root[data-look="kite"] :is(table th,.tile .l,.session .l,.mkt .nm){letter-spacing:.4px;text-transform:uppercase;font-weight:600;color:var(--ink-3)}
+
+/* -- The layout of Kite itself (the user sent its dashboard as the model, 25 Sep 2026: "it should
+   be like this ... boxes for everything I need like continuous pages") --
+   Sections are not boxes: a page is a run of sections separated by thin rules, with the figures set
+   large and the labels small and grey. On a wide screen the menu is a bar across the top with the
+   page names right-aligned and the active one in orange, and the indices are a watchlist down the
+   left, as Kite's marketwatch is. On a phone the same flat sections, under the phone's own bars. */
+:root[data-look="kite"] :is(.card,.session){background:transparent;border:0;border-bottom:1px solid var(--bd-soft);
+  border-radius:0;padding-left:0;padding-right:0}
+:root[data-look="kite"] :is(.tile,.tstat,.risk){background:#fff;border:1px solid var(--bd-soft);border-radius:var(--r)}
+:root[data-look="kite"] .herocard{background:transparent;border:0;border-bottom:1px solid var(--bd-soft);border-radius:0;padding-left:0}
+:root[data-look="kite"] .top3 .card{padding-left:0}
+/* Kite sets its type light: regular weights, large figures, small grey labels */
+:root[data-look="kite"] :is(h1,h2,h3,.htitle,.welcome h1,.hero .v,.herocard #bias,.mkt .px,.tile .v){font-weight:400;letter-spacing:0}
+:root[data-look="kite"] .welcome .who{font-weight:500}
+/* the strip under the bar carries plain text, not boxed chips */
+:root[data-look="kite"] .hd .status{background:transparent;border:0;padding:0}
+:root[data-look="kite"] .hd .chip{background:transparent;border:0;padding:0 0 0 18px;min-height:0}
+:root[data-look="kite"] .mkt.bull .nm{color:var(--up)}
+:root[data-look="kite"] .mkt.bear .nm{color:var(--down)}
+@media (min-width:901px){
+  /* -- the menu becomes the bar across the top -- */
+  :root[data-look="kite"] .side{top:0;left:0;right:0;bottom:auto;width:auto;height:52px;flex-direction:row;
+    align-items:center;gap:0;padding:0 24px;overflow:visible;border-right:0;border-bottom:1px solid var(--bd);
+    background:#fff;z-index:80}
+  :root[data-look="kite"] .sbrand{padding:0 28px 0 0;flex:none}
+  :root[data-look="kite"] .sbrand small,:root[data-look="kite"] .sidechips{display:none}
+  :root[data-look="kite"] .menu{flex-direction:row;align-items:stretch;gap:0;margin-left:auto;height:52px}
+  :root[data-look="kite"] .menu p.mgroup{display:none}
+  :root[data-look="kite"] .menu .tab,:root[data-look="kite"] button.mgroup.mtoggle{
+    display:flex;align-items:center;gap:4px;height:52px;padding:0 14px;margin:0;width:auto;background:transparent;
+    border:0;border-bottom:2px solid transparent;border-radius:0;color:var(--ink-2);font-size:14px;font-weight:400;
+    letter-spacing:0;text-transform:none;white-space:nowrap}
+  :root[data-look="kite"] .menu .tab i{display:none}
+  :root[data-look="kite"] .menu .tab:hover,:root[data-look="kite"] button.mgroup.mtoggle:hover{background:transparent;color:var(--ink)}
+  :root[data-look="kite"] .menu .tab.on{background:transparent;border-color:transparent;color:var(--brand);
+    border-bottom-color:var(--brand)}
+  :root[data-look="kite"] .mgrp{position:relative;display:flex;align-items:stretch;margin:0}
+  :root[data-look="kite"] .mgrp:has(.tab.on) > .mtoggle{color:var(--brand);border-bottom-color:var(--brand)}
+  :root[data-look="kite"] .mgroup .chev .ico{width:12px;height:12px}
+  :root[data-look="kite"] .mgrp[data-open="true"] > .mtoggle .chev .ico{transform:rotate(180deg)}
+  :root[data-look="kite"] .mgrp[data-open="false"] > .mtoggle .chev .ico{transform:none}
+  /* a group's pages drop down under its name */
+  :root[data-look="kite"] .mgrp-items{position:absolute;top:52px;right:0;min-width:230px;flex-direction:column;gap:0;
+    background:#fff;border:1px solid var(--bd);padding:6px 0;z-index:90}
+  :root[data-look="kite"] .mgrp-items .tab{height:auto;width:100%;padding:10px 18px;border:0;justify-content:flex-start;
+    border-left:2px solid transparent}
+  :root[data-look="kite"] .mgrp-items .tab.on{border-left-color:var(--brand);border-bottom-color:transparent;background:var(--raised)}
+  :root[data-look="kite"] .mgrp-items .looksw{margin:8px 0 0;padding:10px 18px 4px;border-top:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .mgrp-items .sidefoot{margin:0;padding:8px 18px 6px;border-top:0}
+  :root[data-look="kite"] .main{margin-left:0;padding-top:52px}
+  /* a laptop-width bar has the room for the names of the pages but not for the wordmark and roomy padding */
+  @media (max-width:1180px){
+    :root[data-look="kite"] .sbrand > div{display:none}
+    :root[data-look="kite"] .sbrand{padding-right:12px}
+    :root[data-look="kite"] .side{padding:0 12px}
+    :root[data-look="kite"] .menu .tab,:root[data-look="kite"] button.mgroup.mtoggle{padding:0 9px;font-size:13.5px}
+  }
+  :root[data-look="kite"] header{top:52px}
+  :root[data-look="kite"] .hd{padding:6px 24px;min-height:40px}
+  /* -- the indices: a watchlist down the left, the page beside it -- */
+  :root[data-look="kite"] .wrap{max-width:none;padding:0 24px 64px;display:grid;
+    grid-template-columns:360px minmax(0,1fr);column-gap:36px;align-items:start}
+  :root[data-look="kite"] .wrap > *{grid-column:2}
+  :root[data-look="kite"] .wrap > footer{grid-column:1 / -1}
+  :root[data-look="kite"] .wrap > #markets{grid-column:1;grid-row:1 / span 6;position:sticky;top:100px;display:flex;
+    flex-direction:column;gap:0;margin:16px 0 0;border:1px solid var(--bd);border-radius:var(--r);background:#fff}
+  :root[data-look="kite"] #markets::before{content:"Watchlist";display:block;padding:12px 16px;font-size:12px;
+    font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] #markets .mkt{display:grid;grid-template-columns:1fr auto;grid-template-areas:"nm px" "ex st";
+    align-items:center;column-gap:12px;row-gap:2px;padding:12px 16px;border:0;border-bottom:1px solid var(--bd-soft);
+    border-radius:0;background:#fff;overflow:visible}
+  :root[data-look="kite"] #markets .mkt:last-child{border-bottom:0}
+  :root[data-look="kite"] #markets .mkt > div:first-child{display:contents}
+  :root[data-look="kite"] #markets .mkt .nm{grid-area:nm;font-size:14px;font-weight:500;letter-spacing:0;color:var(--ink);
+    text-transform:none}
+  :root[data-look="kite"] #markets .mkt .px{grid-area:px;margin:0;text-align:right;font-size:16px;font-weight:500}
+  :root[data-look="kite"] #markets .mkt .ex{grid-area:ex;margin:0}
+  :root[data-look="kite"] #markets .mkt .st{grid-area:st;margin:0;justify-self:end}
+  :root[data-look="kite"] #markets .mkt.bull{border-top:0;border-left:3px solid var(--up);padding-left:13px}
+  :root[data-look="kite"] #markets .mkt.bear{border-top:0;border-left:3px solid var(--down);padding-left:13px}
+  :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
+  :root[data-look="kite"] #markets .mkt[aria-selected="true"]::before{width:3px}
+}
 
 /* the theme switch, in the sidebar footer (the drawer's, on a phone) - every look */
 .looksw{display:flex;align-items:center;gap:4px;margin:auto 0 8px;padding:10px 10px 0;font-size:12px;color:var(--ink-3)}
@@ -8330,7 +8414,11 @@ function navClose(){
 const GKEY = "nbs.navgroups.v1", GDEF = {market: true, analysis: false, research: false};
 let NAVG = {};
 try{ NAVG = JSON.parse(localStorage.getItem(GKEY) || "{}"); }catch(e){}
-function navGroup(el, open){
+// In the Zerodha look on a wide screen the menu is a bar across the top and a group is a dropdown: it opens
+// when it is clicked, never because the page you are on lives in it, and it does not touch the saved folds.
+const KITE_NAV = document.documentElement.dataset.look === "kite" && matchMedia("(min-width:901px)").matches;
+function navGroup(el, open, byUser){
+  if(KITE_NAV && open && !byUser) open = false;
   el.dataset.open = open ? "true" : "false";
   const b = el.querySelector(".mtoggle");
   if(b) b.setAttribute("aria-expanded", open ? "true" : "false");
@@ -8340,7 +8428,9 @@ document.querySelectorAll(".mgrp").forEach(g => {
   navGroup(g, k in NAVG ? !!NAVG[k] : GDEF[k] !== false);
   g.querySelector(".mtoggle").addEventListener("click", () => {
     const open = g.dataset.open !== "true";
-    navGroup(g, open); NAVG[k] = open;
+    navGroup(g, open, true);
+    if(KITE_NAV) return;
+    NAVG[k] = open;
     try{ localStorage.setItem(GKEY, JSON.stringify(NAVG)); }catch(e){}
   });
 });
@@ -8402,6 +8492,35 @@ function showTab(name, push){
 }
 document.querySelectorAll(".tab").forEach(b =>
   b.addEventListener("click", () => showTab(b.dataset.tab)));
+// The Zerodha look's bar across the top (wide screens). Kite has six pages along its top; this has twenty-odd,
+// so the ones used least go under a "More" dropdown with the theme switch and sign-out, and the Market, Analysis
+// and Research groups are dropdowns of their own. The same buttons are moved, not copied, so every page is
+// still reached the same way. Only one dropdown is open at a time; a click elsewhere or Escape closes it.
+if(KITE_NAV){
+  const bar = $("tabs");
+  const more = document.createElement("div");
+  more.className = "mgrp"; more.dataset.grp = "more"; more.dataset.open = "false";
+  more.innerHTML = '<button class="mgroup mtoggle" type="button" aria-expanded="false">More<span class="chev">'
+    + '<svg class="ico" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>'
+    + '<div class="mgrp-items"></div>';
+  const items = more.querySelector(".mgrp-items");
+  ["tradingview", "watchlist", "marketbot"].forEach(t => {
+    const b = bar.querySelector('.tab[data-tab="' + t + '"]'); if(b) items.appendChild(b); });
+  bar.querySelectorAll("a.tab").forEach(a => items.appendChild(a));
+  { const adm = bar.querySelector('.tab[data-tab="admin"]'); if(adm) items.appendChild(adm); }
+  { const sw = $("looksw"), foot = document.querySelector(".sidefoot");
+    if(sw) items.appendChild(sw); if(foot) items.appendChild(foot); }
+  bar.appendChild(more);
+  more.querySelector(".mtoggle").addEventListener("click", () => navGroup(more, more.dataset.open !== "true", true));
+  const closeAll = except => bar.querySelectorAll(".mgrp").forEach(g => { if(g !== except) navGroup(g, false); });
+  bar.addEventListener("click", e => { const t = e.target.closest(".mtoggle"); closeAll(t ? t.closest(".mgrp") : null); });
+  document.addEventListener("click", e => { if(!e.target.closest("#tabs")) closeAll(null); });
+  addEventListener("keydown", e => { if(e.key === "Escape") closeAll(null); });
+  { const home = bar.querySelector('.tab[data-tab="home"]');
+    const n = home && [...home.childNodes].find(x => x.nodeType === 3 && x.textContent.trim());
+    if(n){ n.textContent = "Dashboard"; TAB_LABEL.home = "Dashboard"; } }
+}
 $("navbtn").addEventListener("click", navOpen);
 $("bnmore").addEventListener("click", () =>
   document.body.classList.contains("navopen") ? navClose() : navOpen());
