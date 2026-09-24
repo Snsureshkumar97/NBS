@@ -110,3 +110,32 @@ Mac is a copy as of the cut‑over.
 - The Mac's `python3` now resolves to Homebrew's copy (installed with the
   Google Cloud CLI); the tool's own interpreter is
   `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3`.
+
+## Direct HTTPS address (added 24 Sep 2026)
+
+The Tailscale Funnel link is slow from the user's side of the world: measured at 1.3-1.6 s
+before the first byte for every request (traffic goes through Tailscale's relays, the
+Tokyo one in the measured case) and 40-100 KB/s, while the tool itself answers in
+milliseconds. So the VM is also served directly on its own static IP:
+
+* Hostname: `8-231-126-52.sslip.io` (free wildcard DNS that resolves to the IP inside the
+  name; swap in your own domain by changing the site address in the Caddyfile and adding an
+  A record).
+* Firewall (run by the account owner): `gcloud compute firewall-rules create nbs-allow-web
+  --network=default --direction=INGRESS --allow=tcp:80,tcp:443,udp:443 --source-ranges=0.0.0.0/0`
+* `sudo apt-get install -y caddy`, then `/etc/caddy/Caddyfile`:
+
+      8-231-126-52.sslip.io {
+      	bind 10.160.0.2
+      	reverse_proxy 127.0.0.1:5055
+      }
+
+  `bind` is the VM's internal address because tailscaled already holds :443 on the tailnet
+  address. Caddy fetches and renews the certificate itself (Let's Encrypt, then ZeroSSL) and
+  overwrites the client's X-Forwarded-* headers, which the app trusts for the login rate limit.
+* `WEB_PUBLIC_URL` in `~/.trading-tool/.env` is the direct address, and it must equal the
+  Redirect URL registered on the Kite Connect app (`<address>/kite/callback`): the callback
+  needs the session cookie, and cookies are per host.
+* The Funnel link keeps working beside it (`tailscale funnel status`).
+* The site: `python3 export_site.py --out dist --app-url https://8-231-126-52.sslip.io
+  --base-url https://nbstradingtool.vercel.app`.

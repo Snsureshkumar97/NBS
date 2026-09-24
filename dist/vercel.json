@@ -5,32 +5,32 @@
   "redirects": [
     {
       "source": "/login",
-      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/login",
+      "destination": "https://8-231-126-52.sslip.io/login",
       "permanent": false
     },
     {
       "source": "/app",
-      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/app",
+      "destination": "https://8-231-126-52.sslip.io/app",
       "permanent": false
     },
     {
       "source": "/connect",
-      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/connect",
+      "destination": "https://8-231-126-52.sslip.io/connect",
       "permanent": false
     },
     {
       "source": "/logout",
-      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/logout",
+      "destination": "https://8-231-126-52.sslip.io/logout",
       "permanent": false
     },
     {
       "source": "/signup",
-      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/signup",
+      "destination": "https://8-231-126-52.sslip.io/signup",
       "permanent": false
     },
     {
       "source": "/admin",
-      "destination": "https://nbs-signal-tool.tail7b2558.ts.net/admin",
+      "destination": "https://8-231-126-52.sslip.io/admin",
       "permanent": false
     }
   ],
