@@ -397,6 +397,8 @@ def _public(rec, name=None):
         "confidence": rec.get("confidence"),
         "spot": rec.get("spot"),
         "strike": rec.get("suggested_strike"),
+        "strike_swap": rec.get("strike_swap"),
+        "strike_taken": rec.get("strike_taken"),
         "option_type": rec.get("option_type"),
         "targets": rec.get("index_targets"),
         "stop": rec.get("index_stop_loss"),
@@ -957,7 +959,8 @@ class Feed:
                             (getattr(config, "INTRADAY_LOOKBACK_DAYS", None)
                              if self.market == "nse_index" else None),
                             quiet=True,
-                            expiry=_settings["expiry"])
+                            expiry=_settings["expiry"],
+                            avoid_strikes=self._avoid_strikes(name))
                         # The ticket engine sees every fresh reading — it is
                         # what decides whether this one becomes a ticket, and
                         # what checks any open ticket against its frozen
@@ -1728,6 +1731,22 @@ class Feed:
             self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
             return None
 
+    def _avoid_strikes(self, name):
+        """{(strike, "CE"/"PE")} already traded today on this instrument, by the
+        rule tickets or by the AI desk - what the next reading must not name
+        again (signal_engine._next_free_strike). Read off each book's own log,
+        so it survives a restart. Never raises: a failure here is a reading that
+        may name the same strike, which the ticket engine's own guard still stops."""
+        out = set()
+        try:
+            books = [self.tickets, getattr(getattr(self, "ai", None), "book", None)]
+            for book in books:
+                if book is not None:
+                    out |= {(k, t) for i, k, t in book.contracts_today() if i == name}
+        except Exception as exc:
+            self._note_fault(f"{name} strikes traded today", f"{type(exc).__name__}: {exc}")
+        return out
+
     def _daily_trend(self, name):
         """Price vs its own N-day daily moving average (signal_engine.
         compute_daily_trend), for the checklist. self.ohlc() caches daily
@@ -1867,7 +1886,8 @@ class Feed:
                 except Exception:
                     reach = None
                 rec = signal_engine.build_recommendation(name, tech, oi, step,
-                                                          reach=reach)
+                                                          reach=reach,
+                                                          avoid_strikes=self._avoid_strikes(name))
                 try:
                     rec["trend"] = signal_engine.compute_market_trend(df, name)
                 except Exception:

@@ -20,11 +20,16 @@ def check(name, cond, extra=""):
     if not cond:
         fails.append(name)
 
+# A strike is bought once a day: the reading after each ticket names the next
+# strike, as signal_engine does now (see same_strike_test.py). Without this every
+# ticket in here would name 24500 CE again and be held as already traded.
+NEXT = {"CE": 24500, "PE": 24200}
+
 def rec(side="CE", spot=None, rr=2.67, spread=None):
     ce = side == "CE"
     spot = spot if spot is not None else (24500.0 if ce else 24200.0)
     return {"index": "NIFTY", "bias": "BULLISH" if ce else "BEARISH", "option_type": side,
-            "suggested_strike": 24500 if ce else 24200, "spot": spot,
+            "suggested_strike": NEXT[side], "spot": spot,
             "index_targets": [24560., 24610., 24660.] if ce else [24140., 24090., 24040.],
             "index_stop_loss": 24440. if ce else 24260.,
             "premium_targets": [130., 150., 170.], "premium_stop_loss": 80.,
@@ -40,6 +45,8 @@ def feed(r, seconds=1, n=1):
     for _ in range(n):
         CLOCK["s"] += seconds
         opened += [e for e in book.update("NIFTY", r) if e.get("kind") == "opened"]
+    for e in opened:
+        NEXT[e["trade"]["option_type"]] += 50
     return opened
 wait = lambda: (book.books["NIFTY"].wait_reason or (None,))[0]
 trade = lambda: book.books["NIFTY"].trade

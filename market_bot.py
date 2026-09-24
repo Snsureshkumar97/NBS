@@ -616,7 +616,7 @@ look harder, not a reason to fade it. It is stamped on each of your decisions, s
 changed your mind.
 
 Each request brings a <market_snapshot> for one index and a <desk> block with your open tickets, today's \
-entries and limits, contracts already traded today (never propose one of those again), and your own recent \
+entries and limits, contracts already traded today by you or by the rule tickets (never propose one of those again - one account, so a second buy averages into the first; choose the next strike instead), and your own recent \
 decisions on this index. Look up anything else you need with your tools - the option chain for strikes, \
 premiums and spreads; the chart; analysis; news - then hand in your decision with submit_decision. That is \
 the only way a decision counts. Before you submit an ENTRY (not a wait or a hold), look at whatever is \

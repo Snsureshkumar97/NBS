@@ -5091,7 +5091,12 @@ function ladder(r, tk){
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
       : `No live chain for this strike at entry, so the ticket is tracked on the `
         + `index itself. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`)
-      + (trailedRung ? trailNote : "");
+      + (trailedRung ? trailNote : "")
+      + (tk.strike_swap
+          ? ` It is on <b>${esc(String(tk.strike))} ${esc(tk.option_type||"")}</b> because `
+            + `${esc(String(tk.strike_swap.from))} had already been traded today - a second buy on the `
+            + `same strike would average into the first in a real account.`
+          : "");
     return;
   }
 
@@ -5236,6 +5241,16 @@ function ladder(r, tk){
           + `${["T1", "T2"].slice(0, exitIdx0).join(" or ")} is reached before `
           + `${esc(exitAt)}, so a reversal after that costs back only to that `
           + `level, never all the way to the stop shown here.`;
+  }
+  // The strike is chosen when the reading is built: one already traded today
+  // (by the rules or the AI desk) is skipped for the next free one, because a
+  // second buy on it would average into the first in a real account.
+  if(r.strike_swap){
+    note += ` <b>${esc(String(r.strike_swap.to))}</b> is suggested rather than `
+          + `${esc(String(r.strike_swap.from))}, which was already traded today.`;
+  } else if(r.strike_taken){
+    note += " Every strike near the money has already been traded today, so no ticket is issued "
+          + "until the money moves to one that has not been.";
   }
   $("lnote").innerHTML = note;
 }

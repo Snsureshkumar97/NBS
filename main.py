@@ -261,7 +261,8 @@ def drop_preopen(df, notes=None, index_key=None):
     return df
 
 
-def fetch_recommendation(provider, index_key: str, interval: str, lookback_days, quiet: bool = False, expiry: str = None):
+def fetch_recommendation(provider, index_key: str, interval: str, lookback_days, quiet: bool = False, expiry: str = None,
+                         avoid_strikes=None):
     """Fetch + compute one recommendation. Retries transient failures a
     couple of times (NSE/Yahoo occasionally hiccup) before giving up.
     `expiry` — optional, one of the strings from provider.get_expiry_dates();
@@ -319,7 +320,7 @@ def fetch_recommendation(provider, index_key: str, interval: str, lookback_days,
         reach = None
         notes.append(f"(Reachability check unavailable, using risk-multiple targets: {e})")
 
-    rec = build_recommendation(index_key, tech, oi, meta["strike_step"], reach=reach)
+    rec = build_recommendation(index_key, tech, oi, meta["strike_step"], reach=reach, avoid_strikes=avoid_strikes)
     from signal_engine import opening_range
     rec["opening_range"] = opening_range(df)
     # Carry the candles along so the GUI's live loop can append the

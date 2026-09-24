@@ -27,7 +27,7 @@ WHAT THE TOOL ENFORCES, WHATEVER THE BOT SAYS
     MAX_ENTRIES_PER_DAY per market and MAX_ENTRIES_PER_INDEX per index, a
     COOLDOWN_MIN wait after an AI exit on that index, no Indian-index entry
     after NO_ENTRY_AFTER, one AI ticket per index, MAX_DECISIONS_PER_DAY model
-    calls, and no contract twice in a day. An entry must name a strike in the
+    calls, and no contract twice in a day (its own or the rule tickets': one account). An entry must name a strike in the
     live chain within STRIKE_STEPS of the money, with a live premium, a spread
     under MAX_SPREAD_PCT, a stop below and a target above that premium, and at
     least MIN_REWARD_RISK. The entry is the live premium, never the bot's number.
@@ -530,6 +530,39 @@ class AIDesk:
             return None
         return kite_flow.order_flow(st.book(tok, max_age=kite_flow.MAX_AGE_S))
 
+    def _taken_today(self, name):
+        """{(strike, "CE"/"PE")} on this index already traded today, by this desk
+        OR by the rule tickets. The two engines share one Zerodha account, so a
+        buy from either lands on the same position and averages into it - which is
+        why the desk cannot be left to check only its own list. Each book's own
+        log answers, so a restart forgets nothing. (The desk's saved list of its
+        own contracts is checked beside this, in validate.) Never raises: a
+        failure here is a strike the desk may propose that the ticket engine's own
+        guard (tickets._strike_taken) then declines."""
+        out = set()
+        try:
+            for book in (self.book, getattr(self.feed, "tickets", None)):
+                if book is not None:
+                    out |= {(k, t) for i, k, t in book.contracts_today() if i == name}
+        except Exception as exc:
+            self.feed._note_fault(f"{name} strikes traded today", f"{type(exc).__name__}: {exc}")
+        return out
+
+    def _traded_list(self, name):
+        """What the bot is told it may not propose again: this desk's own contracts
+        (with their expiry, as they were saved) plus any this index has had from the
+        rule tickets, which have no expiry on record."""
+        own = list(self.contracts)
+        seen = set()
+        for c in own:
+            try:
+                i, k, t = str(c).split("|")[:3]
+                seen.add((i, float(k), t))
+            except ValueError:
+                pass
+        return own + sorted(f"{name}|{k:g}|{t}" for k, t in self._taken_today(name)
+                            if (name, k, t) not in seen)
+
     def _desk_info(self, name):
         tickets = {}
         for k in self.feed.instruments():
@@ -543,7 +576,7 @@ class AIDesk:
         live = self._live_info(name)
         return {"paper_only": not live.get("on"), "real_orders": live, "your_open_tickets": tickets,
                 "entries_today": dict(self.entries), "max_entries_per_day": MAX_ENTRIES_PER_DAY,
-                "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": list(self.contracts),
+                "max_entries_per_index": MAX_ENTRIES_PER_INDEX, "contracts_already_traded_today": self._traded_list(name),
                 "cooldown_minutes_after_an_exit": COOLDOWN_MIN, "min_reward_to_risk": MIN_REWARD_RISK,
                 "strike_within_steps_of_atm": STRIKE_STEPS, "lots": self.lots,
                 "max_spread_pct_on_this_index": config.max_spread_pct(name),
@@ -791,9 +824,10 @@ class AIDesk:
             return False, "no live premium for that contract", None
         expiry = str(chain.get("expiry") or "")[:10]
         contract = f"{name}|{strike:g}|{side}|{expiry}"
-        if contract in self.contracts:
-            return False, ("that contract was already traded today - a second buy would average into the "
-                           "first in a real account"), None
+        if contract in self.contracts or (strike, side) in self._taken_today(name):
+            return False, ("that contract was already traded today, by this desk or by the rule tickets - "
+                           "a second buy would average into the first in a real account; "
+                           "pick a strike not in contracts_already_traded_today"), None
         cap = config.max_spread_pct(name)
         q = signal_engine._find_strike_quote(chain, strike, side) or {}
         if cap and q.get("pct") is not None and q["pct"] > cap:
@@ -828,6 +862,8 @@ class AIDesk:
                  premium_source="live", live_ltp=plan["ltp"],
                  premium_targets=ladder, premium_stop_loss=plan["stop"],
                  index_targets=[], index_stop_loss=None, strictness="ai",
+                 # The rule reading's own strike swap is about ITS strike; the desk names its own.
+                 strike_swap=None, strike_taken=False,
                  # The log's signal columns describe THIS trade, not the rule
                  # signal the reading came with.
                  confidence="AI", score=None, risk_points=None, reach_points=None,

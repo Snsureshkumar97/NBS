@@ -119,6 +119,7 @@ class TicketBook:
         self.listeners = []
         self.session_net = 0.0
         self._day_cache = None
+        self._contracts_cache = None
 
         # What used to be checkboxes. Defaults come from config so the website
         # and the desktop start from the same place.
@@ -355,6 +356,59 @@ class TicketBook:
             self._day_cache = (now, vals)
             return vals
         return c[1]
+
+    def contracts_today(self):
+        """{(index, strike, "CE"/"PE")} this book has issued a ticket on today,
+        open or closed, read off the trade log - so a restart forgets nothing,
+        which is also why the AI desk's own in-memory list was never enough for
+        the rules. Cached for a few seconds: it is asked once a second per index.
+
+        By calendar day rather than by expiry - the log does not carry one. On an
+        index option that is exact (the nearest expiry cannot change inside a
+        day); on Bitcoin, which lists a new expiry every day, it can rule out a
+        strike that is new again after 21:30 IST, which only ever costs a
+        neighbouring strike."""
+        now = time.time()
+        c = self._contracts_cache
+        if c is not None and now - c[0] <= 3.0:
+            return c[1]
+        out = set()
+        try:
+            today = now_ist().strftime("%Y-%m-%d")
+            for r in trade_log._read_rows(self.path):
+                if r.get("event") == "OPEN" and r.get("date") == today:
+                    try:
+                        out.add((r["index"], float(r["strike"]), r["option_type"]))
+                    except (KeyError, TypeError, ValueError):
+                        pass
+        except Exception:
+            out = set()
+        self._contracts_cache = (now, out)
+        return out
+
+    def _strike_taken(self, book, rec):
+        """Why this reading cannot open a ticket on its strike, or None.
+
+        Two ways: the reading itself says no strike near the money is free, or -
+        a reading built a moment before another ticket opened, or before the last
+        one closed - it still names a contract already traded today. The strike
+        itself is chosen when the reading is built (signal_engine._next_free_strike);
+        this is the invariant behind it, so no reading, stale or otherwise, and no
+        auto re-arm can put a second ticket on a strike already used."""
+        if rec.get("strike_taken"):
+            return ("strike_taken", "NO FREE STRIKE",
+                    "Every strike near the money has already been traded today, so a new "
+                    "ticket here would buy one of them again - averaging into it in a real "
+                    "account. It waits for the money to move to a strike not yet used.")
+        try:
+            key = (rec["index"], float(rec.get("suggested_strike")), rec.get("option_type"))
+        except (KeyError, TypeError, ValueError):
+            return None
+        if key in self.contracts_today():
+            return ("strike_taken", "STRIKE TAKEN",
+                    f"{rec['index']} {key[1]:g} {key[2]} was already traded today. The next "
+                    "reading names a strike that has not been - one moment.")
+        return None
 
     def _ref_key(self):
         """Any instrument in this book's market — they share a session."""
@@ -750,6 +804,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 9. and is not a strike already traded today -------------------
+        held = self._strike_taken(book, rec)
+        if held is not None:
+            return hold(*held)
+
         events = []
         if book.trade is not None and book.trade["status"] == "OPEN":
             px = self._price_for(book.trade, rec)
@@ -973,7 +1032,8 @@ class TicketBook:
         # trade could re-open straight after a stop on a 1:1 one.
         if (self._regime_hold(rec) is not None
                 or self._reward_hold(book.name, rec) is not None
-                or self._spread_hold(rec) is not None):
+                or self._spread_hold(rec) is not None
+                or self._strike_taken(book, rec) is not None):
             return False
         last = self._last_any()
         gap_s = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0) * 60
@@ -1036,6 +1096,9 @@ class TicketBook:
             # those entries earn their keep separately from the ones the
             # rules let through on their own.
             "cooldown_skipped": bool(book.waiver_applied),
+            # Set when this strike is not the one at the money because that one
+            # was already traded today - so the ticket can say why it is here.
+            "strike_swap": rec.get("strike_swap"),
         }
         book.cooldown_waived = None
         book.waiver_applied = False
@@ -1049,6 +1112,7 @@ class TicketBook:
         except Exception:
             pass
         self._day_cache = None          # it counts against today from now
+        self._contracts_cache = None    # and its strike is spoken for from now
         self._emit("opened", book.trade)
 
     def _emit(self, kind, trade):
@@ -1246,6 +1310,7 @@ class TicketBook:
             "sl_hit": trade["sl_hit"], "sl_hit_time": trade["sl_hit_time"],
             "exit_at": trade.get("exit_at", "T3"),
             "cooldown_skipped": bool(trade.get("cooldown_skipped")),
+            "strike_swap": trade.get("strike_swap"),
             # The frozen INDEX levels, whichever way the ticket is tracked, so
             # the chance of reaching each can be priced from the live index -
             # a premium ticket's rungs are these same levels in option terms.

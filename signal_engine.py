@@ -646,8 +646,47 @@ def _find_strike_quote(oi: dict, strike, option_type: str):
     return None
 
 
+STRIKE_SEARCH = 3      # how many listed strikes either side of the money to try when one is already taken
+
+
+def _next_free_strike(oi: dict, strike, option_type: str, taken: set):
+    """(strike, moved): `strike` itself when nothing has been traded on it
+    today, else the nearest LISTED strike that is free and has a live premium.
+
+    Asked for by the user on 23 Sep 2026, after NIFTY 23450 CE was traded twice
+    in a day: bought again on a strike already held or already round-tripped, a
+    real account shows one line at a blended price, and while the first is still
+    open it is a genuine average-in. So the tool moves to a neighbour instead.
+    Away from the money first (a call one strike higher, a put one lower), then
+    back through it, one listed strike at a time - by position in the list, not
+    by a fixed step, because Delta lists Bitcoin strikes at uneven gaps.
+
+    None means every strike within STRIKE_SEARCH is taken or has no live
+    premium. With no chain to look at it changes nothing and says nothing: the
+    missing chain is another gate's reason to give.
+    """
+    if (float(strike), option_type) not in taken:
+        return strike, False
+    rows = [s for s in (oi or {}).get("strikes") or [] if s.get("strike") is not None]
+    if not (oi or {}).get("available") or not rows:
+        return strike, False
+    key = "call_ltp" if option_type == "CE" else "put_ltp"
+    listed = sorted({s["strike"] for s in rows})
+    live = {s["strike"] for s in rows if (s.get(key) or 0) > 0}
+    here = min(range(len(listed)), key=lambda i: abs(listed[i] - float(strike)))
+    away = 1 if option_type == "CE" else -1
+    for k in range(1, STRIKE_SEARCH + 1):
+        for off in (away * k, -away * k):
+            j = here + off
+            if 0 <= j < len(listed):
+                c = listed[j]
+                if c in live and (float(c), option_type) not in taken:
+                    return c, True
+    return None, True
+
+
 def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
-                          reach: dict = None) -> dict:
+                          reach: dict = None, avoid_strikes=None) -> dict:
     total = tech["total_score"] + oi["oi_score"]
     max_total = tech["max_score"] + (1 if oi["available"] else 0)
 
@@ -905,6 +944,21 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
                 index_targets = [round(spot + sign * r * f, 2) for f in config.REACH_FRACTIONS]
                 target_basis = "market_reach"
 
+    # ---- A strike already traded today is not bought again (see _next_free_strike) ----
+    # Done BEFORE the premium is read, so the premium, its targets and stop, the
+    # spread and the lot all describe the contract that will actually be bought.
+    strike_swap, strike_taken = None, False
+    if option_type and avoid_strikes and (oi or {}).get("available") and (oi or {}).get("strikes"):
+        taken = {(float(k), t) for k, t in avoid_strikes}
+        listed_now = [s_["strike"] for s_ in oi["strikes"] if s_.get("strike") is not None]
+        want = min(listed_now, key=lambda k: abs(k - suggested_strike)) if listed_now else suggested_strike
+        free, moved = _next_free_strike(oi, want, option_type, taken)
+        if free is None:
+            strike_taken = True
+        elif moved:
+            strike_swap = {"from": want, "to": free}
+            suggested_strike = free
+
     # ---- Real option premium (LTP) for the suggested strike, if we have chain data ----
     live_ltp = _find_strike_ltp(oi, suggested_strike, option_type) if option_type else None
 
@@ -968,6 +1022,8 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         "spot": round(spot, 2),
         "atm_strike": atm_strike,
         "suggested_strike": suggested_strike,
+        "strike_swap": strike_swap,                  # {"from", "to"} when the money strike was already traded today
+        "strike_taken": strike_taken,                 # True when no strike near the money is free to trade today
         "option_type": option_type,
         "index_targets": index_targets,          # [T1, T2, T3]
         "index_stop_loss": index_sl,
