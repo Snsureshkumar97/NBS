@@ -2784,7 +2784,7 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
   <ol style="font-size:14px;color:var(--ink-2);margin:10px 0 0;padding-left:20px;line-height:1.55">
    <li>Connect Zerodha above, today.</li>
    <li>Register the static IP this server connects from on
-    <b>developers.kite.trade</b> (your app &rarr; IP whitelist). Zerodha rejects
+    <b>developers.kite.trade</b> (Profile, top right &rarr; IP Whitelist - it is not inside the app). Zerodha rejects
     every API order from an unregistered IP; prices and the chain still work
     without it.</li>
    <li>On the Signal page, set this account to <b>runs all session</b>.</li>
@@ -2830,8 +2830,11 @@ def delta_connect_page(user, state, detail, user_id="", since="", error=None, no
                           for w in (wallet or []) if w.get("available") is not None)
                 + f'<div class="row"><b>Account</b><span>{_esc(user)}</span></div>'
                 + "</div>")
-    field = ('style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);'
-             'border-radius:8px;margin:6px 0 12px;font:inherit;background:transparent;color:var(--ink)"')
+    # var(--bd) and var(--sunken) are the site's own input border and fill. This said
+    # var(--line), which the shell never defines, so the border was dropped and the
+    # key and secret boxes were invisible on a dark page - nowhere to see where to type.
+    field = ('style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bd);'
+             'border-radius:8px;margin:6px 0 12px;font:inherit;background:var(--sunken);color:var(--ink)"')
     action = (f'<form method="post" action="/connect-delta" autocomplete="off">'
               f'<label style="font-size:13px;font-weight:700">API key<input name="api_key" type="text" '
               f'autocomplete="off" spellcheck="false" required {field}></label>'

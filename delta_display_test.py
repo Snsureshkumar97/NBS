@@ -149,5 +149,24 @@ console.log("ok:gate");
     check("the page's own tab gate, run for real: Greeks open on Bitcoin, the index-only tabs hidden, all open on the Indian screen",
           "ok:gate" in r.stdout and r.returncode == 0, out[-600:])
 
+print("5. THE DELTA KEYS PAGE CAN BE SEEN")
+import re
+def undefined_vars(html):
+    return sorted(set(re.findall(r"var\(--([a-z0-9-]+)", html)) - set(re.findall(r"--([a-z0-9-]+)\s*:", html)))
+pages = {"zerodha, not connected": nbs_site.connect_page("u@example.invalid", "missing", "d"),
+         "zerodha, connected": nbs_site.connect_page("u@example.invalid", "ok", "d", user_id="AB1234", since="09:05"),
+         "delta, no keys": nbs_site.delta_connect_page("u@example.invalid", "missing", "d"),
+         "delta, keys accepted": nbs_site.delta_connect_page("u@example.invalid", "ok", "d", user_id="1", since="x",
+                                                             wallet=[{"asset": "USD", "available": 1.0, "balance": 1.0}])}
+pages.update({"public " + path: fn() for path, fn in nbs_site.PAGES.items() if fn.__code__.co_argcount == 0})
+for name, html in pages.items():
+    check(f"{name}: every CSS variable the page uses is defined (an undefined one silently drops the whole declaration)",
+          undefined_vars(html) == [], undefined_vars(html))
+check("the Zerodha page sends the IP to Profile > IP Whitelist, where Zerodha keeps it, not 'your app'",
+      "Profile, top right" in pages["zerodha, not connected"] and "your app &rarr; IP whitelist" not in pages["zerodha, not connected"])
+fields = re.findall(r'<input name="api_(?:key|secret)"[^>]*style="([^"]*)"', pages["delta, no keys"])
+check("the API key and secret boxes both have a visible border and their own fill",
+      len(fields) == 2 and all("border:1px solid var(--bd)" in f and "background:var(--sunken)" in f for f in fields), fields)
+
 print("DELTA DISPLAY TEST PASSED" if not fails else f"DELTA DISPLAY TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
