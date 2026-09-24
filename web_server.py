@@ -3121,6 +3121,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .jcal .jd .c{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jcal .jd.today .n{color:var(--accent);font-weight:700}
 .jcal .jd.sel{outline:2px solid var(--accent);outline-offset:1px}
+.jcal .jd.tint :is(.n,.v,.c){color:var(--jink)}      /* a tinted day: the type that reads best on its tint (jink) */
 @media(max-width:600px){.jcal{gap:3px}.jcal .jd{min-height:46px;padding:3px 4px}.jcal .jd .c{display:none}.jcal .jd .v{font-size:12px}}
 .jnotes{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-3);margin-top:12px}
 .jnotes textarea{background:var(--raised);border:1px solid var(--bd);border-radius:10px;color:var(--ink);
@@ -4107,6 +4108,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="terminal"] :is(.rung .bar i,.gauge .gt i){background-image:none !important;box-shadow:none}
 :root[data-look="terminal"] :is(.ringarc,.ring svg){filter:none}
 :root[data-look="terminal"] .lbtn.on{background:var(--accent);border-color:var(--accent)}
+:root[data-look="terminal"] .lbtn.ao.on{background:rgba(43,224,138,.14);border-color:rgba(43,224,138,.45);color:var(--up)}
 :root[data-look="terminal"] table.chain th{background:#10151f}
 /* figures that update in place keep their width, so the eye is not chasing jitter */
 :root[data-look="terminal"] :is(.mkt .px,.gmk .q .p,.gmk .q .c,.tile,.tstat,.session .n,.rung .n,.ticker){
@@ -4114,10 +4116,170 @@ button.mgroup:hover{color:var(--ink-2)}
 /* a focus ring you can actually see, for anyone driving this from a keyboard */
 :root[data-look="terminal"] :is(button,a,select,input,summary):focus-visible{
   outline:2px solid var(--accent);outline-offset:2px}
+
+/* =====================================================================
+   THE ZERODHA LOOK (data-look="kite") - asked for on 24 Sep 2026: "a Zerodha kind
+   of theme ... I don't want animation effects, pure kind of Zerodha".
+   Kite's own screen, as the user knows it: a white page, thin grey rules, a
+   white header with an orange mark, blue for the actions you take, green and
+   red for profit and loss, small grey capitals over dense figures, 3px corners.
+   Nothing moves and nothing glows: no scene, no tilt, no blur, no shadows, no
+   transitions, no marquee. Colours are Kite's, with the green, the amber and
+   the greys nudged just far enough that every one still clears the contrast
+   the other looks are held to (kite_look_test.py checks the arithmetic).
+   ===================================================================== */
+:root[data-look="kite"]{
+  color-scheme:light;
+  --bg:#ffffff; --surface:#ffffff; --raised:#f9f9f9; --sunken:#f4f4f4;
+  --bd:#e0e0e0; --bd-soft:#eeeeee;
+  --ink:#444444; --ink-2:#666666; --ink-3:#6e6e6e;
+  --up:#388e3c; --down:#df514c; --warn:#b26a00; --accent:#387ed1;
+  --brand:#ff5722; --accent-strong:#2f6fc0;
+  --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
+  --ema-fast:#387ed1; --ema-slow:#b26a00; --vwap:#8e44ad;
+  --r:3px; --r-sm:3px;
+}
+/* nothing moves, blurs, glows or casts a shadow - whatever the rule below it says */
+:root[data-look="kite"] *,:root[data-look="kite"] *::before,:root[data-look="kite"] *::after{
+  animation:none !important;transition:none !important;text-shadow:none !important;
+  box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  scroll-behavior:auto !important}
+:root[data-look="kite"] body{background:var(--bg);background-image:none;color:var(--ink);
+  font-size:14px;line-height:1.5}
+:root[data-look="kite"] #bg3d{display:none}
+:root[data-look="kite"] .wrap{perspective:none}
+:root[data-look="kite"] .wrap > *,:root[data-look="kite"] .herocard{transform:none !important}
+:root[data-look="kite"] header{background:#fff;border-bottom:1px solid var(--bd)}
+:root[data-look="kite"] .ticker{background:var(--raised);border-bottom:1px solid var(--bd);overflow-x:auto}
+:root[data-look="kite"] :is(.card,.mkt,.session,.notice.stale,.tile,.risk,.tstat){
+  background:var(--surface);border:1px solid var(--bd);border-radius:var(--r)}
+:root[data-look="kite"] :is(.tile,.risk,.tstat){background:var(--raised)}
+:root[data-look="kite"] .notice.risk{border-radius:var(--r-sm)}
+/* the coloured edge that says which way a signal points: a border, since shadows are gone */
+:root[data-look="kite"] .mkt.bull{border-top:3px solid var(--up)}
+:root[data-look="kite"] .mkt.bear{border-top:3px solid var(--down)}
+:root[data-look="kite"] .mkt:hover{background:var(--raised)}
+:root[data-look="kite"] .mkt[aria-selected="true"]{background:var(--raised);border-color:var(--accent)}
+:root[data-look="kite"] .herocard[data-bias="up"]{border-left:3px solid var(--up)}
+:root[data-look="kite"] .herocard[data-bias="down"]{border-left:3px solid var(--down)}
+:root[data-look="kite"] :is(.rung .bar,.gauge .gt){background:var(--sunken)}
+:root[data-look="kite"] :is(.rung .bar i,.gauge .gt i){background-image:none !important}
+:root[data-look="kite"] :is(.ringarc,.ring svg){filter:none}
+:root[data-look="kite"] :is(.mkt .px,.gmk .q .p,.gmk .q .c,.tile,.tstat,.session .n,.rung .n,.ticker){
+  font-variant-numeric:tabular-nums}
+:root[data-look="kite"] :is(button,a,select,input,summary):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* -- surfaces that the base and glass CSS paint dark, made white -- */
+:root[data-look="kite"] :is(.scrwrap,.chainwrap,.watchwrap,.tvframe){background:#fff}
+:root[data-look="kite"] :is(table.scr th,table.chain th,table.chain th.k,th){background:var(--raised)}
+:root[data-look="kite"] :is(table.chain th.k,table.chain td.k){background:#fff}
+:root[data-look="kite"] table.chain tr.atm td.k{background:#eaf1fb}
+:root[data-look="kite"] :is(.sectbar,.mvbar,.rung .bar,.gauge .gt){background:var(--sunken)}
+:root[data-look="kite"] :is(.gmk .q,.dcard){background:#fff;border:1px solid var(--bd);border-radius:var(--r)}
+:root[data-look="kite"] .dcard:hover{background:var(--raised)}
+:root[data-look="kite"] .mkt[aria-selected="true"]::before{background:var(--accent)}
+:root[data-look="kite"] .maplegend .sw{background:linear-gradient(90deg,#df514c,#eeeeee,#388e3c)}
+:root[data-look="kite"] .side{background:#fff;border-right:1px solid var(--bd)}
+:root[data-look="kite"] .menu .tab{border-radius:var(--r)}
+:root[data-look="kite"] .menu .tab:hover{background:var(--raised);color:var(--ink)}
+:root[data-look="kite"] .menu .tab.on{background:var(--raised);border-color:var(--bd);color:var(--brand)}
+:root[data-look="kite"] .menu .tab.on i{color:var(--brand)}
+:root[data-look="kite"] .navscrim{background:rgba(0,0,0,.35)}
+:root[data-look="kite"] .botnav{background:#fff;border-top:1px solid var(--bd)}
+:root[data-look="kite"] .botnav button{border-radius:var(--r)}
+:root[data-look="kite"] .botnav button.on{background:transparent;color:var(--brand)}
+:root[data-look="kite"] .oc,:root[data-look="kite"] .pal{background:rgba(0,0,0,.4)}
+:root[data-look="kite"] :is(.ocbox,.palbox){background:#fff;border:1px solid var(--bd)}
+/* -- Kite's corners: 3px, not pills -- */
+:root[data-look="kite"] :is(.lbtn,.chip,.chip2,.pill,.status,.navbtn,.tag,.badge,.lbtn.ao,.acct i,.honestlink,.src,.looksw button){
+  border-radius:var(--r)}
+:root[data-look="kite"] :is(button,select,input:not([type=checkbox]):not([type=radio]),textarea){border-radius:var(--r)}
+:root[data-look="kite"] :is(.lbtn,.chip,.pill,.navbtn,.status){background:#fff;border:1px solid var(--bd);color:var(--ink-2)}
+:root[data-look="kite"] :is(.lbtn,.chip):hover{background:var(--raised);color:var(--ink)}
+:root[data-look="kite"] :is(input,select,textarea){background:#fff;color:var(--ink);border:1px solid var(--bd)}
+:root[data-look="kite"] :is(input,select,textarea):focus{border-color:var(--accent);outline:none}
+/* the buttons you press to act: Kite blue, white type */
+:root[data-look="kite"] :is(.lbtn.on,.lbtn.tf.on,.aipicker .lbtn.on,.acct i,.bmsg.user,.skip,.looksw button.on){
+  background:var(--accent-strong);border-color:var(--accent-strong);color:#fff;background-image:none}
+:root[data-look="kite"] :is(#tlive.on,#ailive.on){background:#c62828;border-color:#c62828;color:#fff}
+:root[data-look="kite"] .lbtn.ao.on{background:#eaf5ea;color:var(--up);border-color:#b7dcb9}
+/* warnings and notices: Kite's pale tints with dark type, not the dark theme's glowing ones */
+:root[data-look="kite"] .notice.risk{background:#fff4ef;border:1px solid #ffd0bd;color:var(--ink-2)}
+:root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:#c2410c}
+:root[data-look="kite"] .notice.stale{background:#fff8e6;border:1px solid #f1dca0;color:#6b5200}
+:root[data-look="kite"] .notice.stale b{color:#8a5a00}
+:root[data-look="kite"] .badge.open{background:#eaf5ea;color:var(--up);border-color:#b7dcb9}
+:root[data-look="kite"] :is(.badge.hold,.tag.warn){background:#fff4dc;color:#8a5a00;border-color:#f1dca0}
+:root[data-look="kite"] .honestlink,:root[data-look="kite"] #honest{color:var(--ink-2)}
+/* the index strip: a still row you can scroll sideways, in place of the marquee */
+:root[data-look="kite"] .tk-track{transform:none;width:max-content}
+/* small grey capitals over dense figures, as Kite sets its tables */
+:root[data-look="kite"] :is(table th,.tile .l,.session .l,.mkt .nm){letter-spacing:.4px;text-transform:uppercase;font-weight:600;color:var(--ink-3)}
+
+/* the theme switch, in the sidebar footer (the drawer's, on a phone) - every look */
+.looksw{display:flex;align-items:center;gap:4px;margin:auto 0 8px;padding:10px 10px 0;font-size:12px;color:var(--ink-3)}
+.looksw + .sidefoot{margin-top:0}
+.looksw > span{margin-right:auto;font-weight:650;letter-spacing:.3px;text-transform:uppercase;font-size:12px}
+.looksw button{font:inherit;font-size:12px;font-weight:650;color:var(--ink-2);background:var(--raised);
+  border:1px solid var(--bd);border-radius:6px;padding:5px 9px;cursor:pointer;min-height:30px}
+.looksw button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* =====================================================================
+   THE PHONE PASS (24 Sep 2026) - "the phone layout is not easy to use and doesn't look good".
+   Measured at 390px in every look: the top bar was two rows of chips that ran off the
+   right edge (funds cut mid-word) with the page's name squeezed to an icon, Home was
+   16px wider than the screen, and the AI desk's switches were pills of three different
+   widths. Now: one slim top bar (menu + where you are + the market's state), the market
+   and broker chips live at the top of the menu, cards and buttons are sized to be pressed
+   with a thumb, and nothing is wider than the screen.
+   ===================================================================== */
+.sidechips{display:none}
+@media (max-width:720px){
+  /* -- the top bar: one row -- */
+  header .hd{flex-wrap:nowrap;gap:8px;padding:8px 12px;min-height:52px;align-items:center}
+  .hd .navbtn{flex:1 1 auto;justify-content:flex-start;min-width:0;padding:6px 12px 6px 10px;min-height:40px}
+  .hd .navbtn span{max-width:none;font-size:15px;font-weight:700}
+  .hd .status{flex:0 0 auto;padding:6px 10px;gap:6px;min-height:36px}
+  .hd .status .st-mkt{overflow:visible;text-overflow:clip;max-width:none;font-size:12.5px;white-space:nowrap}
+  .hd .row{display:none !important}
+  /* the two chips that were up there, at the top of the menu instead */
+  .sidechips{display:flex;flex-direction:column;gap:8px;margin:0 0 14px;padding:0 4px}
+  .sidechips .chip{display:flex;justify-content:flex-start;min-height:40px;white-space:normal;line-height:1.3}
+  .sidechips .chip[hidden],.sidechips .chip[style*="display: none"]{display:none}
+  /* -- nothing wider than the screen -- */
+  .welcome{gap:12px;align-items:stretch}
+  .welcome .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  .welcome .acts .lbtn{display:flex;align-items:center;justify-content:center;text-align:center;min-width:0}
+  /* -- cards, sized for a thumb -- */
+  .wrap{padding-left:12px;padding-right:12px}
+  .card{padding:14px}
+  .markets{gap:8px;margin-top:12px}
+  .mkt{padding:10px 12px}
+  .htitle{font-size:26px}
+  /* -- rows of switches: full width, one under another, all the same size -- */
+  .thead{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .thead > .eyebrow{flex:1 0 100%;margin:0}
+  .thead > .lbtn,.thead > .ailots{flex:1 1 100%;justify-content:center;text-align:center}
+  .thead > .ailots{display:flex;justify-content:space-between;align-items:center}
+  .thead > .ailots select{flex:0 1 55%}
+  /* -- the bottom bar: labels always visible, the current section clear -- */
+  .botnav{padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .botnav button{min-height:52px;font-size:12px;gap:2px}
+  /* a column may shrink below its content, or one wide child makes the whole page wider than the screen */
+  .grid > *,.top3 > *,.tiles > *,.panes,.pane,.card,#colL,#colR{min-width:0}
+  .grid2{grid-template-columns:minmax(0,1fr)}     /* auto-fit at 320px minimum is wider than a 320px phone's column */
+  .scrctl{flex-wrap:wrap}
+  #scrnote{white-space:normal;overflow-wrap:anywhere}
+}
+@media (max-width:340px){
+  .botnav{gap:0;padding-left:2px;padding-right:2px}
+  .botnav button{padding-left:0;padding-right:0}
+}
 </style>
 <script>
 // The look is set before anything paints, so the page never flashes the other one.
-try{ document.documentElement.dataset.look = localStorage.getItem("nbs.look.v1") || "terminal"; }
+// Three looks: terminal (dark, the default), kite (Zerodha's white screen) and glass.
+try{ const l = localStorage.getItem("nbs.look.v1");
+     document.documentElement.dataset.look = (l === "glass" || l === "kite") ? l : "terminal"; }
 catch(e){ document.documentElement.dataset.look = "terminal"; }
 </script></head><body>
 <canvas id="bg3d" aria-hidden="true"></canvas>
@@ -4158,6 +4320,10 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><rect x="4.6" y="11.5" width="2.2" height="6" rx="1" fill="#3a4050"/><rect x="8.3" y="9.5" width="2.2" height="8" rx="1" fill="#3a4050"/><rect x="12" y="6.5" width="2.6" height="11" rx="1.1" fill="#4d94e8"/><rect x="16.4" y="12.5" width="2.2" height="5" rx="1" fill="#3a4050"/><circle cx="13.3" cy="4.4" r="2.1" fill="#4caf50"/><path d="M12.4 4.4l.7.7 1.3-1.4" stroke="#0d1117" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
  </a>
+ <div class="sidechips" id="sidechips">
+  <a class="chip" id="sidemkt" href="/market" hidden>Switch market</a>
+  <a class="chip" id="sidekite" href="/connect" hidden>Connect Zerodha</a>
+ </div>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
   <button class="tab on" data-tab="home" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i>Home</button>
   <p class="mgroup">Desk</p>
@@ -4203,6 +4369,8 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <a class="tab" href="/how-it-works"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 2-2.5 2-2.5 4"/><path d="M12 17h.01"/></svg></i>How it works</a>
   <button class="tab" data-tab="admin" role="tab" type="button" hidden><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></i>Admin</button>
 </nav>
+ <div class="looksw" id="looksw" role="group" aria-label="Theme"><span>Theme</span>
+  <button type="button" data-look="terminal">Dark</button><button type="button" data-look="kite">Zerodha</button><button type="button" data-look="glass">Glass</button></div>
  <div class="sidefoot">
   <div class="su">Signed in<b id="sideuser">&mdash;</b><small id="siderenew"></small></div>
   <a class="sout" href="/logout" title="Sign out" aria-label="Sign out"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1011.4 0"/></svg></a>
@@ -4317,7 +4485,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <a class="lbtn" href="/how-it-works">How it works</a>
   <a class="lbtn" href="/connect">Zerodha</a>
   <a class="lbtn" href="/results">Results</a>
-  <button class="lbtn" type="button" id="lookbtn">Look: terminal</button>
+  <button class="lbtn" type="button" id="lookbtn">Theme: Dark</button>
   </div>
   </div>
   <div class="hsec">
@@ -5454,6 +5622,20 @@ function jshort(v, bare){   // bare: no symbol - a phone calendar cell is ~45px
              : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k" : String(Math.round(a));
   return sg + (bare ? "" : ccySym()) + body;
 }
+// The day's figures take whichever of dark and light type reads better on ITS tint over the page's
+// surface (the tint runs from faint to solid bright green or red, and neither colour of type suits all of it).
+function jink(v, maxAbs){
+  if(!v) return "";
+  const k = 0.28 + 0.72 * Math.min(1, Math.abs(v) / (maxAbs || 1));
+  const m = /^#([0-9a-f]{6})$/i.exec(css("--surface")), base = m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : [18, 23, 34];
+  const tint = v > 0 ? [43, 224, 138] : [239, 85, 112];
+  const bg = tint.map((c, i) => c * k + base[i] * (1 - k));
+  const lum = c => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+                     return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const cr = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  const DARK = [11, 14, 20], LIGHT = [230, 234, 242];
+  return cr(DARK, bg) >= cr(LIGHT, bg) ? "#0b0e14" : "#e6eaf2";
+}
 function jshade(v, maxAbs){
   if(!v) return "rgba(255,255,255,.06)";
   const k = 0.28 + 0.72 * Math.min(1, Math.abs(v) / (maxAbs || 1));
@@ -5560,9 +5742,9 @@ function jcalPaint(d, today){
   for(let i = 0; i < lead; i++) html += `<div class="jd empty"></div>`;
   for(let dd = 1; dd <= count; dd++){
     const iso = `${JN_MONTH}-${String(dd).padStart(2, "0")}`, v = days[iso];
-    const cls = ["jd", iso === today ? "today" : "", iso === JN_DAY ? "sel" : ""].join(" ");
+    const cls = ["jd", iso === today ? "today" : "", iso === JN_DAY ? "sel" : "", v ? "tint" : ""].join(" ");
     const note = d.notes && d.notes[iso] ? " ✎" : "";
-    html += `<div class="${cls}" data-day="${iso}" style="${v ? `background:${jshade(v.gross, maxAbs)}` : ""}">`
+    html += `<div class="${cls}" data-day="${iso}" style="${v ? `background:${jshade(v.gross, maxAbs)};--jink:${jink(v.gross, maxAbs)}` : ""}">`
       + `<span class="n">${dd}${note}</span>`
       + (v ? `<span class="v">${jshort(v.gross, innerWidth <= 600)}</span><span class="c">${v.trades} trade${v.trades === 1 ? "" : "s"}</span>` : "")
       + `</div>`;
@@ -10311,13 +10493,30 @@ async function newsFetch(force){
 }
 
 // ============================================================ palette
-// Terminal (the default) or glass. Kept per browser; switching reloads, because
-// the scene and the card tilt decide at load whether to run at all.
-const LOOK = document.documentElement.dataset.look === "glass" ? "glass" : "terminal";
+// Terminal (the default), Zerodha (kite) or glass. Kept per browser; switching reloads,
+// because the scene and the card tilt decide at load whether to run at all.
+const LOOKS = {terminal: "Dark", kite: "Zerodha", glass: "Glass"};
+const LOOK_ORDER = ["terminal", "kite", "glass"];
+const LOOK = LOOKS[document.documentElement.dataset.look] ? document.documentElement.dataset.look : "terminal";
 function setLook(v){ try{ localStorage.setItem("nbs.look.v1", v); }catch(e){} location.reload(); }
 { const lb = document.getElementById("lookbtn");
-  if(lb){ lb.textContent = "Look: " + LOOK;
-    lb.addEventListener("click", () => setLook(LOOK === "terminal" ? "glass" : "terminal")); } }
+  if(lb){ lb.textContent = "Theme: " + LOOKS[LOOK];
+    lb.addEventListener("click", () => setLook(LOOK_ORDER[(LOOK_ORDER.indexOf(LOOK) + 1) % LOOK_ORDER.length])); }
+  document.querySelectorAll("#looksw button[data-look]").forEach(b => {
+    const on = b.dataset.look === LOOK;
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
+    b.addEventListener("click", () => { if(b.dataset.look !== LOOK) setLook(b.dataset.look); });
+  }); }
+// On a phone the header has no room for the market and broker chips, so the menu carries copies:
+// they follow the header's own chips (text, link, hidden) whenever those change.
+[["mktsw", "sidemkt"], ["kite", "sidekite"]].forEach(([a, b]) => {
+  const src = document.getElementById(a), dst = document.getElementById(b);
+  if(!src || !dst) return;
+  const sync = () => { dst.textContent = src.textContent; dst.setAttribute("href", src.getAttribute("href") || "#");
+                       dst.title = src.title || ""; dst.hidden = src.style.display === "none"; };
+  new MutationObserver(sync).observe(src, {attributes: true, childList: true, characterData: true, subtree: true});
+  sync();
+});
 const PAL = {items: [], sel: 0};
 function palItems(){
   const out = [];
@@ -10346,8 +10545,8 @@ function palItems(){
             run:() => { const c = $("capital"); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }});
   out.push({t:"Do", label:"Clear the open ticket",
             run:() => { const b = $("tclear"); if(b && b.style.display !== "none") b.click(); }});
-  out.push({t:"Do", label: LOOK === "terminal" ? "Switch to the glass look" : "Switch to the terminal look",
-            sub:"now " + LOOK, run:() => setLook(LOOK === "terminal" ? "glass" : "terminal")});
+  LOOK_ORDER.filter(k => k !== LOOK).forEach(k => out.push(
+    {t:"Do", label:"Switch to the " + LOOKS[k] + " look", sub:"now " + LOOKS[LOOK], run:() => setLook(k)}));
   out.push({t:"Do", label:"Log out", run:() => location.href="/logout"});
   return out;
 }
@@ -10417,7 +10616,7 @@ document.addEventListener("keydown", e => {
   const cv = document.getElementById("bg3d");
   if(!cv || !cv.getContext) return;
   // The terminal look has no scene: nothing drawn, nothing animating, no CPU spent.
-  if(document.documentElement.dataset.look === "terminal") return;
+  if(document.documentElement.dataset.look !== "glass") return;
   const ctx = cv.getContext("2d");
   const still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   let W = 0, H = 0;
@@ -10559,7 +10758,7 @@ document.addEventListener("keydown", e => {
 // for reduced motion, and never on the chart, the map or anything with inputs.
 (function(){
   // Cards stay still in the terminal look.
-  if(document.documentElement.dataset.look === "terminal") return;
+  if(document.documentElement.dataset.look !== "glass") return;
   if(window.matchMedia && (matchMedia("(prefers-reduced-motion: reduce)").matches
      || matchMedia("(hover: none)").matches)) return;
   const SEL = ".mkt, .top3 .card, .tiles .tile";

@@ -36,9 +36,10 @@ print("1. IT IS THE DEFAULT, SET BEFORE ANYTHING PAINTS")
 check("the terminal token block exists", bool(tok), sorted(tok)[:6])
 head = SRC[:SRC.index('<canvas id="bg3d"')]
 check("the look is chosen in the head, before the body is drawn",
-      'dataset.look = localStorage.getItem("nbs.look.v1") || "terminal"' in head)
-check("with no saved choice it is the terminal look",
-      'catch(e){ document.documentElement.dataset.look = "terminal"; }' in head)
+      'localStorage.getItem("nbs.look.v1")' in head and "document.documentElement.dataset.look" in head)
+check("with no saved choice, or one it does not know, it is the terminal look",
+      '(l === "glass" || l === "kite") ? l : "terminal"' in head
+      and 'catch(e){ document.documentElement.dataset.look = "terminal"; }' in head)
 
 print("2. EVERY GREY READS ON THE SURFACE IT SITS ON")
 surfaces = {k: tok.get(k) for k in ("bg", "surface", "raised")}
@@ -55,16 +56,17 @@ for col in ("up", "down", "warn", "accent"):
 print("3. NOTHING MOVES THAT DOES NOT HAVE TO")
 check("the background scene is hidden", ':root[data-look="terminal"] #bg3d{display:none}' in SRC)
 scene = SRC[SRC.index('const cv = document.getElementById("bg3d");'):][:400]
-check("...and its animation never starts", 'dataset.look === "terminal") return;' in scene)
+check("...and its animation never starts (only the glass look runs it)", 'dataset.look !== "glass") return;' in scene)
 tilt = SRC[SRC.index("// ------------------------------------------------------------ card tilt"):][:900]
-check("card tilt never starts", 'dataset.look === "terminal") return;' in tilt)
+check("card tilt never starts (only the glass look runs it)", 'dataset.look !== "glass") return;' in tilt)
 check("the signal card neither sways nor fades in",
       ':root[data-look="terminal"] :is(.herocard,.wrap > *,.wrap > .herocard){animation:none}' in SRC)
 check("no glass blur on the cards", "backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none" in SRC)
 
 print("4. THE WAY BACK")
 check("a Look button on Home", 'id="lookbtn"' in SRC)
-check("a command-palette entry", '"Switch to the glass look"' in SRC and '"Switch to the terminal look"' in SRC)
+check("a command-palette entry for every other look", '"Switch to the " + LOOKS[k] + " look"' in SRC
+      and 'const LOOKS = {terminal: "Dark", kite: "Zerodha", glass: "Glass"};' in SRC)
 check("the choice is kept per browser", 'localStorage.setItem("nbs.look.v1", v)' in SRC)
 check("the glass look is left intact to switch back to", "THE 3D LAYER" in SRC and "@keyframes mount" in SRC)
 
