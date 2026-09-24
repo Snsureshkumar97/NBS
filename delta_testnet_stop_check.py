@@ -319,8 +319,8 @@ def verdict(attempts, stage2_ran, baseline_ok):
     if held:
         yes = [a for a in held if a["accepted"]]
         if yes:
-            lines.append("YES - Delta accepted a reduce-only stop on a HELD option position. The tool could rest its stop at the "
-                         "exchange (which needs a change to delta_orders.py, its tests and the confirm text).")
+            lines.append("YES - Delta accepted a reduce-only stop on a HELD option position. The tool rests its stop at the "
+                         "exchange (delta_orders.py does since 24 Sep 2026); the raw replies here show its exact shapes.")
             rb = [a.get("read_back") for a in yes if a.get("read_back")]
             if rb:
                 lines.append(f"  It stayed open at Delta as: {rb[0]}")
@@ -331,7 +331,7 @@ def verdict(attempts, stage2_ran, baseline_ok):
             lines.append("NO - Delta refused a reduce-only stop on a HELD option position:")
             for a in held:
                 lines.append(f"  {a['name']} -> {a['code']} {a['context'] or ''}")
-            lines.append("  The tool-watched stop stays; the confirm text 'Delta holds no stop order on an option' is then TRUE.")
+            lines.append("  Then the stop order the tool sends after each fill will be refused too, and the tool's own watch of the mark is the only stop.")
         return "\n".join(lines)
     if not baseline_ok:
         lines.append("INCONCLUSIVE - even the plain far-away buy was refused, so the account, the key permission or the product "

@@ -7,10 +7,13 @@ do not say. Attach the file `~/delta-testnet-check-<time>.json` that
 `delta_testnet_stop_check.py` writes if you have run it: it holds the exact
 requests and Delta's exact replies.
 
-**Why it matters:** the tool holds a long BTC option position and watches the mark
-itself, selling if it falls to the stop. That only works while the server is
-running. A stop resting at Delta would keep protecting the position when the server
-is off. Until now the tool has assumed Delta does not allow that on options.
+**Why it matters:** since 24 Sep 2026 the tool sends a reduce-only stop-loss order to
+Delta right after each BTC option buy fills, moves it up when the ticket trails, and
+watches the mark itself as the backup. Delta's own order box shows Stop Limit, a Mark
+trigger and Reduce Only on options, but nothing has been seen of Delta's *replies* to
+these orders (placing, editing, a triggered one), so the answers below settle which
+words and error codes the tool must expect. Its raw replies are kept in
+`<trade log>.delta.raw.jsonl` after the first live trade.
 
 ------------------------------------------------------------------------------
 
@@ -84,5 +87,6 @@ in the order response, is all I need. Thank you.
 - Order Types guide: stop, trailing and bracket orders are shown for futures only.
 - A Delta India support article titled "Bracket orders deprecated. Reduce-only orders
   introduced." exists; its page returned 404 when we tried to read it.
-- This tool's own note "Delta does not support stop orders on options" has no source and
-  is treated as unverified until Delta or the testnet check answers.
+- This tool's old note "Delta does not support stop orders on options" had no source and was
+  wrong as far as Delta's order box shows (Stop Limit / Mark trigger / Reduce Only on options,
+  screenshot 24 Sep 2026). The tool now sends the stop; what is unproven is Delta's API replies.

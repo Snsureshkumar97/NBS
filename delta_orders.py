@@ -11,16 +11,30 @@ WHAT A TICKET BECOMES, WHEN BITCOIN IS SWITCHED ON
     1. BUY the ticket's exact contract (C-BTC-<strike>-<DDMMYY>), `lots`
        contracts of 0.001 BTC, as a limit a little above the mark. Anything
        unfilled after FILL_WAIT_S is cancelled and only what filled is carried.
-    2. THE STOP LIVES IN THIS TOOL. Delta does not accept stop orders on
-       options, so nothing rests at the venue: every second the mark is read
-       and, at or under the ticket's stop, the position is sold. That only
-       works while this server is running - if it is off, the stop is not
-       watched. The Zerodha executor is different: its stop sits at the
-       exchange. Say so to anyone switching this on.
-       As the ticket's own staircase trailing stop moves (tickets.py's
-       _check_price(), added 22 Sep 2026), the level this tool watches moves
-       with it - no order to reprice, since none rests at Delta; the next
-       mark read simply compares against the new level.
+    2. THE STOP RESTS AT DELTA (added 24 Sep 2026, at the user's request; Delta's own
+       order box shows Stop Limit, a Mark trigger and Reduce Only on options). The
+       moment the buy is held, a reduce-only stop-limit SELL goes to Delta: it
+       triggers on Delta's mark at the ticket's stop and sells with a limit STOP_LIMIT_GAP
+       under it. It works with this server off. As the ticket's staircase trailing
+       stop moves up (tickets.py's _check_price(), 22 Sep 2026) the stop at Delta is
+       EDITED up (the moved-to-T1 stop); if Delta will not take the edit it is
+       cancelled and placed again; if that fails too the tool watches the level.
+       WHAT HAS NOT BEEN SEEN LIVE: Delta's replies to a stop order (placing it,
+       editing it, a triggered one) - the docs and the order box say it is allowed on
+       options but the tool has never sent one to a real account. So every call is read
+       back rather than trusted, the raw replies are kept in <trade log>.delta.raw.jsonl,
+       and NOTHING here removes the tool's own watch:
+         - no stop could be placed (refused, or Delta cancelled it): the tool watches
+           the mark itself, as before - which only works while the server runs, and the
+           page says so;
+         - a stop is resting but the mark has been at it for STOP_GRACE_S and Delta has
+           not fired it: the tool sells;
+         - Delta triggered it but its limit did not fill within REPRICE_S: the resting
+           order is cancelled and the tool sells (limit, repriced, then reduce-only market).
+       The stop is ALWAYS cancelled (and what it filled read back) before any other exit
+       sells - target, AI exit, clear, expiry, restart - so two sells never work at once.
+       Both are reduce-only, so even a mistake cannot open a short. A stop that cannot be
+       cancelled is remembered and cancelled again until it is (or the page says to).
     3. The ticket closes (target, stop, AI exit, cleared): whatever is held is
        sold with a limit a little under the mark, repriced every REPRICE_S; if
        the limit will not fill after LIMIT_ATTEMPTS tries, a market sell that
@@ -81,6 +95,13 @@ SETTLE_S = 10                # positions can lag a fill by a moment; not trusted
 FLAT_CONFIRMS = 2            # readings in a row showing fewer contracts than held, before believing they were sold elsewhere
 FLAT_REFUSALS = 2            # sells refused or filling nothing, with none held, before taking the position as gone
 AUTH_CODES = ("ip_not_whitelisted_for_api_key", "unauthorized", "invalid_api_key", "invalid_signature", "expired_signature")
+VENUE_STOP = True            # rest a reduce-only stop at Delta after each fill; False = only this tool watches the mark
+STOP_LIMIT_GAP = 0.05        # the stop's limit sits this far under its trigger (Zerodha's gap)
+STOP_TRIES = 4               # placing the stop: tries, STOP_RETRY_S apart (Delta's position can lag a fill by a moment)
+STOP_RETRY_S = 3
+STOP_GRACE_S = 5             # mark at the stop this long while Delta's own stop has not fired: this tool sells
+STOP_CANCEL_TRIES = 6        # cancelling a stop that would not cancel, before telling the user to
+RAW_CHARS = 1500             # of one raw Delta reply kept in <trade log>.delta.raw.jsonl
 PLACING_WAIT_S = 15
 POLL_S = 1.0
 NOTES_KEPT = 30
@@ -252,6 +273,7 @@ class Executor:
     def __init__(self, email, log_path, client=None, close_ticket=None, now=None, clock=None, mark=None, start=True):
         self.email = email
         self.path = (log_path + ".delta.json") if log_path else None
+        self.raw_path = (log_path + ".delta.raw.jsonl") if log_path else None
         self.log_path = log_path
         self.make_client = client or _client_factory(email)
         self.close_ticket = close_ticket or (lambda index, status: None)
@@ -331,9 +353,12 @@ class Executor:
             self.switches(source)[index] = bool(on)
             self._save()
         what = "AI trades on " + index if source == "ai" else index
-        self._note(index, f"Live Delta orders for {what} switched "
-                          + ("ON. The stop is watched by this tool, not held at Delta." if on
-                             else "OFF. An open position is still managed to its exit."))
+        if on:
+            how = ("ON. Each position gets a reduce-only stop order at Delta; if Delta will not take it, this tool "
+                   "watches the stop instead." if VENUE_STOP else "ON. The stop is watched by this tool, not held at Delta.")
+        else:
+            how = "OFF. An open position is still managed to its exit."
+        self._note(index, f"Live Delta orders for {what} switched {how}")
         return self.switches(source)[index]
 
     # ------------------------------------------------------------ ticket events
@@ -402,6 +427,7 @@ class Executor:
 
     def _gone(self, pos, why):
         """Delta refuses to sell it and shows none held: it is not there."""
+        self._cancel_stop(pos)
         pos["outside_sold"] = int(pos.get("outside_sold") or 0) + max(0, self._held(pos))
         pos["state"], pos["exit_order_id"] = "closed", None
         pos.setdefault("exit_reason", "it was closed outside the tool")
@@ -613,31 +639,310 @@ class Executor:
                                    "cancelled, nothing bought.")
 
     def _hold(self, pos):
-        """Bought. The stop is this tool's to watch: Delta holds no stop order
-        on an option."""
-        self._note(pos["index"], f"Bought {pos['filled_qty']} at {pos['avg_price']}. Stop {pos['stop_trigger']} is "
-                                 "watched by this tool on Delta's mark - nothing rests at the venue.", pos=pos)
+        """Bought. Its stop goes to Delta at once (_ensure_stop); whatever happens to that,
+        this tool still compares the mark with the level (_check_open)."""
+        self._note(pos["index"], f"Bought {pos['filled_qty']} at {pos['avg_price']}."
+                   + (f" Sending the stop {pos['stop_trigger']} to Delta." if VENUE_STOP else
+                      f" Stop {pos['stop_trigger']} is watched by this tool on Delta's mark - nothing rests at the venue."),
+                   pos=pos)
         pos["filled_at"] = pos["verified_at"] = self.clock()
         pos["state"] = "open"
         if pos.get("ticket_closed"):
             return self._exit(pos, pos["ticket_closed"])
         if pos["avg_price"] is not None and float(pos["avg_price"]) <= float(pos["stop_trigger"]):
             return self._exit(pos, "it filled at or below the stop")
+        self._ensure_stop(pos)
 
     def _reprice_stop(self, pos, new_sl):
-        """Move the level this tool watches up to a rung the ticket just
-        trailed to (tickets.py's staircase trailing stop, 22 Sep 2026).
-
-        No broker order to modify - Delta holds none on an option - so this
-        is just the in-memory level _check_open() compares the mark against.
-        """
+        """Move the stop up to a rung the ticket just trailed to (tickets.py's staircase
+        trailing stop, 22 Sep 2026): the level this tool compares the mark with, and - when
+        a stop rests at Delta - that order too (_move_stop)."""
         if pos.get("state") != "open" or new_sl is None:
             return
         trig = _floor_tick(float(new_sl), pos.get("tick", 0.1))
         if trig <= pos["stop_trigger"]:
             return                      # not an improvement once rounded to a tick - nothing to do
         pos["stop_trigger"] = trig
-        self._note(pos["index"], f"Stop trailed to {trig} - still watched by this tool, not at Delta.", pos=pos)
+        if pos.get("stop_order_id"):
+            return self._move_stop(pos, trig)
+        self._note(pos["index"], f"Stop trailed to {trig} - " + (
+            "no stop order rests at Delta, so this tool watches it." if (
+                not VENUE_STOP or pos.get("stop_venue") is False or int(pos.get("stop_tries") or 0) >= STOP_TRIES)
+            else "sending it to Delta."), pos=pos)
+        self._ensure_stop(pos)
+
+    # ------------------------------------------------------------ the stop at Delta
+    def _raw(self, pos, kind, reply=None, error=None):
+        """What Delta actually said to a stop call, kept so the shapes can be checked
+        against the real thing after the first live trades (nothing here has been seen live)."""
+        if not self.raw_path:
+            return
+        row = {"at": self.now().isoformat(), "trade_id": pos.get("trade_id"), "kind": kind}
+        if error is not None:
+            row["error"] = f"{type(error).__name__}: {error}"
+            row["code"] = str(getattr(error, "code", "") or "")
+        else:
+            try:
+                row["reply"] = json.dumps(reply, default=str)[:RAW_CHARS]
+            except Exception:
+                row["reply"] = str(reply)[:RAW_CHARS]
+        try:
+            with open(self.raw_path, "a") as fh:
+                fh.write(json.dumps(row, default=str) + "\n")
+        except OSError:
+            pass
+
+    def _stop_prices(self, pos, trig):
+        tick = pos.get("tick", 0.1)
+        stop = _floor_tick(float(trig), tick)
+        return stop, max(tick, _floor_tick(stop * (1 - STOP_LIMIT_GAP), tick))
+
+    def _find_stop(self, pos):
+        """A stop of this position's already at Delta (its reply was lost on the way)."""
+        try:
+            rows = self.client().open_orders(pos["product_id"]) or []
+        except Exception:
+            return None
+        mine = [o for o in rows if isinstance(o, dict) and o.get("side") == "sell"
+                and str(o.get("client_order_id") or "").startswith(pos["tag"] + "S")]
+        return str(mine[-1]["id"]) if mine and mine[-1].get("id") is not None else None
+
+    def _ensure_stop(self, pos):
+        """One attempt to rest the stop at Delta, when it is due. Every way it can fail leaves
+        the tool watching the mark, so a failure costs the venue's protection, never the exit."""
+        if not VENUE_STOP or pos.get("stop_order_id") or pos.get("stop_venue") is False or pos.get("state") != "open":
+            return
+        if int(pos.get("stop_tries") or 0) >= STOP_TRIES or self.clock() < pos.get("stop_next_at", 0):
+            return
+        qty = self._held(pos)
+        if qty <= 0:
+            return
+        pos["stop_tries"] = int(pos.get("stop_tries") or 0) + 1
+        pos["stop_next_at"] = self.clock() + STOP_RETRY_S
+        stop, limit = self._stop_prices(pos, pos["stop_trigger"])
+        mark = self._mark(pos)
+        if mark is not None and mark <= stop:
+            pos["stop_tries"] = STOP_TRIES
+            self._note(pos["index"], f"The mark {mark} is already at the stop {stop}: no stop order to place - "
+                                     "the tool sells.", "warn", pos)
+            return
+        found = self._find_stop(pos) if pos["stop_tries"] > 1 else None
+        if found:
+            pos["stop_order_id"] = found
+            self._note(pos["index"], f"The stop was already at Delta (order {found}).", pos=pos)
+            return
+        pos["stop_seq"] = int(pos.get("stop_seq") or 0) + 1
+        try:
+            r = self.client().place_order(product_id=pos["product_id"], time_in_force="gtc", size=qty, side="sell",
+                                          order_type="limit_order", limit_price=str(limit), stop_price=str(stop),
+                                          stop_order_type="stop_loss_order", stop_trigger_method="mark_price",
+                                          reduce_only=True, client_order_id=f"{pos['tag']}S{pos['stop_seq']}")
+        except Exception as exc:
+            self._raw(pos, "stop_place_error", error=exc)
+            last = pos["stop_tries"] >= STOP_TRIES
+            if last:
+                pos["stop_venue"] = False
+            self._note(pos["index"], f"Delta would not take the stop order ({exc})" + (
+                f" - this tool watches the stop {pos['stop_trigger']} itself, and that only works while the "
+                "server is running." if last else " - trying again."), "error" if last else "warn", pos)
+            return
+        self._raw(pos, "stop_placed", r)
+        oid = (r or {}).get("id") if isinstance(r, dict) else None
+        if oid is None:
+            self._note(pos["index"], "Delta accepted the stop order but its reply names no order id - looking "
+                                     "for it.", "warn", pos)
+            return
+        pos["stop_order_id"], pos["venue_stop"] = str(oid), stop
+        pos["stop_state"] = None
+        self._note(pos["index"], f"Stop resting at Delta: sell {qty}, trigger {stop} on Delta's mark, limit {limit}, "
+                                 f"reduce-only (order {oid}).", pos=pos)
+
+    def _read_stop(self, oid):
+        """A stop order as (state, filled, average, raw). Fills count only when Delta names a fill
+        price for them: an order object without unfilled_size would otherwise read as FULLY FILLED
+        (size - 0) and the tool would believe a resting stop had sold the position."""
+        raw = self._order(oid)
+        state, filled, avg = _order_state(raw)
+        return state, (filled if avg else 0), avg, raw
+
+    def _bank_stop(self, pos, filled, avg):
+        """What the stop order has filled so far, counted once (Delta's average is over all of it)."""
+        prior = int(pos.get("stop_done") or 0)
+        if filled <= prior:
+            return 0
+        new = filled - prior
+        pos["exit_filled"] = int(pos.get("exit_filled") or 0) + new
+        if avg:
+            total = filled * avg
+            pos["exit_value"] = float(pos.get("exit_value") or 0) + total - float(pos.get("stop_value") or 0)
+            pos["exit_priced"] = int(pos.get("exit_priced") or 0) + new
+            pos["exit_price"], pos["stop_value"] = avg, total
+        pos["stop_done"] = filled
+        return new
+
+    def _cancel_stop(self, pos):
+        """Take the stop off Delta - before any other sell - and read what it filled. True
+        when none rests any more. A stop that will not cancel is remembered (stop_stray)."""
+        oid = pos.get("stop_order_id")
+        if not oid:
+            return True
+        try:
+            self.client().cancel_order(oid, pos["product_id"])
+        except Exception as exc:
+            self._raw(pos, "stop_cancel_error", error=exc)         # it may already be done: the read below says
+        try:
+            state, filled, avg, raw = self._read_stop(oid)
+        except Exception as exc:
+            pos["stop_order_id"], pos["stop_stray"] = None, str(oid)
+            self._note(pos["index"], f"Could not confirm the stop order {oid} is off Delta ({exc}) - selling anyway "
+                                     "(it is reduce-only) and cancelling it again.", "warn", pos)
+            return False
+        self._raw(pos, "stop_cancelled", raw)
+        self._bank_stop(pos, filled, avg)
+        pos["stop_order_id"] = None
+        if state in ("pending", "open"):
+            pos["stop_stray"] = str(oid)
+            self._note(pos["index"], f"The stop order {oid} is still at Delta after a cancel - selling anyway "
+                                     "(it is reduce-only) and cancelling it again.", "warn", pos)
+            return False
+        return True
+
+    def _sweep_strays(self):
+        """A stop that would not cancel is cancelled again on each pass, then given up on loudly."""
+        for pos in list(self.positions.values()):
+            oid = pos.get("stop_stray")
+            if not oid or self.clock() < pos.get("stray_next_at", 0):
+                continue
+            pos["stray_next_at"] = self.clock() + REPRICE_S
+            pos["stray_tries"] = int(pos.get("stray_tries") or 0) + 1
+            try:
+                try:
+                    self.client().cancel_order(oid, pos["product_id"])
+                except Exception:
+                    pass
+                _s, filled, avg, _raw = self._read_stop(oid)
+                if _s in ("pending", "open"):
+                    raise RuntimeError(f"state {_s}")
+                self._bank_stop(pos, filled, avg)
+                pos["stop_stray"] = None
+                self._note(pos["index"], f"The stop order {oid} is now off Delta.", pos=pos)
+            except Exception as exc:
+                if pos["stray_tries"] >= STOP_CANCEL_TRIES:
+                    pos["stop_stray"] = None
+                    self._note(pos["index"], f"The stop order {oid} could not be cancelled ({exc}). CANCEL IT ON DELTA "
+                                             "(Orders > Stop Orders) - it is reduce-only, but do not leave it.", "error", pos)
+
+    def _stop_filled(self, pos):
+        """The stop order filled at Delta - all of it or part. The ticket is a stop-out; anything
+        left is sold."""
+        try:
+            self.close_ticket(pos["index"], "CLOSED — stop-loss hit (live order, Delta stop)")
+        except Exception:
+            pass
+        if self._held(pos) <= 0:
+            pos["state"], pos["exit_order_id"] = "closed", None
+            pos.setdefault("exit_reason", "the stop order at Delta filled")
+            self._note(pos["index"], f"The stop order filled at Delta at {pos.get('exit_price')}. Position closed.", pos=pos)
+        else:
+            self._exit(pos, "the stop order at Delta filled only part of the position")
+
+    def _check_stop(self, pos):
+        """Read the resting stop back. True when it has taken the position out of 'open'."""
+        oid = pos.get("stop_order_id")
+        if not oid:
+            self._ensure_stop(pos)
+            return False
+        try:
+            state, filled, avg, raw = self._read_stop(oid)
+        except Exception as exc:
+            msg = f"Could not read the stop order at Delta: {exc}"
+            last = pos.get("stop_read_err") or ["", 0]
+            if msg != last[0] or self.clock() - last[1] >= 60:
+                pos["stop_read_err"] = [msg, self.clock()]
+                self._note(pos["index"], msg, "warn", pos)
+            return False
+        if state != pos.get("stop_state"):
+            pos["stop_state"] = state
+            self._raw(pos, "stop_state", raw)
+        self._bank_stop(pos, filled, avg)
+        if state == "pending":
+            pos.pop("stop_triggered_at", None)
+            return False
+        if state == "open":
+            # Triggered - now a limit order on Delta's book - IF the mark is at the stop or it has
+            # filled something. Delta may just as well call an untriggered stop 'open' (its
+            # states for stop orders have not been seen live): with the mark above the stop it
+            # is only resting, and must not be cancelled.
+            mark = self._mark(pos)
+            if not (filled > 0 or (mark is not None and mark <= float(pos["stop_trigger"]))):
+                pos.pop("stop_triggered_at", None)
+                return False
+            first = pos.setdefault("stop_triggered_at", self.clock())
+            if self.clock() - first >= REPRICE_S:
+                self._cancel_stop(pos)
+                pos["stop_venue"] = False
+                self._stop_missed(pos)
+                return True
+            return False
+        if state in ("closed", "cancelled"):
+            pos["stop_order_id"] = None
+            pos.pop("stop_triggered_at", None)
+            if filled > 0:
+                self._stop_filled(pos)
+                return True
+            pos["stop_venue"] = False
+            self._note(pos["index"], f"The stop order at Delta ended without a fill (its state: {state}) - cancelled by "
+                                     f"Delta, or by you on its screen. This tool now watches the stop "
+                                     f"{pos['stop_trigger']} itself, which only works while the server is running.",
+                       "error", pos)
+            return False
+        if state != pos.get("stop_state_said"):
+            pos["stop_state_said"] = state
+            self._note(pos["index"], f"The stop order at Delta shows a state this tool does not know ('{state}') - "
+                                     "still watching the mark as well.", "warn", pos)
+        return False
+
+    def _stop_missed(self, pos):
+        """Triggered at Delta but its limit did not fill: the ticket is stopped out, and the tool
+        sells what is left the way it sells anything."""
+        try:
+            self.close_ticket(pos["index"], "CLOSED — stop-loss hit (live order, Delta stop)")
+        except Exception:
+            pass
+        self._exit(pos, "the stop triggered at Delta but its limit did not fill")
+
+    def _move_stop(self, pos, trig):
+        """The ticket's stop trailed up: edit the order at Delta; read it back to be sure it
+        moved; if it did not, cancel and place it again; if that fails the tool watches it."""
+        oid = pos["stop_order_id"]
+        stop, limit = self._stop_prices(pos, trig)
+        moved = False
+        try:
+            r = self.client().edit_order(oid, pos["product_id"], stop_price=str(stop), limit_price=str(limit))
+            self._raw(pos, "stop_edit", r)
+            state, _f, _a, raw = self._read_stop(oid)
+            if state not in ("pending", "open"):
+                return                             # it fired or ended meanwhile: _check_stop deals with it
+            now = float(raw.get("stop_price"))
+            if abs(now - stop) > pos.get("tick", 0.1) / 2:
+                raise ValueError(f"Delta answered the edit but the stop is still at {now}")
+            moved = True
+        except Exception as exc:
+            self._raw(pos, "stop_edit_error", error=exc)
+            edit_err = exc
+        if moved:
+            pos["venue_stop"] = stop
+            self._note(pos["index"], f"Stop trailed to {stop} - moved at Delta (order {oid}, limit {limit}).", pos=pos)
+            return
+        self._note(pos["index"], f"Delta would not move the stop ({edit_err}) - cancelling it and placing it again.",
+                   "warn", pos)
+        self._cancel_stop(pos)
+        if self._held(pos) <= 0:
+            return self._stop_filled(pos)
+        pos["stop_tries"], pos["stop_next_at"] = 0, 0
+        self._ensure_stop(pos)
+        if not pos.get("stop_order_id"):
+            self._note(pos["index"], f"Stop {trig} is not at Delta now - this tool watches it.", "warn", pos)
 
     # ------------------------------------------------------------ holding
     def _check_open(self, pos):
@@ -648,6 +953,8 @@ class Executor:
             except Exception:
                 pass
             return self._exit(pos, f"the contract settles in {mins:.0f} minutes")
+        if self._check_stop(pos):
+            return
         if self.clock() - pos.get("verified_at", 0) >= VERIFY_S:
             pos["verified_at"] = self.clock()
             net = self._net_qty(pos)
@@ -664,11 +971,19 @@ class Executor:
         if mark is not None:
             pos["mark"] = mark
             if mark <= float(pos["stop_trigger"]):
+                why = f"the mark {mark} reached the stop {pos['stop_trigger']}"
+                if pos.get("stop_order_id"):
+                    # Delta's own stop is the first line; it is given STOP_GRACE_S to fire.
+                    first = pos.setdefault("below_since", self.clock())
+                    if self.clock() - first < STOP_GRACE_S:
+                        return
+                    why += f" and Delta's own stop had not fired in {STOP_GRACE_S}s"
                 try:
                     self.close_ticket(pos["index"], "CLOSED — stop-loss hit (live order, Delta mark)")
                 except Exception:
                     pass
-                return self._exit(pos, f"the mark {mark} reached the stop {pos['stop_trigger']}")
+                return self._exit(pos, why)
+            pos.pop("below_since", None)
 
     # ------------------------------------------------------------ exit
     def _exit(self, pos, reason):
@@ -683,6 +998,7 @@ class Executor:
             pos["filled_qty"] = filled
             if avg:
                 pos["avg_price"] = avg
+        self._cancel_stop(pos)              # the stop comes off Delta BEFORE anything else sells
         pos["exit_reason"] = reason
         self._sell_rest(pos)
 
@@ -704,6 +1020,7 @@ class Executor:
         if net < held:
             pos["outside_sold"] = int(pos.get("outside_sold") or 0) + held - net
         if self._held(pos) <= 0:
+            self._cancel_stop(pos)
             pos["state"] = "closed"
             pos.setdefault("exit_reason", "it was closed outside the tool")
             pos["outside_unconfirmed"] = True          # looked at once more when the ticket closes (_reconsider)
@@ -849,6 +1166,7 @@ class Executor:
     # ------------------------------------------------------------ the loop's work
     def poll(self):
         self._log_fills()
+        self._sweep_strays()
         active = [p for p in list(self.positions.values()) if p.get("state") in ACTIVE]
         if not active:
             return
@@ -909,11 +1227,13 @@ class Executor:
             today = self._today()
             pos = [{k: p.get(k) for k in ("trade_id", "index", "state", "source", "symbol", "qty", "filled_qty",
                                           "avg_price", "stop_trigger", "mark", "exit_price", "exit_reason",
-                                          "entry_order_id")} for p in self.positions.values() if p.get("day") == today]
+                                          "entry_order_id", "stop_order_id", "stop_state", "venue_stop",
+                                          "stop_stray")} for p in self.positions.values() if p.get("day") == today]
             for p in pos:
                 p["tradingsymbol"] = p.get("symbol")        # the page reads the Zerodha executor's name for it
+                p["stop_at_venue"] = bool(p.get("stop_order_id"))     # a stop is resting at Delta right now
             pos.sort(key=lambda p: p.get("trade_id") or "", reverse=True)
             return {"enabled": dict(self.enabled), "enabled_ai": dict(self.enabled_ai), "venue": "Delta Exchange India",
-                    "stop_at_venue": False, "positions": pos, "notes": self.notes[:8],
+                    "stop_at_venue": VENUE_STOP, "positions": pos, "notes": self.notes[:8],
                     "entries_today": self.entries_today if self.day == today else 0,
                     "max_entries": MAX_ENTRIES_PER_DAY}

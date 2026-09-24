@@ -283,8 +283,8 @@ check("...and leaves the account flat", ex.pos[501] == 0 and ex.resting() == [])
 print("4c. WHEN DELTA REFUSES EVEN A HELD OPTION")
 ex = Exchange(stops="refuse_always")
 res, _ = go(ex, with_position=True)
-check("the verdict is NO, with Delta's codes, and says the tool-watched stop stays",
-      res["verdict"].startswith("NO ") and "stop_orders_not_supported_for_options" in res["verdict"] and "tool-watched stop stays" in res["verdict"], res["verdict"][:80])
+check("the verdict is NO, with Delta's codes, and says the tool's own watch of the mark is then the only stop",
+      res["verdict"].startswith("NO ") and "stop_orders_not_supported_for_options" in res["verdict"] and "own watch of the mark is the only stop" in res["verdict"], res["verdict"][:80])
 check("the contract was still sold back", ex.pos[501] == 0 and ex.resting() == [])
 
 print("4d. A BUY THAT DOES NOT FILL")

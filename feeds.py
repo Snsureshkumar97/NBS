@@ -511,9 +511,10 @@ class Feed:
             self.tickets.listeners.append(self.live.on_ticket_event)
         elif self.tickets.path and config.MARKETS[self.market]["market_provider"] == "delta":
             # Bitcoin's twin, on Delta Exchange India under the account's own
-            # keys. Its stop is watched here on the streamed mark - Delta holds
-            # no stop order on an option - so the executor reads this feed's
-            # socket first and Delta's ticker only when the socket has nothing.
+            # keys. Its stop rests at Delta (24 Sep 2026) and is ALSO watched here on
+            # the streamed mark, as the backup if Delta refuses or drops it - so the
+            # executor reads this feed's socket first and Delta's ticker only when
+            # the socket has nothing.
             import delta_orders
             self.live = delta_orders.for_account(email, self.tickets.path,
                                                  close_ticket=self.tickets.close_ticket,

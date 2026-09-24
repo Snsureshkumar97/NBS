@@ -1399,8 +1399,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             payload["live_ai"] = pub["enabled_ai"]
             payload["live_positions"] = [p for p in pub["positions"] if p.get("source") == "ai"]
             payload["live_notes"] = pub["notes"]
-            # False on Delta Exchange, where the tool - not the venue - holds the stop.
-            payload["live_stop_at_venue"] = pub.get("stop_at_venue", True)
+            # Which venue the live positions are at: the page words their state by it
+            # (Delta's stop can be missing per position - see liveStateText).
+            payload["live_venue"] = pub.get("venue", "Zerodha")
         return self._send(json.dumps(payload, default=str), "application/json")
 
     def _do_ai(self, form):
@@ -5998,23 +5999,25 @@ function liveHeld(s, k){
   return L ? (L.positions || []).find(p => p.index === k && LIVE_ACTIVE.includes(p.state)) || null : null;
 }
 
-// One wording for both live-status lines (the Signal card and the AI tab). The
-// stop sentence depends on the venue: at Zerodha the stop-loss order rests at
-// the exchange and works with this server off; on Delta Exchange nothing rests
-// at the venue - the tool watches the mark, and only while the server runs. The
-// Zerodha sentence used to be shown for Bitcoin too, which told the user a stop
-// was protecting a position that it was not (found 20 Sep 2026).
-function liveStateText(p, stopWatchedByTool){
+// One wording for both live-status lines (the Signal card and the AI tab). Both
+// venues rest a stop-loss order at the exchange now: Zerodha's since 17 Sep 2026,
+// Delta Exchange's since 24 Sep 2026. On Delta it can be missing - Delta may refuse it, or it
+// was cancelled - and then the tool watches the mark itself, which only works while the
+// server is running: the position says which (p.stop_at_venue), so the line never claims a
+// protection that is not there (the Zerodha sentence was once shown for Bitcoin, 20 Sep 2026).
+function liveStateText(p, onDelta){
   const sym = p.tradingsymbol || "the contract";
-  const where = stopWatchedByTool ? "Delta" : "Zerodha";
+  const where = onDelta ? "Delta" : "Zerodha";
   return ({
     placing: `Live: checking whether the buy reached ${where}`,
     entering: `Live: buying ${p.qty || ""} ${sym}`,
-    open: `Live: holding ${p.filled_qty} ${sym} bought at ${p.avg_price} · ` + (stopWatchedByTool
-      ? `stop ${p.stop_trigger} is watched by this tool on Delta's mark - NOT held at Delta, so it only works while the server is running`
-      : `stop-loss order at Zerodha, trigger ${p.stop_trigger}`),
+    open: `Live: holding ${p.filled_qty} ${sym} bought at ${p.avg_price} · ` + (!onDelta
+      ? `stop-loss order at Zerodha, trigger ${p.stop_trigger}`
+      : p.stop_at_venue
+        ? `stop-loss order at Delta, trigger ${p.stop_trigger} on Delta's mark`
+        : `stop ${p.stop_trigger} is NOT at Delta - this tool watches the mark, so it only works while the server is running`),
     exiting: `Live: selling ${sym} - ${p.exit_reason || ""}`,
-    attention: `Live: ${sym} MAY STILL BE HELD - check ${stopWatchedByTool ? "Delta" : "Kite"} now`,
+    attention: `Live: ${sym} MAY STILL BE HELD - check ${onDelta ? "Delta" : "Kite"} now`,
     closed: `Live: ${sym} closed` + (p.exit_price ? ` at ${p.exit_price}` : ""),
     failed: "Live: no position",
   })[p.state] || "";
@@ -6035,7 +6038,7 @@ function liveBox(s){
   const p = (L.positions || []).find(x => x.index === CUR);
   const note = (L.notes || []).find(n => n.index === CUR);
   const lines = [];
-  if(p) lines.push(liveStateText(p, L.stop_at_venue === false));
+  if(p) lines.push(liveStateText(p, (L.venue || "").indexOf("Delta") === 0));
   if(note) lines.push(`${note.at} · ${note.text}`);
   st.textContent = lines.filter(Boolean).join("  —  ");
   st.style.display = st.textContent ? "" : "none";
@@ -6050,9 +6053,12 @@ $("tlive").onclick = async () => {
   if(on && btc && !confirm(`Place REAL orders on Bitcoin at Delta Exchange India?\n\n`
       + "From now on every ticket on Bitcoin is also bought on Delta with your money: the ticket's own "
       + "contract and number of contracts, as a limit order a little above the mark.\n\n"
-      + "DELTA HOLDS NO STOP ORDER ON AN OPTION. This tool watches the mark and sells at the ticket's stop - "
-      + "only while this server is running. It also sells at the target, when you clear the ticket, and "
-      + "30 minutes before the contract settles (17:30 IST).\n\n"
+      + "THE STOP ORDER GOES TO DELTA. The moment the buy fills, a reduce-only stop order is sent to Delta at "
+      + "the ticket's stop (triggered on Delta's mark) and moved up at Delta when the ticket's stop trails up. "
+      + "This is new and has not yet been seen working on a real Delta account: watch the first trade under "
+      + "Orders > Stop Orders on Delta. If Delta refuses it the screen says so, and then only this tool watches "
+      + "the stop - which works only while this server is running. The tool also sells at the target, when you "
+      + "clear the ticket, and 30 minutes before the contract settles (17:30 IST).\n\n"
       + "Delta refuses orders until this server's IP is whitelisted on your API key.\n\n"
       + "Past results do not predict future ones. This is your decision.")) return;
   if(on && !btc && !confirm(`Place REAL orders on ${CUR}?\n\n`
@@ -8700,7 +8706,7 @@ function aiRender(d){
   })();
   const lp = lpos[0];
   const lines = [];
-  if(lp) lines.push(liveStateText(lp, d.live_stop_at_venue === false));
+  if(lp) lines.push(liveStateText(lp, (d.live_venue || "").indexOf("Delta") === 0));
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
   const brk = (LAST && LAST.broker) || {};
   if(brk.connected && brk.funds && brk.funds.available != null)
@@ -8772,9 +8778,12 @@ async function aiFetch(){
     if(on && btc && !confirm(`Place REAL Delta Exchange orders for the AI desk's Bitcoin trades?\n\n`
         + "From now on, every ticket the AI desk opens on Bitcoin is also bought on Delta with your money: its "
         + "own contract and your number of contracts, as a limit order a little above the mark.\n\n"
-        + "DELTA HOLDS NO STOP ORDER ON AN OPTION. This tool watches the mark and sells at the stop the bot set "
-        + "when the ticket opened - only while this server is running. It also sells when the bot exits, "
-        + "at the target, and 30 minutes before the contract settles.\n\nThe bot decides these trades itself "
+        + "THE STOP ORDER GOES TO DELTA. The moment the buy fills, a reduce-only stop order is sent to Delta at "
+        + "the stop the bot set when the ticket opened (triggered on Delta's mark). This is new and has not yet "
+        + "been seen working on a real Delta account: watch the first trade under Orders > Stop Orders on Delta. "
+        + "If Delta refuses it the screen says so, and then only this tool watches the stop - which works only "
+        + "while this server is running. It also sells when the bot exits, at the target, and 30 minutes before "
+        + "the contract settles.\n\nThe bot decides these trades itself "
         + "and cannot be backtested. Past results do not predict future ones. This is your decision.")) return;
     if(on && !btc && !confirm(`Place REAL Zerodha orders for the AI desk's ${k} trades?\n\n`
         + "From now on, every ticket the AI desk opens on " + k + " is also bought with your money: its own "
