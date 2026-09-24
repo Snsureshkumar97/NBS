@@ -36,6 +36,8 @@ THINGS TO KNOW BEFORE PUTTING THIS ON THE PUBLIC INTERNET
 
 import argparse
 import datetime as dt
+import gzip
+import hashlib
 import http.server
 import json
 import os
@@ -201,6 +203,55 @@ def track_record(user=None, market=None):
 # ---------------------------------------------------------------------------
 # HTTP
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Compression. Since the server moved to Mumbai (20 Sep 2026) every request from
+# the user's side travels through Tailscale's Funnel relays: measured 24 Sep 2026
+# at 1.3-1.6 s before the first byte and only 40-100 KB/s after it, while the tool
+# itself answered in milliseconds. The tool's page is 425 KB and went out
+# uncompressed, so opening it cost several seconds of pure transfer. Text
+# compresses about five-fold, so anything text-like is sent gzipped to a browser
+# that says it accepts it (all of them do).
+# ---------------------------------------------------------------------------
+GZIP_MIN_BYTES = 1400                     # smaller than about one packet: not worth it
+GZIP_TYPES = ("text/", "application/json", "application/javascript", "image/svg+xml")
+_GZ_CACHE_FROM = 50_000                   # big bodies (the page) are compressed once per content
+_gz_cache = {}
+_gz_lock = threading.Lock()
+
+
+def accepts_gzip(header):
+    """Whether an Accept-Encoding header allows gzip (a q of 0 forbids it)."""
+    for part in (header or "").split(","):
+        name, _, params = part.strip().partition(";")
+        if name.strip().lower() in ("gzip", "x-gzip"):
+            q = 1.0
+            for prm in params.split(";"):
+                k, _, v = prm.strip().partition("=")
+                if k.strip().lower() == "q":
+                    try:
+                        q = float(v)
+                    except ValueError:
+                        q = 0.0
+            return q > 0
+    return False
+
+
+def gzip_body(body):
+    if len(body) < _GZ_CACHE_FROM:
+        return gzip.compress(body, 5, mtime=0)
+    key = hashlib.sha1(body).digest()
+    with _gz_lock:
+        hit = _gz_cache.get(key)
+    if hit is not None:
+        return hit
+    out = gzip.compress(body, 6, mtime=0)
+    with _gz_lock:
+        if len(_gz_cache) >= 6:
+            _gz_cache.pop(next(iter(_gz_cache)))
+        _gz_cache[key] = out
+    return out
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "TradePicker"
 
@@ -210,8 +261,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _send(self, body, ctype="text/html; charset=utf-8", code=200):
         if isinstance(body, str):
             body = body.encode("utf-8")
+        compressible = ctype.lower().startswith(GZIP_TYPES)
+        squeezed = (compressible and len(body) >= GZIP_MIN_BYTES
+                    and accepts_gzip((getattr(self, "headers", None) or {}).get("Accept-Encoding")))
+        if squeezed:
+            body = gzip_body(body)
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if compressible:
+            self.send_header("Vary", "Accept-Encoding")
+        if squeezed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         # Nothing here loads anything external, so lock that down - with one
