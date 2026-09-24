@@ -337,7 +337,9 @@ class TicketBook:
     # the day's counters, read off the log rather than from memory
     # =====================================================================
     def day_stats(self):
-        """(tickets, T3 wins, stop-outs) for today, cached for a few seconds.
+        """(tickets, T3 wins, stop-outs, trailed-stop profits) for today, cached
+        for a few seconds. A stop-out is a trade that LOST to its stop; one that
+        closed in profit on a trailed stop is the fourth number (trade_log.is_stop_out).
 
         From disk, not memory: restarting must not hand you a fresh set of
         daily limits. Today explicitly — left to its own default the log
@@ -349,10 +351,10 @@ class TicketBook:
         c = self._day_cache
         if c is None or now - c[0] > 3.0:
             try:
-                vals = trade_log.day_counts(now_ist().strftime("%Y-%m-%d"),
-                                            path=self.path)
+                vals = trade_log.day_outcomes(now_ist().strftime("%Y-%m-%d"),
+                                              path=self.path)
             except Exception:
-                vals = (None, None, None)
+                vals = (None, None, None, None)
             self._day_cache = (now, vals)
             return vals
         return c[1]
@@ -503,7 +505,7 @@ class TicketBook:
                         f"than being chased.")
         if not self.limits:
             return None
-        issued, wins, stops = self.day_stats()
+        issued, wins, stops, _locked = self.day_stats()
         if issued is None:
             return None
         cap = _cfg("DAILY_TARGET_WINS", 0)
@@ -1360,14 +1362,14 @@ class TicketBook:
                 if pub and pub["pnl"] is not None:
                     open_pnl += pub["pnl"]
                     per[name] = round(per.get(name, 0.0) + pub["pnl"], 2)
-            issued, wins, stops = self.day_stats()
+            issued, wins, stops, locked = self.day_stats()
             return {
                 "per_index": per,
                 "booked": round(booked, 2),
                 "open": round(open_pnl, 2),
                 "net": round(booked + open_pnl, 2),
                 "closed_today": n,
-                "issued": issued, "wins": wins, "stops": stops,
+                "issued": issued, "wins": wins, "stops": stops, "locked": locked,
                 "max_trades": _cfg("MAX_TRADES_PER_DAY", 0),
                 "limits": self.limits,
                 "recent": self.closed[:8],

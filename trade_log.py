@@ -267,23 +267,47 @@ def is_target_close(status):
     return "full target reached" in low or bool(re.search(r"\bt[123] hit\b", low))
 
 
-def day_counts(date_str=None, path=None):
-    """How much trading has already happened today, read off the CSV.
+def is_trailed_close(status):
+    """Did a stop that had already been moved up to a target end this trade?
 
-    From disk, not memory, for the same reason the P&L is: restarting the tool
-    must not hand you a fresh set of daily limits. Counting OPEN events rather
-    than CLOSE ones so a trade counts against the day's budget the moment it is
-    taken, not whenever it happens to finish.
+    The staircase trailing stop (tickets.TicketBook._check_price) makes a target
+    the new stop the moment it is crossed, so a ticket that reached T1 and then
+    came back to T1 closes as "stop-loss hit (trailed to T1)": a stop, in name,
+    that exits in profit."""
+    return "stop-loss hit (trailed to" in (status or "").lower()
 
-    Returns (tickets_issued, t3_wins, stop_outs).
-    """
+
+def is_stop_out(status, pnl=None):
+    """Did this trade end by losing to its stop - the only thing "stopped out"
+    should count?
+
+    Not every close with "stop-loss" in its status is one. Since 22 Sep 2026 the
+    stop climbs as targets are crossed, so a trade can reach T1, fall back to T1
+    and close on "stop-loss hit" having made money. Read by the words alone that
+    was a loss: it was counted as stopped out on the Signal page, filed under
+    "Stop" in the Journal's review, and shown to the AI as a stop. The money
+    decides where it is known; where it is not (a ticket tracked on the index has
+    no rupee figure) the "trailed to" in the status says the stop had climbed
+    past the entry first. A real broker stop that had trailed is caught by its
+    profit alone, since its status does not say so."""
+    if "stop-loss" not in (status or "").lower():
+        return False
+    if pnl is not None:
+        return pnl <= 0
+    return not is_trailed_close(status)
+
+
+def day_outcomes(date_str=None, path=None):
+    """(tickets issued, ran to target, stopped out at a loss, closed in profit
+    by a trailed stop) for one date - the same read as day_counts, with the
+    fourth kind of ending it used to file under "stopped out"."""
     rows = _read_rows(path)
     if not rows:
-        return 0, 0, 0
+        return 0, 0, 0, 0
     if date_str is None:
         dates = [r.get("date") or "" for r in rows]
         date_str = max(dates) if dates else ""
-    issued = wins = stops = 0
+    issued = wins = stops = locked = 0
     for r in rows:
         if (r.get("date") or "") != date_str:
             continue
@@ -294,8 +318,26 @@ def day_counts(date_str=None, path=None):
             status = (r.get("status") or "")
             if is_target_close(status):
                 wins += 1
-            elif "stop-loss" in status:
-                stops += 1
+            elif "stop-loss" in status.lower():
+                if is_stop_out(status, _f(r.get("pnl"))):
+                    stops += 1
+                else:
+                    locked += 1
+    return issued, wins, stops, locked
+
+
+def day_counts(date_str=None, path=None):
+    """How much trading has already happened today, read off the CSV.
+
+    From disk, not memory, for the same reason the P&L is: restarting the tool
+    must not hand you a fresh set of daily limits. Counting OPEN events rather
+    than CLOSE ones so a trade counts against the day's budget the moment it is
+    taken, not whenever it happens to finish.
+
+    Returns (tickets_issued, t3_wins, stop_outs) - stop-outs that lost money;
+    a stop that closed in profit is in day_outcomes' fourth number instead.
+    """
+    issued, wins, stops, _locked = day_outcomes(date_str, path)
     return issued, wins, stops
 
 
@@ -370,7 +412,11 @@ def build_summary(date_str=None, path=None):
     lines.append(f"Reached T1           : {rate('t1_hit')}")
     lines.append(f"Reached T2           : {rate('t2_hit')}")
     lines.append(f"Reached T3           : {rate('t3_hit')}")
-    lines.append(f"Stopped out          : {rate('sl_hit')}")
+    stopped = sum(1 for r in day if is_stop_out(r.get("status"), _f(r.get("pnl"))))
+    trailed = sum(1 for r in day if "stop-loss" in (r.get("status") or "").lower()
+                  and not is_stop_out(r.get("status"), _f(r.get("pnl"))))
+    lines.append(f"Stopped out at a loss: {stopped}/{len(day)}  ({100*stopped/len(day):.0f}%)")
+    lines.append(f"Trailed out in profit: {trailed}/{len(day)}  ({100*trailed/len(day):.0f}%)")
 
     by_index = {}
     for r in day:

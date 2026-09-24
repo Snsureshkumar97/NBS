@@ -590,7 +590,7 @@ class AIDesk:
 
     # ------------------------------------------------------------ its own record
     @staticmethod
-    def _exit_kind(status):
+    def _exit_kind(status, pnl=None):
         low = (status or "").lower()
         if "give-back rule" in low:          # retired 22 Sep 2026 - kept so old rows still classify
             return "give_back_rule"
@@ -599,7 +599,8 @@ class AIDesk:
         if trade_log.is_target_close(status):
             return "target"
         if "stop-loss hit" in low:
-            return "stop"
+            # A stop that had trailed up closes a winner - not a stop-out.
+            return "stop" if trade_log.is_stop_out(status, pnl) else "trailed_stop"
         if "market closed" in low or "intraday close" in low:
             return "session_close"
         if "cleared manually" in low:
@@ -692,7 +693,7 @@ class AIDesk:
 
         mine = [r for r in done if r.get("index") == name]
         groups = {}
-        for key, fn in (("by_exit", lambda r: self._exit_kind(r.get("status"))),
+        for key, fn in (("by_exit", lambda r: self._exit_kind(r.get("status"), trade_log._f(r.get("pnl")))),
                         ("by_side_on_this_index", lambda r: r.get("option_type") or "?"),
                         ("by_entry_time_on_this_index", bucket)):
             sel = done if key == "by_exit" else mine
@@ -708,7 +709,7 @@ class AIDesk:
             last.append({
                 "date": r.get("date"), "entered": (o.get("time_ist") or "")[:5], "closed": (r.get("time_ist") or "")[:5],
                 "contract": f"{r.get('strike')} {r.get('option_type')}", "entry": r.get("entry"), "exit": r.get("exit"),
-                "pnl": float(r["pnl"]), "how_it_ended": self._exit_kind(r.get("status")),
+                "pnl": float(r["pnl"]), "how_it_ended": self._exit_kind(r.get("status"), trade_log._f(r.get("pnl"))),
                 "at_entry": {k: o.get(k) or None for k in ("adx", "rsi", "macd_hist", "vwap_gap")},
                 **dict(zip(("your_reason_then", "your_confidence_then_pct"),
                            ((lambda w: ((w[0] or "")[:220] or None, w[1]))

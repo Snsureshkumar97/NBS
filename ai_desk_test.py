@@ -603,8 +603,10 @@ check("the record's closed trades carry the cost too",
           for x in d.public()["records"]["NIFTY"]["last"]), d.public()["records"]["NIFTY"]["last"][:1])
 check("this index separately from the rest", tr["this_index"]["n"] == 4 and tr["all_indices"]["n"] == 5)
 ex = tr["by_exit"]
-check("how each one ended: target, stop (plain and trailed alike), its own exit",
-      ex["target"]["n"] == 1 and ex["stop"]["n"] == 3 and ex["your_exit"]["n"] == 1, ex)
+check("how each one ended: target, stop, trailed stop, its own exit",
+      ex["target"]["n"] == 1 and ex["stop"]["n"] == 2 and ex["your_exit"]["n"] == 1 and ex["trailed_stop"]["n"] == 1, ex)
+check("...a stop that trailed up and closed +2,340 is a trailed stop that won, not a stop-out - the bot learns from this",
+      ex["trailed_stop"]["win_rate_pct"] == 100 and ex["stop"]["win_rate_pct"] == 0, ex)
 check("no trade ends under the retired give-back bucket any more", "give_back_rule" not in ex)
 check("win rate and net add up", tr["this_index"]["net"] == round(sum(float(r["pnl"]) for r in trade_log._read_rows(d.book.path)
       if r["event"] == "CLOSE" and r["index"] == "NIFTY"), 2))

@@ -22,14 +22,14 @@ def f(v):
         return None
 
 
-def bucket(status):
+def bucket(status, pnl=None):
     s = (status or "").lower()
     if "signal changed" in s:
         return "closed early (signal flipped)"
     if _tl.is_target_close(s):
         return "target reached"
     if "stop-loss" in s:
-        return "stopped out"
+        return "stopped out" if _tl.is_stop_out(status, pnl) else "trailed stop (closed in profit)"
     if "cleared" in s:
         return "cleared by hand"
     if "restart" in s or "market closed" in s:
@@ -73,10 +73,10 @@ def main():
 
     # ---- how they ended -------------------------------------------------
     print("\nHOW THEY ENDED")
-    counts = collections.Counter(bucket(r.get("status")) for r in closes)
+    counts = collections.Counter(bucket(r.get("status"), f(r.get("pnl"))) for r in closes)
     pnl = collections.defaultdict(float)
     for r in closes:
-        pnl[bucket(r.get("status"))] += f(r.get("pnl")) or 0.0
+        pnl[bucket(r.get("status"), f(r.get("pnl")))] += f(r.get("pnl")) or 0.0
     n = len(closes)
     print(f"  {'':34s}{'count':>6s}{'share':>8s}{'P&L':>12s}")
     for k, c in counts.most_common():

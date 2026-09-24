@@ -93,16 +93,19 @@ def closed_trades(path):
         out.append({
             "id": r.get("trade_id"), "index": r.get("index"), "date": d, "time": t,
             "pnl": per_lot, "r": (per_lot / risk) if risk else None,
-            "exit": _exit_kind(status), "expiry": is_expiry_day(r.get("index"), d),
+            "exit": _exit_kind(status, pnl), "expiry": is_expiry_day(r.get("index"), d),
         })
     out.sort(key=lambda x: (x["date"], x["time"]))
     return out
 
 
-def _exit_kind(status):
+def _exit_kind(status, pnl=None):
     s = status.lower()
     if "stop-loss" in s:
-        return "Stop"
+        # The stop climbs as targets are crossed, so it can close a winner: that
+        # is not a "Stop" (trade_log.is_stop_out). It was filed as one, and the
+        # Journal's review read a locked-in profit as a stop-out.
+        return "Stop" if trade_log.is_stop_out(status, pnl) else "Trailed stop (profit)"
     if trade_log.is_target_close(status):
         return "Target"
     if "cleared" in s:

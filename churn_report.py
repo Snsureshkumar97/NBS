@@ -27,24 +27,24 @@ def main():
         print(f"Nothing logged for {day}.")
         return 0
 
-    def bucket(status):
+    def bucket(status, pnl=None):
         s = (status or "").lower()
         if "signal changed" in s:
             return "signal changed (closed early)"
         if _tl.is_target_close(s):
             return "target reached"
         if "stop-loss" in s:
-            return "stopped out"
+            return "stopped out" if _tl.is_stop_out(status, pnl) else "trailed stop (closed in profit)"
         if "cleared" in s:
             return "cleared by hand"
         return "other"
 
-    counts = collections.Counter(bucket(r.get("status")) for r in day_rows)
+    counts = collections.Counter(bucket(r.get("status"), trade_log._f(r.get("pnl"))) for r in day_rows)
     pnl = collections.defaultdict(float)
     for r in day_rows:
         v = trade_log._f(r.get("pnl"))
         if v is not None:
-            pnl[bucket(r.get("status"))] += v
+            pnl[bucket(r.get("status"), v)] += v
 
     n = len(day_rows)
     print(f"\n{day} — {n} closed trade{'s' if n != 1 else ''}\n")

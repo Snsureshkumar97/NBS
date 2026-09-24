@@ -87,7 +87,8 @@ vwap_gap, confidence, score, reward_risk), to set against the live values in sel
 whether the trade is weakening; the same null rule applies.
 
 session_today.per_index gives each traded index's own net result for today, in this market - so the \
-session-wide tallies (issued, wins, stops, net) can be reconciled against the selected index's own \
+session-wide tallies (issued; wins, the trades that ran to their target; stops, the trades that lost to their stop; \
+locked, the trades a moved-up stop closed in profit, which are winners, not stops; net) can be reconciled against the selected index's own \
 trades without inventing another index's strike, entry or exit, which you were not given and must \
 not guess at. If the numbers do not add up to the selected index alone, that is normal and expected \
 on a day when more than one index traded - say which other index accounts for the difference and its \
@@ -225,7 +226,7 @@ TICKET_FIELDS = ("index", "strike", "expiry", "option_type", "status", "open", "
                  "entry", "now", "pnl", "tracked_on", "lots", "lot_size", "targets", "stop",
                  "hit", "hit_time", "sl_hit", "sl_hit_time", "exit_at", "index_targets",
                  "index_stop", "entry_spot")
-SESSION_FIELDS = ("issued", "closed_today", "wins", "stops", "net", "per_index", "max_trades",
+SESSION_FIELDS = ("issued", "closed_today", "wins", "stops", "locked", "net", "per_index", "max_trades",
                   "limits", "loss_limit_pct", "open")
 RECENT_TRADES_MAX = 5
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
@@ -561,7 +562,8 @@ never all the way to your original stop - see trailing_stop_rule in <desk> for t
 always be the same split.
 
 <desk> also carries your_track_record: your own closed AI trades in this market - win rate and net overall \
-and on this index, how they ended (target, stop, your own exit, the session close), \
+and on this index, how they ended (target; stop, a trade that LOST to its stop; trailed_stop, a trade whose \
+moved-up stop closed it in profit - a win, not a stop-out; your own exit; the session close), \
 results by side and by time of entry, and your latest trades on this index with the reason you gave then and \
 the ADX / RSI / MACD / VWAP readings at entry. Use it to learn from what actually happened: if a kind of entry \
 keeps failing, be slower to take it; if your own exits keep costing money against the stop or target, trust \

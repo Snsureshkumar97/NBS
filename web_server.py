@@ -176,13 +176,20 @@ def track_record(user=None, market=None):
     pnls = [f(r.get("pnl")) for r in rows]
     priced = [p for p in pnls if p is not None]
     hit = lambda k: sum(1 for r in rows if str(r.get(k, "")).lower() == "true")
+    # A stop that closed in profit (the trailing stop, 22 Sep 2026) is not a
+    # stop-out: sl_hit is true for both, so "stopped out" is counted off the
+    # money, not the flag - see trade_log.is_stop_out.
+    stopped = sum(1 for r in rows if trade_log.is_stop_out(r.get("status"), f(r.get("pnl"))))
+    trailed = sum(1 for r in rows if "stop-loss" in (r.get("status") or "").lower()
+                  and not trade_log.is_stop_out(r.get("status"), f(r.get("pnl"))))
     return {
         "n": len(rows),
         "abandoned": len(abandoned),
         "t1": round(100 * hit("t1_hit") / len(rows), 1),
         "t2": round(100 * hit("t2_hit") / len(rows), 1),
         "t3": round(100 * hit("t3_hit") / len(rows), 1),
-        "sl": round(100 * hit("sl_hit") / len(rows), 1),
+        "sl": round(100 * stopped / len(rows), 1),
+        "trailed": round(100 * trailed / len(rows), 1),
         "net": round(sum(priced), 0) if priced else None,
         "wins": sum(1 for p in priced if p > 0),
         "losses": sum(1 for p in priced if p < 0),
@@ -6221,6 +6228,7 @@ function sessionStrip(sess, order){
       + (sess.limits && sess.max_trades ? ` of ${sess.max_trades}` : "") + `</span>`);
   }
   if(sess.wins != null) bits.push(`<span>${sess.wins} ran to target</span>`);
+  if(sess.locked) bits.push(`<span>${sess.locked} trailed out in profit</span>`);
   if(sess.stops != null) bits.push(`<span>${sess.stops} stopped out</span>`);
   if(!sess.limits) bits.push(`<span>daily limits off</span>`);
   // Unattended running. It belongs on this line because it is the same kind of
@@ -7446,7 +7454,8 @@ function render(s){
         ${tile("Trades", rec.n, rec.first+" → "+rec.last)}
         ${tile("Reached T1", rec.t1+"%","")}
         ${tile("Reached T2", rec.t2+"%","")}
-        ${tile("Stopped out", rec.sl+"%","")}
+        ${tile("Stopped out", rec.sl+"%","at a loss")}
+        ${rec.trailed ? tile("Trailed out", rec.trailed+"%","stop had moved up - closed in profit") : ""}
         ${rec.net!=null?tile("Net",money(rec.net,false),
             rec.wins+" wins / "+rec.losses+" losses",
             rec.net>=0?"var(--up)":"var(--down)"):""}
@@ -10147,6 +10156,7 @@ function recapDraw(s){
   box.innerHTML =
       cell("Tickets today", ses.issued == null ? "—" : ses.issued)
     + cell("Ran to target", ses.wins == null ? "—" : ses.wins, "var(--up)")
+    + (ses.locked ? cell("Trailed out in profit", ses.locked, "var(--up)") : "")
     + cell("Stopped out", ses.stops == null ? "—" : ses.stops, "var(--down)")
     + cell("Booked", ses.booked == null ? "—" : money(ses.booked),
            (ses.booked || 0) > 0 ? "var(--up)" : (ses.booked || 0) < 0 ? "var(--down)" : "")

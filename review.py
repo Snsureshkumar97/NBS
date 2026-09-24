@@ -69,6 +69,11 @@ def load(days=None, index=None):
 
 
 def hit(rows, field):
+    if field == "sl_hit":
+        # sl_hit is true whenever the stop was reached - including a stop the
+        # trailing stop had already moved up past the entry, which closes in
+        # profit. "Stopped out" counts the ones that lost (trade_log.is_stop_out).
+        return sum(1 for r in rows if trade_log.is_stop_out(r.get("status"), _f(r.get("pnl"))))
     return sum(1 for r in rows if str(r.get(field, "")).lower() == "true")
 
 

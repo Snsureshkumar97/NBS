@@ -227,6 +227,20 @@ def ai_log_path(email, market):
     return os.path.join(os.path.dirname(trade_log.user_log_path(email, market)), "ai_trades.csv")
 
 
+def _status_text(status, pnl):
+    """What the journal's note says about how a ticket ended.
+
+    A stop that closes in profit is logged "stop-loss hit (trailed to T1)": the
+    trailing stop moved up to T1 and the trade came back to it. Printed as it
+    stands, beside a profit, that reads as a loss. The log keeps its words; the
+    journal says what happened."""
+    if status and "stop-loss" in status.lower() and not trade_log.is_stop_out(status, pnl):
+        m = re.search(r"trailed to (T[123])", status)
+        return "trailed stop hit - closed in profit" + (
+            f" (the stop had moved up to {m.group(1)})" if m else "")
+    return status
+
+
 def _ticket_lines(path, source):
     """The closed tickets of one trade log as journal lines - the tool's
     (source "tool") or the AI desk's (source "ai"); the same row shape."""
@@ -254,7 +268,7 @@ def _ticket_lines(path, source):
             "gross": round(pnl, 2), "charges": charges,
             "charges_estimated": charges is not None,
             "net": None if charges is None else round(pnl - charges, 2),
-            "status": r.get("status"), "notes": ""})
+            "status": _status_text(r.get("status"), pnl), "notes": ""})
     return out
 
 
