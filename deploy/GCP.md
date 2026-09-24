@@ -136,6 +136,8 @@ milliseconds. So the VM is also served directly on its own static IP:
 * `WEB_PUBLIC_URL` in `~/.trading-tool/.env` is the direct address, and it must equal the
   Redirect URL registered on the Kite Connect app (`<address>/kite/callback`): the callback
   needs the session cookie, and cookies are per host.
-* The Funnel link keeps working beside it (`tailscale funnel status`).
+* The old Funnel link was turned OFF on 24 Sep 2026 (`sudo tailscale funnel reset`; tailscaled itself
+  keeps running). To bring it back as a fallback: `sudo tailscale funnel --bg 5055` - it needs no
+  other change, since the app accepts any Host header.
 * The site: `python3 export_site.py --out dist --app-url https://8-231-126-52.sslip.io
   --base-url https://nbstradingtool.vercel.app`.
