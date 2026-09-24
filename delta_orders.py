@@ -37,6 +37,20 @@ WHAT IS NEVER DONE
     Every step is written to <trade log>.delta.json; closed positions write
     their real fills to <trade log>.delta.fills.jsonl.
 
+NEVER LOSING TRACK OF A REAL POSITION
+    The first real Delta order (24 Sep 2026, a second account) was bought and then
+    written off as "closed outside the tool" 15 seconds later, so when its stop hit
+    nothing was sent and the position was left open on Delta. Delta's answer for a
+    single product carries no product_id (with nothing held it is just
+    {"size": 0, "entry_price": null}), and the old reading dropped any row without
+    one, so a held position read as zero. Now: the reply is read as Delta sends it
+    (position_size); "cannot tell" is never zero; two readings in a row must show
+    fewer contracts than were bought before the tool believes they were sold
+    elsewhere; when the ticket then closes the tool looks once more and still sells
+    if anything is held; and a sell is tried even when the reading says zero - it is
+    reduce-only and can open nothing, and only Delta refusing it (or it filling
+    nothing) twice, with none held, takes the position as gone.
+
 RESTARTS
     A restart closes every ticket in the record, so a real position found
     open on start is sold too - the record and the account must not disagree
@@ -64,6 +78,9 @@ LIMIT_ATTEMPTS = 3           # limit sells before a reduce-only market sell fini
 MAX_ENTRIES_PER_DAY = 10
 VERIFY_S = 15                # how often an open position is checked against Delta's own positions
 SETTLE_S = 10                # positions can lag a fill by a moment; not trusted to shrink a holding sooner
+FLAT_CONFIRMS = 2            # readings in a row showing fewer contracts than held, before believing they were sold elsewhere
+FLAT_REFUSALS = 2            # sells refused or filling nothing, with none held, before taking the position as gone
+AUTH_CODES = ("ip_not_whitelisted_for_api_key", "unauthorized", "invalid_api_key", "invalid_signature", "expired_signature")
 PLACING_WAIT_S = 15
 POLL_S = 1.0
 NOTES_KEPT = 30
@@ -121,6 +138,47 @@ def _ceil_tick(x, tick):
 
 def _unanswered(exc):
     return type(exc).__name__ in ("Timeout", "ReadTimeout", "ConnectionError", "ConnectTimeout", "NetworkException")
+
+
+def _infra_error(exc):
+    """A refusal that says nothing about whether a position exists: the key, the IP, the
+    clock, the network, Delta being down or rate-limiting. It must never be read as "flat"."""
+    code = str(getattr(exc, "code", "") or "")
+    return _unanswered(exc) or code in AUTH_CODES or code.startswith("http 5") or code.startswith("http 429") or "rate" in code
+
+
+def position_size(reply, product_id, symbol=None):
+    """Contracts Delta says are held on one product, or None when the reply cannot be read.
+
+    Delta's position call is already scoped to a product, and for one with nothing held
+    it answers a bare {"size": 0, "entry_price": null} - no product_id in it (seen live,
+    24 Sep 2026). A row that names no product is therefore taken to be for this one; a row
+    naming ANOTHER product is not. A reply with no usable size (nothing, an empty list,
+    {"size": null}, text) is None - not knowing is never the same as holding nothing. A
+    negative size is a short, impossible after buying, and is also unknown."""
+    if reply is None:
+        return None
+    total, seen = 0, False
+    for r in (reply if isinstance(reply, list) else [reply]):
+        if not isinstance(r, dict) or "size" not in r:
+            continue
+        pid = r.get("product_id")
+        try:
+            if pid not in (None, "") and int(pid) != int(product_id):
+                continue
+        except (TypeError, ValueError):
+            continue
+        sym = r.get("product_symbol")
+        if sym and symbol and sym != symbol:
+            continue
+        try:
+            n = int(float(r.get("size")))
+        except (TypeError, ValueError):
+            return None
+        if n < 0:
+            return None
+        total, seen = total + n, True
+    return total if seen else None
 
 
 # =============================================================================
@@ -317,8 +375,37 @@ class Executor:
                 reason = (f"the ticket closed ({trade.get('status') or 'closed'})" if what == "close"
                           else info.get("reason") or "the tool restarted while this position was open")
                 pos["ticket_closed"] = reason
+                if pos.get("state") == "closed" and pos.get("outside_unconfirmed"):
+                    self._reconsider(pos)
                 self._exit(pos, reason)
         self._save()
+
+    def _reconsider(self, pos):
+        """A position written off as closed outside the tool is looked at once more the
+        moment its ticket closes. Positively none held: it stays closed. Held, or the answer
+        cannot be read: it is put back so the normal sell runs - a sell that is reduce-only
+        can open nothing, so wrongly trying costs nothing and wrongly not trying costs the
+        position (24 Sep 2026)."""
+        net = self._net_qty(pos)
+        if net == 0:
+            pos["outside_unconfirmed"] = False
+            self._note(pos["index"], "Delta confirms nothing is held - no sell needed.", pos=pos)
+            return
+        pos["state"] = "open"
+        pos["flat_reads"] = 0
+        bought = int(pos.get("filled_qty") or 0) - int(pos.get("exit_filled") or 0)
+        pos["outside_sold"] = max(0, bought - net) if net else 0
+        self._note(pos["index"], (f"The position had been written off as closed outside the tool, but Delta still "
+                                  f"shows {net} held" if net else "The position had been written off as closed outside "
+                                  "the tool, but Delta's answer cannot be read now")
+                   + " - selling it.", "warn", pos)
+
+    def _gone(self, pos, why):
+        """Delta refuses to sell it and shows none held: it is not there."""
+        pos["outside_sold"] = int(pos.get("outside_sold") or 0) + max(0, self._held(pos))
+        pos["state"], pos["exit_order_id"] = "closed", None
+        pos.setdefault("exit_reason", "it was closed outside the tool")
+        self._note(pos["index"], f"{why} - taking the position as already closed.", "warn", pos)
 
     # ------------------------------------------------------------ delta
     def client(self):
@@ -564,8 +651,15 @@ class Executor:
         if self.clock() - pos.get("verified_at", 0) >= VERIFY_S:
             pos["verified_at"] = self.clock()
             net = self._net_qty(pos)
-            if net is not None and net < self._held(pos):
-                return self._closed_outside(pos, net)
+            if net is not None:
+                if net >= self._held(pos):
+                    pos["flat_reads"] = 0
+                else:
+                    pos["flat_reads"] = int(pos.get("flat_reads") or 0) + 1
+                    if pos["flat_reads"] >= FLAT_CONFIRMS:
+                        return self._closed_outside(pos, net)
+                    self._note(pos["index"], f"Delta shows {net} held where the tool bought {self._held(pos)} - "
+                                             "reading it again before believing that.", "warn", pos)
         mark = self._mark(pos)
         if mark is not None:
             pos["mark"] = mark
@@ -599,11 +693,10 @@ class Executor:
         if self.clock() - pos.get("filled_at", 0) < SETTLE_S:
             return None
         try:
-            rows = self.client().position(pos["product_id"])
+            reply = self.client().position(pos["product_id"])
         except Exception:
             return None
-        rows = rows if isinstance(rows, list) else [rows] if rows else []
-        return sum(int(r.get("size") or 0) for r in rows if int(r.get("product_id") or 0) == int(pos["product_id"]))
+        return position_size(reply, pos["product_id"], pos.get("symbol"))
 
     def _closed_outside(self, pos, net):
         held = self._held(pos)
@@ -613,7 +706,10 @@ class Executor:
         if self._held(pos) <= 0:
             pos["state"] = "closed"
             pos.setdefault("exit_reason", "it was closed outside the tool")
-            self._note(pos["index"], "The position was closed outside the tool (on Delta's own screen?).", "warn", pos)
+            pos["outside_unconfirmed"] = True          # looked at once more when the ticket closes (_reconsider)
+            self._note(pos["index"], "Delta showed none held twice in a row, so the position looks closed outside the "
+                                     "tool (on Delta's own screen?). When the ticket closes the tool will look once "
+                                     "more and still sell if anything is there.", "warn", pos)
             return
         self._note(pos["index"], f"Part of the position was sold outside the tool; {self._held(pos)} still held.", "warn", pos)
 
@@ -623,9 +719,13 @@ class Executor:
         rest = self._held(pos)
         if rest > 0:
             net = self._net_qty(pos)
-            if net is not None and net < rest:
-                pos["outside_sold"] = int(pos.get("outside_sold") or 0) + rest - max(0, net)
-                self._note(pos["index"], f"Delta shows {max(0, net)} held, not {rest} - selling only what is held.",
+            # A reading of zero is not trusted to cancel the sell: it has been wrong (the reply
+            # is not always shaped as expected). The sell is reduce-only, so it cannot open a
+            # position; Delta refusing it, or it filling nothing, is what settles it (FLAT_REFUSALS).
+            pos["net_zero_at_exit"] = net == 0
+            if net is not None and 0 < net < rest:
+                pos["outside_sold"] = int(pos.get("outside_sold") or 0) + rest - net
+                self._note(pos["index"], f"Delta shows {net} held, not {rest} - selling only what is held.",
                            "warn", pos)
                 rest = self._held(pos)
         if rest <= 0:
@@ -653,6 +753,9 @@ class Executor:
             pos["state"] = "exiting"
             pos["exit_order_id"] = None
             pos["exit_at"] = self.clock()
+            pos["refusals"] = int(pos.get("refusals") or 0) + 1
+            if pos.get("net_zero_at_exit") and pos["refusals"] >= FLAT_REFUSALS and not _infra_error(exc):
+                return self._gone(pos, f"Delta refused the sell ({exc}) and shows none held")
             self._note(pos["index"], f"Sell order refused: {exc} - retrying.", "error", pos)
 
     def _check_exit(self, pos):
@@ -676,6 +779,10 @@ class Executor:
                 pos["state"] = "closed"
                 self._note(pos["index"], f"Sold at {pos.get('exit_price')}. Position closed.", pos=pos)
                 return
+            if new == 0 and pos.get("net_zero_at_exit"):
+                pos["zero_fills"] = int(pos.get("zero_fills") or 0) + 1
+                if pos["zero_fills"] >= FLAT_REFUSALS:
+                    return self._gone(pos, "The sell filled nothing and Delta shows none held")
             return self._sell_rest(pos)
         if self.clock() - pos.get("exit_at", 0) >= REPRICE_S:
             # A limit that has not filled: cancel it and go again a little lower
@@ -696,6 +803,10 @@ class Executor:
                 pos["state"] = "closed"
                 self._note(pos["index"], f"Sold at {pos.get('exit_price')}. Position closed.", pos=pos)
                 return
+            if filled == 0 and pos.get("net_zero_at_exit"):
+                pos["zero_fills"] = int(pos.get("zero_fills") or 0) + 1
+                if pos["zero_fills"] >= FLAT_REFUSALS:
+                    return self._gone(pos, "The sell filled nothing and Delta shows none held")
             self._sell_rest(pos)
 
     # ------------------------------------------------------------ real fills
@@ -789,7 +900,7 @@ class Executor:
             for pos in self.positions.values():
                 if pos.get("state") == "placing":
                     pos["restarted"] = True
-                elif pos.get("state") in ("entering", "open"):
+                elif pos.get("state") in ("entering", "open") or (pos.get("state") == "closed" and pos.get("outside_unconfirmed")):
                     self.q.put(("recover", {"trade_id": pos["trade_id"]}, {"reason": reason}))
 
     # ------------------------------------------------------------ reading

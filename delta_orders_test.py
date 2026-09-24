@@ -41,6 +41,12 @@ class FakeDelta:
         self.settle = "2026-09-25T12:00:00Z"
         self.manual_sold = 0
         self.raise_on_place = []
+        # How Delta answers a position call. "dict" is the REAL shape: one bare object with
+        # no product_id in it (with nothing held, {"size": 0, "entry_price": null} - seen live
+        # on 24 Sep 2026). The others are the ways a reply can be unreadable or wrong.
+        self.shape = "dict"
+        self.glitch = 0                 # this many replies show zero contracts although they are held
+        self.position_error = False
 
     def product(self, symbol):
         self.calls.append(("product", symbol))
@@ -81,11 +87,23 @@ class FakeDelta:
         return [self.order(i) for i, o in self.orders_.items() if o["state"] in ("open", "pending")]
 
     def position(self, product_id):
+        self.calls.append(("position",))
+        if self.position_error:
+            raise Exception("positions unavailable")
         net = 0
         for o in self.orders_.values():
             filled = o["size"] - o["unfilled_size"]
             net += filled if o["side"] == "buy" else -filled
-        return [{"product_id": 777, "size": max(0, net - self.manual_sold)}]
+        net = max(0, net - self.manual_sold)
+        if self.glitch > 0:
+            self.glitch -= 1
+            net = 0
+        ep = "1500.0" if net else None
+        return {"dict": lambda: {"size": net, "entry_price": ep},
+                "dict_pid": lambda: {"product_id": 777, "product_symbol": SYM, "size": net, "entry_price": ep},
+                "list": lambda: [{"product_id": 777, "size": net}],
+                "other_product": lambda: [{"product_id": 999, "size": net}],
+                "empty_list": lambda: [], "none": lambda: None, "no_size": lambda: {"entry_price": None}}[self.shape]()
 
     # -- the market, driven by the test
     def fill(self, oid, qty=None, price=1500.0):
@@ -283,7 +301,11 @@ t, _ = open_and_fill(ex, fk, clk)
 fk.manual_sold = 10
 clk.advance(do.VERIFY_S + 1)
 drain(ex)
-check("all sold on Delta's own screen: closed here, nothing sent", ex.positions[t["trade_id"]]["state"] == "closed"
+check("one reading of zero is not believed: still open, and it says it is reading again",
+      ex.positions[t["trade_id"]]["state"] == "open" and "reading it again" in ex.notes[0]["text"], ex.notes[0]["text"])
+clk.advance(do.VERIFY_S + 1)
+drain(ex)
+check("all sold on Delta's own screen (two readings): closed here, nothing sent", ex.positions[t["trade_id"]]["state"] == "closed"
       and not fk.places(side="sell"))
 ex, fk, clk, closed = rig()
 t, _ = open_and_fill(ex, fk, clk)
@@ -292,6 +314,245 @@ fk.manual_sold = 4
 ex.on_ticket_event("closed", dict(t, status="CLOSED — AI exit"))
 drain(ex)
 check("on exit, only what Delta shows as held is sold", fk.places(side="sell")[0]["size"] == 6)
+
+print("7b. 24 SEP 2026: A REAL POSITION WAS WRITTEN OFF, AND ITS STOP SENT NOTHING")
+R = do.position_size
+cases = [
+    ("the real reply for a product with nothing held", {"size": 0, "entry_price": None}, 0),
+    ("the real reply for a held position - a bare object, no product_id", {"size": 25, "entry_price": "730.0"}, 25),
+    ("the size sent as text", {"size": "25"}, 25), ("a whole number sent as a float", {"size": 12.0}, 12),
+    ("a list naming this product", [{"product_id": 777, "size": 10}], 10),
+    ("the product id sent as text", {"product_id": "777", "size": 3}, 3),
+    ("a list naming ANOTHER product", [{"product_id": 999, "size": 10}], None),
+    ("two products: only this one counts", [{"product_id": 999, "size": 10}, {"product_id": 777, "size": 4}], 4),
+    ("a row for another symbol", {"product_symbol": "OTHER", "size": 3}, None),
+    ("rows that name no product are this product's", [{"size": 10}, {"size": 5}], 15),
+    ("no reply at all", None, None), ("an empty list", [], None), ("an empty object", {}, None),
+    ("text", "oops", None), ("a size of null", {"size": None}, None), ("a size that is not a number", {"size": "abc"}, None),
+    ("a negative size (a short - impossible after buying)", {"size": -25}, None), ("no size in the reply", {"entry_price": None}, None),
+]
+for name, reply, want in cases:
+    check(f"position_size: {name}", R(reply, 777, SYM) == want, (reply, R(reply, 777, SYM)))
+
+# --- the exact failure: the real reply shape, a held position, its stop ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+pos = ex.positions[t["trade_id"]]
+for _ in range(4):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+check("held, and Delta answers in its real shape: still open after four verifications (it was written off after ONE)",
+      pos["state"] == "open" and not pos.get("outside_sold") and not pos.get("outside_unconfirmed"), pos["state"])
+fk.mark = 1150.0
+drain(ex)
+s = fk.places(side="sell")
+check("...so when the stop is reached the sell IS sent: all of it, reduce-only, and the ticket closes as a stop",
+      len(s) == 1 and s[0]["size"] == 10 and s[0]["reduce_only"] is True and closed and "stop-loss hit" in closed[-1][1], s)
+
+# --- the same for a TARGET (the user asked for both) ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+for _ in range(3):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+ex.on_ticket_event("closed", dict(t, status="CLOSED — T2 hit (full target reached)"))
+drain(ex)
+s = fk.places(side="sell")
+check("a target close sells too: all 10, reduce-only", len(s) == 1 and s[0]["size"] == 10 and s[0]["reduce_only"] is True, s)
+fk.fill(next(o["id"] for o in fk.orders_.values() if o["side"] == "sell"), price=1900.0)
+drain(ex)
+check("...and the position is closed at the fill price", ex.positions[t["trade_id"]]["state"] == "closed"
+      and ex.positions[t["trade_id"]]["exit_price"] == 1900.0)
+
+# --- every other shape Delta's reply might take: the position is never lost ---
+for shape in ("dict_pid", "list", "other_product", "empty_list", "none", "no_size"):
+    ex, fk, clk, closed = rig()
+    fk.shape = shape
+    t, _ = open_and_fill(ex, fk, clk)
+    for _ in range(4):
+        clk.advance(do.VERIFY_S + 1)
+        drain(ex)
+    pos = ex.positions[t["trade_id"]]
+    ok_state = pos["state"] == "open"
+    ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+    drain(ex)
+    s = fk.places(side="sell")
+    check(f"reply shape '{shape}': never written off, and the stop still sells everything held",
+          ok_state and len(s) == 1 and s[0]["size"] == 10, (shape, pos["state"], s))
+ex, fk, clk, closed = rig()
+fk.position_error = True
+t, _ = open_and_fill(ex, fk, clk)
+for _ in range(4):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+check("positions unavailable altogether: not written off, and the stop still sells", ex.positions[t["trade_id"]]["state"] == "exiting"
+      and len(fk.places(side="sell")) == 1)
+
+# --- a wrong reading does not stand ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+pos = ex.positions[t["trade_id"]]
+clk.advance(do.VERIFY_S + 1)
+fk.glitch = 1
+drain(ex)
+check("one wrong reading of zero: not believed", pos["state"] == "open" and pos.get("flat_reads") == 1)
+clk.advance(do.VERIFY_S + 1)
+drain(ex)
+check("the next reading is right: the count starts again", pos["state"] == "open" and pos.get("flat_reads") == 0)
+
+# --- two wrong readings DO write it off - and the close then looks again and sells ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+pos = ex.positions[t["trade_id"]]
+fk.glitch = 2
+for _ in range(2):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+check("two wrong readings in a row: written off, but flagged as unconfirmed", pos["state"] == "closed" and pos.get("outside_unconfirmed") is True)
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+s = fk.places(side="sell")
+check("the ticket closing looks again, finds it held, and SELLS it - the 24 Sep failure cannot end with nothing sent",
+      len(s) == 1 and s[0]["size"] == 10 and s[0]["reduce_only"] is True, s)
+check("...and says so", any("still" in n["text"] and "selling it" in n["text"] for n in ex.notes), [n["text"] for n in ex.notes[:3]])
+
+# --- really sold elsewhere: confirmed, nothing sent ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+fk.manual_sold = 10
+for _ in range(2):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+check("sold on Delta's own screen: on the close Delta confirms none held - stays closed, nothing sent",
+      ex.positions[t["trade_id"]]["state"] == "closed" and not fk.places(side="sell")
+      and ex.positions[t["trade_id"]].get("outside_unconfirmed") is False)
+
+# --- written off while Delta cannot be read: the close still tries ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+fk.glitch = 2
+for _ in range(2):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+fk.position_error = True
+ex.on_ticket_event("closed", dict(t, status="CLOSED — T1 hit (full target reached)"))
+drain(ex)
+check("written off, then Delta cannot be read when the target closes: the sell is still tried", len(fk.places(side="sell")) == 1
+      and fk.places(side="sell")[0]["size"] == 10)
+
+# --- a zero reading at the moment of the exit does not stop the sell ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+clk.advance(do.SETTLE_S + 1)
+fk.glitch = 1
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+s = fk.places(side="sell")
+check("a wrong zero at the very moment of the exit: the sell is sent anyway (it used to end 'nothing left to sell')",
+      len(s) == 1 and s[0]["size"] == 10 and ex.positions[t["trade_id"]]["state"] == "exiting", (s, ex.positions[t["trade_id"]]["state"]))
+
+# --- really flat and Delta refuses: the position is taken as gone, but only for the right reason ---
+class Refused(Exception):
+    def __init__(self, code):
+        super().__init__(code)
+        self.code = code
+
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+clk.advance(do.SETTLE_S + 1)
+fk.manual_sold = 10
+fk.raise_on_place.extend([Refused("reduce_only_would_increase"), Refused("reduce_only_would_increase")])
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+check("flat, and Delta refuses the sell ONCE: not believed yet - still trying",
+      ex.positions[t["trade_id"]]["state"] == "exiting" and "already closed" not in " ".join(n["text"] for n in ex.notes))
+clk.advance(do.REPRICE_S + 1)
+drain(ex)
+check("flat, and Delta refuses the sell a SECOND time: taken as already closed, at once (not a poll later)",
+      ex.positions[t["trade_id"]]["state"] == "closed" and ex._held(ex.positions[t["trade_id"]]) == 0
+      and "already closed" in " ".join(n["text"] for n in ex.notes), ex.positions[t["trade_id"]]["state"])
+for code in ("ip_not_whitelisted_for_api_key", "unauthorized", "expired_signature", "http 503"):
+    ex, fk, clk, closed = rig()
+    t, _ = open_and_fill(ex, fk, clk)
+    clk.advance(do.SETTLE_S + 1)
+    fk.manual_sold = 10
+    fk.raise_on_place.extend([Refused(code)] * 4)
+    ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+    drain(ex)
+    for _ in range(3):
+        clk.advance(do.REPRICE_S + 1)
+        drain(ex)
+    check(f"a refusal about '{code}' says nothing about the position: it is never taken as gone",
+          ex.positions[t["trade_id"]]["state"] == "exiting", ex.positions[t["trade_id"]]["state"])
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+clk.advance(do.SETTLE_S + 1)
+fk.raise_on_place.extend([Refused("insufficient_margin")] * 5)
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+for _ in range(3):
+    clk.advance(do.REPRICE_S + 1)
+    drain(ex)
+check("refused while Delta still shows the contracts held: never taken as gone, it keeps trying",
+      ex.positions[t["trade_id"]]["state"] == "exiting")
+
+# --- flat, and the sell is accepted but can never fill ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+clk.advance(do.SETTLE_S + 1)
+fk.manual_sold = 10
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+for _ in range(4):
+    clk.advance(do.REPRICE_S + 1)
+    drain(ex)
+check("flat, and a sell that rests and never fills: after two tries it is taken as gone, not retried for ever",
+      ex.positions[t["trade_id"]]["state"] == "closed" and len(fk.places(side="sell")) <= 3, (ex.positions[t["trade_id"]]["state"], len(fk.places(side="sell"))))
+
+# --- flat, and Delta cancels each sell without filling it ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+clk.advance(do.SETTLE_S + 1)
+fk.manual_sold = 10
+ex.on_ticket_event("closed", dict(t, status="CLOSED — stop-loss hit"))
+drain(ex)
+first = [o for o in fk.orders_.values() if o["side"] == "sell"][-1]
+first["state"] = "cancelled"                                   # Delta ends it: nothing to reduce
+drain(ex)
+check("flat, one sell cancelled unfilled: not believed yet - a second sell is tried",
+      ex.positions[t["trade_id"]]["state"] == "exiting" and len(fk.places(side="sell")) == 2)
+second = [o for o in fk.orders_.values() if o["side"] == "sell"][-1]
+second["state"] = "cancelled"
+drain(ex)
+check("flat, a second sell cancelled unfilled: taken as gone, at once",
+      ex.positions[t["trade_id"]]["state"] == "closed" and len(fk.places(side="sell")) == 2, (ex.positions[t["trade_id"]]["state"], len(fk.places(side="sell"))))
+
+# --- a restart revisits a written-off position, but leaves an old record alone ---
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+fk.glitch = 2
+for _ in range(2):
+    clk.advance(do.VERIFY_S + 1)
+    drain(ex)
+ex2 = do.Executor("me@example.invalid", ex.log_path, client=lambda: fk, close_ticket=lambda i, s: None,
+                  now=lambda: clk.now, clock=lambda: clk.t, mark=lambda sym: fk.mark, start=False)
+check("a restart queues a written-off, unconfirmed position to be looked at again", ex2.q.qsize() == 1, ex2.q.qsize())
+drain(ex2)
+check("a restart looks again at a position written off as unconfirmed, and sells it if held",
+      len(fk.places(side="sell")) == 1, len(fk.places(side="sell")))
+ex, fk, clk, closed = rig()
+t, _ = open_and_fill(ex, fk, clk)
+ex.positions[t["trade_id"]].update(state="closed", outside_sold=10, exit_reason="it was closed outside the tool")   # a record from before this fix
+ex._save()
+ex3 = do.Executor("me@example.invalid", ex.log_path, client=lambda: fk, close_ticket=lambda i, s: None,
+                  now=lambda: clk.now, clock=lambda: clk.t, mark=lambda sym: fk.mark, start=False)
+check("an old written-off record (no flag) is not even queued at start", ex3.q.qsize() == 0, ex3.q.qsize())
+drain(ex3)
+check("an old written-off record (no flag) is left alone: deploying this never sends an order for it", not fk.places(side="sell"))
 
 print("8. RESTARTS")
 ex, fk, clk, closed = rig()
