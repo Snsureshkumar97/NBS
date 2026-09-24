@@ -122,7 +122,8 @@ html = __import__("nbs_site").delta_connect_page("me@example.invalid", "ok", "ok
 check("the Delta page shows the wallet", "123.45 available" in html and "150.00 balance" in html)
 WS0 = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
 check("the venue chip and the AI tab show what is available, from the broker block's funds",
-      '"funds": funds}' in WS0 and "br.funds.available" in WS0 and "wallet: ${brk.funds.asset" in WS0)
+      '"funds": funds}' in WS0 and "br.funds.available" in WS0 and "wallet: ${fundsLabel(brk.funds)}" in WS0
+      and "${fundsLabel(br.funds)} available" in WS0)
 
 print("4. DISCONNECTING CLEARS EVERYTHING")
 ud.disconnect("me@example.invalid")

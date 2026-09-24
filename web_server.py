@@ -2593,10 +2593,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "needed_for": "prices and live orders", "funds": funds}
         import user_delta
         info = user_delta.summary(user) if user else {"state": "missing", "detail": "", "connected": False}
-        usd = next((w for w in (info.get("wallet") or []) if (w.get("asset") or "").upper() in ("USD", "USDT")), None)
+        wallet = info.get("wallet") or []
+        usd = next((w for w in wallet if (w.get("asset") or "").upper() in ("USD", "USDT")), None)
+        # Delta India keeps the account in rupees; its API and contracts speak dollars.
+        # Its own rupee row when the API sends one, else the dollars at its fixed rate -
+        # so the figure here is the one on Delta's own wallet screen.
+        inr_row = next((w for w in wallet if (w.get("asset") or "").upper() == "INR" and w.get("available") is not None), None)
+        funds = None
+        if usd:
+            funds = {"asset": usd["asset"], "available": usd["available"], "balance": usd["balance"],
+                     "inr": inr_row["available"] if inr_row else round(config.usd_to_inr(usd["available"])),
+                     "inr_rate": config.DELTA_USD_INR}
         return {"name": "Delta Exchange", "connect_url": "/connect-delta", "connected": bool(info.get("connected")),
                 "state": info.get("state"), "detail": info.get("detail") or "", "needed_for": "live orders only",
-                "funds": ({"asset": usd["asset"], "available": usd["available"], "balance": usd["balance"]} if usd else None)}
+                "funds": funds}
 
     # ------------------------------------------------------------- operator
     def _admin(self, qs):
@@ -7307,8 +7317,7 @@ function render(s){
   // Delta Exchange on Bitcoin - never Zerodha over a crypto page.
   // With the venue connected, the chip carries the account's own money too:
   // what is available for a premium (the user asked to see it, 20 Sep 2026).
-  const fundsText = br.funds && br.funds.available != null
-    ? ` · ${br.funds.asset === "INR" ? "₹" : br.funds.asset + " "}${num(br.funds.available, br.funds.asset === "INR" ? 0 : 2)} available` : "";
+  const fundsText = br.funds && br.funds.available != null ? ` · ${fundsLabel(br.funds)} available` : "";
   $("kite").textContent = br.connected ? br.name + fundsText : "Connect " + br.name;
   $("kite").href = br.connect_url || "/connect";
   $("kite").style.color = needs ? "#b07d15" : "";
@@ -8383,6 +8392,16 @@ window.AIDESK = AI;
 
 function aiMoney(v){ return v == null ? "—" : money(v); }
 
+// A broker's available money as the header chip and the AI tab say it. Zerodha's is
+// in rupees. Delta Exchange India's API speaks dollars but its own wallet screen is in
+// rupees at a fixed rate, so the dollars come with the rupees beside them - the figure
+// the user will find on Delta itself.
+function fundsLabel(f){
+  if(f.asset === "INR") return "₹" + num(f.available, 0);
+  const usd = f.asset + " " + num(f.available, 2);
+  return f.inr != null ? usd + " (₹" + num(f.inr, 0) + ")" : usd;
+}
+
 // How much of what the AI desk sent the model today came out of the prompt cache
 // instead of being paid for in full - [label, value] for the stats row, or null
 // before any request has been made. A cache read costs about a tenth of a normal
@@ -8685,7 +8704,7 @@ function aiRender(d){
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
   const brk = (LAST && LAST.broker) || {};
   if(brk.connected && brk.funds && brk.funds.available != null)
-    lines.push(`${brk.name} wallet: ${brk.funds.asset === "INR" ? "₹" : brk.funds.asset + " "}${num(brk.funds.available, brk.funds.asset === "INR" ? 0 : 2)} available for a premium.`);
+    lines.push(`${brk.name} wallet: ${fundsLabel(brk.funds)} available for a premium.`);
   if(k === "BTC" && brk.name === "Delta Exchange" && !brk.connected)
     lines.push("Delta Exchange keys not added yet - open \"Connect Delta Exchange\" at the top of the page "
                + "(or /connect-delta) before switching live orders on.");
@@ -9064,9 +9083,12 @@ async function oiFetch(){
 // there at all - a hidden tab beats a blank panel that looks broken.
 function gateTabs(){
   const crypto = !!(LAST && LAST.market === "crypto");
+  // Greeks is NOT in this list: Bitcoin's own greeks and implied volatility come from Delta
+  // (_api_greeks_venue), so its tab has a Bitcoin screen. It was hidden here from before that
+  // existed, which left a finished screen with no way to open it.
   [["sector", crypto], ["market", crypto], ["vol", crypto], ["levels", crypto],
    ["internals", crypto], ["strength", crypto], ["season", crypto],
-   ["greeks", crypto], ["screener", crypto]].forEach(([name, hide]) => {
+   ["screener", crypto]].forEach(([name, hide]) => {
     const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);
     if(btn) btn.hidden = hide;
     if(hide && TAB === name) showTab("home");

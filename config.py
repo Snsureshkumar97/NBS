@@ -584,6 +584,19 @@ CAS_START_TIME = (15, 15)
 # instrument now, and the session rules are looked up per instrument rather
 # than assumed.
 # ---------------------------------------------------------------------------
+# Delta Exchange India holds every balance in rupees and converts at ONE fixed rate,
+# whatever the market does: "The USD-INR rate on the platform is fixed at 85"
+# (guides.delta.exchange/delta-exchange-india-user-guide/account-setup/usd-inr-rate).
+# Its contracts are quoted and settled in dollars and its API answers in dollars,
+# but its own screens show the wallet in rupees - so the tool shows both.
+DELTA_USD_INR = 85.0
+
+
+def usd_to_inr(usd):
+    """The rupee figure Delta India shows for a dollar amount (its fixed rate)."""
+    return None if usd is None else round(float(usd) * DELTA_USD_INR, 2)
+
+
 MARKETS = {
     "nse_index": {
         "label": "NSE / BSE index",

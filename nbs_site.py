@@ -2822,7 +2822,11 @@ def delta_connect_page(user, state, detail, user_id="", since="", error=None, no
                 + (f'<div class="row"><b>Delta user</b><span>{_esc(user_id)}</span></div>' if user_id else "")
                 + (f'<div class="row"><b>Keys added</b><span>{_esc(since)}</span></div>' if since else "")
                 + "".join(f'<div class="row"><b>Wallet · {_esc(w.get("asset") or "")}</b>'
-                          f'<span>{w.get("available"):,.2f} available &middot; {w.get("balance"):,.2f} balance</span></div>'
+                          f'<span>{w.get("available"):,.2f} available &middot; {w.get("balance"):,.2f} balance'
+                          # Delta India shows the wallet in rupees at a fixed rate; its API sends dollars
+                          + (f' &middot; &asymp; &#8377;{config.usd_to_inr(w.get("available")):,.0f} available'
+                             if (w.get("asset") or "").upper() in ("USD", "USDT") else "")
+                          + '</span></div>'
                           for w in (wallet or []) if w.get("available") is not None)
                 + f'<div class="row"><b>Account</b><span>{_esc(user)}</span></div>'
                 + "</div>")
