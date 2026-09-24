@@ -23,8 +23,31 @@ THE KEY AND THE COST
     Your own ANTHROPIC_API_KEY, billed to your Anthropic account, read from the
     environment or ~/.trading-tool/.env (added after the server started is fine:
     it is looked for again on the next question). The stable instructions are
-    prompt-cached. A per-account cooldown and daily cap stop a stuck page from
+    prompt-cached (see PROMPT CACHING below). A per-account cooldown and daily cap stop a stuck page from
     running up a bill.
+
+PROMPT CACHING
+    A cache hit reads the front of a prompt at about a tenth of the input price;
+    a write costs 1.25x (5-minute life) or 2x (1-hour life). The cache matches
+    the prompt as bytes in the order tools, system, messages, so the stable
+    parts - the lookup tools and the system prompt - come first and the market
+    snapshot, which changes every request, comes last.
+      * Every request marks the system prompt, which caches the tools with it.
+      * The AI desk decides once per 15-minute candle, so its 5-minute default
+        would be cold at every candle. Its system prompt is marked for an hour
+        (DESK_SYSTEM_TTL) and is written once, then read at each later candle.
+      * Inside ONE desk decision the model can take several rounds, each
+        re-sending the snapshot and every tool result so far. Automatic caching
+        of that growing tail (CACHE_DESK_TAIL) turns rounds 2.. into reads, for
+        a 1.25x write on the first round. It only pays when decisions often take
+        a second round - which is why every decision records its rounds and its
+        cache figures (ai_desk usage), so the choice can be checked.
+      * A single-shot request (a chat answer, an automatic update) is NOT given
+        the tail: its snapshot is different every time, so it would only ever
+        pay the write.
+    If the API ever rejects the cache options, the request is repeated without
+    them and they stay off until the process restarts (_cache_options_rejected):
+    a caching problem must never stop the desk deciding.
 
 *** NOT FINANCIAL ADVICE. The bot explains a mechanical rule set and its data.
 *** It never places, changes or cancels an order.
@@ -33,6 +56,7 @@ import datetime as dt
 import json
 import os
 import re
+import sys
 import threading
 import time
 
@@ -48,6 +72,9 @@ DAILY_CAP = 150              # questions per account per day
 MAX_TOOL_ROUNDS = 5          # model turns that may look things up, per question
 MAX_TOOL_CALLS = 10          # section fetches per question
 TIMEOUT_S = 120.0
+DESK_SYSTEM_TTL = "1h"       # the desk asks once per 15-minute candle: a 5-minute cache is cold every time
+CACHE_DESK_TAIL = True       # cache the growing conversation inside one desk decision (see PROMPT CACHING)
+_cache_options_rejected = False
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
 SYSTEM = """You are Ask TradePicker, the assistant inside TradePicker, a rule-based options signal tool. \
@@ -446,6 +473,25 @@ def clean_history(raw):
     return out
 
 
+# ---------------------------------------------------------------- usage
+USAGE_FIELDS = (("input_tokens", "input_tokens"), ("output_tokens", "output_tokens"),
+                ("cache_read_tokens", "cache_read_input_tokens"),
+                ("cache_write_tokens", "cache_creation_input_tokens"))
+
+
+def _usage_totals():
+    return {key: 0 for key, _ in USAGE_FIELDS}
+
+
+def _add_usage(totals, resp):
+    """Add one response's usage to a running total. input_tokens is only the
+    part of the prompt NOT served from cache: the whole prompt is
+    input + cache_read + cache_write."""
+    u = getattr(resp, "usage", None)
+    for key, attr in USAGE_FIELDS:
+        totals[key] += getattr(u, attr, 0) or 0
+
+
 # ---------------------------------------------------------------- asking
 def ask(question, history, context, client=None, tools_ctx=None):
     """(answer, meta). Raises BotError with a message fit to show the user."""
@@ -468,15 +514,12 @@ def ask(question, history, context, client=None, tools_ctx=None):
     import bot_data
     client = client or _client()
     tools = bot_data.tool_specs()
-    used, calls, totals = [], 0, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0}
+    used, calls, totals = [], 0, _usage_totals()
     for round_no in range(MAX_TOOL_ROUNDS + 1):
         final = round_no == MAX_TOOL_ROUNDS or calls >= MAX_TOOL_CALLS
         resp = _request(client, messages, EFFORT, MAX_TOKENS, tools=tools,
                         tool_choice={"type": "none"} if final else None)
-        u = getattr(resp, "usage", None)
-        for key, attr in (("input_tokens", "input_tokens"), ("output_tokens", "output_tokens"),
-                          ("cache_read_tokens", "cache_read_input_tokens")):
-            totals[key] += getattr(u, attr, 0) or 0
+        _add_usage(totals, resp)
         if resp.stop_reason != "tool_use" or final:
             break
         messages.append({"role": "assistant", "content": resp.content})
@@ -708,16 +751,16 @@ def decide(kind, index, context, desk, tools_ctx=None, client=None):
                  f"<market_snapshot>\n{context}\n</market_snapshot>\n\n"
                  f"<desk>\n{scrub(json.dumps(desk, default=str, separators=(',', ':')))}\n</desk>\n\n"
                  f"Index: {index}. {ask_text}"}]
-    used, calls, totals = [], 0, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0}
+    used, calls, totals = [], 0, _usage_totals()
     decision = None
     for round_no in range(MAX_TOOL_ROUNDS + 1):
         final = round_no == MAX_TOOL_ROUNDS or calls >= MAX_TOOL_CALLS
+        # The tool list is the same on every round but the last (where it is cut to
+        # submit_decision alone): changing it invalidates the whole cache, which is
+        # why that one round is the only one that cannot read it.
         resp = _request(client, messages, EFFORT, MAX_TOKENS, tools=[submit] if final else lookups + [submit],
-                        system=DESK_SYSTEM)
-        u = getattr(resp, "usage", None)
-        for key, attr in (("input_tokens", "input_tokens"), ("output_tokens", "output_tokens"),
-                          ("cache_read_tokens", "cache_read_input_tokens")):
-            totals[key] += getattr(u, attr, 0) or 0
+                        system=DESK_SYSTEM, system_ttl=DESK_SYSTEM_TTL, cache_tail=CACHE_DESK_TAIL)
+        _add_usage(totals, resp)
         blocks = [b for b in resp.content if getattr(b, "type", "") == "tool_use"]
         sub = next((b for b in blocks if b.name == "submit_decision"), None)
         if sub is not None:
@@ -744,29 +787,62 @@ def decide(kind, index, context, desk, tools_ctx=None, client=None):
     return decision, meta
 
 
-def _request(client, messages, effort, max_tokens, tools=None, tool_choice=None, system=None):
-    """One Messages API call, with every SDK failure turned into a BotError."""
+def _request(client, messages, effort, max_tokens, tools=None, tool_choice=None, system=None,
+             system_ttl=None, cache_tail=False):
+    """One Messages API call, with every SDK failure turned into a BotError.
+
+    system_ttl - how long the system prompt (and the tools before it) stays cached:
+    None for the 5-minute default, "1h" for a caller that asks less often than that
+    but more often than hourly. cache_tail - also cache the growing conversation
+    (automatic caching), for a caller that sends several rounds over one prompt."""
     import anthropic
+    global _cache_options_rejected
     kwargs = {}
     if tools:
         kwargs["tools"] = tools
     if tool_choice:
         kwargs["tool_choice"] = tool_choice
-    try:
+
+    def send(cache_options):
+        marker = {"type": "ephemeral"}
+        body = {"fallbacks": "default"}
+        if cache_options and system_ttl:
+            marker["ttl"] = system_ttl
+        if cache_options and cache_tail:
+            # Top level, not on a block: the breakpoint follows the conversation as it
+            # grows. Through extra_body so it does not depend on the installed SDK
+            # knowing the field.
+            body["cache_control"] = {"type": "ephemeral"}
         return client.messages.create(
             model=MODEL,
             max_tokens=max_tokens,
             # Tools come before the system prompt in the cache prefix, so this
             # one breakpoint caches both.
-            system=[{"type": "text", "text": system or SYSTEM, "cache_control": {"type": "ephemeral"}}],
+            system=[{"type": "text", "text": system or SYSTEM, "cache_control": marker}],
             output_config={"effort": effort},
             messages=messages,
             # A declined request is re-run server-side on Anthropic's recommended
             # fallback model instead of coming back empty.
             extra_headers={"anthropic-beta": "server-side-fallback-2026-07-01"},
-            extra_body={"fallbacks": "default"},
+            extra_body=body,
             **kwargs,
         )
+
+    wanted = bool(system_ttl or cache_tail) and not _cache_options_rejected
+    try:
+        try:
+            return send(wanted)
+        except anthropic.BadRequestError as exc:
+            said = str(getattr(exc, "message", exc)).lower()
+            if not (wanted and ("cache_control" in said or re.search(r"\bttl\b", said))):
+                raise
+            # The API does not take the cache options as sent. Caching is a saving,
+            # never a reason for the desk to stop deciding: repeat the request as it
+            # was before they existed, and leave them off until the next restart.
+            _cache_options_rejected = True
+            print(f"market_bot: the API rejected the cache options ({said[:160]}) - "
+                  "prompt caching is limited to the default until the tool restarts", file=sys.stderr)
+            return send(False)
     except anthropic.AuthenticationError:
         raise BotError("Anthropic did not accept the API key. Check ANTHROPIC_API_KEY in ~/.trading-tool/.env.", 502)
     except anthropic.PermissionDeniedError:
@@ -795,5 +871,6 @@ def _finish(resp):
             "input_tokens": getattr(u, "input_tokens", None),
             "output_tokens": getattr(u, "output_tokens", None),
             "cache_read_tokens": getattr(u, "cache_read_input_tokens", None),
+            "cache_write_tokens": getattr(u, "cache_creation_input_tokens", None),
             "request_id": getattr(resp, "_request_id", None)}
     return text, meta

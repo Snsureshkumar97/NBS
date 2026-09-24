@@ -8383,6 +8383,20 @@ window.AIDESK = AI;
 
 function aiMoney(v){ return v == null ? "—" : money(v); }
 
+// How much of what the AI desk sent the model today came out of the prompt cache
+// instead of being paid for in full - [label, value] for the stats row, or null
+// before any request has been made. A cache read costs about a tenth of a normal
+// input token, so this is the number that says whether the caching is paying.
+// The counters arrive from the server: input is only the part that was NOT read
+// from the cache, so the whole prompt is input + cache_read + cache_write.
+function aiCacheStat(L){
+  const t = (L && L.tokens_today) || {};
+  const total = (t.input || 0) + (t.cache_read || 0) + (t.cache_write || 0);
+  if(!total) return null;
+  const pct = L.cache_hit_pct != null ? L.cache_hit_pct : 100 * (t.cache_read || 0) / total;
+  return [`Prompt cache today · ${num(t.cache_read || 0, 0)} of ${num(total, 0)} input tokens read from it`, `${Math.round(pct)}%`];
+}
+
 // An open AI ticket drawn the way the Signal page draws a rule ticket: the
 // same card, badge, contract line, stats row and ladder - with one target (its
 // exit) and the stop, and the bot's own reason underneath.
@@ -8637,7 +8651,8 @@ function aiRender(d){
     ["All-time net", aiMoney(R.net || 0)],
     [`Entries today · market ${marketEntries} of ${L.max_entries_per_day || 0}`, `${entries} of ${L.max_entries_per_index || 0}`],
     [`Decisions today · market ${L.decisions_today || 0} of ${L.max_decisions_per_day || 0}`, `${(L.decisions_by_index || {})[k] || 0}`],
-  ].map(([a, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(a)}</span></div>`).join("")
+  ].concat(aiCacheStat(L) ? [aiCacheStat(L)] : [])
+   .map(([a, v]) => `<div class="st"><b>${esc(v)}</b><span>${esc(a)}</span></div>`).join("")
     + (d.busy === k ? `<div class="st"><b>Deciding…</b><span>${esc(k)}</span></div>` : "");
 
   const lv = $("ailive");

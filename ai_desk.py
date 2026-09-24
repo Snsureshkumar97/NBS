@@ -99,6 +99,27 @@ RECORD_MIN_SAMPLE = 30        # under this many trades, patterns are flagged as 
 LOOP_S = 15
 
 
+def _fresh_tokens():
+    """The day's model tokens. input is only what was NOT read from the prompt cache;
+    the whole prompt is input + cache_read + cache_write."""
+    return {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+
+
+def _cache_hit_pct(t):
+    """Share of the prompt served from the cache, in percent - or None before any request."""
+    total = (t.get("input") or 0) + (t.get("cache_read") or 0) + (t.get("cache_write") or 0)
+    return round(100.0 * (t.get("cache_read") or 0) / total, 1) if total else None
+
+
+def _usage(meta):
+    """What one decision cost in tokens and what the prompt cache did for it, for
+    its record: the numbers that say whether caching is paying (rounds is how many
+    times the model was called - one is a decision that needed no lookups)."""
+    t = {"input": meta.get("input_tokens") or 0, "output": meta.get("output_tokens") or 0,
+         "cache_read": meta.get("cache_read_tokens") or 0, "cache_write": meta.get("cache_write_tokens") or 0}
+    return dict(t, rounds=meta.get("rounds"), cache_hit_pct=_cache_hit_pct(t))
+
+
 def _confidence(v):
     """The bot's own chance, in percent, that a trade reaches its target before
     its stop. Anything unusable becomes None - the page then says it did not
@@ -142,7 +163,7 @@ class AIDesk:
         self.day = None
         self.decisions_today = 0
         self.decisions_by_index = {}
-        self.tokens_today = {"input": 0, "output": 0}
+        self.tokens_today = _fresh_tokens()
         self.entries = {}            # index -> entries today
         self.contracts = []          # "NIFTY|25000|CE|2026-09-22" traded today
         self.last_candle = {}        # index -> iso of the candle close last decided on
@@ -195,7 +216,7 @@ class AIDesk:
         self.day = s.get("day")
         self.decisions_today = int(s.get("decisions_today") or 0)
         self.decisions_by_index = s.get("decisions_by_index") or {}
-        self.tokens_today = s.get("tokens_today") or self.tokens_today
+        self.tokens_today = {**_fresh_tokens(), **(s.get("tokens_today") or {})}   # saved before the cache figures existed: two keys
         self.entries = s.get("entries") or {}
         self.contracts = s.get("contracts") or []
         self.last_candle = s.get("last_candle") or {}
@@ -221,7 +242,7 @@ class AIDesk:
         today = self.now().strftime("%Y-%m-%d")
         if self.day != today:
             self.day, self.decisions_today, self.decisions_by_index = today, 0, {}
-            self.tokens_today = {"input": 0, "output": 0}
+            self.tokens_today = _fresh_tokens()
             self.entries, self.contracts = {}, []
             self.decision_no = {}                    # the day's numbering starts again
             self.event_entries = {}
@@ -749,8 +770,9 @@ class AIDesk:
                                                client=client)
         finally:
             self.busy = None
-        self.tokens_today["input"] += meta.get("input_tokens") or 0
-        self.tokens_today["output"] += meta.get("output_tokens") or 0
+        for key, field in (("input", "input_tokens"), ("output", "output_tokens"),
+                           ("cache_read", "cache_read_tokens"), ("cache_write", "cache_write_tokens")):
+            self.tokens_today[key] = (self.tokens_today.get(key) or 0) + (meta.get(field) or 0)
         return decision, meta
 
     def _entry(self, name, rec, client, why=None):
@@ -760,7 +782,8 @@ class AIDesk:
         except market_bot.BotError as exc:
             return self._record(name, "entry", "error", str(exc))
         if d.get("action") != "enter":
-            return self._record(name, "entry", "wait", d.get("reason") or "", {"looked_at": meta.get("looked_at")})
+            return self._record(name, "entry", "wait", d.get("reason") or "",
+                                {"looked_at": meta.get("looked_at"), "usage": _usage(meta)})
         with self.feed.lock:
             rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec") or rec
         ok, why, plan = self.validate(name, rec, d)
@@ -769,19 +792,20 @@ class AIDesk:
                                 {"proposal": {k: d.get(k) for k in ("option_type", "strike", "target", "stop")},
                                  "confidence": _confidence(d.get("target_confidence")),
                                  "bull_case": _case(d.get("bull_case")), "bear_case": _case(d.get("bear_case")),
-                                 "rejected_because": why, "looked_at": meta.get("looked_at")})
+                                 "rejected_because": why, "looked_at": meta.get("looked_at"), "usage": _usage(meta)})
         if self.thread is not None and not self._alive():
             return None                  # this desk's feed was replaced while it decided
         if not self.enabled.get(name):
             return self._record(name, "entry", "rejected", d.get("reason") or "",
-                                {"rejected_because": f"the AI desk for {name} was switched off while it decided"})
+                                {"rejected_because": f"the AI desk for {name} was switched off while it decided",
+                                 "usage": _usage(meta)})
         conf = _confidence(d.get("target_confidence"))
         bull, bear = _case(d.get("bull_case")), _case(d.get("bear_case"))
         self._open(name, rec, plan, d.get("reason") or "", conf, bull, bear)
         return self._record(name, "entry", "enter", d.get("reason") or "",
                             {"contract": plan["contract"], "entry": plan["ltp"], "target": plan["target"],
                              "stop": plan["stop"], "confidence": conf, "bull_case": bull, "bear_case": bear,
-                             "looked_at": meta.get("looked_at")})
+                             "looked_at": meta.get("looked_at"), "usage": _usage(meta)})
 
     def _review(self, name, trade, rec, client, why=None):
         import market_bot
@@ -794,8 +818,10 @@ class AIDesk:
             short = reason.split(". ")[0][:90] or "the bot's call"
             self.book.close_ticket(name, f"CLOSED — AI exit: {short}")
             self.last_exit[name] = self.clock()
-            return self._record(name, "review", "exit", reason, {"looked_at": meta.get("looked_at")})
-        return self._record(name, "review", "hold", d.get("reason") or "", {"looked_at": meta.get("looked_at")})
+            return self._record(name, "review", "exit", reason,
+                                {"looked_at": meta.get("looked_at"), "usage": _usage(meta)})
+        return self._record(name, "review", "hold", d.get("reason") or "",
+                            {"looked_at": meta.get("looked_at"), "usage": _usage(meta)})
 
     # ------------------------------------------------------------ checking a proposal
     def validate(self, name, rec, d):
@@ -1015,4 +1041,5 @@ class AIDesk:
                                "decisions_today": self.decisions_today if fresh_day else 0,
                                "decisions_by_index": dict(self.decisions_by_index) if fresh_day else {},
                                "max_decisions_per_day": MAX_DECISIONS_PER_DAY.get(self.market, 90),
-                               "tokens_today": self.tokens_today if fresh_day else {"input": 0, "output": 0}}}
+                               "tokens_today": dict(self.tokens_today) if fresh_day else _fresh_tokens(),
+                               "cache_hit_pct": _cache_hit_pct(self.tokens_today) if fresh_day else None}}
