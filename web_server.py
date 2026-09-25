@@ -2874,7 +2874,7 @@ PAGE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>TradePicker — Nifty · Bank Nifty · Sensex · Bitcoin</title>
 <style>
@@ -3878,16 +3878,12 @@ table.watch .werr{color:var(--warn);text-align:left;white-space:normal}
   border:1px solid var(--bd);border-radius:5px;padding:1px 5px}
 
 /* =====================================================================
-   THE 3D LAYER - nbs-signal-3d.html, applied to the live screen.
-   A particle field, two glows and a slowly turning candlestick chart made
-   of the selected index's REAL last candles, drawn on a canvas behind the
-   page; glass cards over it; a signal card that glows in the colour of the
-   signal and sways a degree or two; target bars with depth; cards that tilt
-   under the cursor. Pure canvas and CSS - no Three.js, because the page's
-   security policy loads nothing from outside, and a page holding a broker
-   session should keep it that way.
-   Numbers stay flat and still: the chart, the map and the inputs never tilt,
-   and the sway stops the moment the pointer is over the signal card.
+   THE BASE SCREEN. This was once a glass look (a particle field and a turning
+   3D chart behind the page, cards that tilted under the cursor, a signal card
+   that swayed and glowed). Those, the dark "terminal" look and their switch were
+   removed on 25 Sep 2026: the app is Zerodha's look only, in white and dark.
+   What is left here is the layout the Zerodha look builds on - its rules
+   (below) override every colour, border, glow and depth in this block.
    ===================================================================== */
 :root{
   --bg:#05060a; --surface:rgba(255,255,255,.035); --raised:rgba(255,255,255,.065);
@@ -3902,7 +3898,6 @@ body{background:#05060a;
                    radial-gradient(800px 600px at 10% 90%, rgba(242,163,61,.06), transparent 60%);
   background-attachment:fixed}
 body::before{display:none}
-#bg3d{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;display:block}
 .wrap,footer{position:relative;z-index:1}
 .wrap{perspective:1400px}
 header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
@@ -3952,18 +3947,7 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 }
 
 /* the signal card */
-.herocard{border-radius:20px;padding:26px 28px 28px;transform-style:preserve-3d;
-  animation:mount 7s ease-in-out infinite}
-.herocard:hover,.herocard:focus-within{animation-play-state:paused}
-@keyframes mount{
-  0%,100%{transform:perspective(1200px) rotateX(.8deg) rotateY(-.9deg)}
-  50%{transform:perspective(1200px) rotateX(-.6deg) rotateY(1deg)}}
-.herocard[data-bias="up"]{border-color:rgba(43,224,138,.32);
-  box-shadow:0 40px 100px -30px rgba(0,0,0,.75),0 0 90px -20px var(--glow-up)}
-.herocard[data-bias="down"]{border-color:rgba(239,85,112,.32);
-  box-shadow:0 40px 100px -30px rgba(0,0,0,.75),0 0 90px -20px var(--glow-down)}
-.herocard[data-bias="up"] #bias{text-shadow:0 0 40px var(--glow-up)}
-.herocard[data-bias="down"] #bias{text-shadow:0 0 40px var(--glow-down)}
+.herocard{border-radius:20px;padding:26px 28px 28px}
 .herocard .hero .v{font-size:46px;letter-spacing:-.02em}
 
 .tag.up{background:rgba(43,224,138,.12);color:var(--up);border-color:rgba(43,224,138,.35)}
@@ -3989,30 +3973,8 @@ header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
 .ringarc{filter:drop-shadow(0 0 10px rgba(242,163,61,.55))}
 .ring svg{filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
 
-/* the three boxes and the stat tiles tilt too */
-.top3 .card,.tiles .tile{transform-style:preserve-3d;transition:transform .15s ease-out}
-
-/* entrance */
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px) rotateX(6deg)}
-  to{opacity:1;transform:none}}
-.wrap > *{animation:fadeUp .6s cubic-bezier(.2,.8,.2,1) both}
-.wrap > *:nth-child(2){animation-delay:.05s} .wrap > *:nth-child(3){animation-delay:.1s}
-.wrap > *:nth-child(4){animation-delay:.15s} .wrap > *:nth-child(5){animation-delay:.2s}
-.wrap > *:nth-child(6){animation-delay:.25s} .wrap > *:nth-child(7){animation-delay:.3s}
-.wrap > *:nth-child(n+8){animation-delay:.35s}
-/* The signal card enters like the rest, then starts its sway - both in one
-   list, or the entrance rule (which comes later) silently replaced it. */
-.wrap > .herocard{animation:fadeUp .6s cubic-bezier(.2,.8,.2,1) .2s both,
-                             mount 7s ease-in-out .8s infinite}
-.wrap > .herocard:hover,.wrap > .herocard:focus-within{animation-play-state:paused}
-
-@media (prefers-reduced-motion: reduce){
-  .herocard,.wrap > *,.wrap > .herocard{animation:none}
-  .mkt,.top3 .card,.tiles .tile{transition:none}
-}
 @media (max-width:720px){
-  .card,.mkt,.session{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-  .herocard,.wrap > .herocard{animation:none;padding:20px}
+  .herocard{padding:20px}
   .herocard .hero .v{font-size:34px}
 }
 
@@ -4062,62 +4024,6 @@ button.mgroup:hover{color:var(--ink-2)}
 :is(button,a,select,input,summary,[tabindex]):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* =====================================================================
-   THE TERMINAL LOOK - the default from 16 Sep 2026; the glass look above is
-   one click away (Home > Look, or the command palette).
-   A screen you trade from is read in glances, often while the price moves.
-   Everything here is in service of that: solid surfaces instead of glass (no
-   scene showing through a number), no drifting particles, no tilt or sway on
-   the card that carries the verdict, no glow. Colour is kept for meaning - up,
-   down, the signal an index carries - and every grey clears WCAG AA on the
-   surface it actually sits on (terminal_look_test.py checks the arithmetic).
-   ===================================================================== */
-:root[data-look="terminal"]{
-  --bg:#0b0e14; --surface:#121722; --raised:#182030; --sunken:#0d1119;
-  --bd:#232b3a; --bd-soft:#1b2230;
-  --ink:#e6eaf2; --ink-2:#a9b1c1; --ink-3:#8a93a3;
-  --up:#2be08a; --down:#ef5570; --warn:#f2a33d; --accent:#4d94e8;
-  --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
-  --r:12px; --r-sm:8px;
-}
-:root[data-look="terminal"] body{background:var(--bg);background-image:none}
-:root[data-look="terminal"] #bg3d{display:none}
-:root[data-look="terminal"] .wrap{perspective:none}
-:root[data-look="terminal"] header{background:var(--bg);border-bottom:1px solid var(--bd-soft)}
-:root[data-look="terminal"] .ticker{background:var(--sunken);backdrop-filter:none;-webkit-backdrop-filter:none}
-:root[data-look="terminal"] :is(.card,.mkt,.session,.notice.stale){
-  background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
-  backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
-:root[data-look="terminal"] .notice.risk{backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:var(--r-sm)}
-:root[data-look="terminal"] :is(.tile,.risk,.tstat){background:var(--raised);border-radius:var(--r-sm)}
-/* the index cards: a coloured top edge says which way the signal points */
-:root[data-look="terminal"] :is(.mkt,.top3 .card,.tiles .tile){transform:none !important;
-  transition:border-color .15s ease,background-color .15s ease}
-:root[data-look="terminal"] .mkt:hover{background:var(--raised)}
-:root[data-look="terminal"] .mkt.bull{border-color:rgba(43,224,138,.5);box-shadow:inset 0 2px 0 var(--up)}
-:root[data-look="terminal"] .mkt.bear{border-color:rgba(239,85,112,.5);box-shadow:inset 0 2px 0 var(--down)}
-:root[data-look="terminal"] .mkt[aria-selected="true"]{background:var(--raised)}
-:root[data-look="terminal"] .mkt[aria-selected="true"]::before{background:var(--accent)}
-/* the signal card: still, with a bar in the signal's colour instead of a glow */
-:root[data-look="terminal"] :is(.herocard,.wrap > *,.wrap > .herocard){animation:none}
-:root[data-look="terminal"] .herocard{transform:none;border-radius:var(--r)}
-:root[data-look="terminal"] .herocard[data-bias="up"]{border-color:rgba(43,224,138,.45);box-shadow:inset 3px 0 0 var(--up)}
-:root[data-look="terminal"] .herocard[data-bias="down"]{border-color:rgba(239,85,112,.45);box-shadow:inset 3px 0 0 var(--down)}
-:root[data-look="terminal"] .herocard #bias{text-shadow:none}
-/* flat bars and gauges - depth effects read as texture behind the numbers */
-:root[data-look="terminal"] :is(.rung .bar,.gauge .gt){background:var(--sunken);box-shadow:none}
-:root[data-look="terminal"] :is(.rung .bar i,.gauge .gt i){background-image:none !important;box-shadow:none}
-:root[data-look="terminal"] :is(.ringarc,.ring svg){filter:none}
-:root[data-look="terminal"] .lbtn.on{background:var(--accent);border-color:var(--accent)}
-:root[data-look="terminal"] .lbtn.ao.on{background:rgba(43,224,138,.14);border-color:rgba(43,224,138,.45);color:var(--up)}
-:root[data-look="terminal"] table.chain th{background:#10151f}
-/* figures that update in place keep their width, so the eye is not chasing jitter */
-:root[data-look="terminal"] :is(.mkt .px,.gmk .q .p,.gmk .q .c,.tile,.tstat,.session .n,.rung .n,.ticker){
-  font-variant-numeric:tabular-nums}
-/* a focus ring you can actually see, for anyone driving this from a keyboard */
-:root[data-look="terminal"] :is(button,a,select,input,summary):focus-visible{
-  outline:2px solid var(--accent);outline-offset:2px}
-
-/* =====================================================================
    THE ZERODHA LOOK (data-look="kite") - asked for on 24 Sep 2026: "a Zerodha kind
    of theme ... I don't want animation effects, pure kind of Zerodha".
    Kite's own screen, as the user knows it: a white page, thin grey rules, a
@@ -4137,7 +4043,26 @@ button.mgroup:hover{color:var(--ink-2)}
   --brand:#ff5722; --accent-strong:#2f6fc0;
   --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
   --ema-fast:#387ed1; --ema-slow:#b26a00; --vwap:#8e44ad;
+  /* pale notices and badges, the current row of the chain, the switch's track and knob, the veil behind a dialog */
+  --note-bg:#fff8e1; --note-bd:#f1dca0; --note-ink:#5f4b00; --note-strong:#8a5a00;
+  --warn-bg:#fff4ef; --warn-bd:#ffd0bd; --warn-strong:#c2410c;
+  --ok-bg:#eaf5ea; --ok-bd:#b7dcb9; --hold-bg:#fff4dc;
+  --atm:#eaf1fb; --track:#c8c8c8; --knob:#ffffff; --scrim:rgba(0,0,0,.35);
   --r:3px; --r-sm:3px;
+}
+/* Kite's dark: the same screen on a near-black page, the same blue, orange, green and red */
+:root[data-look="kite"][data-scheme="dark"]{
+  color-scheme:dark;
+  --bg:#1a1a1a; --surface:#1a1a1a; --raised:#232323; --sunken:#141414;
+  --bd:#363636; --bd-soft:#2a2a2a;
+  --ink:#e0e0e0; --ink-2:#b5b5b5; --ink-3:#9a9a9a;
+  --up:#4caf50; --down:#e8615c; --warn:#e8a33d; --accent:#4184f3;
+  --brand:#ff5722; --accent-strong:#2f6fc0;
+  --ema-fast:#4184f3; --ema-slow:#e8a33d; --vwap:#c08adf;
+  --note-bg:#2a2410; --note-bd:#4d4318; --note-ink:#e8dca8; --note-strong:#f0c65a;
+  --warn-bg:#2f1d17; --warn-bd:#5a3324; --warn-strong:#ff8a65;
+  --ok-bg:#1c2e1f; --ok-bd:#2f5233; --hold-bg:#2f2814;
+  --atm:#1c2a3f; --track:#555555; --knob:#ededed; --scrim:rgba(0,0,0,.6);
 }
 /* nothing moves, blurs, glows or casts a shadow - whatever the rule below it says */
 :root[data-look="kite"] *,:root[data-look="kite"] *::before,:root[data-look="kite"] *::after{
@@ -4146,22 +4071,17 @@ button.mgroup:hover{color:var(--ink-2)}
   scroll-behavior:auto !important}
 :root[data-look="kite"] body{background:var(--bg);background-image:none;color:var(--ink);
   font-size:14px;line-height:1.5}
-:root[data-look="kite"] #bg3d{display:none}
 :root[data-look="kite"] .wrap{perspective:none}
 :root[data-look="kite"] .wrap > *,:root[data-look="kite"] .herocard{transform:none !important}
-:root[data-look="kite"] header{background:#fff;border-bottom:1px solid var(--bd)}
+:root[data-look="kite"] header{background:var(--surface);border-bottom:1px solid var(--bd)}
 :root[data-look="kite"] .ticker{background:var(--raised);border-bottom:1px solid var(--bd);overflow-x:auto}
 :root[data-look="kite"] :is(.card,.mkt,.session,.tile,.risk,.tstat){
   background:var(--surface);border:1px solid var(--bd);border-radius:var(--r)}
 :root[data-look="kite"] :is(.tile,.risk,.tstat){background:var(--raised)}
 :root[data-look="kite"] .notice.risk{border-radius:var(--r-sm)}
 /* the coloured edge that says which way a signal points: a border, since shadows are gone */
-:root[data-look="kite"] .mkt.bull{border-top:3px solid var(--up)}
-:root[data-look="kite"] .mkt.bear{border-top:3px solid var(--down)}
 :root[data-look="kite"] .mkt:hover{background:var(--raised)}
 :root[data-look="kite"] .mkt[aria-selected="true"]{background:var(--raised);border-color:var(--accent)}
-:root[data-look="kite"] .herocard[data-bias="up"]{border-left:3px solid var(--up)}
-:root[data-look="kite"] .herocard[data-bias="down"]{border-left:3px solid var(--down)}
 :root[data-look="kite"] :is(.rung .bar,.gauge .gt){background:var(--sunken)}
 :root[data-look="kite"] :is(.rung .bar i,.gauge .gt i){background-image:none !important}
 :root[data-look="kite"] :is(.ringarc,.ring svg){filter:none}
@@ -4169,46 +4089,46 @@ button.mgroup:hover{color:var(--ink-2)}
   font-variant-numeric:tabular-nums}
 :root[data-look="kite"] :is(button,a,select,input,summary):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* -- surfaces that the base and glass CSS paint dark, made white -- */
-:root[data-look="kite"] :is(.scrwrap,.chainwrap,.watchwrap,.tvframe){background:#fff}
+:root[data-look="kite"] :is(.scrwrap,.chainwrap,.watchwrap,.tvframe){background:var(--surface)}
 :root[data-look="kite"] :is(table.scr th,table.chain th,table.chain th.k,th){background:var(--raised)}
-:root[data-look="kite"] :is(table.chain th.k,table.chain td.k){background:#fff}
-:root[data-look="kite"] table.chain tr.atm td.k{background:#eaf1fb}
+:root[data-look="kite"] :is(table.chain th.k,table.chain td.k){background:var(--surface)}
+:root[data-look="kite"] table.chain tr.atm td.k{background:var(--atm)}
 :root[data-look="kite"] :is(.sectbar,.mvbar,.rung .bar,.gauge .gt){background:var(--sunken)}
-:root[data-look="kite"] :is(.gmk .q,.dcard){background:#fff;border:1px solid var(--bd);border-radius:var(--r)}
+:root[data-look="kite"] :is(.gmk .q,.dcard){background:var(--surface);border:1px solid var(--bd);border-radius:var(--r)}
 :root[data-look="kite"] .dcard:hover{background:var(--raised)}
 :root[data-look="kite"] .mkt[aria-selected="true"]::before{background:var(--accent)}
-:root[data-look="kite"] .maplegend .sw{background:linear-gradient(90deg,#df514c,#eeeeee,#388e3c)}
-:root[data-look="kite"] .side{background:#fff;border-right:1px solid var(--bd)}
+:root[data-look="kite"] .maplegend .sw{background:linear-gradient(90deg,var(--down),var(--bd-soft),var(--up))}
+:root[data-look="kite"] .side{background:var(--surface);border-right:1px solid var(--bd)}
 :root[data-look="kite"] .menu .tab{border-radius:var(--r)}
 :root[data-look="kite"] .menu .tab:hover{background:var(--raised);color:var(--ink)}
 :root[data-look="kite"] .menu .tab.on{background:var(--raised);border-color:var(--bd);color:var(--brand)}
 :root[data-look="kite"] .menu .tab.on i{color:var(--brand)}
-:root[data-look="kite"] .navscrim{background:rgba(0,0,0,.35)}
-:root[data-look="kite"] .botnav{background:#fff;border-top:1px solid var(--bd)}
+:root[data-look="kite"] .navscrim{background:var(--scrim)}
+:root[data-look="kite"] .botnav{background:var(--surface);border-top:1px solid var(--bd)}
 :root[data-look="kite"] .botnav button{border-radius:var(--r)}
 :root[data-look="kite"] .botnav button.on{background:transparent;color:var(--brand)}
-:root[data-look="kite"] .oc,:root[data-look="kite"] .pal{background:rgba(0,0,0,.4)}
-:root[data-look="kite"] :is(.ocbox,.palbox){background:#fff;border:1px solid var(--bd)}
+:root[data-look="kite"] .oc,:root[data-look="kite"] .pal{background:var(--scrim)}
+:root[data-look="kite"] :is(.ocbox,.palbox){background:var(--surface);border:1px solid var(--bd)}
 /* -- Kite's corners: 3px, not pills -- */
 :root[data-look="kite"] :is(.lbtn,.chip,.chip2,.pill,.status,.navbtn,.tag,.badge,.lbtn.ao,.acct i,.honestlink,.src,.looksw button){
   border-radius:var(--r)}
 :root[data-look="kite"] :is(button,select,input:not([type=checkbox]):not([type=radio]),textarea){border-radius:var(--r)}
-:root[data-look="kite"] :is(.lbtn,.chip,.pill,.navbtn,.status){background:#fff;border:1px solid var(--bd);color:var(--ink-2)}
+:root[data-look="kite"] :is(.lbtn,.chip,.pill,.navbtn,.status){background:var(--surface);border:1px solid var(--bd);color:var(--ink-2)}
 :root[data-look="kite"] :is(.lbtn,.chip):hover{background:var(--raised);color:var(--ink)}
-:root[data-look="kite"] :is(input,select,textarea){background:#fff;color:var(--ink);border:1px solid var(--bd)}
+:root[data-look="kite"] :is(input,select,textarea){background:var(--surface);color:var(--ink);border:1px solid var(--bd)}
 :root[data-look="kite"] :is(input,select,textarea):focus{border-color:var(--accent);outline:none}
 /* the buttons you press to act: Kite blue, white type */
 :root[data-look="kite"] :is(.lbtn.on,.lbtn.tf.on,.aipicker .lbtn.on,.acct i,.bmsg.user,.skip,.looksw button.on){
   background:var(--accent-strong);border-color:var(--accent-strong);color:#fff;background-image:none}
 :root[data-look="kite"] :is(#tlive.on,#ailive.on){background:#c62828;border-color:#c62828;color:#fff}
-:root[data-look="kite"] .lbtn.ao.on{background:#eaf5ea;color:var(--up);border-color:#b7dcb9}
+:root[data-look="kite"] .lbtn.ao.on{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
 /* warnings and notices: Kite's pale tints with dark type, not the dark theme's glowing ones */
-:root[data-look="kite"] .notice.risk{background:#fff4ef;border:1px solid #ffd0bd;color:var(--ink-2)}
-:root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:#c2410c}
-:root[data-look="kite"] .notice.stale{background:#fff8e6;border:1px solid #f1dca0;color:#6b5200}
-:root[data-look="kite"] .notice.stale b{color:#8a5a00}
-:root[data-look="kite"] .badge.open{background:#eaf5ea;color:var(--up);border-color:#b7dcb9}
-:root[data-look="kite"] :is(.badge.hold,.tag.warn){background:#fff4dc;color:#8a5a00;border-color:#f1dca0}
+:root[data-look="kite"] .notice.risk{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--ink-2)}
+:root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:var(--warn-strong)}
+:root[data-look="kite"] .notice.stale{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink)}
+:root[data-look="kite"] .notice.stale b{color:var(--note-strong)}
+:root[data-look="kite"] .badge.open{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
+:root[data-look="kite"] :is(.badge.hold,.tag.warn){background:var(--hold-bg);color:var(--note-strong);border-color:var(--note-bd)}
 :root[data-look="kite"] .honestlink,:root[data-look="kite"] #honest{color:var(--ink-2)}
 /* the index strip: a still row you can scroll sideways, in place of the marquee */
 :root[data-look="kite"] .tk-track{transform:none;width:max-content}
@@ -4223,7 +4143,7 @@ button.mgroup:hover{color:var(--ink-2)}
    left, as Kite's marketwatch is. On a phone the same flat sections, under the phone's own bars. */
 :root[data-look="kite"] :is(.card,.session){background:transparent;border:0;border-bottom:1px solid var(--bd-soft);
   border-radius:0;padding-left:0;padding-right:0}
-:root[data-look="kite"] :is(.tile,.tstat,.risk){background:#fff;border:1px solid var(--bd-soft);border-radius:var(--r)}
+:root[data-look="kite"] :is(.tile,.tstat,.risk){background:var(--surface);border:1px solid var(--bd-soft);border-radius:var(--r)}
 :root[data-look="kite"] .herocard{background:transparent;border:0;border-bottom:1px solid var(--bd-soft);border-radius:0;padding-left:0}
 :root[data-look="kite"] .top3 .card{padding-left:0}
 /* Kite sets its type light: regular weights, large figures, small grey labels */
@@ -4238,7 +4158,7 @@ button.mgroup:hover{color:var(--ink-2)}
   /* -- the menu becomes the bar across the top -- */
   :root[data-look="kite"] .side{top:0;left:0;right:0;bottom:auto;width:auto;height:52px;flex-direction:row;
     align-items:center;gap:0;padding:0 24px;overflow:visible;border-right:0;border-bottom:1px solid var(--bd);
-    background:#fff;z-index:80}
+    background:var(--surface);z-index:80}
   :root[data-look="kite"] .sbrand{padding:0 28px 0 0;flex:none}
   :root[data-look="kite"] .sbrand small,:root[data-look="kite"] .sidechips{display:none}
   :root[data-look="kite"] .menu{flex-direction:row;align-items:stretch;gap:0;margin-left:auto;height:52px}
@@ -4258,7 +4178,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .mgrp[data-open="false"] > .mtoggle .chev .ico{transform:none}
   /* a group's pages drop down under its name */
   :root[data-look="kite"] .mgrp-items{position:absolute;top:52px;right:0;min-width:230px;flex-direction:column;gap:0;
-    background:#fff;border:1px solid var(--bd);padding:6px 0;z-index:90}
+    background:var(--surface);border:1px solid var(--bd);padding:6px 0;z-index:90}
   :root[data-look="kite"] .mgrp-items .tab{height:auto;width:100%;padding:10px 18px;border:0;justify-content:flex-start;
     border-left:2px solid transparent}
   :root[data-look="kite"] .mgrp-items .tab.on{border-left-color:var(--brand);border-bottom-color:transparent;background:var(--raised)}
@@ -4283,7 +4203,7 @@ button.mgroup:hover{color:var(--ink-2)}
     font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--bd-soft)}
   :root[data-look="kite"] #markets .mkt{display:grid;grid-template-columns:1fr auto;grid-template-areas:"nm px" "ex st";
     align-items:center;column-gap:12px;row-gap:2px;padding:12px 16px;border:0;border-bottom:1px solid var(--bd-soft);
-    border-radius:0;background:#fff;overflow:visible}
+    border-radius:0;background:var(--surface);overflow:visible}
   :root[data-look="kite"] #markets .mkt:last-child{border-bottom:0}
   :root[data-look="kite"] #markets .mkt > div:first-child{display:contents}
   :root[data-look="kite"] #markets .mkt .nm{grid-area:nm;font-size:14px;font-weight:500;letter-spacing:0;color:var(--ink);
@@ -4291,8 +4211,6 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #markets .mkt .px{grid-area:px;margin:0;text-align:right;font-size:16px;font-weight:500}
   :root[data-look="kite"] #markets .mkt .ex{grid-area:ex;margin:0}
   :root[data-look="kite"] #markets .mkt .st{grid-area:st;margin:0;justify-self:end}
-  :root[data-look="kite"] #markets .mkt.bull{border-top:0;border-left:3px solid var(--up);padding-left:13px}
-  :root[data-look="kite"] #markets .mkt.bear{border-top:0;border-left:3px solid var(--down);padding-left:13px}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]::before{width:3px}
 }
@@ -4310,20 +4228,20 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .daymove .big{font-size:28px;font-weight:400}
 :root[data-look="kite"] #snet{font-size:30px;font-weight:400}
 /* 7. the standing risk notice is Kite's pale yellow and one slim line; orange stays for navigation and for real warnings */
-:root[data-look="kite"] .notice.risk{background:#fff8e1;border:1px solid #f1dca0;color:#5f4b00;padding:7px 14px;font-size:13px}
-:root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:#8a5a00}
-:root[data-look="kite"] .notice.stale{background:#fff4ef;border:1px solid #ffd0bd;color:var(--ink-2)}
-:root[data-look="kite"] .notice.stale b{color:#c2410c}
+:root[data-look="kite"] .notice.risk{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink);padding:7px 14px;font-size:13px}
+:root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:var(--note-strong)}
+:root[data-look="kite"] .notice.stale{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--ink-2)}
+:root[data-look="kite"] .notice.stale b{color:var(--warn-strong)}
 /* 10. no data yet: one quiet line, not a headline over empty rows */
 :root[data-look="kite"] #sigcard[data-state="blank"] #bias{font-size:18px;font-weight:500}
 :root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#checksbox,#risk,#gnote,#tiles,#lswitch){display:none}
 /* 4. the live-orders control is a switch, with its state in colour */
 :root[data-look="kite"] #tlive,:root[data-look="kite"] #ailive{position:relative;padding-left:50px;font-weight:600}
 :root[data-look="kite"] #tlive::before,:root[data-look="kite"] #ailive::before{content:"";position:absolute;left:12px;top:50%;
-  width:28px;height:14px;margin-top:-7px;border-radius:7px;background:#c8c8c8}
+  width:28px;height:14px;margin-top:-7px;border-radius:7px;background:var(--track)}
 :root[data-look="kite"] #tlive::after,:root[data-look="kite"] #ailive::after{content:"";position:absolute;left:14px;top:50%;
-  width:10px;height:10px;margin-top:-5px;border-radius:50%;background:#fff}
-:root[data-look="kite"] :is(#tlive,#ailive).on::before{background:#fff}
+  width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--knob)}
+:root[data-look="kite"] :is(#tlive,#ailive).on::before{background:var(--knob)}
 :root[data-look="kite"] :is(#tlive,#ailive).on::after{left:30px;background:#c62828}
 /* 9. the session's counts are a row of figures with their labels beneath, as Kite sets "Margins used / Opening balance" */
 :root[data-look="kite"] #sfeed{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px 28px;margin:14px 0 4px}
@@ -4336,9 +4254,9 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .wrap > .kcol{display:flex;flex-direction:column;gap:16px;grid-column:1;grid-row:1 / span 6;
     position:sticky;top:64px;margin-top:16px;max-height:calc(100vh - 80px);overflow-y:auto}
   :root[data-look="kite"] .kcol > #markets{margin:0;display:flex;flex-direction:column;gap:0;border:1px solid var(--bd);
-    border-radius:var(--r);background:#fff}
+    border-radius:var(--r);background:var(--surface)}
   :root[data-look="kite"] .kside{display:flex;flex-direction:column;gap:16px}
-  :root[data-look="kite"] .kbox{border:1px solid var(--bd);border-radius:var(--r);background:#fff}
+  :root[data-look="kite"] .kbox{border:1px solid var(--bd);border-radius:var(--r);background:var(--surface)}
   :root[data-look="kite"] .kh{padding:11px 16px;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
     color:var(--ink-3);border-bottom:1px solid var(--bd-soft)}
   :root[data-look="kite"] .kb{padding:12px 16px}
@@ -4346,13 +4264,13 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .kstat b{color:var(--ink);font-weight:500}
   :root[data-look="kite"] .kliveb .kb{display:flex;align-items:center;justify-content:space-between;font-size:14px}
   :root[data-look="kite"] .klive{position:relative;min-width:82px;padding:6px 12px 6px 34px;font:inherit;font-size:13px;font-weight:600;
-    color:var(--ink-2);background:#fff;border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;text-align:left}
+    color:var(--ink-2);background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;text-align:left}
   :root[data-look="kite"] .klive::before{content:"";position:absolute;left:8px;top:50%;width:20px;height:10px;margin-top:-5px;
-    border-radius:5px;background:#c8c8c8}
+    border-radius:5px;background:var(--track)}
   :root[data-look="kite"] .klive::after{content:"";position:absolute;left:10px;top:50%;width:6px;height:6px;margin-top:-3px;
-    border-radius:50%;background:#fff}
+    border-radius:50%;background:var(--knob)}
   :root[data-look="kite"] .klive.on{color:#fff;background:#c62828;border-color:#c62828}
-  :root[data-look="kite"] .klive.on::before{background:#fff}
+  :root[data-look="kite"] .klive.on::before{background:var(--knob)}
   :root[data-look="kite"] .klive.on::after{left:20px;background:#c62828}
   :root[data-look="kite"] .knum{font-size:28px;font-weight:400;line-height:1.2;margin-bottom:6px}
   :root[data-look="kite"] .kr{display:flex;justify-content:space-between;padding:3px 0;font-size:13px;color:var(--ink-3)}
@@ -4366,7 +4284,10 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="signal"].on{display:flex;flex-direction:column}
   :root[data-look="kite"] #sigcard{order:1}
   :root[data-look="kite"] #posgkcard{order:2}
-  :root[data-look="kite"] .pane[data-pane="signal"] .top3{order:3}
+  /* the market trend, the day's move and the confidence: a band across the top of the page (the user, 25 Sep 2026) */
+  :root[data-look="kite"] .pane[data-pane="signal"] .top3{order:0;gap:36px;margin:2px 0 10px;padding:0 0 12px;
+    border-bottom:1px solid var(--bd-soft);grid-template-columns:1fr 1.3fr .8fr}
+  :root[data-look="kite"] .pane[data-pane="signal"] .top3 .card{margin:0;border-bottom:0;padding-top:8px;padding-bottom:0}
   :root[data-look="kite"] #session{order:4}
   :root[data-look="kite"] #sfeed{order:5}
   :root[data-look="kite"] #sigcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px}
@@ -4421,12 +4342,16 @@ button.mgroup:hover{color:var(--ink-2)}
 @media (min-width:1500px){
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
     column-gap:40px;align-items:start}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"]{display:block;position:sticky;top:64px}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"]{display:block;position:sticky;top:64px;
+    grid-column:2;grid-row:2 / span 6;order:1}
+  /* the signal pane gives its pieces to the grid, so the three cards can run across both columns and the rest stay on the left */
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="signal"]{display:contents}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) .top3{grid-column:1 / -1;grid-row:1}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) :is(#sigcard,#posgkcard,#session,#sfeed){grid-column:1}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #sigcard{grid-template-columns:minmax(0,1fr)}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #gauges,
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #room,
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #checksbox{grid-column:1;grid-row:auto}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) .top3{grid-template-columns:1fr 1fr}
 }
 
 /* the theme switch, in the sidebar footer (the drawer's, on a phone) - every look */
@@ -4490,13 +4415,21 @@ button.mgroup:hover{color:var(--ink-2)}
 }
 </style>
 <script>
-// The look is set before anything paints, so the page never flashes the other one.
-// Three looks: terminal (dark, the default), kite (Zerodha's white screen) and glass.
-try{ const l = localStorage.getItem("nbs.look.v1");
-     document.documentElement.dataset.look = (l === "glass" || l === "kite") ? l : "terminal"; }
-catch(e){ document.documentElement.dataset.look = "terminal"; }
+// There is one look, Zerodha's, in two schemes: white (the default) and dark. Set before anything paints, so the
+// page never flashes the other one. `theme` is what the TradingView tab reads. The old three-look switch stored
+// "terminal" for the dark screen; that becomes the dark scheme, anything else the white one.
+(function(){
+  const de = document.documentElement;
+  let scheme = "light";
+  try{
+    const v = localStorage.getItem("nbs.scheme.v1");
+    scheme = (v === "dark" || v === "light") ? v : (localStorage.getItem("nbs.look.v1") === "terminal" ? "dark" : "light");
+  }catch(e){}
+  de.dataset.look = "kite"; de.dataset.scheme = scheme; de.dataset.theme = scheme;
+  const m = document.querySelector('meta[name="color-scheme"]');
+  if(m) m.setAttribute("content", scheme);
+})();
 </script></head><body>
-<canvas id="bg3d" aria-hidden="true"></canvas>
 <a class="skip" href="#main">Skip to content</a>
 <div class="pal" id="pal" hidden>
  <div class="palbox" role="dialog" aria-label="Command palette">
@@ -4584,7 +4517,7 @@ catch(e){ document.documentElement.dataset.look = "terminal"; }
   <button class="tab" data-tab="admin" role="tab" type="button" hidden><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></i>Admin</button>
 </nav>
  <div class="looksw" id="looksw" role="group" aria-label="Theme"><span>Theme</span>
-  <button type="button" data-look="terminal">Dark</button><button type="button" data-look="kite">Zerodha</button><button type="button" data-look="glass">Glass</button></div>
+  <button type="button" data-scheme="light">White</button><button type="button" data-scheme="dark">Dark</button></div>
  <div class="sidefoot">
   <div class="su">Signed in<b id="sideuser">&mdash;</b><small id="siderenew"></small></div>
   <a class="sout" href="/logout" title="Sign out" aria-label="Sign out"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1011.4 0"/></svg></a>
@@ -5385,7 +5318,6 @@ const DESK = [
   ["news", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='4' y='5' width='16' height='14' rx='2'/><path d='M8 9h8M8 13h8M8 16h5'/></svg>", "News", "Headlines from several sources, de-duplicated."],
   ["record", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='6' y='4' width='12' height='17' rx='2'/><path d='M9 4h6v3H9z'/><path d='M9 14l2 2 4-4'/></svg>", "Record", "This session, your track record, and the full reasoning."],
 ];
-var SCENE_BIAS = "";      // the 3D background's glow colour; read by the scene script
 const $=id=>document.getElementById(id);
 const num=(v,d=2)=>v===null||v===undefined||isNaN(v)?"—":
   Number(v).toLocaleString("en-IN",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -7810,7 +7742,6 @@ function render(s){
   const bull=r.bias==="BULLISH", bear=r.bias==="BEARISH";
   // The signal card glows in the signal's colour, and so does the 3D scene.
   { const sc = $("sigcard"); if(sc){ sc.dataset.bias = bull ? "up" : bear ? "down" : ""; sc.dataset.state = ""; } }
-  SCENE_BIAS = bull ? "up" : bear ? "down" : "";
   $("bias").textContent = bull?"Buy CE":bear?"Buy PE":"No trade";
   $("bias").style.color = bull?"var(--up)":bear?"var(--down)":"var(--ink-3)";
   if(r.confidence && r.confidence!=="N/A"){
@@ -8550,12 +8481,11 @@ function navClose(){
 const GKEY = "nbs.navgroups.v1", GDEF = {market: true, analysis: false, research: false};
 let NAVG = {};
 try{ NAVG = JSON.parse(localStorage.getItem(GKEY) || "{}"); }catch(e){}
-// In the Zerodha look on a wide screen the menu is a bar across the top and a group is a dropdown: it opens
+// On a wide screen the menu is a bar across the top and a group is a dropdown: it opens
 // when it is clicked, never because the page you are on lives in it, and it does not touch the saved folds.
-const LOOK_KITE = document.documentElement.dataset.look === "kite";
-const KITE_NAV = LOOK_KITE && matchMedia("(min-width:901px)").matches;
+const KITE_NAV = matchMedia("(min-width:901px)").matches;
 // a very wide screen shows the chart beside the signal (CSS does it; the chart is told it has room)
-const KITE_SPLIT = () => LOOK_KITE && matchMedia("(min-width:1500px)").matches;
+const KITE_SPLIT = () => matchMedia("(min-width:1500px)").matches;
 function navGroup(el, open, byUser){
   if(KITE_NAV && open && !byUser) open = false;
   el.dataset.open = open ? "true" : "false";
@@ -8700,7 +8630,7 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 let KSIDE_HTML = "", KDASH_HTML = "";
 function kiteSide(s){
   const el = $("kside");
-  if(!LOOK_KITE || !el || !s) return;
+  if(!el || !s) return;
   const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
   const box = (title, body, cls) => `<div class="kbox${cls ? " " + cls : ""}"><div class="kh">${title}</div><div class="kb">${body}</div></div>`;
   const row = (l, v) => `<div class="kr"><span>${esc(l)}</span><b>${v}</b></div>`;
@@ -8753,7 +8683,7 @@ function kiteSide(s){
 // The Dashboard's summary: today's result and the funds as the two big figures, then every index in a row.
 function kiteDash(s){
   const el = $("kdash");
-  if(!LOOK_KITE || !el || !s) return;
+  if(!el || !s) return;
   const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
   const ses = s.session || {}, br = s.broker || {}, net = ses.net || 0;
   const order = s.order || Object.keys(s.indices || {});
@@ -10844,19 +10774,18 @@ async function newsFetch(force){
 }
 
 // ============================================================ palette
-// Terminal (the default), Zerodha (kite) or glass. Kept per browser; switching reloads,
-// because the scene and the card tilt decide at load whether to run at all.
-const LOOKS = {terminal: "Dark", kite: "Zerodha", glass: "Glass"};
-const LOOK_ORDER = ["terminal", "kite", "glass"];
-const LOOK = LOOKS[document.documentElement.dataset.look] ? document.documentElement.dataset.look : "terminal";
-function setLook(v){ try{ localStorage.setItem("nbs.look.v1", v); }catch(e){} location.reload(); }
+// One look, two schemes: white and dark. Kept per browser; switching reloads, because the charts are drawn in the
+// scheme's colours as they are built.
+const SCHEMES = {light: "White", dark: "Dark"};
+const SCHEME = document.documentElement.dataset.scheme === "dark" ? "dark" : "light";
+function setScheme(v){ try{ localStorage.setItem("nbs.scheme.v1", v); }catch(e){} location.reload(); }
 { const lb = document.getElementById("lookbtn");
-  if(lb){ lb.textContent = "Theme: " + LOOKS[LOOK];
-    lb.addEventListener("click", () => setLook(LOOK_ORDER[(LOOK_ORDER.indexOf(LOOK) + 1) % LOOK_ORDER.length])); }
-  document.querySelectorAll("#looksw button[data-look]").forEach(b => {
-    const on = b.dataset.look === LOOK;
+  if(lb){ lb.textContent = "Theme: " + SCHEMES[SCHEME];
+    lb.addEventListener("click", () => setScheme(SCHEME === "dark" ? "light" : "dark")); }
+  document.querySelectorAll("#looksw button[data-scheme]").forEach(b => {
+    const on = b.dataset.scheme === SCHEME;
     b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
-    b.addEventListener("click", () => { if(b.dataset.look !== LOOK) setLook(b.dataset.look); });
+    b.addEventListener("click", () => { if(b.dataset.scheme !== SCHEME) setScheme(b.dataset.scheme); });
   }); }
 // On a phone the header has no room for the market and broker chips, so the menu carries copies:
 // they follow the header's own chips (text, link, hidden) whenever those change.
@@ -10896,8 +10825,8 @@ function palItems(){
             run:() => { const c = $("capital"); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }});
   out.push({t:"Do", label:"Clear the open ticket",
             run:() => { const b = $("tclear"); if(b && b.style.display !== "none") b.click(); }});
-  LOOK_ORDER.filter(k => k !== LOOK).forEach(k => out.push(
-    {t:"Do", label:"Switch to the " + LOOKS[k] + " look", sub:"now " + LOOKS[LOOK], run:() => setLook(k)}));
+  out.push({t:"Do", label: SCHEME === "dark" ? "Switch to the white theme" : "Switch to the dark theme",
+            sub:"now " + SCHEMES[SCHEME], run:() => setScheme(SCHEME === "dark" ? "light" : "dark")});
   out.push({t:"Do", label:"Log out", run:() => location.href="/logout"});
   return out;
 }
@@ -10953,179 +10882,6 @@ document.addEventListener("keydown", e => {
   else if(e.key === "ArrowUp"){ e.preventDefault(); PAL.sel = Math.max(PAL.sel - 1, 0); palRender(); }
   else if(e.key === "Enter"){ e.preventDefault(); palRun(); }
 });
-</script>
-<script>
-// ------------------------------------------------------------ the 3D scene
-// nbs-signal-3d.html's background, drawn with a 2D canvas and a hand-rolled
-// perspective projection instead of Three.js - the page's security policy
-// loads no outside script, and this is a few hundred lines lighter besides.
-// Two drifting particle fields, a glow that takes the colour of the current
-// signal, an amber one opposite, and a slowly turning 3D candlestick chart
-// built from the selected index's own last candles. Capped at ~30 fps, paused
-// with the tab, drawn once and left still for anyone who prefers less motion.
-(function(){
-  const cv = document.getElementById("bg3d");
-  if(!cv || !cv.getContext) return;
-  // The terminal look has no scene: nothing drawn, nothing animating, no CPU spent.
-  if(document.documentElement.dataset.look !== "glass") return;
-  const ctx = cv.getContext("2d");
-  const still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let W = 0, H = 0;
-  function field(n, sx, sy, sz, oz){
-    const a = new Float32Array(n * 3);
-    for(let i = 0; i < n; i++){
-      a[i*3] = (Math.random() - .5) * sx; a[i*3+1] = (Math.random() - .5) * sy;
-      a[i*3+2] = (Math.random() - .5) * sz + oz;
-    }
-    return a;
-  }
-  const N = window.innerWidth < 720 ? 260 : 700;
-  const F1 = field(N, 1600, 1000, 800, -200), F2 = field(N, 1800, 1100, 900, -400);
-  const cam = {x: 0, y: 0, z: 420};
-  let mx = 0, my = 0;
-  window.addEventListener("mousemove", e => {
-    mx = e.clientX / (W || 1) - .5; my = e.clientY / (H || 1) - .5;
-  }, {passive: true});
-  const TAN = Math.tan(30 * Math.PI / 180);
-  function proj(x, y, z){
-    const d = cam.z - z;
-    if(d <= 1) return null;
-    const f = (H / 2) / TAN / d;
-    return [W / 2 + (x - cam.x) * f, H / 2 - (y - cam.y) * f, f];
-  }
-  function points(F, ry, rx, rgb, size, alpha){
-    const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
-    ctx.fillStyle = `rgba(${rgb},${alpha})`;
-    for(let i = 0; i < F.length; i += 3){
-      const x = F[i], y = F[i+1], z = F[i+2];
-      const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
-      const y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
-      const p = proj(x1, y1, z2);
-      if(!p) continue;
-      if(p[0] < -4 || p[0] > W + 4 || p[1] < -4 || p[1] > H + 4) continue;
-      // Three.js's own point attenuation: size x (half the height / depth).
-      const r = Math.min(4, Math.max(.4, size * (H / 2) / (cam.z - z2)));
-      ctx.fillRect(p[0] - r / 2, p[1] - r / 2, r, r);
-    }
-  }
-  function glow(x, y, z, radius, rgb, a){
-    const p = proj(x, y, z);
-    if(!p) return;
-    const R = radius * p[2];
-    const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], R);
-    g.addColorStop(0, `rgba(${rgb},${.66 * a})`);
-    g.addColorStop(.4, `rgba(${rgb},${.26 * a})`);
-    g.addColorStop(1, `rgba(${rgb},0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(p[0] - R, p[1] - R, R * 2, R * 2);
-  }
-  // The candles: the selected index's last 14, or a gentle stand-in until the
-  // chart has loaded. Scaled to the same height whatever the index's price.
-  function candles(){
-    const d = (typeof CH !== "undefined" && CH.data && CH.data.candles) || [];
-    let bars = d.slice(-14).map(b => ({o: +b[1], h: +b[2], l: +b[3], c: +b[4]}))
-                .filter(b => isFinite(b.o) && isFinite(b.c) && isFinite(b.h) && isFinite(b.l));
-    if(bars.length < 6){
-      bars = []; let p = 100;
-      for(let i = 0; i < 14; i++){ const o = p; p += Math.sin(i * 1.7) * 3 - .6;
-        bars.push({o, c: p, h: Math.max(o, p) + 1.6, l: Math.min(o, p) - 1.6}); }
-    }
-    const hi = Math.max(...bars.map(b => b.h)), lo = Math.min(...bars.map(b => b.l));
-    const k = 200 / Math.max(hi - lo, 1e-9), mid = (hi + lo) / 2;
-    return bars.map(b => ({o: (b.o - mid) * k, c: (b.c - mid) * k,
-                           h: (b.h - mid) * k, l: (b.l - mid) * k}));
-  }
-  let UP = "#2be08a", DN = "#ef5570";
-  function candleChart(t){
-    const bars = candles();
-    const ry = -0.35 + Math.sin(t * .12) * .06, rx = -0.15;
-    const oy = -80 + Math.sin(t * .25) * 10, ox = 180, oz = -520;
-    const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
-    const T = (x, y, z) => {
-      const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
-      const y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
-      return proj(x1 + ox, y1 + oy, z2 + oz);
-    };
-    bars.forEach((b, i) => {
-      const x = (i - bars.length / 2) * 42, top = Math.max(b.o, b.c), bot = Math.min(b.o, b.c);
-      const h = Math.max(top - bot, 1.2), w = 9, dp = 3;
-      const col = b.c >= b.o ? UP : DN;
-      const w1 = T(x, b.l, 0), w2 = T(x, b.h, 0);
-      if(w1 && w2){
-        ctx.globalAlpha = 1; ctx.strokeStyle = "rgba(139,147,163,.35)"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(w1[0], w1[1]); ctx.lineTo(w2[0], w2[1]); ctx.stroke();
-      }
-      const face = (pts, a) => {
-        const q = pts.map(p => T(p[0], p[1], p[2]));
-        if(q.some(p => !p)) return;
-        ctx.globalAlpha = a; ctx.fillStyle = col;
-        ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]);
-        for(let j = 1; j < q.length; j++) ctx.lineTo(q[j][0], q[j][1]);
-        ctx.closePath(); ctx.fill();
-      };
-      face([[x+w, bot, -dp], [x+w, bot, dp], [x+w, bot+h, dp], [x+w, bot+h, -dp]], .2);
-      face([[x-w, bot+h, dp], [x+w, bot+h, dp], [x+w, bot+h, -dp], [x-w, bot+h, -dp]], .26);
-      face([[x-w, bot, dp], [x+w, bot, dp], [x+w, bot+h, dp], [x-w, bot+h, dp]], .38);
-    });
-    ctx.globalAlpha = 1;
-  }
-  let last = 0;
-  const t0 = performance.now();
-  function frame(now, once){
-    if(!once && now - last < 33){ requestAnimationFrame(frame); return; }
-    last = now;
-    const t = (now - t0) / 1000;
-    cam.x += (mx * 60 - cam.x) * .02; cam.y += (-my * 40 - cam.y) * .02;
-    ctx.clearRect(0, 0, W, H);
-    ctx.globalCompositeOperation = "lighter";
-    const sig = SCENE_BIAS === "up" ? "43,224,138" : SCENE_BIAS === "down" ? "239,85,112" : "77,148,232";
-    glow(220, 120 + Math.sin(t * .4) * 25, -150, 350, sig, SCENE_BIAS ? .85 + Math.sin(t * .8) * .1 : .45);
-    glow(-260 + Math.cos(t * .3) * 30, -180, -250, 250, "242,163,61", .7);
-    points(F1, t * .015, t * .006, "43,224,138", 2.2, .55);
-    points(F2, -t * .01, 0, "242,163,61", 1.6, .3);
-    ctx.globalCompositeOperation = "source-over";
-    // On a phone the chart would sit behind the index cards themselves.
-    if(W >= 720) candleChart(t);
-    if(!once && !still) requestAnimationFrame(frame);
-  }
-  function size(){
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    W = window.innerWidth; H = window.innerHeight;
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const cs = getComputedStyle(document.documentElement);
-    UP = cs.getPropertyValue("--up").trim() || UP; DN = cs.getPropertyValue("--down").trim() || DN;
-    if(still) frame(performance.now(), true);
-  }
-  window.addEventListener("resize", size);
-  size();
-  if(!still) requestAnimationFrame(frame);
-  else setInterval(() => frame(performance.now(), true), 30000);   // candles still update
-})();
-
-// ------------------------------------------------------------ card tilt
-// Cards lean toward the cursor, a few degrees at most. Delegated from the
-// document because the tiles are rebuilt on every refresh. Not on touch, not
-// for reduced motion, and never on the chart, the map or anything with inputs.
-(function(){
-  // Cards stay still in the terminal look.
-  if(document.documentElement.dataset.look !== "glass") return;
-  if(window.matchMedia && (matchMedia("(prefers-reduced-motion: reduce)").matches
-     || matchMedia("(hover: none)").matches)) return;
-  const SEL = ".mkt, .top3 .card, .tiles .tile";
-  let cur = null;
-  function reset(el){ if(el) el.style.transform = ""; }
-  document.addEventListener("mousemove", e => {
-    const el = e.target.closest ? e.target.closest(SEL) : null;
-    if(el !== cur){ reset(cur); cur = el; }
-    if(!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
-    el.style.transform = `perspective(900px) rotateX(${(-py * 6).toFixed(2)}deg) `
-                       + `rotateY(${(px * 8).toFixed(2)}deg) translateZ(4px)`;
-  }, {passive: true});
-  document.addEventListener("mouseleave", () => { reset(cur); cur = null; });
-})();
 </script>
 </body></html>
 """

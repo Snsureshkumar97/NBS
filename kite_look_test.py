@@ -38,29 +38,53 @@ def contrast(a, b):
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
-CSS = SRC[:SRC.index("</style>\n<script>\n// The look is set before anything paints")]
+CSS = SRC[:SRC.index("</style>\n<script>\n// There is one look, Zerodha's, in two schemes")]
 block = re.search(r':root\[data-look="kite"\]\{(.*?)\}', CSS, re.S)
-tok = dict(re.findall(r"--([\w-]+):(#[0-9a-fA-F]{6})", block.group(1))) if block else {}
+dblock = re.search(r':root\[data-look="kite"\]\[data-scheme="dark"\]\{(.*?)\}', CSS, re.S)
+hexes = lambda blk: dict(re.findall(r"--([\w-]+):(#[0-9a-fA-F]{6})", blk.group(1))) if blk else {}
+tok, dtok = hexes(block), hexes(dblock)
 KITE = CSS[CSS.index("THE ZERODHA LOOK"):]
 
-print("1. IT IS KITE'S PALETTE")
-check("the token block exists and says it is a light scheme", bool(tok) and "color-scheme:light" in block.group(1), sorted(tok)[:5])
-check("a white page with Kite's light greys", tok["bg"] == "#ffffff" and tok["surface"] == "#ffffff" and tok["raised"] == "#f9f9f9")
+print("0. THERE IS ONE LOOK, IN TWO SCHEMES (25 Sep 2026: 'remove other theme, just add this zerodha as white and dark')")
+check("the dark and glass looks, their CSS, the 3D scene, its canvas and the card tilt are gone",
+      all(w not in SRC for w in ('data-look="terminal"', 'data-look="glass"', "bg3d", "SCENE_BIAS", "card tilt", "THE TERMINAL LOOK", "THE 3D LAYER",
+                                  "@keyframes mount", "@keyframes fadeUp")))
+check("no signal-coloured bar runs down the signal card or a watchlist row (the user: 'a line from top to bottom for PE red and CE green doesn't look good')",
+      "data-bias" not in KITE and not re.search(r"\.mkt\.(bull|bear)\{[^}]*border-(left|top)", KITE))
+check("the signal is still said in colour: the verdict and the index's name",
+      ".mkt.bull .nm{color:var(--up)}" in KITE and ".mkt.bear .nm{color:var(--down)}" in KITE)
+
+print("1. IT IS KITE'S PALETTE, WHITE AND DARK")
+check("the white scheme: a white page with Kite's light greys, and it says it is a light scheme",
+      bool(tok) and "color-scheme:light" in block.group(1) and tok["bg"] == "#ffffff" and tok["surface"] == "#ffffff" and tok["raised"] == "#f9f9f9")
 check("Kite's blue for links and actions, its orange for the mark, its red for a loss",
       tok["accent"] == "#387ed1" and tok["brand"] == "#ff5722" and tok["down"] == "#df514c", (tok["accent"], tok["brand"], tok["down"]))
+check("the dark scheme: a near-black page, Kite's own blue, orange and green, and it says it is a dark scheme",
+      bool(dtok) and "color-scheme:dark" in dblock.group(1) and dtok["bg"] == "#1a1a1a" and dtok["accent"] == "#4184f3"
+      and dtok["brand"] == "#ff5722" and dtok["up"] == "#4caf50")
+names = lambda blk: set(re.findall(r"--([\w-]+)\s*:", blk.group(1))) if blk else set()
+check("the two schemes define the same tokens (a colour - or a scrim - is never left as the other scheme's)",
+      names(dblock) >= names(block) - {"r", "r-sm", "glow-up", "glow-down", "glow-warn"}, sorted(names(block) - names(dblock)))
 check("3px corners, as Kite has", "--r:3px" in block.group(1) and "--r-sm:3px" in block.group(1))
 
-print("2. EVERY GREY AND EVERY SIGNAL COLOUR READS ON THE SURFACE IT SITS ON")
-for ink in ("ink", "ink-2", "ink-3"):
-    for sname in ("bg", "surface", "raised"):
-        r = contrast(tok[ink], tok[sname])
-        check(f"--{ink} {tok[ink]} on --{sname} {tok[sname]} clears 4.5:1", r >= 4.5, f"{r:.2f}:1")
-for col in ("up", "down", "warn", "accent", "brand"):
-    for sname in ("surface", "raised"):
-        r = contrast(tok[col], tok[sname])
-        check(f"--{col} {tok[col]} on --{sname} clears 3:1 (always paired with a sign or a word)", r >= 3.0, f"{r:.2f}:1")
-r = contrast("#ffffff", tok["accent-strong"])
-check(f"the filled buttons' blue {tok['accent-strong']} carries white type at 4.5:1", r >= 4.5, f"{r:.2f}:1")
+print("2. EVERY GREY AND EVERY SIGNAL COLOUR READS ON THE SURFACE IT SITS ON - IN BOTH SCHEMES")
+for name, t in (("white", tok), ("dark", dtok)):
+    for ink in ("ink", "ink-2", "ink-3"):
+        for sname in ("bg", "surface", "raised"):
+            r = contrast(t[ink], t[sname])
+            check(f"[{name}] --{ink} {t[ink]} on --{sname} {t[sname]} clears 4.5:1", r >= 4.5, f"{r:.2f}:1")
+    for col in ("up", "down", "warn", "accent", "brand"):
+        for sname in ("surface", "raised"):
+            r = contrast(t[col], t[sname])
+            check(f"[{name}] --{col} {t[col]} on --{sname} clears 3:1 (always paired with a sign or a word)", r >= 3.0, f"{r:.2f}:1")
+    r = contrast("#ffffff", t["accent-strong"])
+    check(f"[{name}] the filled buttons' blue {t['accent-strong']} carries white type at 4.5:1", r >= 4.5, f"{r:.2f}:1")
+    for nm, ink, bg in (("the standing notice", "note-ink", "note-bg"), ("its bold words", "note-strong", "note-bg"), ("a real warning's bold words", "warn-strong", "warn-bg"),
+                        ("a badge on its tint", "note-strong", "hold-bg")):
+        r = contrast(t[ink], t[bg])
+        check(f"[{name}] {nm}: --{ink} on --{bg} clears 4.5:1", r >= 4.5, f"{r:.2f}:1")
+    r = contrast(t["up"], t["ok-bg"])
+    check(f"[{name}] green on its pale tint clears 3:1", r >= 3.0, f"{r:.2f}:1")
 r = contrast("#ffffff", "#c62828")
 check("the live-orders-on red carries white type at 4.5:1", r >= 4.5, f"{r:.2f}:1")
 
@@ -70,11 +94,8 @@ body = glob.group(1) if glob else ""
 for prop in ("animation:none", "transition:none", "text-shadow:none", "box-shadow:none", "backdrop-filter:none", "scroll-behavior:auto"):
     check(f"every element, whatever the rule below it says: {prop} !important",
           re.search(r"(?<![-\w])" + re.escape(prop) + r" !important", body) is not None)
-check("the scene is hidden and the page has no perspective", ':root[data-look="kite"] #bg3d{display:none}' in CSS
-      and ':root[data-look="kite"] .wrap{perspective:none}' in CSS)
+check("the page has no perspective", ':root[data-look="kite"] .wrap{perspective:none}' in CSS)
 check("no tilt, no sway on the signal card", ".herocard{transform:none !important}" in KITE)
-check("the scene and the card tilt only ever start in the glass look",
-      SRC.count('if(document.documentElement.dataset.look !== "glass") return;') == 2)
 check("the world-markets strip is still and scrolls sideways under the thumb, not as a marquee",
       ".ticker{background:var(--raised);border-bottom:1px solid var(--bd);overflow-x:auto}" in KITE and ".tk-track{transform:none;width:max-content}" in KITE)
 check("the menu opens without a slide (the drawer's transition is switched off with the rest)", "transition:none !important" in body)
@@ -136,80 +157,84 @@ for sel in sorted(dark | light):
             missing.append(part)
 check("every base rule that paints a dark surface or a pale-on-dark colour is named in the Zerodha block",
       not missing, sorted(set(missing))[:8])
-check("the two notices are re-painted in Kite's pale tints (they are dark panels with light type in the other looks)",
-      re.search(r'data-look="kite"\] \.notice\.risk\{background:#fff[0-9a-f]+', KITE) is not None
-      and re.search(r'data-look="kite"\] \.notice\.stale\{background:#fff[0-9a-f]+', KITE) is not None)
-check("the survey found the rules it should (so the test is not passing on an empty list)", len(dark) >= 25 and len(light) >= 8, (len(dark), len(light)))
+check("the two notices are pale tints with dark type in white and tinted dark with light type in dark - all tokens, none a literal",
+      ".notice.risk{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink);padding:7px 14px;font-size:13px}" in KITE
+      and ".notice.stale{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--ink-2)}" in KITE)
+check("no rule of the look paints a colour literal except white type on a coloured button and the live-orders red",
+      not [l for l in re.findall(r"[^\n]*#[0-9a-fA-F]{3,6}\b[^\n]*", re.sub(r"/\*.*?\*/", "", KITE.split(":root[data-look=\"kite\"] *,")[1], flags=re.S))
+           if not re.search(r"color:#fff|#c62828", l)], [l.strip()[:80] for l in re.findall(r"[^\n]*#[0-9a-fA-F]{3,6}\b[^\n]*", KITE.split(":root[data-look=\"kite\"] *,")[1]) if not re.search(r"color:#fff|#c62828", l)][:4])
+check("the survey found the rules it should (so the test is not passing on an empty list)", len(dark) >= 15 and len(light) >= 6, (len(dark), len(light)))
 
-print("5. THE SWITCH")
-check("a three-way switch in the menu: Dark, Zerodha, Glass",
-      'id="looksw"' in SRC and all(f'data-look="{k}">' in SRC for k in ("terminal", "kite", "glass"))
-      and ">Dark</button>" in SRC and ">Zerodha</button>" in SRC and ">Glass</button>" in SRC)
-check("...and the Home button names the look and cycles them", 'lb.textContent = "Theme: " + LOOKS[LOOK]' in SRC
-      and "LOOK_ORDER = [\"terminal\", \"kite\", \"glass\"]" in SRC)
-check("dark stays the default", 'document.documentElement.dataset.look = "terminal"; }' in SRC)
+print("5. THE SWITCH: WHITE AND DARK")
+check("a two-way switch in the menu: White, Dark",
+      'id="looksw"' in SRC and 'data-scheme="light">White</button>' in SRC and 'data-scheme="dark">Dark</button>' in SRC and "data-look=\"glass\">" not in SRC)
+check("...and the Home button names the scheme and swaps it", 'lb.textContent = "Theme: " + SCHEMES[SCHEME]' in SRC
+      and 'setScheme(SCHEME === "dark" ? "light" : "dark")' in SRC)
+check("white is the default", 'let scheme = "light";' in SRC)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if not NODE:
     check("node is available to run the page's own switch code", False, "install node")
 else:
-    h0 = SRC.index("// Three looks: terminal (dark, the default)")
+    h0 = SRC.index("// There is one look, Zerodha's, in two schemes: white (the default) and dark.")
     h1 = SRC.index("</script></head><body>", h0)
-    head_js = SRC[SRC.index("try{", h0):h1]
-    s0 = SRC.index("const LOOKS = {terminal:")
+    head_js = SRC[SRC.index("(function(){", h0):h1]
+    s0 = SRC.index("const SCHEMES = {light:")
     s1 = SRC.index("// On a phone the header has no room for the market and broker chips")
     sw_js = SRC[s0:s1]
-    prog = r'''
+    import json
+    prog = r"""
 const assert = require("assert");
-function head(stored, throws){
-  const doc = {documentElement: {dataset: {}}};
-  const localStorage = {getItem(){ if(throws) throw new Error("blocked"); return stored; }};
+function head(store, throws){
+  const meta = {content: "light", setAttribute(k, v){ this.content = v; }};
+  const doc = {documentElement: {dataset: {}}, querySelector: sel => sel === 'meta[name="color-scheme"]' ? meta : null};
+  const localStorage = {getItem(k){ if(throws) throw new Error("blocked"); return store[k] === undefined ? null : store[k]; }};
   new Function("document", "localStorage", %s)(doc, localStorage);
-  return doc.documentElement.dataset.look;
+  return {look: doc.documentElement.dataset.look, scheme: doc.documentElement.dataset.scheme, theme: doc.documentElement.dataset.theme, meta: meta.content};
 }
-assert.strictEqual(head(null), "terminal", "nothing saved: dark");
-assert.strictEqual(head("kite"), "kite");
-assert.strictEqual(head("glass"), "glass");
-assert.strictEqual(head("terminal"), "terminal");
-assert.strictEqual(head("neon"), "terminal", "an unknown value never reaches the page");
-assert.strictEqual(head("KITE"), "terminal", "the value is exact");
-assert.strictEqual(head("kite", true), "terminal", "storage that throws (private window): dark");
+let r = head({});
+assert.deepStrictEqual(r, {look: "kite", scheme: "light", theme: "light", meta: "light"}, "nothing saved: white");
+r = head({"nbs.scheme.v1": "dark"}); assert.deepStrictEqual(r, {look: "kite", scheme: "dark", theme: "dark", meta: "dark"}, "dark, and the browser's own widgets and the TradingView tab told");
+assert.strictEqual(head({"nbs.scheme.v1": "light"}).scheme, "light");
+assert.strictEqual(head({"nbs.scheme.v1": "neon"}).scheme, "light", "an unknown value never reaches the page");
+assert.strictEqual(head({"nbs.scheme.v1": "DARK"}).scheme, "light", "the value is exact");
+assert.strictEqual(head({"nbs.look.v1": "terminal"}).scheme, "dark", "the old switch's dark screen carries over as the dark scheme");
+assert.strictEqual(head({"nbs.look.v1": "kite"}).scheme, "light", "the old Zerodha choice is the white scheme");
+assert.strictEqual(head({"nbs.look.v1": "glass"}).scheme, "light", "the glass look is gone: white");
+assert.strictEqual(head({"nbs.look.v1": "terminal", "nbs.scheme.v1": "light"}).scheme, "light", "a choice made in the new switch wins over the old one");
+r = head({}, true); assert.deepStrictEqual(r, {look: "kite", scheme: "light", theme: "light", meta: "light"}, "storage that throws (a private window): white");
 console.log("ok:head");
 
-function page(look){
+function page(scheme){
   const saved = {}; let reloaded = 0; const clicks = {};
   const mk = (data) => ({dataset: data || {}, classList: {t: {}, toggle(c, on){ this.t[c] = on; }}, attrs: {}, setAttribute(k, v){ this.attrs[k] = v; },
-                         addEventListener(ev, f){ clicks[(data && data.look) || "btn"] = f; }, textContent: ""});
-  const lookbtn = mk(); const btns = ["terminal", "kite", "glass"].map(k => mk({look: k}));
-  const document = {documentElement: {dataset: {look}}, getElementById: id => id === "lookbtn" ? lookbtn : null,
-                    querySelectorAll: sel => sel === "#looksw button[data-look]" ? btns : []};
+                         addEventListener(ev, f){ clicks[(data && data.scheme) || "btn"] = f; }, textContent: ""});
+  const lookbtn = mk(); const btns = ["light", "dark"].map(k => mk({scheme: k}));
+  const document = {documentElement: {dataset: {scheme}}, getElementById: id => id === "lookbtn" ? lookbtn : null,
+                    querySelectorAll: sel => sel === "#looksw button[data-scheme]" ? btns : []};
   const localStorage = {setItem(k, v){ saved[k] = v; }};
   const location = {reload(){ reloaded++; }};
-  const api = new Function("document", "localStorage", "location", %s + "; return {LOOK, LOOKS, LOOK_ORDER};")(document, localStorage, location);
+  const api = new Function("document", "localStorage", "location", %s + "; return {SCHEME, SCHEMES};")(document, localStorage, location);
   return {api, saved, get reloaded(){ return reloaded; }, clicks, lookbtn, btns};
 }
-let p = page("kite");
-assert.strictEqual(p.api.LOOK, "kite");
-assert.strictEqual(p.lookbtn.textContent, "Theme: Zerodha");
-assert.strictEqual(p.btns[1].attrs["aria-pressed"], "true"); assert.strictEqual(p.btns[0].attrs["aria-pressed"], "false");
+let p = page("light");
+assert.strictEqual(p.api.SCHEME, "light"); assert.strictEqual(p.lookbtn.textContent, "Theme: White");
+assert.strictEqual(p.btns[0].attrs["aria-pressed"], "true"); assert.strictEqual(p.btns[1].attrs["aria-pressed"], "false");
 p.clicks["btn"]();
-assert.strictEqual(p.saved["nbs.look.v1"], "glass", "the Home button goes on to the next look"); assert.strictEqual(p.reloaded, 1);
-p = page("glass"); p.clicks["btn"]();
-assert.strictEqual(p.saved["nbs.look.v1"], "terminal", "...and round again");
-p = page("terminal"); p.clicks["btn"]();
-assert.strictEqual(p.saved["nbs.look.v1"], "kite");
-p = page("terminal"); p.clicks["kite"]();
-assert.strictEqual(p.saved["nbs.look.v1"], "kite", "the switch in the menu chooses that look"); assert.strictEqual(p.reloaded, 1);
-p = page("kite"); p.clicks["kite"]();
-assert.strictEqual(p.reloaded, 0, "pressing the look you are already in does not reload the page");
-p = page("junk");
-assert.strictEqual(p.api.LOOK, "terminal", "an unknown look on the page reads as dark");
+assert.strictEqual(p.saved["nbs.scheme.v1"], "dark", "the Home button swaps to the other scheme"); assert.strictEqual(p.reloaded, 1);
+p = page("dark"); assert.strictEqual(p.lookbtn.textContent, "Theme: Dark"); p.clicks["btn"]();
+assert.strictEqual(p.saved["nbs.scheme.v1"], "light", "...and back");
+p = page("light"); p.clicks["dark"]();
+assert.strictEqual(p.saved["nbs.scheme.v1"], "dark", "the switch in the menu chooses that scheme"); assert.strictEqual(p.reloaded, 1);
+p = page("dark"); p.clicks["dark"]();
+assert.strictEqual(p.reloaded, 0, "pressing the scheme you are in does not reload the page");
+p = page("junk"); assert.strictEqual(p.api.SCHEME, "light", "an unknown scheme on the page reads as white");
 console.log("ok:switch");
-''' % (repr(head_js).replace("\\'", "'") if False else __import__("json").dumps(head_js), __import__("json").dumps(sw_js))
+""" % (json.dumps(head_js), json.dumps(sw_js))
     r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
     out = (r.stdout or "") + (r.stderr or "")
-    check("the head script, run for real: dark unless kite or glass is saved, and safe with storage blocked", "ok:head" in r.stdout, out[-500:])
-    check("the switch code, run for real: cycling, choosing, staying put, no needless reload", "ok:switch" in r.stdout and r.returncode == 0, out[-500:])
-
+    check("the head script, run for real: white unless dark is saved, the old switch's choices carried over, safe with storage blocked, "
+          "and the page, the browser's widgets and the TradingView tab all told", "ok:head" in r.stdout, out[-600:])
+    check("the switch code, run for real: swapping, choosing, staying put, no needless reload", "ok:switch" in r.stdout and r.returncode == 0, out[-600:])
 
 print("6. THE LAYOUT OF KITE ITSELF (25 Sep 2026: 'it should be like this' - the user's screenshot of Kite's dashboard)")
 check("sections are flat and run on, separated by thin rules, not drawn as boxes",
@@ -237,7 +262,7 @@ check("each index is a row: name and price on one line, expiry and signal state 
 check("the strip under the bar carries plain text, not boxed chips", ".hd .status{background:transparent;border:0;padding:0}" in KITE)
 
 if NODE:
-    k0 = SRC.index("// In the Zerodha look on a wide screen the menu is a bar across the top")
+    k0 = SRC.index("// On a wide screen the menu is a bar across the top and a group is a dropdown:")
     k1 = SRC.index("document.querySelectorAll(\".mgrp\").forEach(g => {", k0)
     n0 = SRC.index("// The Zerodha look's bar across the top (wide screens).")
     n1 = SRC.index('$("navbtn").addEventListener("click", navOpen);', n0)
@@ -338,7 +363,7 @@ console.log(JSON.stringify({afterPickingAPage: open(groups.market)}));
         check("Escape closes it", res["afterEscape"] is False)
         check("choosing a page in it closes it", res["afterPickingAPage"] is False)
     # anything else leaves the menu as it was
-    for look, wide in (("terminal", True), ("glass", True), ("kite", False)):
+    for look, wide in (("kite", False),):
         r = subprocess.run([NODE, "-e", run_case(look, wide) + r"""
 out.navGroup(groups.market, true);
 console.log(JSON.stringify({openByPage: groups.market.dataset.open === "true"}));"""], capture_output=True, text=True, timeout=60)
@@ -346,14 +371,15 @@ console.log(JSON.stringify({openByPage: groups.market.dataset.open === "true"}))
         for l in r.stdout.splitlines():
             if l.startswith("{"):
                 res2.update(json.loads(l))
-        check(f"the {look} look{'' if wide else ' on a phone'} leaves the menu alone: same buttons in the same places, no More, Home still Home, "
+        check(f"a phone leaves the menu alone: same buttons in the same places, no More, Home still Home, "
               "and a group still opens for the page you are on",
               r.returncode == 0 and res2.get("kite") is False and "more" not in res2.get("top", []) and res2.get("homeText") == "Home"
               and res2.get("openByPage") is True and res2["top"][:3] == ["home", "signal", "chart"], (res2, (r.stderr or "")[-200:]))
 
 
 print("7. THE TWELVE UPGRADES (25 Sep 2026, 'do all'): the left column, the Signal page's order, the Dashboard")
-check("the left column is a wrapper that is not there in the other looks, holding the watchlist and the day's panels",
+check("the look flag the panels once tested is gone (there is one look)", "LOOK_KITE" not in SRC)
+check("the left column is a wrapper (not a box of its own in a narrow layout), holding the watchlist and the day's panels",
       '<div class="kcol" id="kcol">' in SRC and '<div class="markets" id="markets" role="tablist"></div>\n  <div class="kside" id="kside"></div>' in SRC
       and ".kcol{display:contents}" in CSS and ".kside,.kdash{display:none}" in CSS)
 check("(8) the strip under the top bar is gone on a wide screen - its state is in the left column", ':root[data-look="kite"] header{display:none}' in KITE)
@@ -377,17 +403,17 @@ check("(5) the day's move and the trend's strength are said once (their own card
       and 'data-k="${esc(String(l).toLowerCase()' in SRC)
 check("(6) the figures that matter are large and light", ".tile .v{font-size:26px;font-weight:400" in KITE and "#snet{font-size:30px" in KITE and ".kd-n{font-size:44px;font-weight:300" in KITE)
 check("(7) the standing notice is Kite's pale yellow and one slim line; orange is kept for real warnings",
-      ".notice.risk{background:#fff8e1;border:1px solid #f1dca0;color:#5f4b00;padding:7px 14px;font-size:13px}" in KITE
-      and ".notice.stale{background:#fff4ef;" in KITE)
+      ".notice.risk{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink);padding:7px 14px;font-size:13px}" in KITE
+      and ".notice.stale{background:var(--warn-bg);" in KITE)
 check("(9) the session's counts are figures with their labels beneath, and the numbers are marked up as such",
       "#sfeed > span b{display:block;font-size:22px" in KITE and "<span><b>${sess.issued}</b> ticket" in SRC and "<span><b>${sess.wins}</b> ran to target" in SRC)
 check("(10) no data: one quiet line, the empty rows hidden - and the card says when it has none, and when it has some",
       '#sigcard[data-state="blank"] #bias{font-size:18px' in KITE and 'sc.dataset.state = "blank"' in SRC and 'sc.dataset.state = ""; }' in SRC)
 check("(11) from 1500px the signal and the chart sit side by side, and the chart is told it has room",
       "@media (min-width:1500px){" in KITE and ".panes:has(.pane[data-pane=\"signal\"].on){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);" in KITE
-      and '> .pane[data-pane="chart"]{display:block;position:sticky;top:64px}' in KITE
+      and re.search(r'> \.pane\[data-pane="chart"\]\{display:block;position:sticky;top:64px;\s*grid-column:2;grid-row:2 / span 6', KITE)
       and 'if(name === "chart" || (name === "signal" && KITE_SPLIT())){ try{ chartDraw(); sparkline(); }catch(e){} }' in SRC
-      and 'const KITE_SPLIT = () => LOOK_KITE && matchMedia("(min-width:1500px)").matches;' in SRC)
+      and 'const KITE_SPLIT = () => matchMedia("(min-width:1500px)").matches;' in SRC)
 check("(12) the Dashboard leads with its two big figures and every index in a row; the Today recap and the side panels that repeat them step aside, "
       "and the wider markets come last",
       ".kdash{display:block;order:2;" in KITE and ".hsec:has(#htoday){display:none}" in KITE and ":has(.pane[data-pane=\"home\"].on) .kside :is(.kb-today,.kb-funds){display:none}" in KITE
@@ -407,7 +433,7 @@ function world(look){
   els.beat.className = "beat live"; els.mkt.textContent = "Market open"; els.feed.textContent = "Live"; els.upd.textContent = "23:28:13 IST";
   els.tlive.style.display = ""; els.tlive.attrs["aria-pressed"] = "false"; els.tclear.style.display = "none"; els.bias.textContent = "No trade";
   const calls = {selected: [], tabs: []};
-  const env = {LOOK_KITE: look === "kite", CUR: "BTC", $: id => els[id] || null,
+  const env = {CUR: "BTC", $: id => els[id] || null,
     esc: t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])),
     money: v => (v >= 0 ? "+" : "−") + "$" + Math.abs(Math.round(v)).toLocaleString("en-US"),
     num: (v, d = 2) => v === null || v === undefined || isNaN(v) ? "—" : Number(v).toFixed(d),
@@ -422,9 +448,10 @@ const S = (over) => Object.assign({
   market_label: "Bitcoin"}, over || {});
 const TK = {status: "OPEN", strike: 84000, option_type: "CE", entry: 730, now: 786.5, pnl: 1412.5, stop: 610, targets: [860, 940, 1020], hit: {T1: true, T2: false, T3: false}};
 
-// not the Zerodha look: nothing is written, nothing is wired
-let w = world("terminal"); w.kiteSide(S()); w.kiteDash(S());
-assert.strictEqual(w.els.kside.writes, 0); assert.strictEqual(w.els.kdash.writes, 0); assert.ok(!w.els.kside.L.click);
+// a page that lacks the panels' elements (another market's, a page in the middle of loading) is not an error
+let w = world("kite"); delete w.els.kside; delete w.els.kdash; w.kiteSide(S()); w.kiteDash(S());
+w = world("kite"); w.kiteSide(null); w.kiteDash(null);
+assert.strictEqual(w.els.kside.writes, 0, "no state, nothing drawn");
 
 // a quiet day
 w = world("kite"); w.kiteSide(S());
@@ -501,8 +528,18 @@ console.log("ok:panels");
     prog = prog.replace("w.els.tclear.style.display = \"none\"; KS = null;", "w.els.tclear.style.display = \"none\";")
     import json as _json, subprocess as _sp
     r = _sp.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
-    check("the left column's and the Dashboard's own code, run for real: what they say, what they press, what they escape, and that they are silent outside the Zerodha look",
+    check("the left column's and the Dashboard's own code, run for real: what they say, what they press, what they escape, and that they cope with what is missing",
           "ok:panels" in r.stdout and r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-800:])
+
+
+print("8. THE TREND, THE DAY'S MOVE AND THE CONFIDENCE ARE A BAND ACROSS THE TOP (25 Sep 2026: 'move this ... on top of screen side by side from left corner to right corner')")
+check("on a wide screen they come first on the Signal page, three across, with a rule under them",
+      re.search(r'\.pane\[data-pane="signal"\] \.top3\{order:0;gap:36px;[^}]*grid-template-columns:1fr 1\.3fr \.8fr\}', KITE) is not None
+      and ".top3 .card{margin:0;border-bottom:0;" in KITE)  # margin:0 - the sibling rule `.card + .card` would push the 2nd and 3rd 14px lower than the 1st
+check("from 1500px, where the chart sits beside the signal, the band runs across BOTH columns and everything else stays under it on the left",
+      '> .pane[data-pane="signal"]{display:contents}' in KITE and ".top3{grid-column:1 / -1;grid-row:1}" in KITE
+      and ":is(#sigcard,#posgkcard,#session,#sfeed){grid-column:1}" in KITE)
+check("nothing of the band is left in the old three-across-half-width form", ".top3{grid-template-columns:1fr 1fr}" not in KITE)
 
 print("KITE LOOK TEST PASSED" if not fails else f"KITE LOOK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

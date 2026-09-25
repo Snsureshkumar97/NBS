@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
-CSS = SRC[:SRC.index("</style>\n<script>\n// The look is set before anything paints")]
+CSS = SRC[:SRC.index("</style>\n<script>\n// There is one look, Zerodha's, in two schemes")]
 PHONE = CSS[CSS.index("THE PHONE PASS"):]
 
 fails = []
@@ -128,7 +128,7 @@ function run(surface){
   }
   return out;
 }
-const dark = run("#121722"), light = run("#ffffff");
+const dark = run("#1a1a1a"), light = run("#ffffff");
 console.log(JSON.stringify({dark, light}));
 assert.strictEqual(jinkOf(0), "");
 '''.replace('assert.strictEqual(jinkOf(0), "");', '')
@@ -144,8 +144,8 @@ assert.strictEqual(jinkOf(0), "");
     check("a day with no trades gets no tint colour", "if(!v) return \"\";" in SRC[j0:j1])
 
 print("6. 'RUNS ALL SESSION' CAN BE READ WHEN IT IS ON")
-check("in the dark look the switch, when on, is a green tint with green type - not green type on the blue button fill (1.8:1)",
-      ':root[data-look="terminal"] .lbtn.ao.on{background:rgba(43,224,138,.14);border-color:rgba(43,224,138,.45);color:var(--up)}' in CSS)
+check("the switch, when on, is a green tint with green type - not green type on the blue button fill (1.8:1) - in both schemes",
+      ':root[data-look="kite"] .lbtn.ao.on{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}' in CSS)
 
 print("PHONE LAYOUT TEST PASSED" if not fails else f"PHONE LAYOUT TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

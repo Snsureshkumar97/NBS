@@ -32,8 +32,8 @@ a = SRC.index("async function priceTick(){")
 b = SRC.index("async function tick(){")
 body = SRC[min(a, b):max(a, b)] if a < b else SRC[a:SRC.index("\n}", a) + 2]
 priceTick_body = SRC[a:SRC.index("\nasync function tick(){") if "\nasync function tick(){" in SRC[a:] else len(SRC)]
-# priceTick is defined before tick() is called from it elsewhere - slice to the next top-level function.
-end = SRC.index("\n\n// ----", a)
+# slice to the end of the function: its closing brace is the next one at the start of a line
+end = SRC.index("\n}\n", a) + 3
 priceTick_body = SRC[a:end]
 check("priceTick() no longer returns early on document.hidden", "if(document.hidden) return;" not in priceTick_body, priceTick_body[:160])
 check("...and it still runs 4 times a second, unchanged", "priceTick(); setInterval(priceTick,250);" in SRC)
