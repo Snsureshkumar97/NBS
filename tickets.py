@@ -44,6 +44,7 @@ import time
 
 import config
 import indicators
+import real_entry
 import explain
 import signal_engine
 import trade_log
@@ -106,6 +107,9 @@ class TicketBook:
 
     def __init__(self, owner=None, market=None, path=None):
         self.owner = owner
+        # The executor of live orders, when this book's tickets can place any: the day's open P&L is worked from the
+        # price it filled at (real_entry.py), like the ticket on the screen.
+        self.fill_source = None
         self.market = market or config.DEFAULT_MARKET
         # `path` gives a second book its own log - the AI desk's paper tickets,
         # which must never be counted in the rule tickets' record or limits.
@@ -1398,6 +1402,8 @@ class TicketBook:
                 if t is None or t["status"] != "OPEN":
                     continue
                 pub = self._public_trade(t, book.last_rec, book.live)
+                if pub:
+                    real_entry.apply(self.fill_source, pub)
                 if pub and pub["pnl"] is not None:
                     open_pnl += pub["pnl"]
                     per[name] = round(per.get(name, 0.0) + pub["pnl"], 2)

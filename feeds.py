@@ -526,12 +526,14 @@ class Feed:
                                                  close_ticket=self.tickets.close_ticket,
                                                  mark=self._crypto_mark)
             self.tickets.listeners.append(self.live.on_ticket_event)
+        self.tickets.fill_source = self.live
         # The AI desk's paper tickets, in a book of their own - never given a
         # listener, so they can never reach live orders.
         self.ai = None
         if self.tickets.path:
             import ai_desk
             self.ai = ai_desk.AIDesk(self, start=False)
+            self.ai.book.fill_source = self.live
             if self.live is not None:
                 # The AI desk's tickets are paper unless their OWN live switch
                 # is on - a second switch per index, apart from the rule

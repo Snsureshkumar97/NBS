@@ -92,6 +92,69 @@ check("the charges (and so the risk and cost figures) are worked from the price 
 check("the ticket in the book keeps the tool's price: its levels and its log are unchanged", book.books["NIFTY"].trade["entry_ltp"] == paper and book.books["NIFTY"].trade["premium_sl"] == 110.0)
 check("and asking again does not compound the change", f._tickets_with_odds()["NIFTY"]["ticket"]["entry"] == pub["entry"])
 
+print("3b. THE FAST TICK AND THE DAY'S OPEN RESULT USE THE FILL TOO (25 Sep 2026: Entry filled 1,294.10, Now 1,233.41, and +$6)")
+# The page takes each open ticket's price and P&L from /api/tick four times a second, over what /api/state gave it. It was the
+# one answer still worked from the tool's own entry, so the P&L snapped back to it whatever the Entry cell said.
+import web_server
+def tk_pub(**kw):
+    t = {"open": True, "trade_id": "NIFTY-20260925-140535", "tracked_on": "premium", "entry": 1211.43, "now": 1233.41,
+         "lots": 250, "lot_size": 0.001, "pnl": round((1233.41 - 1211.43) * 0.001 * 250, 2), "hit": {}, "sl_hit": False}
+    t.update(kw); return t
+class TickFeed:
+    def __init__(self, live, ai=True):
+        self.live = live
+        self.tickets = types.SimpleNamespace(public=lambda k: {"ticket": tk_pub()} if k == "NIFTY" else {"ticket": None})
+        self.ai = types.SimpleNamespace(book=types.SimpleNamespace(public=lambda k: {"ticket": tk_pub()} if k == "NIFTY" else {"ticket": None})) if ai else None
+    def ticks(self): return {"spots": {}}
+    def reading(self, k, at): return None
+def tick(live):
+    saved = feeds.for_user
+    feeds.for_user = lambda user, market=None, start=True: TickFeed(live)
+    h = object.__new__(web_server.Handler); out = {}
+    h._send = lambda body, ctype="text/html", code=200: out.update(body=body, code=code)
+    h._current_market = lambda: "nse_index"
+    try:
+        h._api_tick("me@example.invalid", {})
+    finally:
+        feeds.for_user = saved
+    return json.loads(out["body"])
+real_pnl = round((1233.41 - 1294.10) * 0.001 * 250, 2)
+d = tick(Ex(1294.10, "Delta"))
+check("the tick's ticket has the broker's entry and the P&L worked from it (a LOSS: -15.17, not the +5.5 of the tool's own entry)",
+      d["tickets"]["NIFTY"]["entry"] == 1294.10 and d["tickets"]["NIFTY"]["pnl"] == real_pnl and real_pnl < 0, (d["tickets"]["NIFTY"]["entry"], d["tickets"]["NIFTY"]["pnl"]))
+check("the AI desk's live P&L in the tick is worked from the fill too", d["ai"]["NIFTY"]["pnl"] == real_pnl, d["ai"]["NIFTY"]["pnl"])
+d = tick(Ex(None))
+check("no fill: the tick is as it was (the tool's own entry, its own P&L)", d["tickets"]["NIFTY"]["entry"] == 1211.43 and d["tickets"]["NIFTY"]["pnl"] == 5.5 and d["ai"]["NIFTY"]["pnl"] == 5.5)
+check("an index with no open ticket is left alone", d["tickets"]["BANKNIFTY"] is None)
+d = tick(None)
+check("no executor at all (free data mode, a market with no live orders): unchanged", d["tickets"]["NIFTY"]["pnl"] == 5.5)
+# what the page does with it: takes `pnl` from the tick over the state's
+ticket_in_page = {"entry": 1294.10, "pnl": -999}
+tk_ = tick(Ex(1294.10, "Delta"))["tickets"]["NIFTY"]
+ticket_in_page["pnl"] = tk_["pnl"]
+check("...so what the page ends up showing beside a filled entry of 1,294.10 and a price of 1,233.41 is a loss", ticket_in_page["pnl"] < 0, ticket_in_page)
+# the day's open result
+book.books["NIFTY"].live = 150.0                 # the streamed premium: the ticket is up (150 - 130) x 65 on the tool's own entry
+paper_open = book.session()["open"]
+book.fill_source = Ex(paper + 2.6, "Zerodha")
+real_open = book.session()["open"]
+lots_x_size = book.public("NIFTY")["ticket"]["lots"] * book.public("NIFTY")["ticket"]["lot_size"]
+check("the session's open result is worked from the fill too (1300 on the tool's entry, 1131 on the fill 2.6 higher)",
+      paper_open == 1300.0 and abs((paper_open - real_open) - 2.6 * lots_x_size) < 0.02 and real_open == 1131.0, (paper_open, real_open))
+book.fill_source = None
+check("without an executor it is the tool's own", book.session()["open"] == paper_open)
+
+# the wiring: a real Feed hands its executor to both of its ticket books
+config.ENABLE_CRYPTO = True
+for mkt in ("crypto", "nse_index"):
+    try:
+        ff = feeds.Feed("t:fill:" + mkt, "fill@example.invalid", mkt)
+    except Exception as exc:
+        check(f"[{mkt}] a Feed can be built for the wiring check", False, repr(exc)); continue
+    check(f"[{mkt}] the feed's ticket book and its AI desk's book are given the executor (or None where there is none)",
+          ff.live is not None and ff.tickets.fill_source is ff.live and ff.ai is not None and ff.ai.book.fill_source is ff.live,
+          (ff.live, ff.tickets.fill_source))
+
 print("4. THE PAGE")
 SRC = open(os.path.join(HERE, "web_server.py")).read()
 AI = open(os.path.join(HERE, "ai_desk.py")).read()

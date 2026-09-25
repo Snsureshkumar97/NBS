@@ -2158,6 +2158,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for name in (config.instruments_in(market) if market else ()):
                 t = ai.book.public(name).get("ticket")
                 if t and t.get("open"):
+                    real_entry.apply(getattr(feed, "live", None), t)      # P&L from the price the broker filled at
                     live_ai[name] = {"now": t.get("now"), "pnl": t.get("pnl"), "hit": t.get("hit"),
                                      "sl_hit": t.get("sl_hit")}
             payload["ai"] = live_ai
@@ -2166,6 +2167,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for k in (config.instruments_in(market) if market
                       else config.active_instruments())
         }
+        # The page takes each open ticket's price and P&L from THIS answer four times a second, over what the state poll
+        # gave it: worked from the tool's own entry here, the P&L snapped back to it whatever the Entry cell said (25 Sep
+        # 2026: Entry 1,294.10 filled, Now 1,233.41, and a profit of +$6).
+        for _t in payload["tickets"].values():
+            if _t:
+                real_entry.apply(getattr(feed, "live", None), _t)
         return self._send(json.dumps(payload), "application/json")
 
     def _heat_map(self, user, key, qs):
