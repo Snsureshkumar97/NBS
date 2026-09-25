@@ -110,6 +110,10 @@ class TicketBook:
         # The executor of live orders, when this book's tickets can place any: the day's open P&L is worked from the
         # price it filled at (real_entry.py), like the ticket on the screen.
         self.fill_source = None
+        # A callable (index, rec) -> a fresher price of the contract `rec` names, or None. Where the chain's price can be
+        # seconds old (Delta's REST snapshot), the feed supplies the live one so a ticket is frozen - entry, stop and targets
+        # together - from the price the order will be priced from. Not given to the AI desk's book: its levels are the model's.
+        self.fresh_price = None
         self.market = market or config.DEFAULT_MARKET
         # `path` gives a second book its own log - the AI desk's paper tickets,
         # which must never be counted in the rule tickets' record or limits.
@@ -1057,6 +1061,11 @@ class TicketBook:
         Everything from here on checks live price against THESE, not against
         whatever the next cycle recalculates.
         """
+        if self.fresh_price is not None and rec.get("premium_source") == "live":
+            try:
+                rec = signal_engine.rebase_premium(rec, self.fresh_price(rec["index"], rec))
+            except Exception:
+                pass
         use_premium = (rec.get("premium_source") == "live"
                        and rec.get("live_ltp") is not None)
         meta = config.INSTRUMENTS.get(rec["index"], {})

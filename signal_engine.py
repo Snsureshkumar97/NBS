@@ -611,6 +611,46 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     return out
 
 
+# A ticket is frozen from the premium in `rec` - the option chain's price, which on Delta is a REST snapshot up to 30 s old
+# (delta_provider.CHAIN_CACHE_S). On 25 Sep 2026 a Bitcoin put was frozen at 1,211.43 while its live mark, read a second later
+# for the order, was ~1,268.7 and the fill 1,294.10: the stop and targets sat 29% / 32% from a price nobody paid, and were
+# really 34% / 24% from the entry (T2 : stop 0.72, not the 1.12 shown). rebase_premium re-anchors the same levels on a fresher
+# price of the SAME contract at the moment of issue.
+REBASE_MAX_MOVE = 0.30       # a fresher price further than this from the snapshot is a bad tick, not news: ignored
+
+
+def rebase_premium(rec: dict, fresh) -> dict:
+    """`rec` with its premium entry, targets and stop moved onto `fresh`, a newer price of the contract it names.
+
+    The levels were built from the old price in one of two ways - an addition (the premium the index's move to each
+    level implies, market_reach) or a percentage - so they move the same way: by the difference, or by the ratio. Anything
+    it cannot rebase honestly (no live premium, no levels, a price that is not a price, a move over REBASE_MAX_MOVE) is
+    returned as it was.
+    """
+    try:
+        fresh = float(fresh)
+    except (TypeError, ValueError):
+        return rec
+    old = rec.get("live_ltp")
+    tg, sl = rec.get("premium_targets"), rec.get("premium_stop_loss")
+    if (rec.get("premium_source") != "live" or not old or old <= 0 or not fresh or fresh <= 0 or fresh != fresh
+            or not tg or any(t is None for t in tg) or sl is None
+            or abs(fresh - old) / old > REBASE_MAX_MOVE or fresh == old):
+        return rec
+    out = dict(rec)
+    if rec.get("target_basis") == "market_reach":
+        d = fresh - old
+        out["premium_targets"] = [round(t + d, 2) for t in tg]
+        out["premium_stop_loss"] = round(max(0.05, sl + d), 2)
+    else:
+        r = fresh / old
+        out["premium_targets"] = [round(t * r, 2) for t in tg]
+        out["premium_stop_loss"] = round(sl * r, 2)
+    out["live_ltp"] = round(fresh, 2)
+    out["chain_ltp"] = old                       # the snapshot's price, kept beside the one the ticket was frozen from
+    return out
+
+
 def _find_strike_ltp(oi: dict, strike: int, option_type: str):
     """Look up the real live LTP for a given strike/option_type from the
     fetched option chain data, if available. Returns None if not found."""

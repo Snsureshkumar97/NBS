@@ -88,6 +88,7 @@ _NO_STREAM = object()
 # page's state poll, the live analysis pass and the AI desk each asked for it afresh - 16% of the server's CPU in a
 # 25 Sep 2026 profile. The prints move by the second, so a reading a couple of seconds old says the same thing.
 TAKER_FLOW_CACHE_S = 2.0
+FRESH_MARK_MAX_AGE_S = 5.0        # a socket mark older than this is not used to freeze a ticket
 
 # In free mode nobody has a token and the data is genuinely identical for
 # everyone, so every user maps to this one shared feed.
@@ -527,6 +528,7 @@ class Feed:
                                                  mark=self._crypto_mark)
             self.tickets.listeners.append(self.live.on_ticket_event)
         self.tickets.fill_source = self.live
+        self.tickets.fresh_price = self._fresh_premium
         # The AI desk's paper tickets, in a book of their own - never given a
         # listener, so they can never reach live orders.
         self.ai = None
@@ -1270,6 +1272,21 @@ class Feed:
                     del self.events[30:]
                 if ev.get("kind") == "closed":
                     self.opt_tokens.pop(name, None)
+
+    def _fresh_premium(self, name, rec):
+        """The mark of the contract `rec` suggests, off the socket, if it arrived in the last few seconds - else None.
+
+        For a ticket's freeze (tickets.fresh_price). Crypto only: its chain price is a REST snapshot up to
+        delta_provider.CHAIN_CACHE_S old; the Indian chain is streamed already. Compared on the strike AND the side, and read
+        with an age limit, so a stalled socket or another contract's price is never used.
+        """
+        if self.market == "nse_index":
+            return None
+        ds, ent = self.dstream, self.sug_tokens.get(name)
+        if ds is None or not ent or ent[0] != rec.get("suggested_strike") or ent[1] != rec.get("option_type"):
+            return None
+        b = ds.book(ent[2], max_age=FRESH_MARK_MAX_AGE_S)
+        return (b or {}).get("mark")
 
     def _crypto_mark(self, symbol):
         """A contract's live mark off this feed's socket, for the executor."""
