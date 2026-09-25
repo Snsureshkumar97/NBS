@@ -5259,7 +5259,8 @@ button.mgroup:hover{color:var(--ink-2)}
   <b>before</b> brokerage, STT, exchange charges, GST and slippage, all of which come off
   what you actually keep. Figures marked &ldquo;after charges&rdquo; include Zerodha&rsquo;s
   charges but not slippage. Crypto figures are in dollars, before Delta Exchange&rsquo;s fees.
-  Past behaviour of a rule set does not predict its future behaviour. Options can lose
+  For an order the tool placed live, the entry, the exit and the result are the prices your broker
+  actually filled at; for a ticket that placed nothing, the tool&rsquo;s own premium. Past behaviour of a rule set does not predict its future behaviour. Options can lose
   their entire value. Verify every number with your own broker before risking money.
  </footer>
 </div>

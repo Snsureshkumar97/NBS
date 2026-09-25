@@ -19,6 +19,7 @@ Filter to CLOSE rows for analysis; the OPEN rows are the crash trail.
 """
 
 import csv
+import json
 import re
 import os
 import datetime as dt
@@ -243,9 +244,101 @@ def _read_rows(path=None):
         return []
     try:
         with open(path, newline="") as f:
-            return list(csv.DictReader(f))
+            rows = list(csv.DictReader(f))
     except OSError:
         return []
+    return _apply_fills(rows, path)
+
+
+# --- what the brokers actually filled -----------------------------------------------------------------------------
+# A ticket's entry and exit in this file are the tool's own premium prices. A LIVE order fills somewhere near them, and
+# the executor writes the real average prices to a fills log beside this file when the position closes
+# (live_orders / delta_orders: <log>.live.fills.jsonl, <log>.delta.fills.jsonl). The user (25 Sep 2026): the filled price
+# should be what the tool shows - on the Signal page (real_entry.py) and in the Journal and Record. The file itself is
+# append-only and stays exactly as written (the tool's own numbers, and the record of what it decided); what every
+# reader of it is handed, here, is each closed live trade with its real entry, exit and result. Rows without a complete,
+# consistent fill are handed over as written, so a partial or outside-sold position never mixes two sets of numbers.
+_FILLS_CACHE = {}
+_FILL_LOGS = ((".live.fills.jsonl", "zerodha"), (".delta.fills.jsonl", "delta"))
+
+
+def _fills_for(path):
+    """{trade_id: fill row + "venue"} for this log's live fills. Read again only when a fills file changed."""
+    source = "ai" if os.path.basename(path).startswith("ai_") else "rule"
+    out = {}
+    stems = [path]
+    beside = os.path.join(os.path.dirname(path), CSV_NAME)          # the AI desk's log has none of its own: the account's
+    if beside != path:
+        stems.append(beside)
+    for stem in stems:
+        for suffix, venue in _FILL_LOGS:
+            fp = stem + suffix
+            try:
+                st = os.stat(fp)
+            except OSError:
+                continue
+            sig = (st.st_mtime_ns, st.st_size)
+            hit = _FILLS_CACHE.get(fp)
+            if hit is None or hit[0] != sig:
+                rows = []
+                try:
+                    with open(fp) as fh:
+                        for line in fh:
+                            try:
+                                r = json.loads(line)
+                            except ValueError:
+                                continue
+                            if isinstance(r, dict):
+                                rows.append(r)
+                except OSError:
+                    rows = []
+                hit = _FILLS_CACHE[fp] = (sig, rows)
+            for r in hit[1]:
+                if (r.get("source") or "rule") == source and r.get("trade_id"):
+                    out[r["trade_id"]] = dict(r, venue=venue)
+    return out
+
+
+def _fill_is_whole(f, close):
+    """Everything bought was sold at known prices, none outside the tool, and it is the size the ticket was."""
+    try:
+        qty = float(f["qty"])
+        if f.get("exit_avg") is None or f.get("gross_pnl") is None or f.get("entry_avg") is None:
+            return False
+        if float(f.get("exit_qty_priced") or 0) < qty or float(f.get("sold_outside_qty") or 0) > 0:
+            return False
+        lots, lot_size = float(close.get("lots") or 0), float(close.get("lot_size") or 0)
+        want = lots if f.get("venue") == "delta" else lots * lot_size          # Delta counts contracts, Zerodha units
+        return want > 0 and abs(qty - want) < 0.5
+    except (TypeError, ValueError):
+        return False
+
+
+def _apply_fills(rows, path):
+    fills = _fills_for(path)
+    if not fills:
+        return rows
+    closes = {r.get("trade_id"): r for r in rows if r.get("event") == "CLOSE" and r.get("trade_id") in fills}
+    whole = {tid for tid, c in closes.items() if _fill_is_whole(fills[tid], c)}
+    if not whole:
+        return rows
+    out = []
+    for r in rows:
+        tid = r.get("trade_id")
+        if tid not in whole or r.get("event") not in ("OPEN", "CLOSE"):
+            out.append(r)
+            continue
+        f = fills[tid]
+        r = dict(r)
+        r["paper_entry"] = r.get("entry")
+        r["entry"] = repr(round(float(f["entry_avg"]), 4))
+        if r.get("event") == "CLOSE":
+            r["paper_exit"], r["paper_pnl"] = r.get("exit"), r.get("pnl")
+            r["exit"] = repr(round(float(f["exit_avg"]), 4))
+            r["pnl"] = repr(round(float(f["gross_pnl"]), 2))
+        r["filled"] = f["venue"]
+        out.append(r)
+    return out
 
 
 def _f(v):
