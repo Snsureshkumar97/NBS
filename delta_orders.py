@@ -1222,6 +1222,14 @@ class Executor:
                     self.q.put(("recover", {"trade_id": pos["trade_id"]}, {"reason": reason}))
 
     # ------------------------------------------------------------ reading
+    def real_entry(self, trade_id):
+        """(the average price Delta filled this ticket's buy at, "Delta"), or None until anything has filled."""
+        with self.lock:
+            p = self.positions.get(trade_id)
+            if not p or p.get("avg_price") is None or float(p.get("filled_qty") or 0) <= 0:
+                return None
+            return float(p["avg_price"]), "Delta"
+
     def public(self):
         with self.lock:
             today = self._today()

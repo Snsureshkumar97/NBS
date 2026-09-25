@@ -56,6 +56,7 @@ import config
 import feeds
 import kite_auth
 import market_ticker
+import real_entry
 import nbs_site
 import trade_log
 import user_kite
@@ -2429,6 +2430,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # on the chart - that is what the trade is actually being judged against.
         try:
             t = (feed.tickets.public(key) or {}).get("ticket") or {}
+            real_entry.apply(getattr(feed, "live", None), t)     # the Entry line is where the broker filled, if it did
             if (t.get("open") and str(t.get("strike")) == str(parts[1])
                     and (t.get("option_type") or "").upper() == side
                     and t.get("tracked_on") == "premium"):
@@ -6444,6 +6446,13 @@ function expiryText(iso, short){
   return `${when} · ${wd} · ${left}`;
 }
 
+// A ticket whose live order has filled carries the price the broker filled at as its Entry (real_entry.py), with the tool's
+// own price beside it: one entry for one trade, not the tool's number here and the broker's in a status line.
+const entryLabel = t => t && t.entry_real ? "Entry \u00b7 filled" : "Entry";
+function entryNote(t, dp){
+  return t && t.entry_real ? ` \u00b7 filled at ${t.entry_venue} for ${num(t.entry, dp)} (the tool's price was ${num(t.entry_signal, dp)})` : "";
+}
+
 function ticketBox(r, state){
   const tk = state && state.ticket, wait = state && state.wait;
   const open = !!(tk && tk.open);
@@ -6482,6 +6491,7 @@ function ticketBox(r, state){
                 + ` data-expiry="${esc(String(tk.expiry || ""))}" onclick="ocOpenFrom(this)">View chart</button>`;
     $("tissued").style.display = "";
     $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`
+      + entryNote(tk, tk.tracked_on === "premium" ? 2 : 0)
       + (tk.cooldown_skipped ? " · cooldown skipped by you" : "");
   } else {
     c.style.display = "none"; $("tissued").style.display = "none";
@@ -6501,7 +6511,7 @@ function ticketBox(r, state){
                + `<div class="v"${col?` style="color:${col}"`:""}>${v}</div></div>`;
     st.innerHTML =
         cell("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+" : 1")
-      + cell("Entry", num(tk.entry,dp))
+      + cell(entryLabel(tk), num(tk.entry,dp))
       // What the premium cost to buy - entry x lot size x lots - the money at
       // risk in full; asked for on 20 Sep 2026, for both markets.
       + cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
@@ -8514,7 +8524,7 @@ function kiteSide(s){
   if(open){
     const name = `${CUR} ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`.trim();
     let b = `<div class="knum" style="color:${col(tk.pnl)}">${tk.pnl == null ? "—" : money(tk.pnl)}</div>`
-      + row("Entry", num(tk.entry)) + row("Now", num(tk.now)) + row("Stop", num(tk.stop));
+      + row(tk.entry_real ? "Entry (filled)" : "Entry", num(tk.entry)) + row("Now", num(tk.now)) + row("Stop", num(tk.stop));
     const T = tk.targets || [], hit = tk.hit || {};
     b += `<div class="ktg">${T.map((v, i) => { const hh = hit["T" + (i + 1)];
       return `<span class="${hh ? "hit" : ""}">T${i + 1} ${num(v)}${hh ? " ✓" : ""}</span>`; }).join("")}</div>`;
@@ -8861,9 +8871,9 @@ function aiTicketCard(k, t){
     + `<div class="contract"><b>${esc(k)} ${esc(t.strike)} ${esc(t.option_type)}</b>`
     + (ex ? ` &middot; expiry <b>${esc(ex)}</b>` : "")
     + ` &middot; tracked on ${t.tracked_on === "index" ? "the index" : "live premium"}</div>`
-    + `<div class="issued">Issued ${esc(t.entry_time)} IST &middot; levels frozen at entry</div>`
+    + `<div class="issued">Issued ${esc(t.entry_time)} IST &middot; levels frozen at entry${esc(entryNote(t, dp))}</div>`
     + `<div class="tstats">`
-    + cell("Reward : risk", rr) + cell("Entry", num(t.entry, dp))
+    + cell("Reward : risk", rr) + cell(entryLabel(t), num(t.entry, dp))
     + cell("Cost", (per && t.entry != null) ? num(t.entry * per, 0) : "—") + cell("Now", num(t.now, dp))
     + cell("Index price", num(idx.spot, 0))
     + cell(`${t.lots} lot${t.lots !== 1 ? "s" : ""}`, pnl == null ? "—" : money(pnl), pc)

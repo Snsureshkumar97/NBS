@@ -1297,6 +1297,7 @@ class TicketBook:
                 and price is not None and entry is not None):
             pnl = round((price - entry) * trade["lot_size"] * trade.get("lots", 1), 2)
         return {
+            "trade_id": trade.get("trade_id"),
             "index": trade["index"], "strike": trade["strike"],
             "expiry": trade.get("expiry"),
             "option_type": trade["option_type"],

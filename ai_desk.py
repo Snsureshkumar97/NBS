@@ -42,6 +42,7 @@ import threading
 import time
 
 import config
+import real_entry
 import signal_engine
 import ticket_watch
 import tickets
@@ -1023,6 +1024,7 @@ class AIDesk:
                 if self._open_trade(k):
                     t = self.book.public(k).get("ticket")
                     if t is not None:
+                        real_entry.apply(getattr(self.feed, "live", None), t)    # what the broker filled at, if it did
                         t["reason"] = self.book.books[k].trade.get("ai_reason")
                         t["confidence_pct"] = self.book.books[k].trade.get("ai_confidence")
                         t["bull_case"] = self.book.books[k].trade.get("ai_bull_case")

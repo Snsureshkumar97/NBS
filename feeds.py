@@ -49,6 +49,7 @@ import config
 import explain
 import fii_dii
 import kite_flow
+import real_entry
 import signal_checks
 import taker_flow
 import market_map
@@ -2299,6 +2300,7 @@ class Feed:
             pub = self.tickets.public(k)
             t = pub.get("ticket")
             if t and t.get("open"):
+                real_entry.apply(getattr(self, "live", None), t)       # the price the broker filled at, if a live order did
                 t["odds"] = _ticket_odds(t, v.get("public"))
                 if t.get("tracked_on") == "premium":
                     t["charges"] = _trade_charges(

@@ -824,6 +824,8 @@ const esc = s => String(s);
 const money = v => (v >= 0 ? "+" : "-") + "Rs" + Math.round(Math.abs(v));
 const num = (v, d) => v == null ? "—" : String(v);
 const expiryText = () => "";
+const entryLabel = t => t && t.entry_real ? "Entry \u00b7 filled" : "Entry";
+const entryNote = () => "";
 const casesRows = () => "";
 const LAST = {};
 """ + SRC[fa:fb] + r'''
