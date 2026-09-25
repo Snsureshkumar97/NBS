@@ -56,6 +56,7 @@ import market_map
 import signal_engine
 import ticket_watch
 import tickets
+import trade_log
 import user_kite
 from delta_provider import DeltaDataProvider, DeltaStreamer
 from data_providers import (KITE_ENGINE_RESTART, DeribitDataProvider,
@@ -2329,6 +2330,51 @@ class Feed:
             out[k] = pub
         return out
 
+    def _live_pnl(self, pubs):
+        """What the LIVE orders have made today, apart from the tool's tickets as a whole: the real money, from the fills.
+
+        booked: today's closed live trades (rule tickets and the AI desk's), worked from the prices the broker filled at;
+        open: every open ticket that has a real position, worked from its fill. None when there was no live order today, so a
+        page with none shows nothing. `open` is the RULE tickets' part and `ai_open` the AI desk's, so the page can keep the
+        first moving with its own fast tick and add the second.
+        """
+        if self.live is None:
+            return None
+        today = now_ist().strftime("%Y-%m-%d")
+        booked, closed = 0.0, 0
+        book = getattr(self.ai, "book", None)
+        for path in (self.tickets.path, getattr(book, "path", None)):
+            if path:
+                try:
+                    b, n = trade_log.live_booked_today(today, path)
+                except Exception:
+                    b, n = 0.0, 0
+                booked += b
+                closed += n
+        open_pnl, open_n, venue = 0.0, 0, None
+        for pub in pubs.values():
+            t = (pub or {}).get("ticket")
+            if t and t.get("open") and t.get("entry_real"):
+                open_pnl += t.get("pnl") or 0.0
+                open_n += 1
+                venue = t.get("entry_venue")
+        ai_open, ai_open_n = 0.0, 0
+        if book is not None:
+            for name in self.instruments():
+                try:
+                    t = book.public(name).get("ticket")
+                except Exception:
+                    t = None
+                if t and t.get("open") and real_entry.apply(self.live, t):
+                    ai_open += t.get("pnl") or 0.0
+                    ai_open_n += 1
+                    venue = venue or t.get("entry_venue")
+        if not closed and not open_n and not ai_open_n:
+            return None
+        return {"booked": round(booked, 2), "closed": closed, "open": round(open_pnl, 2), "open_n": open_n,
+                "ai_open": round(ai_open, 2), "ai_open_n": ai_open_n, "venue": venue,
+                "net": round(booked + open_pnl + ai_open, 2)}
+
     def _fii_dii(self):
         """FII/DII net cash flow (fii_dii.py), Indian indices only - the module
         caches it market-wide, so this is cheap to call on every snapshot."""
@@ -2344,7 +2390,8 @@ class Feed:
         flow = self.flow_readings()            # off the feed lock: it reads the socket's
         fd = self._fii_dii()
         with self.lock:
-            return {
+            pubs = self._tickets_with_odds()
+            snap = {
                 "market_open": self.state["market_open"],
                 # Computed here rather than stored, so it is right the moment
                 # it is read instead of at the last analysis pass.
@@ -2357,12 +2404,15 @@ class Feed:
                 "stream_error": self.stream_error,
                 "indices": {k: v["public"] for k, v in self.state["indices"].items()},
                 "why": {k: v["why"] for k, v in self.state["indices"].items()},
-                "tickets": self._tickets_with_odds(),
+                "tickets": pubs,
                 "session": self.tickets.session(),
                 "events": list(self.events[:8]),
                 "flow": flow,
                 "fii_dii": fd,
             }
+        # off the feed lock: it reads the trade logs and asks the AI desk's book (which has a lock of its own)
+        snap["live_pnl"] = self._live_pnl(pubs)
+        return snap
 
     def candles(self, name):
         """(DataFrame, recommendation) for the chart, or (None, None).

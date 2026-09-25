@@ -314,6 +314,20 @@ def _fill_is_whole(f, close):
         return False
 
 
+def live_booked_today(date_str=None, path=None):
+    """(net, how many) of today's closed trades that were LIVE orders - the real money, before charges. Read through the fills
+    overlay, so a row is live exactly when it reads as filled."""
+    date_str = date_str or dt.date.today().isoformat()
+    total, n = 0.0, 0
+    for r in _read_rows(path):
+        if r.get("event") == "CLOSE" and r.get("date") == date_str and r.get("filled"):
+            p = _f(r.get("pnl"))
+            if p is not None:
+                total += p
+                n += 1
+    return round(total, 2), n
+
+
 def _apply_fills(rows, path):
     fills = _fills_for(path)
     if not fills:

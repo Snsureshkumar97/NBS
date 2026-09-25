@@ -723,6 +723,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "why": snap["why"],
             "tickets": snap.get("tickets") or {},
             "session": snap.get("session") or {},
+            # What the live orders have made today - the real money, from the fills - apart from the tool's tickets as a whole
+            "live_pnl": snap.get("live_pnl"),
             "events": snap.get("events") or [],
             # Only whether it is on and a counter - the page fetches the updates
             # themselves from /api/marketbot when the counter moves.
@@ -1274,7 +1276,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(json.dumps({"error": "Pick a market first."}),
                               "application/json", code=400)
         source = (qs.get("source") or ["all"])[0]
-        if source not in ("all", "mine", "tool", "ai"):
+        if source not in ("all", "mine", "tool", "ai", "live"):
             source = "all"
         try:
             lines = journal.entries(user, market, source)
@@ -3110,6 +3112,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   border:1px solid var(--bd);border-radius:999px;padding:1px 7px;color:var(--ink-3)}
 .jbadge.mine{color:var(--accent);border-color:rgba(77,148,232,.45)}
 .jbadge.ai{color:#b07d15;border-color:rgba(176,125,21,.45)}
+.jbadge.live{color:var(--up);border-color:rgba(76,175,80,.45)}
 .tvframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:0;border-radius:12px;background:#0b0e14}
 #jdaytbl td:nth-child(-n+3),#jdaytbl th:nth-child(-n+3),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
 #jdaytbl td.jnote{white-space:normal;min-width:180px;max-width:320px;color:var(--ink-2)}
@@ -5108,6 +5111,7 @@ button.mgroup:hover{color:var(--ink-2)}
     <button class="lbtn" type="button" data-src="mine">My trades</button>
     <button class="lbtn" type="button" data-src="tool">Tool tickets</button>
     <button class="lbtn" type="button" data-src="ai">AI trades</button>
+    <button class="lbtn" type="button" data-src="live">Live orders</button>
    </div>
    <button class="lbtn on" type="button" id="jaddbtn">+ Add a trade</button>
   </div>
@@ -5877,7 +5881,7 @@ function jdayPaint(d){
   const dp = v => v == null ? "—" : num(v, 2);
   $("jdaytbl").innerHTML = lines.length
     ? `<thead><tr><th>Source</th><th>Time</th><th>Contract</th><th>Lots</th><th>Cost</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
-      + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : e.source === "ai" ? '<span class="jbadge ai">AI</span>' : '<span class="jbadge">Tool</span>'}</td>`
+      + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : e.source === "ai" ? '<span class="jbadge ai">AI</span>' : '<span class="jbadge">Tool</span>'}${e.live ? ' <span class="jbadge live" title="A real order: the entry, exit and result are what ' + esc(e.live === "delta" ? "Delta" : "Zerodha") + ' filled at">Live</span>' : ""}</td>`
         + `<td>${esc(e.time || "")}</td>`
         + `<td class="sym">${esc(e.instrument || "")} ${e.strike != null ? esc(String(e.strike)) : ""} ${esc(e.side || "")}${e.dir === "sell" ? " sold" : ""}</td>`
         + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${e.cost == null ? "—" : num(e.cost, 0)}</td><td>${dp(e.entry)}</td><td>${dp(e.exit)}</td>`
@@ -8511,6 +8515,20 @@ addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
 // today, and the funds. The strip that sat under the top bar lives here now. Only drawn in the Zerodha look;
 // rewritten only when it changes, so it never steals a click or a hover.
 let KSIDE_HTML = "", KDASH_HTML = "";
+// What the LIVE orders have made today - the real money, apart from the tool's tickets as a whole (the user, 25 Sep 2026: "add
+// live order P&L also wherever it needs with the other P&L"). The server gives what closed today (from the fills) and the AI
+// desk's open part; the rule tickets' open part is summed here from the tickets themselves, which the fast tick keeps moving.
+function livePnl(s){
+  const L = s && s.live_pnl;
+  if(!L) return null;
+  let open = L.ai_open || 0, n = L.ai_open_n || 0;
+  for(const pub of Object.values((s && s.tickets) || {})){
+    const t = pub && pub.ticket;
+    if(t && t.open && t.entry_real){ open += t.pnl || 0; n += 1; }
+  }
+  return {booked: L.booked || 0, closed: L.closed || 0, open, open_n: n, net: (L.booked || 0) + open, venue: L.venue};
+}
+const liveNote = lv => `${lv.closed} closed &middot; ${lv.open_n} open &middot; booked ${money(lv.booked)} &middot; open ${money(lv.open)}`;
 function kiteSide(s){
   const el = $("kside");
   if(!el || !s) return;
@@ -8542,9 +8560,11 @@ function kiteSide(s){
   } else {
     h += box("Open trade", `<div class="kmuted">No open trade on ${esc(CUR)}. ${esc(($("bias") && $("bias").textContent) || "")}.</div>`);
   }
-  const net = ses.net || 0;
+  const net = ses.net || 0, lv = livePnl(s);
   h += box("Today", `<div class="knum" style="color:${col(net)}">${money(net)}</div>`
     + row("Booked", money(ses.booked || 0)) + row("Open", money(ses.open || 0))
+    + (lv ? row("Live orders", `<span style="color:${col(lv.net)}">${money(lv.net)}</span>`)
+          + `<div class="kmuted">real fills &middot; ${liveNote(lv)}</div>` : "")
     + `<div class="kmuted">${ses.issued == null ? 0 : ses.issued} tickets &middot; ${ses.wins || 0} ran to target &middot; ${ses.stops || 0} stopped out</div>`, "kb-today");
   let f = "";
   if(br.connected && br.funds && br.funds.available != null)
@@ -8568,7 +8588,7 @@ function kiteDash(s){
   const el = $("kdash");
   if(!el || !s) return;
   const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
-  const ses = s.session || {}, br = s.broker || {}, net = ses.net || 0;
+  const ses = s.session || {}, br = s.broker || {}, net = ses.net || 0, lv = livePnl(s);
   const order = s.order || Object.keys(s.indices || {});
   const rows = order.map(k => {
     const r = (s.indices || {})[k]; if(!r) return "";
@@ -8584,7 +8604,8 @@ function kiteDash(s){
     ? `<div class="kd-n">${esc(fundsLabel(br.funds))}</div><div class="kd-s">available on ${esc(br.name)}</div>`
     : `<div class="kd-n">—</div><div class="kd-s">${esc(br.name || "The broker")} is not connected</div>`;
   const h = `<div class="kd-top"><div><div class="kd-l">Today's result</div><div class="kd-n" style="color:${col(net)}">${money(net)}</div>`
-    + `<div class="kd-s">booked ${money(ses.booked || 0)} &middot; open ${money(ses.open || 0)}</div></div>`
+    + `<div class="kd-s">booked ${money(ses.booked || 0)} &middot; open ${money(ses.open || 0)}</div>`
+    + (lv ? `<div class="kd-s">live orders <b style="color:${col(lv.net)}">${money(lv.net)}</b> &middot; ${liveNote(lv)}</div>` : "") + `</div>`
     + `<div><div class="kd-l">Funds available</div>${funds}</div></div>`
     + `<table class="kd-tab"><thead><tr><th>Index</th><th class="r">Index price</th><th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`;
@@ -8623,6 +8644,8 @@ function homeDraw(s){
       + cell("Tickets today", ses.issued == null ? "—" : ses.issued)
       + cell("Net", n == null ? "—" : money(n),
              (n || 0) > 0 ? "var(--up)" : (n || 0) < 0 ? "var(--down)" : "")
+      + (livePnl(s) ? cell("Live orders", money(livePnl(s).net),
+             livePnl(s).net > 0 ? "var(--up)" : livePnl(s).net < 0 ? "var(--down)" : "") : "")
       + cell("Watching", (s && (s.order || []).length) || "—");
   }
   const d = $("dgrid");

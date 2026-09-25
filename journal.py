@@ -268,7 +268,9 @@ def _ticket_lines(path, source):
             "gross": round(pnl, 2), "charges": charges,
             "charges_estimated": charges is not None,
             "net": None if charges is None else round(pnl - charges, 2),
-            "status": _status_text(r.get("status"), pnl), "notes": ""})
+            "status": _status_text(r.get("status"), pnl), "notes": "",
+            # A live order: the venue that filled it (its entry, exit and result above are the real ones), else None
+            "live": r.get("filled") or None})
     return out
 
 
@@ -290,10 +292,12 @@ def entries(email, market, source="all"):
                             cost=round(t["entry"] * qty, 2) if qty else None,
                             net=None if charges is None else round(gross - charges, 2),
                             status=None))
-    if source in ("all", "tool"):
+    if source in ("all", "tool", "live"):
         out += _ticket_lines(trade_log.user_log_path(email, market), "tool")
-    if source in ("all", "ai"):
+    if source in ("all", "ai", "live"):
         out += _ticket_lines(ai_log_path(email, market), "ai")
+    if source == "live":
+        out = [e for e in out if e.get("live")]           # the trades that placed real orders, the tool's and the AI desk's
     out = [e for e in out if _DATE.match(e.get("date") or "")]
     out.sort(key=lambda e: (e["date"], e.get("time") or ""))
     return out
