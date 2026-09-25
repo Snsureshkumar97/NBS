@@ -38,6 +38,7 @@ WHAT DELIBERATELY DID NOT CHANGE
 *** tracked against frozen levels so it can be measured honestly afterwards.
 """
 
+import re
 import threading
 import time
 
@@ -1333,9 +1334,46 @@ class TicketBook:
             wait = book.wait_reason
             return {
                 "ticket": self._public_trade(book.trade, rec, book.live),
-                "wait": ({"code": wait[0], "badge": wait[1], "why": wait[2]}
+                "wait": ({"code": wait[0], "badge": wait[1], "why": wait[2],
+                          "base": self._wait_base(wait[0], wait[2]), "left_s": self._wait_left_s(book)}
                          if wait else None),
             }
+
+    # The three holds that are a clock - the direction must hold for N seconds, a second ticket the same way waits N
+    # minutes after the last, a minimum gap between tickets - say how long is left as a NUMBER, so the page can count
+    # it down every second instead of showing "about 47s to go" that only moves when a poll arrives (25 Sep 2026: "i
+    # dont see that 20 sec holding text or 20 minutes holding text with timers"). Worked out from the same state the
+    # gates read, at the moment it is asked for; None for every other hold.
+    def _wait_left_s(self, book):
+        code = (book.wait_reason or (None,))[0]
+        try:
+            if code == "confirming":
+                need = _cfg("SIGNAL_CONFIRM_SECONDS", 0)
+                if need and book.confirm_since is not None:
+                    return round(max(0.0, need - (time.time() - book.confirm_since)), 1)
+            elif code == "reentry_cooldown":
+                ref = self._reentry_ref(book)
+                if ref is not None:
+                    return round(max(0.0, _cfg("REENTRY_COOLDOWN_MIN", 20) * 60 - (now_ist() - ref).total_seconds()), 1)
+            elif code == "ticket_gap":
+                gap = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0)
+                last = book.last_ticket_epoch() if _cfg("TICKET_GAP_PER_INDEX", False) else self._last_any()
+                if gap and last is not None:
+                    return round(max(0.0, gap * 60 - (time.time() - last)), 1)
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _wait_base(code, why):
+        """The reason without its "about N to go", for a page that shows a live clock beside it."""
+        if code == "confirming":
+            return re.sub(r"\s*\u2014\s*about \d+s to go\.$", ".", why)
+        if code == "reentry_cooldown":
+            return re.sub(r" - about \d+ to go - ", ", ", why)
+        if code == "ticket_gap":
+            return re.sub(r"\s*\u2014\s*about \d+ more minutes?\.$", ".", why)
+        return why
 
     def session(self):
         """The day's totals — booked from the log, open from live prices.

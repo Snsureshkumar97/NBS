@@ -3286,6 +3286,10 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .whyhold{font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.65;
   background:var(--surface);border:1px solid var(--bd-soft);
   border-radius:var(--r-sm);padding:11px 13px}
+/* a hold that is a clock: the reason, and the time left ticking beside it */
+.whyhold.clock{display:flex;align-items:baseline;justify-content:space-between;gap:6px 18px;flex-wrap:wrap}
+.whyhold .holdclock{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--warn);white-space:nowrap}
+.whyhold .holdclock small{font-size:12px;font-weight:400;color:var(--ink-3)}
 .rung .k .tick{color:var(--up);font-weight:700}
 .rung.done .k{color:var(--up)}
 
@@ -4008,7 +4012,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --bd:#e0e0e0; --bd-soft:#eeeeee;
   --ink:#444444; --ink-2:#666666; --ink-3:#6e6e6e;
   --up:#388e3c; --down:#df514c; --warn:#b26a00; --accent:#387ed1;
-  --brand:#ff5722; --accent-strong:#2f6fc0;
+  --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#2f6fc0;
   --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
   --ema-fast:#387ed1; --ema-slow:#b26a00; --vwap:#8e44ad;
   /* pale notices and badges, the current row of the chain, the switch's track and knob, the veil behind a dialog */
@@ -4025,7 +4029,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --bd:#363636; --bd-soft:#2a2a2a;
   --ink:#e0e0e0; --ink-2:#b5b5b5; --ink-3:#9a9a9a;
   --up:#4caf50; --down:#e8615c; --warn:#e8a33d; --accent:#4184f3;
-  --brand:#ff5722; --accent-strong:#2f6fc0;
+  --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#5a92f5;
   --ema-fast:#4184f3; --ema-slow:#e8a33d; --vwap:#c08adf;
   --note-bg:#2a2410; --note-bd:#4d4318; --note-ink:#e8dca8; --note-strong:#f0c65a;
   --warn-bg:#2f1d17; --warn-bd:#5a3324; --warn-strong:#ff8a65;
@@ -4095,6 +4099,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:var(--warn-strong)}
 :root[data-look="kite"] .notice.stale{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink)}
 :root[data-look="kite"] .notice.stale b{color:var(--note-strong)}
+:root[data-look="kite"] .rr-tag{color:var(--accent-text)}   /* the blue as TYPE on a raised surface: the dark scheme's needs to be lighter */
 :root[data-look="kite"] .badge.open{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
 :root[data-look="kite"] :is(.badge.hold,.tag.warn){background:var(--hold-bg);color:var(--note-strong);border-color:var(--note-bd)}
 :root[data-look="kite"] .honestlink,:root[data-look="kite"] #honest{color:var(--ink-2)}
@@ -4270,19 +4275,20 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #sigcard > *{grid-column:1 / -1;min-width:0}
   :root[data-look="kite"] #sigcard > .thead{order:1}
   :root[data-look="kite"] #sigcard > .hero{order:2}
-  :root[data-look="kite"] #tcontract{order:3}
-  :root[data-look="kite"] #tissued{order:4}
-  :root[data-look="kite"] #tlivestat{order:5}
-  :root[data-look="kite"] #tstats{order:6}
-  :root[data-look="kite"] #lswitch{order:7}
-  :root[data-look="kite"] #ladder{order:8}
-  :root[data-look="kite"] #laddernote{order:9}
-  :root[data-look="kite"] #lnote{order:10}
-  :root[data-look="kite"] #rr{order:11}
-  :root[data-look="kite"] #reason{order:12}
-  :root[data-look="kite"] #tovernight{order:13}
-  :root[data-look="kite"] #twhy{order:14}
-  :root[data-look="kite"] #tiles{order:15}
+  /* why a ticket is being held (with its clock), then Spot and Reward : risk, come straight under the verdict (the user, 25 Sep 2026) */
+  :root[data-look="kite"] #twhy{order:3}
+  :root[data-look="kite"] #tstats{order:4}
+  :root[data-look="kite"] #tiles{order:5}
+  :root[data-look="kite"] #tcontract{order:6}
+  :root[data-look="kite"] #tissued{order:7}
+  :root[data-look="kite"] #tlivestat{order:8}
+  :root[data-look="kite"] #lswitch{order:9}
+  :root[data-look="kite"] #ladder{order:10}
+  :root[data-look="kite"] #laddernote{order:11}
+  :root[data-look="kite"] #lnote{order:12}
+  :root[data-look="kite"] #rr{order:13}
+  :root[data-look="kite"] #reason{order:14}
+  :root[data-look="kite"] #tovernight{order:15}
   :root[data-look="kite"] #gauges{order:16;grid-column:1;grid-row:span 2}
   :root[data-look="kite"] #room{order:17;grid-column:2}
   :root[data-look="kite"] #checksbox{order:18;grid-column:2}
@@ -4655,14 +4661,14 @@ button.mgroup:hover{color:var(--ink-2)}
   <span class="tag flat" id="exptag" style="display:none"></span>
   <button class="lbtn ocbtn" id="ocopen" type="button" style="display:none">View chart</button>
   </div>
+  <div class="whyhold" id="twhy" style="display:none"></div>
+  <div class="tstats" id="tstats" style="display:none"></div>
+  <div class="tiles" id="tiles"></div>
   <div class="contract" id="tcontract" style="display:none"></div>
   <div class="issued" id="tissued" style="display:none"></div>
   <div class="livestat" id="tlivestat" style="display:none"></div>
-  <div class="tstats" id="tstats" style="display:none"></div>
   <div class="overnight" id="tovernight" style="display:none"></div>
-  <div class="whyhold" id="twhy" style="display:none"></div>
   <div class="sub" id="reason"></div>
-  <div class="tiles" id="tiles"></div>
   <div class="lswitch" id="lswitch">
   <button class="lbtn on" id="lb-index" type="button">Index points</button>
   <button class="lbtn" id="lb-premium" type="button">Option premium (LTP)</button>
@@ -6456,6 +6462,9 @@ function ticketBox(r, state){
   } else badge.style.display = "none";
 
   $("tclear").style.display = open ? "" : "none";
+  // An open ticket has its own row of figures (reward : risk, entry, cost, now, spot, result) right under the verdict, and
+  // that row already holds Spot and Reward : risk - so the two tiles that say the same for a signal are not drawn twice.
+  $("tiles").style.display = open ? "none" : "";
   // Offered only while a cooldown is what is holding the ticket - not for a
   // missing room, a spread or the daily brake, which it could not lift anyway.
   const cooling = !open && !!wait && (wait.code === "reentry_cooldown" || wait.code === "ticket_gap");
@@ -6498,7 +6507,7 @@ function ticketBox(r, state){
       + cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
                ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—")
       + cell("Now", num(tk.now,dp))
-      + cell("Spot", num(r.spot,0))
+      + cell("Index price", num(r.spot,0))
       + cell(`${tk.lots} lot${tk.lots!==1?"s":""}`,
              pnl==null ? "—"
                : money(pnl),
@@ -6509,9 +6518,32 @@ function ticketBox(r, state){
   // not for the ordinary case of the indicators simply disagreeing.
   const wh = $("twhy");
   if(!open && wait && wait.why && wait.code !== "neutral"){
-    wh.style.display = ""; wh.textContent = wait.why;
-  } else wh.style.display = "none";
+    wh.style.display = "";
+    if(wait.left_s != null){
+      // a hold that is a clock (the direction must hold N seconds; a second ticket waits N minutes): the reason
+      // without its "about N to go", and the time left counting down every second, re-synced by each poll
+      HOLD_UNTIL = Date.now() + Math.round(wait.left_s * 1000);
+      wh.classList.add("clock");
+      wh.innerHTML = `<span>${esc(wait.base || wait.why)}</span><span class="holdclock" id="holdclock"></span>`;
+      holdTick();
+    } else {
+      HOLD_UNTIL = null; wh.classList.remove("clock"); wh.textContent = wait.why;
+    }
+  } else { HOLD_UNTIL = null; wh.classList.remove("clock"); wh.style.display = "none"; }
 }
+// The clock beside a hold. One timer for the page, doing nothing while no hold is a clock.
+let HOLD_UNTIL = null;
+function holdFmt(ms){
+  const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
+}
+function holdTick(){
+  const el = $("holdclock");
+  if(!el || HOLD_UNTIL == null) return;
+  const left = HOLD_UNTIL - Date.now();
+  el.innerHTML = left > 0 ? `${holdFmt(left)}<small> to go</small>` : `now<small> - on the next reading</small>`;
+}
+setInterval(holdTick, 1000);
 
 // ----------------------------------------------------------- confidence
 // The engine reports confidence as a word, because that is how the decision
@@ -7630,7 +7662,7 @@ function render(s){
 
   const tr=r.trend||{}, dc=tr.day_change, dp=tr.day_change_pct;
   $("tiles").innerHTML =
-    tile("Spot", num(r.spot), CUR) +
+    tile("Index price", num(r.spot), CUR) +
     tile("Day move", (dc==null?"—":(dc>0?"+":"")+num(dc,0)), dp==null?"":(dp>0?"+":"")+dp+"% since open",
          dc>0?"var(--up)":dc<0?"var(--down)":"") +
     tile("Trend strength", r.adx==null?"—":r.adx, r.adx==null?"":(r.adx_ok?"above the 20 gate":"below the 20 gate"),
@@ -8536,7 +8568,7 @@ function kiteDash(s){
   const h = `<div class="kd-top"><div><div class="kd-l">Today's result</div><div class="kd-n" style="color:${col(net)}">${money(net)}</div>`
     + `<div class="kd-s">booked ${money(ses.booked || 0)} &middot; open ${money(ses.open || 0)}</div></div>`
     + `<div><div class="kd-l">Funds available</div>${funds}</div></div>`
-    + `<table class="kd-tab"><thead><tr><th>Index</th><th class="r">Spot</th><th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
+    + `<table class="kd-tab"><thead><tr><th>Index</th><th class="r">Index price</th><th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`;
   if(h !== KDASH_HTML){ KDASH_HTML = h; el.innerHTML = h; }
   if(!el.dataset.wired){
@@ -8833,7 +8865,7 @@ function aiTicketCard(k, t){
     + `<div class="tstats">`
     + cell("Reward : risk", rr) + cell("Entry", num(t.entry, dp))
     + cell("Cost", (per && t.entry != null) ? num(t.entry * per, 0) : "—") + cell("Now", num(t.now, dp))
-    + cell("Spot", num(idx.spot, 0))
+    + cell("Index price", num(idx.spot, 0))
     + cell(`${t.lots} lot${t.lots !== 1 ? "s" : ""}`, pnl == null ? "—" : money(pnl), pc)
     + `</div>`
     + `<div class="ladder">${ladder}</div>`
@@ -9854,7 +9886,7 @@ function gannPaint(){
   }
   const dp = d.index === "BTC" ? 0 : 2;
   $("gannstats").innerHTML = [
-    ["Spot", num(d.spot, dp)],
+    ["Index price", num(d.spot, dp)],
     ["Nearest support · 45°", num(d.nearest_support, dp) + (d.support_in_atr != null ? ` · ${num(d.support_in_atr, 2)} ATR` : "")],
     ["Nearest resistance · 45°", num(d.nearest_resistance, dp) + (d.resistance_in_atr != null ? ` · ${num(d.resistance_in_atr, 2)} ATR` : "")],
     ["ATR(14)", d.atr14 != null ? num(d.atr14, 0) : "—"],
@@ -10275,7 +10307,7 @@ function cryptoPulsePaint(d){
         + `<div class="pr"><span>Puts open</span><b>${oiFmt(d.put_oi)}</b></div>`
         + `<div class="pr"><span>Call wall</span><b>${num(d.call_wall,0)}</b></div>`
         + `<div class="pr"><span>Put wall</span><b>${num(d.put_wall,0)}</b></div>`
-        + `<div class="pr"><span>Spot</span><b>${num(d.spot,2)}</b></div>`;
+        + `<div class="pr"><span>Index price</span><b>${num(d.spot,2)}</b></div>`;
     }
   }
   const head = $("bo10card");

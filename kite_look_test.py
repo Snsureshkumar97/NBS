@@ -77,6 +77,9 @@ for name, t in (("white", tok), ("dark", dtok)):
         for sname in ("surface", "raised"):
             r = contrast(t[col], t[sname])
             check(f"[{name}] --{col} {t[col]} on --{sname} clears 3:1 (always paired with a sign or a word)", r >= 3.0, f"{r:.2f}:1")
+    for surf in ("surface", "raised"):
+        r = contrast(t["accent-text"], t[surf])
+        check(f"[{name}] the blue as TYPE ({t['accent-text']}: the 'open trade' tag) reads on the {surf} at 4.5:1", r >= 4.5, f"{r:.2f}:1")
     r = contrast("#ffffff", t["accent-strong"])
     check(f"[{name}] the filled buttons' blue {t['accent-strong']} carries white type at 4.5:1", r >= 4.5, f"{r:.2f}:1")
     for nm, ink, bg in (("the standing notice", "note-ink", "note-bg"), ("its bold words", "note-strong", "note-bg"), ("a real warning's bold words", "warn-strong", "warn-bg"),
@@ -396,14 +399,14 @@ check("the left column is a wrapper (not a box of its own in a narrow layout), h
       and '<div class="markets" id="markets" role="tablist"></div>\n   <div class="kside" id="kside"></div>' in SRC
       and ".kcol,.kstick{display:contents}" in CSS and ".kside,.kdash{display:none}" in CSS)
 check("(8) the strip under the top bar is gone on a wide screen - its state is in the left column", ':root[data-look="kite"] header{display:none}' in KITE)
-sig_order = ["> .thead", "> .hero", "#tcontract", "#tissued", "#tlivestat", "#tstats", "#lswitch", "#ladder", "#laddernote", "#lnote", "#rr",
-             "#reason", "#tovernight", "#twhy", "#tiles", "#gauges", "#room", "#checksbox", "#risk", "#gnote"]
+sig_order = ["> .thead", "> .hero", "#twhy", "#tstats", "#tiles", "#tcontract", "#tissued", "#tlivestat", "#lswitch", "#ladder", "#laddernote", "#lnote", "#rr",
+             "#reason", "#tovernight", "#gauges", "#room", "#checksbox", "#risk", "#gnote"]
 orders = []
 for sel in sig_order:
     m = re.search(r':root\[data-look="kite"\] ' + (r"#sigcard " if sel.startswith(">") else "") + re.escape(sel) + r"\{order:(\d+)", KITE)
     orders.append(int(m.group(1)) if m else None)
-check("(2) the Signal card reads: the verdict and its trade, targets and stop, the risk and reward, why - then the tiles, the indicators, "
-      "then the sizing (Capital) and the footnote last", None not in orders and orders == sorted(orders) and orders[0] == 1, orders)
+check("(2) the Signal card reads: the verdict, why it is held (with its clock), Index price and Reward : risk, then the trade, targets and stop, the "
+      "risk and reward, the indicators, then the sizing note and the footnote last", None not in orders and orders == sorted(orders) and orders[0] == 1, orders)
 check("(2) and the page: the signal first; the session block and its counts are gone (25 Sep 2026: the Today box in the left column says it)",
       ":root[data-look=\"kite\"] #sigcard{order:1}" in KITE and "#session{" not in KITE and "#sfeed" not in KITE)
 check("(3) the indicators are the left column of the card and the room to run the right one; the bars no longer span the page",
@@ -564,6 +567,46 @@ check("from 1500px the pinned chart pane gives up Today's range and its canvas i
 check("the left column cannot slide over the footer: its sticky part is inside a full-height wrapper",
       ".wrap > .kcol{display:block;grid-column:1;grid-row:1 / span 6;align-self:stretch;margin-top:16px}" in KITE
       and ".kcol > .kstick{display:flex;" in KITE)
+
+
+print("10. WHY A TICKET IS HELD, WITH ITS CLOCK, AND SPOT / REWARD : RISK, RIGHT UNDER THE VERDICT (25 Sep 2026)")
+i_hero = SRC.index('<div class="hero">\n  <div class="v" id="bias">')
+pos = [SRC.index(f'id="{k}"', i_hero) for k in ("twhy", "tstats", "tiles", "tcontract", "tissued", "tlivestat", "tovernight", "reason", "lswitch")]
+check("in the markup (so on a phone too) the hold text and the tiles come straight after the verdict, before the contract and the ticket lines",
+      pos == sorted(pos), pos)
+check("the underlying's level is called 'Index price' on the Signal page (tile and ticket row), the Dashboard's table, and the Gann and option-clock panels - never 'Spot' (the user, 25 Sep 2026)",
+      'tile("Index price", num(r.spot), CUR)' in SRC and 'cell("Index price", num(r.spot,0))' in SRC and '<th class="r">Index price</th>' in SRC
+      and 'cell("Index price", num(idx.spot, 0))' in SRC and '["Index price", num(d.spot, dp)]' in SRC
+      and "<span>Index price</span>" in SRC and not re.search(r'>Spot<|"Spot"', SRC))
+check("an open ticket's own row of figures (which already holds Index price and Reward : risk) replaces the two signal tiles, not repeats them",
+      '$("tiles").style.display = open ? "none" : "";' in SRC)
+check("a hold that is a clock is drawn with its reason and a clock beside it, re-synced by each poll",
+      "HOLD_UNTIL = Date.now() + Math.round(wait.left_s * 1000);" in SRC and 'class="holdclock" id="holdclock"' in SRC
+      and "wait.base || wait.why" in SRC and "setInterval(holdTick, 1000);" in SRC)
+if NODE:
+    a = SRC.index("// The clock beside a hold.")
+    b = SRC.index("setInterval(holdTick, 1000);", a)
+    prog = """
+const assert = require("assert");
+const EL = {};
+function $(id){ return EL[id] || (EL[id] = {id, innerHTML: ""}); }
+""" + SRC[a:b] + r"""
+assert.strictEqual(holdFmt(47000), "0:47"); assert.strictEqual(holdFmt(763000), "12:43");
+assert.strictEqual(holdFmt(3725000), "1:02:05"); assert.strictEqual(holdFmt(0), "0:00"); assert.strictEqual(holdFmt(-5000), "0:00");
+assert.strictEqual(holdFmt(46100), "0:47", "a part-second counts up: never shows 0:00 while time is left");
+const real = Date.now; let now = 1000000; Date.now = () => now;
+holdTick();                                   // no clock element: nothing happens, nothing throws
+$("holdclock"); HOLD_UNTIL = now + 47000; holdTick();
+assert.ok(EL.holdclock.innerHTML.startsWith("0:47") && EL.holdclock.innerHTML.includes("to go"), EL.holdclock.innerHTML);
+now += 1000; holdTick(); assert.ok(EL.holdclock.innerHTML.startsWith("0:46"), "it counts down: " + EL.holdclock.innerHTML);
+now += 60000; holdTick(); assert.ok(EL.holdclock.innerHTML.startsWith("now"), "and ends on 'now': " + EL.holdclock.innerHTML);
+HOLD_UNTIL = null; EL.holdclock.innerHTML = "keep"; holdTick(); assert.strictEqual(EL.holdclock.innerHTML, "keep", "no hold, no writing");
+Date.now = real;
+console.log("ok:holdclock");
+"""
+    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    print(r.stdout.strip()[-200:], r.stderr.strip()[-500:])
+    check("the clock formats, counts down, ends on 'now' and stays quiet with no hold - run in node", r.returncode == 0 and "ok:holdclock" in r.stdout)
 
 print("KITE LOOK TEST PASSED" if not fails else f"KITE LOOK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
