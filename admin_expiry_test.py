@@ -60,12 +60,18 @@ for field, val in (("role", "admin"), ("expires", day(-1))):
     check(f"update_user refuses '{field}'", not ok, m)
 check("so plain@ is still not an admin", not accounts.is_admin("plain@example.com"))
 
-print("7. UNATTENDED FEEDS SKIP EXPIRED ACCOUNTS")
-accounts.update_user("plain@example.com", {"always_on": True})
-check("an always-on account starts while valid", "plain@example.com" in accounts.always_on_users())
+print("7. UNATTENDED FEEDS: EVERY LIVE ACCOUNT (25 Sep 2026: running all session is automatic), EXPIRED AND DISABLED ONES SKIPPED")
+check("an account that never touched the old switch is always-on while valid", "plain@example.com" in accounts.always_on_users())
+accounts.update_user("plain@example.com", {"always_on": None})
+check("...and turning the old flag off does nothing: it is ignored", "plain@example.com" in accounts.always_on_users())
 accounts.set_expiry("plain@example.com", day(-1))
-check("and is skipped once expired - no Zerodha calls on a lapsed account",
+check("but it is skipped once expired - no Zerodha calls on a lapsed account",
       "plain@example.com" not in accounts.always_on_users())
+accounts.set_expiry("plain@example.com", day(30))
+accounts.set_disabled("plain@example.com", True)
+check("and once disabled", "plain@example.com" not in accounts.always_on_users())
+accounts.set_disabled("plain@example.com", False)
+accounts.set_expiry("plain@example.com", day(-1))
 
 print("8. WHAT THE ADMIN TAB IS SENT")
 accounts.update_user("live@example.com", {"kite_token": "SECRET-BROKER-TOKEN"})

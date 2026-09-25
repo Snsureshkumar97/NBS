@@ -381,8 +381,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_connect_delta(form)
             if path == "/api/ticket":
                 return self._do_ticket(form)
-            if path == "/api/alwayson":
-                return self._do_always_on(form)
             if path == "/api/admin":
                 return self._do_admin_api(form)
             if path == "/api/journal":
@@ -694,8 +692,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "posgreeks": self._position_greeks(user, market,
                                                snap.get("tickets") or {}),
             "closing_auction": snap.get("closing_auction", False),
-            "always_on": bool((accounts.get_user(user) or {}).get("always_on"))
-                         if user else False,
             "market": market,
             "market_label": (config.MARKETS.get(market) or {}).get("label", ""),
             # The page must not guess this. Rendering a dollar premium behind a
@@ -1511,10 +1507,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         msg = (f"The AI desk for {index} is on - paper only." if on
                else f"The AI desk for {index} is off. An open AI ticket there still runs to its target, its "
                     f"stop or the close.")
-        if on and not (accounts.get_user(user) or {}).get("always_on"):
-            msg += (" This account is set to run only while the page is open: close the page and the desk stops, "
-                    "and any AI ticket it had open is closed as 'the tool stopped'. Switch to \"runs all session\" "
-                    "on the Signal page to keep it running.")
         return reply(True, msg, ai=ai.public())
 
     def _do_live(self, form):
@@ -1558,10 +1550,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if not user_delta.keys_for(user):
                     return reply(False, "Add your Delta Exchange keys first (the Delta Exchange page) - orders go "
                                         "through your own account.", 400)
-            if not (accounts.get_user(user) or {}).get("always_on"):
-                return reply(False, "Switch the tool to \"runs all session\" first. Otherwise closing this "
-                                    "page stops the tool watching the target, and a position is left "
-                                    "with only its stop.", 400)
         try:
             ex.set_enabled(index, on, source)
         except (ValueError, OSError) as exc:
@@ -2289,32 +2277,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._market_page(error="That is not a market this server runs.")
         accounts.set_session_market(self._cookie(self.SESSION_COOKIE), want)
         return self._redirect("/app")
-
-    def _do_always_on(self, form):
-        """Turn unattended running on or off for this account.
-
-        Stored on the account rather than in the session, because the whole
-        point is that it outlives the browser: the supervisor in feeds.py reads
-        it on a timer and holds the feed open from just before the open until
-        the close, whether or not anyone has the page up.
-        """
-        user = self._current_user()
-        if not user:
-            return self._redirect("/login")
-        want = form.get("on")
-        on = want not in ("0", "false", "False", "", None)
-        ok, msg = accounts.update_user(user, {"always_on": True} if on
-                                       else {"always_on": None})
-        if on and feeds._resident_window(now_ist()):
-            # Start it now rather than waiting up to twenty seconds for the
-            # supervisor, so switching it on during the session does something
-            # visible immediately. Outside the session the flag is simply
-            # saved: spinning a feed up at ten at night to reap it four minutes
-            # later fetches a day of candles nobody asked for.
-            feeds.for_user(user, self._current_market())
-        return self._send(json.dumps({"ok": bool(ok), "always_on": on,
-                                      "error": None if ok else msg}),
-                          "application/json")
 
     _TIMEFRAMES = ("5m", "15m", "1d")
 
@@ -4232,7 +4194,7 @@ button.mgroup:hover{color:var(--ink-2)}
 /* -- The twelve upgrades to the Signal page and the left column (25 Sep 2026, "do all") --
    Everything here is the Zerodha look only; the other looks keep the page as it was. */
 /* the left column wraps the watchlist and the panels under it; in every other look it is not there */
-.kcol{display:contents}
+.kcol,.kstick{display:contents}
 .kside,.kdash{display:none}
 /* 5. said once: the day's move and the trend's strength are already a card of their own beside the signal */
 :root[data-look="kite"] #sigcard .tile[data-k="day-move"],:root[data-look="kite"] #sigcard .tile[data-k="trend-strength"]{display:none}
@@ -4240,7 +4202,6 @@ button.mgroup:hover{color:var(--ink-2)}
 /* 6. the figures that matter are large and light, their labels small and grey */
 :root[data-look="kite"] .tile .v{font-size:26px;font-weight:400;letter-spacing:0}
 :root[data-look="kite"] .daymove .big{font-size:28px;font-weight:400}
-:root[data-look="kite"] #snet{font-size:30px;font-weight:400}
 /* 7. the standing risk notice is Kite's pale yellow and one slim line; orange stays for navigation and for real warnings */
 :root[data-look="kite"] .notice.risk{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink);padding:7px 14px;font-size:13px}
 :root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:var(--note-strong)}
@@ -4258,16 +4219,15 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] :is(#tlive,#ailive).on::before{background:var(--knob)}
 :root[data-look="kite"] :is(#tlive,#ailive).on::after{left:30px;background:#c62828}
 /* 9. the session's counts are a row of figures with their labels beneath, as Kite sets "Margins used / Opening balance" */
-:root[data-look="kite"] #sfeed{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px 28px;margin:14px 0 4px}
-:root[data-look="kite"] #sfeed > span{display:block;font-size:12px;color:var(--ink-3)}
-:root[data-look="kite"] #sfeed > span b{display:block;font-size:22px;font-weight:400;color:var(--ink);line-height:1.2}
-:root[data-look="kite"] #sfeed > span:has(button){align-self:center}
 @media (min-width:901px){
   /* 1 and 8. the left column: the watchlist and, under it, the state of the day (the strip that sat under the bar is here) */
   :root[data-look="kite"] header{display:none}
-  :root[data-look="kite"] .wrap > .kcol{display:flex;flex-direction:column;gap:16px;grid-column:1;grid-row:1 / span 6;
-    position:sticky;top:64px;margin-top:16px;max-height:calc(100vh - 80px);overflow-y:auto}
-  :root[data-look="kite"] .kcol > #markets{margin:0;display:flex;flex-direction:column;gap:0;border:1px solid var(--bd);
+  /* The column is the whole height of the page's rows and the sticky part lives INSIDE it: Chrome lets a sticky
+     grid item slide over every row of the grid, the footer's included, but not out of its own parent. */
+  :root[data-look="kite"] .wrap > .kcol{display:block;grid-column:1;grid-row:1 / span 6;align-self:stretch;margin-top:16px}
+  :root[data-look="kite"] .kcol > .kstick{display:flex;flex-direction:column;gap:16px;
+    position:sticky;top:64px;max-height:calc(100vh - 80px);overflow-y:auto}
+  :root[data-look="kite"] .kstick > #markets{margin:0;display:flex;flex-direction:column;gap:0;border:1px solid var(--bd);
     border-radius:var(--r);background:var(--surface)}
   :root[data-look="kite"] .kside{display:flex;flex-direction:column;gap:16px}
   :root[data-look="kite"] .kbox{border:1px solid var(--bd);border-radius:var(--r);background:var(--surface)}
@@ -4302,8 +4262,10 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="signal"] .top3{order:0;gap:36px;margin:2px 0 10px;padding:0 0 12px;
     border-bottom:1px solid var(--bd-soft);grid-template-columns:1fr 1.3fr .8fr}
   :root[data-look="kite"] .pane[data-pane="signal"] .top3 .card{margin:0;border-bottom:0;padding-top:8px;padding-bottom:0}
-  :root[data-look="kite"] #session{order:4}
-  :root[data-look="kite"] #sfeed{order:5}
+  :root[data-look="kite"] .pane[data-pane="signal"] .top3 .ring{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;
+    align-content:center;align-items:center;justify-items:start;column-gap:16px;row-gap:2px;padding-top:6px}
+  :root[data-look="kite"] .pane[data-pane="signal"] .top3 .ring svg{grid-row:1 / span 2}
+  :root[data-look="kite"] .pane[data-pane="signal"] .top3 .ring .sub2{text-align:left}
   :root[data-look="kite"] #sigcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px}
   :root[data-look="kite"] #sigcard > *{grid-column:1 / -1;min-width:0}
   :root[data-look="kite"] #sigcard > .thead{order:1}
@@ -4359,9 +4321,14 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"]{display:block;position:sticky;top:64px;
     grid-column:2;grid-row:2 / span 6;order:1}
   /* the signal pane gives its pieces to the grid, so the three cards can run across both columns and the rest stay on the left */
+  /* The chart is here to be read whole, not scrolled to: it fits the window (the user, 25 Sep 2026: "to see the full chart
+     like this I have to scroll all the way down"). Today's range is said elsewhere on this page (the day move's low and
+     high, the VWAP row), so its card gives the height back to the chart. */
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #colR{display:none}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #cv{height:clamp(320px,calc(100vh - 300px),860px)}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="signal"]{display:contents}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) .top3{grid-column:1 / -1;grid-row:1}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) :is(#sigcard,#posgkcard,#session,#sfeed){grid-column:1}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) :is(#sigcard,#posgkcard){grid-column:1}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #sigcard{grid-template-columns:minmax(0,1fr)}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #gauges,
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #room,
@@ -4617,8 +4584,10 @@ button.mgroup:hover{color:var(--ink-2)}
  </div>
 
  <div class="kcol" id="kcol">
-  <div class="markets" id="markets" role="tablist"></div>
-  <div class="kside" id="kside"></div>
+  <div class="kstick">
+   <div class="markets" id="markets" role="tablist"></div>
+   <div class="kside" id="kside"></div>
+  </div>
  </div>
 
  <div class="sections">
@@ -4664,16 +4633,6 @@ button.mgroup:hover{color:var(--ink-2)}
  </section>
 
  <section class="pane" data-pane="signal">
-  <div class="session" id="session" style="display:none">
-  <span class="lbl">Session</span>
-  <div class="chips" id="schips"></div>
-  <div class="today">
-  <div class="n" id="snet">—</div>
-  <div class="d" id="sdetail"></div>
-  </div>
-  </div>
-  <div class="feedline" id="sfeed"></div>
-
   <div class="card" data-panel="posgk" id="posgkcard" hidden style="margin-top:14px">
    <p class="eyebrow" role="heading" aria-level="2">This position &middot; what it is exposed to</p>
    <div class="pulse" id="posgk"></div>
@@ -4717,13 +4676,6 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="lnote" id="lnote"></div>
   <div class="rrcard" id="rr"></div>
   <div class="risk" id="risk">
-  <div class="riskctl">
-  <label for="capital">Capital</label>
-  <input id="capital" type="text" inputmode="numeric" autocomplete="off"
-  placeholder="enter to size trades">
-  <label for="riskpct">Risk / trade</label>
-  <select id="riskpct"></select>
-  </div>
   <div class="riskline" id="riskline"></div>
   </div>
   <div class="gauges" id="gauges"></div>
@@ -5671,22 +5623,11 @@ function ladder(r, tk){
 // is open, against the capital entered. The lots selector stays yours - this
 // tool places nothing - but the share of the account each choice puts at
 // stake is no longer something you have to work out in your head.
-let CAPFOCUS = false;
+// What the trade costs and what it risks, in money, for the lots picked; the spread, and the expiry-day warning. The
+// capital box, and the daily loss limit it fed, are gone from the screen (the user, 25 Sep 2026).
 function riskBox(r, tk, sess){
   const box = $("risk"), line = $("riskline");
   if(!box) return;
-  sess = sess || {};
-  const cap = sess.capital || null, rp = sess.risk_pct || 1;
-  const inp = $("capital"), sel = $("riskpct");
-  if(!CAPFOCUS) inp.value = cap ? Math.round(cap).toLocaleString(ccyLocale()) : "";
-  inp.placeholder = "e.g. " + (CCY === "USD" ? "10,000" : "2,00,000");
-  const ch = sess.risk_choices || [0.5,1,1.5,2];
-  if(sel.options.length !== ch.length){
-    sel.innerHTML = "";
-    ch.forEach(v => sel.add(new Option(v + "%", String(v))));
-  }
-  sel.value = String(rp);
-
   const unit = ((r.lot_size || 1) > 1 || (r.contracts_per_lot || 1) > 1) ? "lot" : "contract";
   const parts = [];
   let perLot = null, lots = LOTS, what = "this signal", chg = null;
@@ -5702,8 +5643,7 @@ function riskBox(r, tk, sess){
   }
   // What a stop-out really costs: the premium lost plus the charges on both
   // orders - one flat part per trade, the rest per lot - the same figure the
-  // Risk and reward panel shows. Sizing on the premium alone let the suggested
-  // lots quietly exceed the risk budget by the charges.
+  // Risk and reward panel shows.
   const flat = (chg && chg.flat != null) ? chg.flat : 0;
   const lotCost = (chg && chg.per_lot && chg.per_lot.stop != null) ? chg.per_lot.stop : 0;
   // The cost of the trade itself - the premium paid for the lots - shown
@@ -5717,41 +5657,11 @@ function riskBox(r, tk, sess){
     : "";
   if(perLot != null && perLot > 0){
     const total = (perLot + lotCost) * lots + flat;
-    let s = costLine + `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
-          + ` (${money(perLot,false)} per ${unit}, entry to stop${chg ? ", plus charges" : ""})`;
-    if(cap){
-      const pct = total / cap * 100;
-      const cls = pct <= rp * 1.05 ? "ok" : pct <= rp * 2 ? "warn" : "bad";
-      s += ` = <b class="${cls}">${pct.toFixed(2)}% of capital</b>.`;
-      if(!(tk && tk.open)){
-        // In the market's own step: whole lots, or tenths of a BTC contract.
-        const ch = sess.lot_choices || [1];
-        const step = ch[0] < 1 ? ch[0] : 1;
-        const raw = (cap * rp / 100 - flat) / (perLot + lotCost);
-        const fit = Math.round(Math.floor(raw / step + 1e-9) * step * 100) / 100;
-        s += fit >= step
-          ? ` At ${rp}% risk the account carries <b>${fit} ${unit}${fit!==1?"s":""}</b>.`
-          : ` <span class="bad">${step < 1 ? "The smallest size ("+step+" "+unit+")" : "One "+unit}`
-            + ` is more than ${rp}% of the account</span>`
-            + ` (${money(cap*rp/100,false)}) - skip it, or know you are sizing up.`;
-      }
-    } else {
-      s += ". Enter your capital to see it as a share of the account.";
-    }
-    parts.push(s);
+    parts.push(costLine + `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
+          + ` (${money(perLot,false)} per ${unit}, entry to stop${chg ? ", plus charges" : ""}).`);
   } else if(!(tk && tk.open) && r.bias && r.bias !== "NEUTRAL"){
     // Only when there IS a trade to size; on "No trade" there is nothing to say.
-    parts.push(cap ? "No live premium stop for this signal, so its risk in money cannot be worked out yet."
-                   : "");
-  }
-  if(cap && sess.loss_limit){
-    const booked = sess.booked || 0;
-    const left = sess.loss_limit + Math.min(booked, 0);
-    parts.push(`Daily loss limit <b>${money(sess.loss_limit,false)}</b> (${sess.loss_limit_pct}% of capital)`
-      + (booked < 0 ? ` - today's closed trades ${money(booked)}, `
-                    + (left > 0 ? `${money(left,false)} left before new tickets stop.`
-                                : `<span class="bad">limit reached, no new tickets today.</span>`)
-                    : " - no closed losses today."));
+    parts.push("No live premium stop for this signal, so its risk in money cannot be worked out yet.");
   }
   const sp = r.spread;
   if(sp && sp.pct != null && !(tk && tk.open) && r.bias && r.bias !== "NEUTRAL"){
@@ -5769,7 +5679,9 @@ function riskBox(r, tk, sess){
       + "both ways - and in the backtest, most of the profit came from days like this, "
       + "which is exactly where its option model is least trustworthy. Size for it.");
   }
-  line.innerHTML = parts.filter(Boolean).join("<br>");
+  const shown = parts.filter(Boolean);
+  line.innerHTML = shown.join("<br>");
+  box.style.display = shown.length ? "" : "none";     // no empty box on "No trade"
 }
 // ============================================================== journal
 // Your own trades beside the tool's tickets: a year as a heatmap, a month as a
@@ -6332,23 +6244,6 @@ function rrBox(r, tk){
     + `<div class="gnote">${notes.join(" ")}</div>`;
 }
 
-function postRisk(fields){
-  fetch("/api/ticket", {method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded"},
-    body:new URLSearchParams(fields)})
-    .then(x => x.json()).then(j => {
-      if(j && j.session && LAST){ LAST.session = Object.assign(LAST.session||{}, j.session); render(LAST); }
-    }).catch(()=>{});
-}
-$("capital").onfocus = () => { CAPFOCUS = true; };
-$("capital").onblur  = e => {
-  CAPFOCUS = false;
-  const v = String(e.target.value || "").replace(/[^0-9.]/g, "");
-  postRisk({capital: v || "0"});
-};
-$("capital").onkeydown = e => { if(e.key === "Enter") e.target.blur(); };
-$("riskpct").onchange = e => postRisk({risk_pct: e.target.value});
-
 $("lb-index").onclick   = () => { LMODE="index";   if(LAST) render(LAST); };
 $("lb-premium").onclick = () => { LMODE="premium"; if(LAST) render(LAST); };
 $("lots").onchange = async e => {
@@ -6398,7 +6293,7 @@ $("tclear").onclick = () => {
 
 // ----------------------------------------------------------- live orders
 // Real Zerodha orders, per index. The button is the only way on; the server
-// refuses it without today's Zerodha login and "runs all session".
+// refuses it without today's Zerodha login (the tool runs all session by itself).
 const LIVE_ACTIVE = ["placing", "entering", "open", "exiting", "attention"];
 
 function liveHeld(s, k){
@@ -6616,69 +6511,6 @@ function ticketBox(r, state){
   if(!open && wait && wait.why && wait.code !== "neutral"){
     wh.style.display = ""; wh.textContent = wait.why;
   } else wh.style.display = "none";
-}
-
-// -------------------------------------------------------------- session
-function sessionStrip(sess, order){
-  if(!sess || !sess.per_index){ $("session").style.display="none";
-                                $("sfeed").textContent=""; return; }
-  const per = sess.per_index, keys = (order||[]).filter(k => per[k] != null);
-  // money() is global now, so the session strip, the ladder and the record
-  // cannot disagree about the currency.
-  // Always shown, even at zero. The desktop keeps its session strip on screen
-  // all day saying "nothing yet", and a total that appears only once you are
-  // up or down is a total you cannot trust to be complete.
-  $("session").style.display = "flex";
-
-  $("schips").innerHTML = keys.length
-    ? keys.map(k => {
-        const v = per[k], col = v>0?"var(--up)":v<0?"var(--down)":"var(--ink-2)";
-        return `<span class="chip2" style="color:${col};border-color:${
-          v>0?"#1f4a2c":v<0?"#5c2a18":"var(--bd)"}">${esc(k)} ${money(v)}</span>`;
-      }).join("")
-    : `<span class="chip2" style="color:var(--ink-3)">Nothing closed yet today</span>`;
-
-  const net = sess.net || 0;
-  $("snet").textContent = money(net);
-  $("snet").style.color = net>0?"var(--up)":net<0?"var(--down)":"var(--ink-2)";
-  $("sdetail").textContent = `booked ${money(sess.booked||0)} · open ${money(sess.open||0)}`;
-
-  // The day's budget, stated whether or not the brake is switched on — the
-  // count is worth seeing even when nothing is capping it.
-  const bits = [];
-  if(sess.issued != null){
-    bits.push(`<span><b>${sess.issued}</b> ticket${sess.issued===1?"":"s"} today`
-      + (sess.limits && sess.max_trades ? ` of ${sess.max_trades}` : "") + `</span>`);
-  }
-  if(sess.wins != null) bits.push(`<span><b>${sess.wins}</b> ran to target</span>`);
-  if(sess.locked) bits.push(`<span><b>${sess.locked}</b> trailed out in profit</span>`);
-  if(sess.stops != null) bits.push(`<span><b>${sess.stops}</b> stopped out</span>`);
-  if(!sess.limits) bits.push(`<span>daily limits off</span>`);
-  // Unattended running. It belongs on this line because it is the same kind of
-  // fact as the ones beside it - how the tool is set to behave today - and
-  // because this is the line you read when you wonder why nothing was logged.
-  const ao = LAST && LAST.always_on;
-  bits.push(`<span><button class="lbtn ao${ao?" on":""}" id="aotog" type="button"`
-    + ` title="${ao
-        ? "The tool runs from 09:10 to 15:40 whether or not this page is open."
-        : "The tool only runs while this page is open. Nothing is analysed or "
-          + "logged after you close the tab."}">`
-    + `${ao ? "runs all session" : "runs only while open"}</button></span>`);
-  $("sfeed").innerHTML = bits.join("");
-  const tog = $("aotog");
-  if(tog) tog.onclick = async () => {
-    tog.disabled = true;
-    try{
-      const r = await fetch("/api/alwayson", {
-        method:"POST",
-        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-        body:"on=" + (LAST && LAST.always_on ? "0" : "1")});
-      const j = await r.json();
-      if(LAST) LAST.always_on = !!j.always_on;
-      render(LAST);
-      tick();
-    }catch(e){ tog.disabled = false; }
-  };
 }
 
 // ----------------------------------------------------------- confidence
@@ -7813,7 +7645,6 @@ function render(s){
   ladder(r, tstate && tstate.ticket);
   riskBox(r, tstate && tstate.ticket, s.session);
   rrBox(r, tstate && tstate.ticket);
-  sessionStrip(s.session, s.order);
   kiteSide(s);
   if(TAB === "chain") chainFetch();
   if(TAB === "news") newsFetch();
@@ -8335,10 +8166,8 @@ function wireDrag(){
     });
   });
 }
-// The verdict comes first on the Signal page. The session tally and the feed
-// line used to sit above it, which put "Buy CE / No trade" halfway down a laptop
-// screen and below most of a phone's. A saved layout re-appends panels in its own
-// order, so this runs after it rather than trusting the markup order.
+// The verdict comes first on the Signal page. (The session tally and the feed line that used to sit above it are gone.)
+// A saved layout re-appends panels in its own order, so this runs after it rather than trusting the markup order.
 function pinSignalFirst(){
   const pane = document.querySelector('.pane[data-pane="signal"]'), sig = $("sigcard");
   if(!pane || !sig || sig.parentElement !== pane) return;
@@ -8346,10 +8175,6 @@ function pinSignalFirst(){
   let after = sig;
   const pos = $("posgkcard");
   if(pos && pos.parentElement === pane){ after.after(pos); after = pos; }
-  ["session", "sfeed"].forEach(id => {
-    const el = $(id);
-    if(el && el.parentElement === pane){ after.after(el); after = el; }
-  });
 }
 applyLayout(); pinSignalFirst(); wireDrag();
 
@@ -9352,7 +9177,6 @@ async function aiFetch(){
         body: new URLSearchParams({index: k, on: on ? "1" : "0"})});
       const j = await r.json();
       if(!j.ok) alert(j.message || "That could not be changed.");
-      else if(j.message && /runs all session/.test(j.message)) alert(j.message);
       if(j.ai) aiRender(j.ai);
     }catch(e){ alert("Could not reach this tool's own server."); }
     finally{ tog.disabled = false; }
@@ -10829,8 +10653,6 @@ function palItems(){
   out.push({t:"Go", label:"Results", run:() => location.href="/results"});
   out.push({t:"Do", label:"Reset the panel layout", sub:"order and visibility",
             run:() => { HIDDEN = new Set(); try{ localStorage.removeItem(PKEY); }catch(e){} resetLayout(); }});
-  out.push({t:"Do", label:"Set capital and risk per trade",
-            run:() => { const c = $("capital"); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }});
   out.push({t:"Do", label:"Clear the open ticket",
             run:() => { const b = $("tclear"); if(b && b.style.display !== "none") b.click(); }});
   out.push({t:"Do", label: SCHEME === "dark" ? "Switch to the white theme" : "Switch to the dark theme",

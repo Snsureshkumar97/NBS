@@ -2441,8 +2441,7 @@ FAQ = [
      "Zerodha's rule, not this tool's. They clear every Kite access token each "
      "morning, between about 05:00 and 07:30 IST, regardless of when it was issued. Connect once "
        "after that and the tool has what it needs for the rest of the day. It "
-       "runs while you have the page open, and with \u201cruns all session\u201d "
-       "switched on it keeps running from 09:10 to the close whether the page "
+       "keeps running from 09:10 to the close whether the page "
        "is open or not \u2014 but never without a token, so the morning "
        "reconnect is the one step nobody can do for you."),
     ("Why my own Zerodha account, and not the site owner's?",
@@ -2810,7 +2809,6 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
     <b>developers.kite.trade</b> (Profile, top right &rarr; IP Whitelist - it is not inside the app). Zerodha rejects
     every API order from an unregistered IP; prices and the chain still work
     without it.</li>
-   <li>On the Signal page, set this account to <b>runs all session</b>.</li>
    <li>Switch <b>Live orders</b> on per index - on the Signal card for the rule
     tickets, on the AI trades tab for the AI desk's. Each is off by default and
     separate from the other.</li>

@@ -500,7 +500,7 @@ class TicketBook:
                 return ("loss_limit", "LOSS LIMIT",
                         f"Today's closed trades are down {abs(booked):,.0f}, past "
                         f"the daily loss limit of {limit:,.0f} ({pct:g}% of the "
-                        f"capital you entered). No new tickets today - the "
+                        f"account). No new tickets today - the "
                         f"signal is still shown. A losing day ends here rather "
                         f"than being chased.")
         if not self.limits:

@@ -32,7 +32,7 @@ b = SRC.index("function unitLabel(")
 c = SRC.index("function ladder(r, tk){")
 d = SRC.index("function riskBox(")
 e = SRC.index("function rrBox(r, tk){")
-f = SRC.index("function postRisk(")
+f = SRC.index('$("lb-index").onclick')
 h = SRC.index("let CCY = ")
 i = SRC.index("function feedTag(")
 

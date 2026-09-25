@@ -166,19 +166,25 @@ def list_users():
 
 
 def always_on_users():
-    """Emails that asked the tool to run the whole session unattended.
+    """Emails whose feed the tool holds open the whole session, page open or not.
+
+    Every live account: running all session is automatic now (the user, 25 Sep
+    2026: "it should be running all session, make it automatic"), where it used to
+    be a switch on the Signal page that somebody had to remember. The old
+    `always_on` flag on an account is ignored - it can neither turn this off nor
+    be needed to turn it on.
 
     Read on a timer by the feed supervisor, so it is deliberately cheap and
-    deliberately quiet: a disabled account is skipped here rather than being
-    started and then rejected somewhere further in, because a feed that exists
-    for a disabled user is a feed calling Zerodha under a token that account
-    should no longer be using.
+    deliberately quiet: a disabled or expired account is skipped here rather than
+    being started and then rejected somewhere further in, because a feed that
+    exists for a disabled user is a feed calling Zerodha under a token that
+    account should no longer be using. (An account with no Zerodha token today is
+    skipped by the supervisor, not started.)
     """
     with _lock:
         data = _load()
     return sorted(e for e, u in data["users"].items()
-                  if u.get("always_on") and not u.get("disabled")
-                  and not _expired(u))
+                  if not u.get("disabled") and not _expired(u))
 
 
 def create_user(email, password, now=None, expires=None):
@@ -599,7 +605,7 @@ def admin_view():
             "days_left": _days_left(exp, today),
             "created": u.get("created"), "last_login": u.get("last_login"),
             "zerodha": bool(u.get("kite_token")),
-            "always_on": bool(u.get("always_on")),
+            "always_on": not u.get("disabled") and status != "expired",
             "sessions": live.get(email, 0)})
     out.sort(key=lambda r: (not r["admin"], r["created"] or ""))
     return out

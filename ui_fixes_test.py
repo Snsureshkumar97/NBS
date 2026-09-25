@@ -44,7 +44,8 @@ check("it runs after a saved layout is applied", "applyLayout(); pinSignalFirst(
 check("and again after a panel is dragged", "pinSignalFirst();\n      saveLayout();" in SRC)
 body = SRC.split("function pinSignalFirst()")[1].split("\n}\n")[0]
 check("the signal card goes to the top of its pane", "pane.insertBefore(sig, pane.firstElementChild)" in body)
-check("the session tally and feed line follow it", '"session", "sfeed"' in body)
+check("the session tally and feed line are gone from the page (25 Sep 2026), so nothing follows the signal card but the position",
+      '"session", "sfeed"' not in body and 'id="session"' not in SRC and 'id="sfeed"' not in SRC and "function sessionStrip" not in SRC)
 check("the disclaimer is one line on a phone until opened",
       "#riskbox:not([open]) > summary{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" in SRC)
 

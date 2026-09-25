@@ -49,7 +49,8 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 def _kite():
     from kiteconnect import KiteConnect
     users = accounts.always_on_users()
-    token = user_kite.token_for(users[0]) if users else None
+    # every live account is "always on" now, so take the first one that has a Zerodha token today
+    token = next((t for t in (user_kite.token_for(u) for u in users) if t), None)
     if not token:
         raise SystemExit("No Zerodha token today - connect Zerodha in the tool, then re-run.")
     k = KiteConnect(api_key=config.KITE_API_KEY)

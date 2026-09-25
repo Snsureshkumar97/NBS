@@ -700,12 +700,9 @@ try:
     check("not without today's Zerodha login", out["code"] == 400 and "Connect Zerodha" in json.loads(out["body"])["message"]
           and not ex.enabled["NIFTY"])
     user_kite.token_for = lambda email: "tok"
-    accounts.get_user = lambda email: {"always_on": False}
-    h, out = handler(ex)
-    h._do_live({"index": "NIFTY", "on": "1"})
-    check("not unless the tool runs all session - closing the page would stop target exits",
-          out["code"] == 400 and "runs all session" in json.loads(out["body"])["message"] and not ex.enabled["NIFTY"])
-    accounts.get_user = lambda email: {"always_on": True}
+    import inspect
+    check("the tool runs all session by itself (25 Sep 2026), so the live switch no longer asks for a switch that is not there",
+          "always_on" not in inspect.getsource(web_server.Handler._do_live) and "runs all session" not in inspect.getsource(web_server.Handler._do_live))
     web_server._state["mode"] = "free"
     h, out = handler(ex)
     h._do_live({"index": "NIFTY", "on": "1"})
