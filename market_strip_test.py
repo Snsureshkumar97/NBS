@@ -47,14 +47,14 @@ class FakeResp:
     def __init__(self, price, prev): self.p, self.q = price, prev
     def raise_for_status(self): pass
     def json(self): return {"chart": {"result": [{"meta": {"regularMarketPrice": self.p, "chartPreviousClose": self.q}}]}}
-real_get = market_ticker.requests.get
-market_ticker.requests.get = lambda *a, **k: FakeResp(0.0960, 0.0996)
+real_get = market_ticker._session.get
+market_ticker._session.get = lambda *a, **k: FakeResp(0.0960, 0.0996)
 r = market_ticker._one("DOGE-USD", "DOGE/USD", 4)
 check("DOGE down 0.0036 says so, not -0.0", r["change"] == -0.0036, r)
-market_ticker.requests.get = lambda *a, **k: FakeResp(24000.126, 23900.0)
+market_ticker._session.get = lambda *a, **k: FakeResp(24000.126, 23900.0)
 r = market_ticker._one("^NSEI", "NIFTY 50", 2)
 check("an index is still rounded to 2 places, as it was", r["change"] == 100.13 and r["price"] == 24000.13, r)
-market_ticker.requests.get = real_get
+market_ticker._session.get = real_get
 
 print("3. WHAT /api/markets HANDS EACH")
 market_ticker.rows = lambda force=False: [

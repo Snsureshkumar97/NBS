@@ -208,6 +208,29 @@ try:
     check("gold and anything else without the flag get none - even if a tape for it existed",
           f.taker_flow("GOLD") is None and f.taker_flow("NIFTY") is None)
     check("the snapshot's `flow` for the crypto market is the taker flow per instrument", list(f.flow_readings()) == ["BTC"])
+    # A reading scans the whole tape in plain Python and was asked for afresh by every page poll, live pass and AI
+    # decision - 16% of the server's CPU in a 25 Sep 2026 profile - so it is kept for two seconds, as a copy.
+    n = {"c": 0}; real_reading = feeds.taker_flow.reading
+    def counting(*a, **k):
+        n["c"] += 1
+        return real_reading(*a, **k)
+    feeds.taker_flow.reading = counting
+    try:
+        f._taker_flow_cache.clear()
+        a1 = f.taker_flow("BTC"); a2 = f.taker_flow("BTC"); a3 = f.taker_flow("BTC")
+        check("three asks inside two seconds scan the tape once", n["c"] == 1 and a1 == a2 == a3, n)
+        a1["windows"]["1m"]["taker_buy"] = -1
+        check("a caller's edits to its reading do not reach the next caller", f.taker_flow("BTC")["windows"]["1m"]["taker_buy"] == 0.01)
+        f._taker_flow_cache["BTC"] = (time.time() - 3, f._taker_flow_cache["BTC"][1])
+        f.taker_flow("BTC")
+        check("after two seconds it reads the tape again", n["c"] == 2, n)
+        g = feeds.Feed("t:flow2", "flow2@example.invalid", "crypto")
+        g._start_crypto_stream()
+        check("no print yet: no reading", g.taker_flow("BTC") is None)
+        g.dstream.tapes["BTCUSD"].add([live(5, 85010, 4, "sell")], snapshot=True, now=time.time())
+        check("and the first print shows up at once - an empty answer is never kept", g.taker_flow("BTC") is not None)
+    finally:
+        feeds.taker_flow.reading = real_reading
     f.dstream = None
     check("no socket, no reading, no error", f.taker_flow("BTC") is None)
 finally:

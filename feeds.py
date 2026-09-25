@@ -36,6 +36,7 @@ A FEED IS NOT A SUBSCRIPTION
     desktop app makes.
 """
 
+import copy
 import datetime as dt
 import threading
 import time
@@ -82,6 +83,10 @@ CHAIN_TICK_MAX_AGE = 20.0
 # Stands in for a tick socket on a venue that has none, so the loops can
 # tell "no stream yet" (None) apart from "this market never has one".
 _NO_STREAM = object()
+# A taker-flow reading scans the socket's recent prints once per window and once per bucket in plain Python, and the
+# page's state poll, the live analysis pass and the AI desk each asked for it afresh - 16% of the server's CPU in a
+# 25 Sep 2026 profile. The prints move by the second, so a reading a couple of seconds old says the same thing.
+TAKER_FLOW_CACHE_S = 2.0
 
 # In free mode nobody has a token and the data is genuinely identical for
 # everyone, so every user maps to this one shared feed.
@@ -1765,10 +1770,18 @@ class Feed:
         st = self.dstream
         if not meta.get("taker_flow") or st is None or not hasattr(st, "tape_for"):
             return None
+        cache = self.__dict__.setdefault("_taker_flow_cache", {})
+        hit = cache.get(name)
+        now = time.time()
+        if hit is not None and now - hit[0] < TAKER_FLOW_CACHE_S:
+            return copy.deepcopy(hit[1])         # a copy: what a caller does to its reading must not reach the next caller
         try:
-            return taker_flow.reading(st.tape_for(meta.get("delta_perpetual")), unit=meta.get("delta_asset") or "BTC",
-                                      unit_per_contract=float(meta.get("flow_unit_per_contract") or 0.001),
-                                      symbol=meta.get("delta_perpetual") or "")
+            r = taker_flow.reading(st.tape_for(meta.get("delta_perpetual")), unit=meta.get("delta_asset") or "BTC",
+                                   unit_per_contract=float(meta.get("flow_unit_per_contract") or 0.001),
+                                   symbol=meta.get("delta_perpetual") or "")
+            if r is not None:                 # "no print yet" is cheap to ask again, and must show up the moment one arrives
+                cache[name] = (now, copy.deepcopy(r))
+            return r
         except Exception as exc:
             self._note_fault(f"{name} taker flow", f"{type(exc).__name__}: {exc}")
             return None

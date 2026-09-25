@@ -85,9 +85,16 @@ MARKETS = [
 ]
 
 TTL = 90
+STALE_MAX = 600          # a strip this old means the background thread has died; one request may refresh it
 _lock = threading.Lock()
-_cache = {"at": 0.0, "rows": []}
+_refresh_lock = threading.Lock()      # one refresh at a time, whoever asks
+_cache = {"at": 0.0, "rows": [], "failed_at": 0.0}
 _UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
+# ONE session for every call. requests.get() builds a new session per call, and with it a new TLS context that parses
+# the whole CA bundle while holding the GIL: 35 of those per refresh, several refreshes at once, was about half of the
+# server's CPU on 25 Sep 2026 and made every page and every order loop wait behind it.
+_session = requests.Session()
+_session.headers.update(_UA)
 
 
 def _one(ticker, label, dp):
@@ -98,8 +105,7 @@ def _one(ticker, label, dp):
     provider already relies on.
     """
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-    r = requests.get(url, params={"interval": "1d", "range": "5d"},
-                     headers=_UA, timeout=6)
+    r = _session.get(url, params={"interval": "1d", "range": "5d"}, timeout=6)
     r.raise_for_status()
     result = (r.json().get("chart") or {}).get("result")
     if not result:
@@ -117,12 +123,8 @@ def _one(ticker, label, dp):
             "change": chg, "pct": pct, "dp": dp}
 
 
-def rows(force=False):
-    """The strip, cached. Never raises."""
-    now = time.time()
-    with _lock:
-        if not force and _cache["rows"] and now - _cache["at"] < TTL:
-            return list(_cache["rows"])
+def _refresh():
+    """Fetch every market once and keep the answer. Called with _refresh_lock held."""
     out = []
     for ticker, label, dp, group in MARKETS:
         try:
@@ -141,8 +143,34 @@ def rows(force=False):
         # a fetch that came back with nothing leaves the last good rows alone.
         if out:
             _cache["rows"] = out
-            _cache["at"] = now
+            _cache["at"] = time.time()
+        else:
+            _cache["failed_at"] = time.time()     # so a dead feed is not retried by every request that comes along
         return list(_cache["rows"])
+
+
+def rows(force=False):
+    """The strip, cached. Never raises.
+
+    A page load NEVER waits on Yahoo once there is a strip to show, however old: the background thread keeps it
+    fresh, and a request that found it a few seconds past its TTL used to fetch all the markets itself - in its own
+    thread, on top of the background thread's refresh and every other page's. Only `force` (the background thread)
+    refreshes a strip that has anything in it; a request refreshes only when there is nothing at all, or the strip is so
+    old that the background thread has plainly died. One refresh at a time, whoever asks.
+    """
+    now = time.time()
+    with _lock:
+        have, age = list(_cache["rows"]), now - max(_cache["at"], _cache["failed_at"])
+    if have and not force and age < STALE_MAX:
+        return have
+    if not _refresh_lock.acquire(blocking=not have):
+        return have                       # someone is refreshing already; what there is beats waiting for it
+    try:
+        with _lock:                       # whoever held the lock may have just filled it
+            fresh = list(_cache["rows"]) if time.time() - _cache["at"] < TTL and not force else None
+        return fresh if fresh else _refresh()
+    finally:
+        _refresh_lock.release()
 
 
 def start_background(stop_event=None):
@@ -153,11 +181,14 @@ def start_background(stop_event=None):
     """
     def loop():
         while stop_event is None or not stop_event.is_set():
+            began = time.time()
             try:
                 rows(force=True)
             except Exception:
                 pass
-            for _ in range(TTL):
+            # a steady cycle: the refresh's own time counts towards the wait, so the strip is never older than TTL + a
+            # refresh, and a slow refresh does not stretch the gap
+            while time.time() - began < TTL:
                 if stop_event is not None and stop_event.is_set():
                     return
                 time.sleep(1)
