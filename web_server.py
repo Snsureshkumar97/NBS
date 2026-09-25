@@ -596,10 +596,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 # screen that is not context, it is a different market's
                 # numbers, so that screen asks for the world block instead -
                 # Nikkei through BTC/USD, which is real context for a coin.
+                # `group` may name several, comma-separated ("crypto,world"); with none the answer is
+                # everything but the coins, which only the crypto screen's strip asks for.
                 grp = (qs.get("group") or [""])[0]
                 _rows = market_ticker.rows()
                 if grp:
-                    _rows = [r for r in _rows if r.get("group") == grp]
+                    # in the order asked for: the crypto screen's strip is the coins first, then the world
+                    _want = list(dict.fromkeys(g for g in grp.split(",") if g))
+                    _rows = [r for g in _want for r in _rows if r.get("group") == g]
+                else:
+                    _rows = [r for r in _rows if r.get("group") != "crypto"]
                 return self._send(json.dumps({"rows": _rows}),
                                   "application/json")
             if path.startswith("/chart/") and path.endswith(".svg"):
@@ -4132,6 +4138,14 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .honestlink,:root[data-look="kite"] #honest{color:var(--ink-2)}
 /* the index strip: a still row you can scroll sideways, in place of the marquee */
 :root[data-look="kite"] .tk-track{transform:none;width:max-content}
+/* The strip scrolls (the user, 25 Sep 2026: "ticker of market is not scrolling") - the one thing in this look that
+   moves, so it beats the rule that switches motion off, and only for someone whose system has not asked for
+   less motion (they keep a still row they can scroll sideways). Paused under the pointer, as before. */
+@media (prefers-reduced-motion:no-preference){
+  :root[data-look="kite"] .ticker{overflow:hidden}
+  :root[data-look="kite"] .ticker .tk-track{animation:tkslide var(--tkdur,150s) linear infinite !important}
+  :root[data-look="kite"] .ticker:hover .tk-track{animation-play-state:paused !important}
+}
 /* small grey capitals over dense figures, as Kite sets its tables */
 :root[data-look="kite"] :is(table th,.tile .l,.session .l,.mkt .nm){letter-spacing:.4px;text-transform:uppercase;font-weight:600;color:var(--ink-3)}
 
@@ -7671,10 +7685,6 @@ function render(s){
   markets(s);
   if(typeof botWatchTick === "function") botWatchTick(s.bot_watch);
   greet(s);
-  if(s.market === "crypto"){
-    const strip = document.querySelector(".ticker");
-    if(strip) strip.style.display = "none";
-  }
 
   // The closing auction is its own state, not a shade of "open". Saying
   // "Market open" over an index that has held one value since 15:15 is the
@@ -7964,20 +7974,23 @@ function renderTicker(rows){
   if(!rows || !rows.length) return;
   // Roughly six seconds of travel per item, so adding markets makes the strip
   // longer rather than faster.
+  // A market in two blocks (Bitcoin is a coin and a world market) is shown once, in the first.
+  const seen = new Set();
+  rows = rows.filter(r => !seen.has(r.label) && seen.add(r.label));
   $("tkt").style.setProperty("--tkdur", (rows.length * 6) + "s");
   let group = null;
   const one = rows.map(r => {
     let sep = "";
     if(r.group && r.group !== group){
       // No divider before the first block — it would read as a stray label.
-      if(group !== null) sep = `<span class="tk-sep">WORLD</span>`;
+      if(group !== null) sep = `<span class="tk-sep">${r.group === "crypto" ? "CRYPTO" : "WORLD"}</span>`;
       group = r.group;
     }
     const up = r.pct == null ? 0 : r.pct;
     const col = up > 0 ? "var(--up)" : up < 0 ? "var(--down)" : "var(--ink-3)";
     const chg = r.change == null ? ""
       : `<span class="c" style="color:${col}">${r.change>=0?"+":"\u2212"}`
-        + `${Math.abs(r.change).toLocaleString("en-IN")}`
+        + `${Math.abs(r.change).toLocaleString("en-IN", {maximumFractionDigits: Math.max(3, r.dp || 0)})}`
         + (r.pct==null?"":` (${r.pct>=0?"+":"\u2212"}${Math.abs(r.pct).toFixed(2)}%)`)
         + `</span>`;
     return sep + `<span class="tk"><i class="dot" style="background:${col}"></i>`
@@ -7990,20 +8003,15 @@ function renderTicker(rows){
 }
 
 async function markets_(){
-  // The strip is Indian indices, sectors and India VIX - context for the
-  // Indian screen and noise on the crypto one, so it is not shown or fetched there.
-  const strip = document.querySelector(".ticker");
+  // India's strip is the Indian indices, sectors and India VIX, then the world. The crypto screen's is the
+  // coins, then the world: an Indian index is not context for a coin, so it is never fetched there. Home
+  // still wants the world block alone (MKT_ROWS), or it once printed NIFTY 50 at the top of a Bitcoin desk.
   const crypto = !!(LAST && LAST.market === "crypto");
-  // The strip stays hidden on the crypto screen, but Home asks for the world
-  // block rather than nothing: hiding the ticker used to leave MKT_ROWS full
-  // of Indian indices from an earlier fetch, and Home printed NIFTY 50 at the
-  // top of a Bitcoin desk.
-  if(strip) strip.style.display = crypto ? "none" : "";
   try{
-    const d = await (await fetch("/api/markets" + (crypto ? "?group=world" : ""),
+    const d = await (await fetch("/api/markets" + (crypto ? "?group=crypto,world" : ""),
                                  {cache:"no-store"})).json();
-    MKT_ROWS = d.rows;
-    if(!crypto) renderTicker(d.rows);
+    MKT_ROWS = crypto ? d.rows.filter(r => r.group === "world") : d.rows;
+    renderTicker(d.rows);
     if(TAB === "home") homeDraw(LAST);
   }catch(e){}
 }

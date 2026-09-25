@@ -73,6 +73,15 @@ MARKETS = [
     ("GC=F",                 "GOLD",            1, "world"),
     ("BZ=F",                 "BRENT",           2, "world"),
     ("BTC-USD",              "BTC/USD",         0, "world"),
+
+    # The strip on the crypto screen: the coins first, the world block after it as context. Its own
+    # group so the Indian screen's strip (which asks for everything else) never grows coins.
+    ("BTC-USD",              "BTC/USD",         0, "crypto"),
+    ("ETH-USD",              "ETH/USD",         2, "crypto"),
+    ("SOL-USD",              "SOL/USD",         2, "crypto"),
+    ("XRP-USD",              "XRP/USD",         4, "crypto"),
+    ("BNB-USD",              "BNB/USD",         2, "crypto"),
+    ("DOGE-USD",             "DOGE/USD",        4, "crypto"),
 ]
 
 TTL = 90
@@ -102,7 +111,7 @@ def _one(ticker, label, dp):
         return None
     chg = pct = None
     if prev:
-        chg = round(price - prev, 2)
+        chg = round(price - prev, max(2, dp))   # a coin worth 9 cents moves in fractions of a cent
         pct = round((price - prev) / prev * 100, 2)
     return {"label": label, "price": round(float(price), dp),
             "change": chg, "pct": pct, "dp": dp}

@@ -96,8 +96,20 @@ for prop in ("animation:none", "transition:none", "text-shadow:none", "box-shado
           re.search(r"(?<![-\w])" + re.escape(prop) + r" !important", body) is not None)
 check("the page has no perspective", ':root[data-look="kite"] .wrap{perspective:none}' in CSS)
 check("no tilt, no sway on the signal card", ".herocard{transform:none !important}" in KITE)
-check("the world-markets strip is still and scrolls sideways under the thumb, not as a marquee",
-      ".ticker{background:var(--raised);border-bottom:1px solid var(--bd);overflow-x:auto}" in KITE and ".tk-track{transform:none;width:max-content}" in KITE)
+check("the markets strip is the ONE thing that moves: it scrolls again (the user, 25 Sep 2026), beating the no-motion rule, but only when the system has not asked for less motion",
+      "@media (prefers-reduced-motion:no-preference){" in KITE
+      and ':root[data-look="kite"] .ticker .tk-track{animation:tkslide var(--tkdur,150s) linear infinite !important}' in KITE
+      and ':root[data-look="kite"] .ticker{overflow:hidden}' in KITE)
+check("...it pauses under the pointer, and stays a still row you can scroll sideways for someone who asked for less motion",
+      ':root[data-look="kite"] .ticker:hover .tk-track{animation-play-state:paused !important}' in KITE
+      and ".ticker{background:var(--raised);border-bottom:1px solid var(--bd);overflow-x:auto}" in KITE)
+check("the animation the override names exists, and the reduced-motion rule for everyone else is still there",
+      "@keyframes tkslide{" in CSS and ".tk-track{animation:none}" in CSS)
+check("the crypto screen has its strip too: the coins then the world, asked for together, drawn once per market, Home keeps the world block only",
+      '"/api/markets" + (crypto ? "?group=crypto,world" : "")' in SRC
+      and 'MKT_ROWS = crypto ? d.rows.filter(r => r.group === "world") : d.rows;' in SRC
+      and "\n    renderTicker(d.rows);\n" in SRC and "rows = rows.filter(r => !seen.has(r.label) && seen.add(r.label));" in SRC
+      and 'strip.style.display = "none"' not in SRC)
 check("the menu opens without a slide (the drawer's transition is switched off with the rest)", "transition:none !important" in body)
 
 print("4. NOTHING IS LEFT DARK OR PALE-ON-WHITE")

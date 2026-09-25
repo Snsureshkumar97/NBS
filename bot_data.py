@@ -274,6 +274,8 @@ def _world(ctx, args):
     rows = market_ticker.rows()
     if ctx.market == "crypto":
         rows = [r for r in rows if r.get("group") == "world"]
+    else:
+        rows = [r for r in rows if r.get("group") != "crypto"]    # the coins are the crypto screen's strip
     return {"rows": rows}
 
 
