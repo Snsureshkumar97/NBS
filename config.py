@@ -885,6 +885,31 @@ REARM_MIN_SECONDS = 60
 #    True restores the old behaviour.
 CLOSE_ON_SIGNAL_FLIP = False
 
+# 3b. A SUSTAINED REVERSAL CAN STILL END A TRADE EARLY - JUST NOT ON THE FIRST FLICKER.
+#    CLOSE_ON_SIGNAL_FLIP above closed a running trade the INSTANT the signal changed its
+#    mind, dozens of times a day, at -0.09R after costs (see its own comment). The rule tool
+#    otherwise has no exit of its own at all between its entry and its frozen target/stop - it
+#    never reconsiders, however long the trade runs against it (asked for by the user, 27 Sep
+#    2026: "give the signal tool its own exit time like AI trades", where "AI trades" re-asks
+#    itself on every 15-minute candle close and can leave on its own judgement).
+#
+#    This is the middle ground: while a ticket is open, the OPPOSITE direction has to hold for
+#    the same SIGNAL_CONFIRM_SECONDS and SIGNAL_CONFIRM_TICKS that a fresh entry itself needs -
+#    the identical test, just read against a position instead of "nothing open yet" - before the
+#    ticket is closed early ("CLOSED - signal reversed and held"). A flicker that reverses for a
+#    few seconds and comes back changes nothing.
+#
+#    And closing early does NOT hand the door straight back open: the clock that measures the
+#    reversal is reset to zero the moment it fires, so the NEXT ticket - in either direction -
+#    has to earn its own full confirmation from scratch, exactly as a first entry does. Without
+#    that reset, a reversal that just satisfied the confirmation gate would satisfy it again on
+#    the very next reading, and this would reopen CLOSE_ON_SIGNAL_FLIP's churn by another door.
+#
+#    Off by default: this changes when a real trade exits, and per this file's own standing
+#    practice such a change is adopted only once it has been run through pro_study.py /
+#    regime_study.py (in-sample vs held-out, after costs) and it has held up.
+EARLY_EXIT_ON_REVERSAL = False
+
 _STRICTNESS = {
     "strict":   {"min_agree": 3, "max_dissent": 1, "adx": 20, "min_rr": 0.6},
     "balanced": {"min_agree": 3, "max_dissent": 2, "adx": 18, "min_rr": 0.45},

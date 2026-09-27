@@ -548,6 +548,11 @@ class TicketBook:
             if book is None:
                 book = self.books[name] = IndexBook(name)
             book.last_rec = rec
+            # How long the CURRENT reading's direction has held - shared by the entry
+            # confirmation below (_consider) and, when EARLY_EXIT_ON_REVERSAL is on, an
+            # early exit from an open ticket (_check_price): one clock, both ways. Updated
+            # here, before either reads it, so both see this reading, not the last one.
+            self._track_direction(book, rec)
             events = []
             # Order matters and matches the desktop: an already-open ticket is
             # checked against its frozen levels FIRST, so a target that was
@@ -556,6 +561,26 @@ class TicketBook:
             events += self._track(book, rec)
             events += self._consider(book, rec)
             return events
+
+    def _track_direction(self, book, rec):
+        """Update book.confirm_dir/confirm_streak/confirm_since for THIS reading.
+
+        Only ever called from update() - never from the public track(), which is how an
+        AI-desk book (tickets tracked but never issued by these rules) is tracked instead.
+        Such a book's confirm_dir simply stays None forever, which is exactly why the
+        reversal-exit check below (gated on confirm_dir being set) never fires for it: the
+        AI desk already re-asks itself on every candle close and decides in its own way.
+        """
+        direction = ((rec["bias"], rec["option_type"])
+                     if rec.get("bias") not in (None, "NEUTRAL") else None)
+        now = time.time()
+        if direction == book.confirm_dir:
+            book.confirm_streak += 1
+        else:
+            book.confirm_dir = direction
+            book.confirm_streak = 1
+            book.confirm_since = now
+        return direction
 
     def track(self, name, rec):
         """Check an open ticket against a fresh reading, and nothing else - no
@@ -695,6 +720,25 @@ class TicketBook:
             trade["status"] = (f"CLOSED — stop-loss hit (trailed to {trailed_to})" if trailed_to
                                else "CLOSED — stop-loss hit")
 
+        # A SUSTAINED REVERSAL (EARLY_EXIT_ON_REVERSAL, config.py - off by default, and only ever
+        # for a book update() tracks: see _track_direction). Checked only once target and stop have
+        # NOT already ended the trade this tick, so the two never race for the same close. The test
+        # is exactly the one a fresh entry itself has to pass - the same clock, the same tick count,
+        # just read against a position instead of nothing open - and firing it resets that clock, so
+        # the next ticket, either direction, has to earn its own confirmation from scratch: without
+        # that, this reversal's own just-satisfied clock would satisfy the entry gate again on the
+        # very next reading, reopening the churn CLOSE_ON_SIGNAL_FLIP existed to describe.
+        if trade["status"] == "OPEN" and _cfg("EARLY_EXIT_ON_REVERSAL", False):
+            rd = book.confirm_dir
+            need_s = _cfg("SIGNAL_CONFIRM_SECONDS", 0)
+            need_ticks = _cfg("SIGNAL_CONFIRM_TICKS", 1)
+            if (rd is not None and rd[1] != opt
+                    and need_s and (time.time() - (book.confirm_since or time.time())) >= need_s
+                    and book.confirm_streak >= need_ticks):
+                trade["status"] = "CLOSED — signal reversed and held"
+                book.confirm_since = time.time()
+                book.confirm_streak = 1
+
         if trade["status"] != "OPEN":
             events.append(self._close(book, trade, price, rec))
         elif ratcheted:
@@ -711,16 +755,8 @@ class TicketBook:
     def _consider(self, book, rec):
         """Whether to issue a ticket. The five gates, in the order the desktop
         applies them, with the same badge words."""
-        direction = ((rec["bias"], rec["option_type"])
-                     if rec.get("bias") not in (None, "NEUTRAL") else None)
+        direction = book.confirm_dir          # this reading's direction - set by update(), just before this ran
         now = time.time()
-        if direction == book.confirm_dir:
-            book.confirm_streak += 1
-        else:
-            book.confirm_dir = direction
-            book.confirm_streak = 1
-            book.confirm_since = now
-
         book.waiver_applied = False
 
         def hold(code, short, why):
