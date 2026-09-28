@@ -168,26 +168,47 @@ def _esc(s):
 # LOOK
 # ===========================================================================
 CSS = """
-/* Black. Kite's semantics kept — #4caf50 up, #ff5722 down, a blue accent,
-   hairline borders, 3px corners, no gradients — but inverted onto near-black,
-   because this is looked at for hours and a white field at 09:15 is a lamp
-   pointed at your face.
-
-   The accent is lifted from Kite's #4d94e8 to #4d94e8: the darker blue reads
-   fine on white and goes muddy on black, and an accent you have to hunt for
-   has stopped being one. Up and down keep their exact hues, because those two
-   carry meaning, and re-tuning them per theme is how a red comes to look like
-   an amber on one screen and not the other. */
+/* The tool's own Kite look, not a separate site theme - asked for by the user, 28 Sep 2026:
+   "i want all the images to be updated and the every data should be updated every text should be
+   updated and change the theme as well ... the same tool theme like zerodha theme white and dark."
+   These are web_server.py's own :root[data-look="kite"] variables, copied exactly rather than
+   re-derived, so a visitor who logs in after reading this site sees the identical white page, not
+   a close cousin of it - and the dark variant, activated by the same data-scheme="dark" attribute
+   and the same nbs.scheme.v1 localStorage key the app itself reads (same origin, so a choice made
+   on either carries to the other). White by default: this is a document read once, not a screen
+   watched for hours, so the lamp-in-your-face argument the app's own dark default rests on does not
+   apply here the same way. */
 :root{
-  /* Deep slate rather than flat black: a faint blue in the base lets the
-     accent, the green and the orange all sit on it without any one of
-     them looking pasted on. Ink and signal colours are unchanged. */
-  --bg:#0a0d14; --surface:#10141d; --raised:#161b26; --sunken:#0c1018;
-  --bd:#222938; --bd-soft:#1a2030;
-  --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#6f6f7b;
-  --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
+  --bg:#ffffff; --surface:#ffffff; --raised:#f9f9f9; --sunken:#f4f4f4;
+  --bd:#e0e0e0; --bd-soft:#eeeeee;
+  --ink:#444444; --ink-2:#666666; --ink-3:#6e6e6e;
+  --up:#388e3c; --down:#df514c; --warn:#b26a00; --accent:#387ed1;
+  --brand:#ff5722; --accent-strong:#2f6fc0;
+  /* the app's own pale amber "stale notice" tint (--note-*), reused here for .warm - the same
+     colours, not a close cousin of them */
+  --warm-bg:#fff8e1; --warm-bd:#f1dca0; --warm-ink:#5f4b00; --warm-strong:#8a5a00;
+  --ok-bg:#eaf5ea; --ok-bd:#b7dcb9; --ok-strong:#2e7d32;
+  --bad-bg:#fff4ef; --bad-bd:#ffd0bd; --bad-strong:#c2410c;
   --r:3px; --r-sm:3px;
 }
+:root[data-scheme="dark"]{
+  --bg:#1a1a1a; --surface:#1a1a1a; --raised:#232323; --sunken:#141414;
+  --bd:#363636; --bd-soft:#2a2a2a;
+  --ink:#e0e0e0; --ink-2:#b5b5b5; --ink-3:#9a9a9a;
+  --up:#4caf50; --down:#e8615c; --warn:#e8a33d; --accent:#4184f3;
+  --brand:#ff5722; --accent-strong:#2f6fc0;
+  --warm-bg:#2a2410; --warm-bd:#4d4318; --warm-ink:#e8dca8; --warm-strong:#f0c65a;
+  --ok-bg:#1c2e1f; --ok-bd:#2f5233; --ok-strong:#7ed492;
+  --bad-bg:#2f1d17; --bad-bd:#5a3324; --bad-strong:#ff8a65;
+}
+/* Kite's own rule, copied exactly: nothing moves, blurs, glows or casts a shadow. The hero's line
+   graph, the pipeline diagram and the reveal-on-scroll fade-ins all lose their motion here, not
+   because they were removed, but because this is what "no animation effects, pure kind of Zerodha"
+   (the app's own look, asked for 24 Sep 2026) means applied to a page that scrolls rather than one
+   that sits still - see kite_look_test.py for the app's version of this same rule. */
+*,*::before,*::after{animation:none !important;transition:none !important;text-shadow:none !important;
+  box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  scroll-behavior:auto !important}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);
@@ -207,27 +228,15 @@ a:hover{text-decoration:underline}
 .narrow{max-width:760px;margin:0}
 
 /* ---------- background ----------
-   Three soft glows fixed to the viewport - blue from the top left, green from
-   the top right, a little violet from below - over a faint chart grid that
-   fades out down the page. Cards stay solid on top of it, so it is felt in the
-   gutters and never behind a number you have to read. */
-body{background-color:var(--bg);
-  background-image:
-    radial-gradient(1100px 620px at 12% -8%, rgba(77,148,232,.14), transparent 62%),
-    radial-gradient(900px 520px at 100% 0%, rgba(76,175,80,.08), transparent 58%),
-    radial-gradient(1000px 700px at 50% 115%, rgba(176,122,212,.07), transparent 60%);
-  background-attachment:fixed}
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background-image:
-    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
-  background-size:40px 40px;
-  -webkit-mask-image:radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 80%);
-          mask-image:radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 80%)}
+   Kite's own rule: a flat surface, nothing behind the words. The three glows
+   and the chart-grid mask this page used to carry under its old dark-hero
+   look are gone with the theme itself - see the "nothing moves, blurs, glows"
+   rule above; a gradient can technically stand still, but it is the same
+   spirit that dropped it. */
+body{background-color:var(--bg)}
 
 /* ---------- header ---------- */
-header{position:sticky;top:0;z-index:30;background:rgba(10,13,20,.80);
-  backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--bd)}
+header{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--bd)}
 .hd{max-width:1060px;margin:0 auto;padding:11px 22px;display:flex;
   align-items:center;gap:18px;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.2px;
@@ -239,11 +248,14 @@ nav{display:flex;gap:20px;align-items:center;font-size:14px}
 nav a{color:var(--ink-2);font-weight:500;white-space:nowrap}
 nav a:hover{color:var(--ink);text-decoration:none}
 nav a.on{color:var(--ink);font-weight:650}
-.btn{display:inline-block;background:var(--accent);color:#fff;font-weight:700;
-  padding:9px 17px;border-radius:10px;font-size:14.5px;border:0;cursor:pointer;
+.btn{display:inline-block;background:var(--accent-strong);color:#fff;font-weight:700;
+  padding:9px 17px;border-radius:var(--r);font-size:14.5px;border:0;cursor:pointer;
   font-family:inherit}
-.btn:hover{text-decoration:none;filter:brightness(1.08)}
-.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--bd);box-shadow:none}
+.btn:hover{text-decoration:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--bd)}
+.lbtn{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);
+  color:var(--ink-2);font-size:13px;font-weight:500;padding:7px 12px;cursor:pointer;font-family:inherit}
+.lbtn:hover{background:var(--raised);color:var(--ink)}
 @media(max-width:1000px){nav .hide{display:none}}
 
 /* Below 1000px the header links are hidden to keep the bar from wrapping, so
@@ -271,7 +283,7 @@ nav a.on{color:var(--ink);font-weight:650}
 /* ---------- hero ---------- */
 .hero{padding:74px 0 8px;text-align:center}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--surface);
-  border:1px solid var(--bd);border-radius:999px;padding:6px 14px;font-size:12.5px;
+  border:1px solid var(--bd);border-radius:var(--r);padding:6px 14px;font-size:12.5px;
   font-weight:600;color:var(--ink-2);margin-bottom:26px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--up);flex:none}
 h1{font-size:clamp(34px,6vw,58px);line-height:1.08;margin:0 0 20px;
@@ -331,7 +343,7 @@ ol.steps p + p{margin-top:9px}
 .tbl td{padding:13px 14px 13px 0;border-bottom:1px solid var(--bd-soft);
   color:var(--ink-2);vertical-align:top}
 .tbl td:first-child{color:var(--ink);font-weight:650;white-space:nowrap}
-.tbl code{background:var(--raised);border-radius:5px;padding:2px 6px;font-size:13px}
+.tbl code{background:var(--raised);border-radius:var(--r);padding:2px 6px;font-size:13px}
 
 /* ---------- figures ---------- */
 figure{margin:0 0 44px}
@@ -360,25 +372,25 @@ figcaption b{color:var(--ink);display:block;margin-bottom:3px}
   text-transform:uppercase;margin-top:4px}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size:.92em;background:var(--sunken);border:1px solid var(--bd-soft);
-  border-radius:4px;padding:2px 7px;color:var(--ink);
+  border-radius:var(--r);padding:2px 7px;color:var(--ink);
   overflow-wrap:anywhere}
 
 /* ---------- callouts ---------- */
 .callout{border-radius:var(--r);padding:26px 28px 22px;margin:0}
 .callout h2,.callout h3{margin-top:0}
 .callout p:last-child{margin-bottom:0}
-.warm{background:#1c1710;border:1px solid #3a2f18;color:#d8c9a8}
-.warm .kicker{color:#e0a93a}
-.warm h2,.warm h3{color:#f0bf55}
-.warm b{color:#f7d489}
-.warm a{color:#f0bf55;text-decoration:underline}
+.warm{background:var(--warm-bg);border:1px solid var(--warm-bd);color:var(--warm-ink)}
+.warm .kicker{color:var(--warm-strong)}
+.warm h2,.warm h3{color:var(--warm-strong)}
+.warm b{color:var(--warm-strong)}
+.warm a{color:var(--warm-strong);text-decoration:underline}
 .cool{background:var(--surface);border:1px solid var(--bd);color:var(--ink-2)}
 .figs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0 20px}
 @media(max-width:760px){.figs{grid-template-columns:repeat(2,1fr)}}
-.fig{background:#221c12;border:1px solid #3a2f18;border-radius:var(--r-sm);
+.fig{background:var(--warm-bg);border:1px solid var(--warm-bd);border-radius:var(--r-sm);
   padding:16px 16px 14px}
-.fig .n{font-size:25px;font-weight:700;letter-spacing:-.6px;color:#f0bf55;line-height:1.1}
-.fig .l{font-size:12px;color:#b3a894;margin-top:5px;line-height:1.45}
+.fig .n{font-size:25px;font-weight:700;letter-spacing:-.6px;color:var(--warm-strong);line-height:1.1}
+.fig .l{font-size:12px;color:var(--ink-2);margin-top:5px;line-height:1.45}
 
 /* ---------- lists with marks ---------- */
 ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:11px}
@@ -386,8 +398,8 @@ ul.plain li{display:flex;gap:12px;align-items:flex-start;color:var(--ink-2);font
 ul.plain .x,ul.plain .t{flex:none;width:20px;height:20px;border-radius:50%;
   font-size:12px;display:flex;align-items:center;justify-content:center;
   margin-top:2px;font-weight:700}
-ul.plain .x{background:#2a1610;border:1px solid #5c2a18;color:#ff8a65}
-ul.plain .t{background:#122017;border:1px solid #1f4a2c;color:#7ed492}
+ul.plain .x{background:var(--bad-bg);border:1px solid var(--bad-bd);color:var(--bad-strong)}
+ul.plain .t{background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ok-strong)}
 
 /* ---------- faq ---------- */
 details{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-sm);
@@ -412,9 +424,9 @@ details p{color:var(--ink-2);font-size:14.5px;margin:12px 0 0}
 /* ---------- footer ---------- */
 footer{border-top:1px solid var(--bd-soft);padding:48px 0 60px;color:var(--ink-3);
   font-size:13.5px;margin-top:70px;background:var(--sunken)}
-footer .legal{background:#1c1710;border:1px solid #3a2f18;border-radius:var(--r-sm);
-  padding:18px 20px;margin-bottom:32px;line-height:1.7;color:#c9bc9e;font-size:13px}
-footer .legal b{color:#f0bf55}
+footer .legal{background:var(--warm-bg);border:1px solid var(--warm-bd);border-radius:var(--r-sm);
+  padding:18px 20px;margin-bottom:32px;line-height:1.7;color:var(--warm-ink);font-size:13px}
+footer .legal b{color:var(--warm-strong)}
 .fcols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:26px;margin-bottom:30px}
 @media(max-width:760px){.fcols{grid-template-columns:1fr 1fr}}
 .fcols h5{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--ink-3);
@@ -449,20 +461,17 @@ footer .legal b{color:#f0bf55}
   html.js .reveal[data-d="2"]{transition-delay:.14s}
   html.js .reveal[data-d="3"]{transition-delay:.21s}
 
-  /* The hero chart draws itself once, the way a chart actually fills in. */
-  .drawline{stroke-dasharray:1200;stroke-dashoffset:1200;
-    animation:draw 2.2s cubic-bezier(.3,.8,.4,1) .3s forwards}
-  @keyframes draw{to{stroke-dashoffset:0}}
-  .fadein{opacity:0;animation:fadein .5s ease 1.6s forwards}
-  @keyframes fadein{to{opacity:1}}
-  .popin{opacity:0;transform:scale(.82);
-    animation:popin .45s cubic-bezier(.2,1.4,.4,1) forwards}
-  @keyframes popin{to{opacity:1;transform:scale(1)}}
-
-  /* The one continuous loop: a pulse travelling the pipeline, which is the
-     diagram saying "this runs every second" rather than being ornament. */
-  .flow{stroke-dasharray:5 9;animation:flow 1.4s linear infinite}
-  @keyframes flow{to{stroke-dashoffset:-14}}
+  /* Kite draws nothing in - these used to animate to their visible state
+     (a drawn line, a fade, a pop), and the site-wide "nothing moves" rule
+     above kills animation globally, which would otherwise leave every one
+     of these stuck at its HIDDEN starting frame forever. Same principle the
+     comment above already established for .reveal: the animation was
+     decoration, so losing it must never take the content with it - these
+     are simply set to their finished state directly. */
+  .drawline{stroke-dashoffset:0}
+  .fadein{opacity:1}
+  .popin{opacity:1;transform:none}
+  .flow{stroke-dasharray:5 9}
 }
 @media(prefers-reduced-motion:reduce){
   html.js .reveal{opacity:1;transform:none}
@@ -479,8 +488,8 @@ footer .legal b{color:#f0bf55}
   fill:var(--ink-2);text-transform:uppercase}
 .dg-sub{font-size:10.5px;fill:var(--ink-3)}
 .dg-box{fill:var(--raised);stroke:var(--bd)}
-.dg-gate{fill:#1c1710;stroke:#3a2f18}
-.dg-out{fill:#122017;stroke:#1f4a2c}
+.dg-gate{fill:var(--warm-bg);stroke:var(--warm-bd)}
+.dg-out{fill:var(--ok-bg);stroke:var(--ok-bd)}
 .dg-wait{fill:var(--raised);stroke:var(--bd)}
 .dg-wire{stroke:var(--bd);stroke-width:1.5;fill:none}
 
@@ -497,7 +506,7 @@ footer .legal b{color:#f0bf55}
 label.f{display:block;font-size:12px;color:var(--ink-2);font-weight:700;
   margin:14px 0 6px;letter-spacing:.2px}
 input[type=email],input[type=password],input[type=text]{width:100%;background:var(--sunken);
-  color:var(--ink);border:1px solid var(--bd);border-radius:9px;padding:11px 12px;
+  color:var(--ink);border:1px solid var(--bd);border-radius:var(--r);padding:11px 12px;
   font-size:15px;font-family:inherit}
 input:focus{outline:2px solid var(--accent);outline-offset:1px}
 button.wide{width:100%;margin-top:20px}
@@ -507,16 +516,16 @@ button.wide{width:100%;margin-top:20px}
   padding:11px 13px;font-size:13.5px;margin-bottom:16px}
 .warnbox{background:#1c1710;border:1px solid #3a2f18;color:#d8c9a8;border-radius:var(--r-sm);
   padding:11px 13px;font-size:13.5px;margin-bottom:16px}
-.warnbox b{color:#f0bf55}
+.warnbox b{color:var(--warm-strong)}
 .hint{color:var(--ink-3);font-size:12.5px;margin-top:8px}
 .alt{text-align:center;margin-top:16px;font-size:13.5px;color:var(--ink-3)}
-.state{display:inline-flex;align-items:center;gap:8px;border-radius:999px;
+.state{display:inline-flex;align-items:center;gap:8px;border-radius:var(--r);
   padding:6px 13px;font-size:12.5px;font-weight:700;border:1px solid var(--bd);
   background:var(--surface);color:var(--ink-2)}
 .state .d{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ink-3)}
-.state.on{background:#122017;border-color:#1f4a2c;color:#7ed492}
+.state.on{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok-strong)}
 .state.on .d{background:var(--up)}
-.state.off{background:#1c1710;border-color:#3a2f18;color:#e0a93a}
+.state.off{background:var(--warm-bg);border-color:var(--warm-bd);color:var(--warm-strong)}
 .state.off .d{background:var(--warn)}
 .rows{margin:18px 0 0;border-top:1px solid var(--bd-soft)}
 .row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;
@@ -565,200 +574,6 @@ LOGO = ('<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden
 # ===========================================================================
 # SHELL
 # ===========================================================================
-# ---------------------------------------------------------------------------
-# THE 3D LAYER — nbs-signal-3d.html on the public site, in CSS alone.
-# ---------------------------------------------------------------------------
-# The tool draws this scene on a canvas; the site cannot, because vercel.json
-# sends script-src 'none' - deliberately, a marketing site has no business
-# running code - so here it is built from CSS: drifting fields of green and
-# amber points, two floating glows, and a slowly turning candlestick chart of
-# real CSS 3D boxes, glass cards over the top. The candles are Nifty's last
-# fourteen 15-minute bars from the most recent day the option recorder saved,
-# baked in when the site is exported, so it is a real chart and not a drawing.
-def _dots(seed, n, w, h, rgb, alpha, rmax):
-    import random
-    rnd = random.Random(seed)
-    out = []
-    for _ in range(n):
-        x, y = rnd.randint(0, w), rnd.randint(0, h)
-        r = round(rnd.uniform(.6, rmax), 1)
-        a = round(alpha * rnd.uniform(.55, 1.0), 2)
-        out.append(f"radial-gradient({r}px {r}px at {x}px {y}px,"
-                   f"rgba({rgb},{a}) 99%,transparent 100%)")
-    return ",".join(out)
-
-
-_SCENE_CACHE = {}
-
-
-def _scene_candles():
-    """The background scene's candles, built again only when the history file changes.
-
-    Every public page (login, privacy, terms, ...) draws this scene, and building it
-    reads a compressed price-history file with pandas: measured 24 Sep 2026 at
-    0.25-0.4 s on the server for EVERY page view, against 1 ms for a page that does
-    not. The file changes once a day, so its path, size and modification time are the
-    key, and a new file (or a half-written one being replaced) simply rebuilds it."""
-    import glob
-    import os
-    files = sorted(glob.glob(os.path.expanduser("~/trading-tool-logs/option_history/*.csv.gz")))
-    try:
-        st = os.stat(files[-1]) if files else None
-        key = (files[-1], st.st_mtime_ns, st.st_size) if st else None
-    except OSError:
-        key = None
-    hit = _SCENE_CACHE.get("scene")
-    if hit is not None and hit[0] == key:
-        return hit[1]
-    html = _scene_candles_build(files)
-    _SCENE_CACHE["scene"] = (key, html)
-    return html
-
-
-def _scene_candles_build(files):
-    """Nifty's latest 14 fifteen-minute candles, or a stand-in shape."""
-    import math
-    bars = []
-    try:
-        import pandas as pd
-        if files:
-            d = pd.read_csv(files[-1])
-            x = d[(d["kind"] == "IDX") & (d["index"] == "NIFTY")].copy()
-            x["ts"] = pd.to_datetime(x["ts"])
-            b = (x.set_index("ts").resample("15min")
-                 .agg({"open": "first", "high": "max", "low": "min", "close": "last"})
-                 .dropna().tail(14))
-            bars = [(r.open, r.high, r.low, r.close) for r in b.itertuples()]
-    except Exception:
-        bars = []
-    if len(bars) < 6:
-        p, bars = 100.0, []
-        for i in range(14):
-            o = p
-            p += math.sin(i * 1.7) * 3 - .6
-            bars.append((o, max(o, p) + 1.6, min(o, p) - 1.6, p))
-    hi = max(b[1] for b in bars)
-    lo = min(b[2] for b in bars)
-    k = 220.0 / max(hi - lo, 1e-9)
-    html = []
-    for i, (o, h, l, c) in enumerate(bars):
-        top, bot = (max(o, c) - lo) * k, (min(o, c) - lo) * k
-        body = max(top - bot, 3.0)
-        cls = "u" if c >= o else "d"
-        html.append(
-            f'<div class="cb {cls}" style="left:{i * 34}px;bottom:{bot:.0f}px;'
-            f'--h:{body:.0f}px">'
-            f'<i class="wk" style="bottom:{(l - lo) * k - bot:.0f}px;'
-            f'height:{(h - l) * k:.0f}px"></i>'
-            f'<i class="fr"></i><i class="sd"></i><i class="tp"></i></div>')
-    return "".join(html)
-
-
-def scene_html():
-    return ('<div class="scene" aria-hidden="true">'
-            '<div class="stars s1"></div><div class="stars s2"></div>'
-            '<div class="stars s3"></div>'
-            '<div class="orb og"></div><div class="orb oa"></div>'
-            f'<div class="c3d"><div class="c3r">{_scene_candles()}</div></div>'
-            '</div>')
-
-
-SCENE_CSS = """
-/* =================== the 3D layer (CSS only) =================== */
-:root{
-  --bg:#05060a; --surface:rgba(255,255,255,.04); --raised:rgba(255,255,255,.07);
-  --sunken:rgba(6,8,12,.7); --bd:rgba(255,255,255,.09); --bd-soft:rgba(255,255,255,.06);
-  --ink:#f0f2f6; --ink-2:#a3aabb; --ink-3:#6b7282;
-  --up:#2be08a; --down:#ef5570; --warn:#f2a33d;
-  --glow-up:rgba(43,224,138,.45); --r:16px; --r-sm:12px;
-}
-html{background:#05060a}
-body{background:transparent}
-body::before{display:none}
-.scene{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
-  background:radial-gradient(900px 600px at 85% 12%,rgba(43,224,138,.07),transparent 60%),
-             radial-gradient(800px 600px at 8% 92%,rgba(242,163,61,.05),transparent 60%),#05060a}
-.stars{position:absolute;left:0;top:0;width:calc(100% + 800px);height:calc(100% + 600px);
-  will-change:transform}
-.s1{background-image:""" + _dots(1, 16, 520, 380, "43,224,138", .6, 1.6) + """;
-  background-size:520px 380px;animation:drift1 140s linear infinite}
-.s2{background-image:""" + _dots(2, 14, 700, 460, "242,163,61", .36, 1.3) + """;
-  background-size:700px 460px;animation:drift2 190s linear infinite}
-.s3{background-image:""" + _dots(3, 12, 300, 260, "43,224,138", .28, 1.0) + """;
-  background-size:300px 260px;animation:drift3 90s linear infinite;opacity:.8}
-@keyframes drift1{to{transform:translate(-520px,-380px)}}
-@keyframes drift2{from{transform:translate(-700px,-460px)}to{transform:translate(0,0)}}
-@keyframes drift3{to{transform:translate(-300px,-520px)}}
-.orb{position:absolute;border-radius:50%;filter:blur(10px)}
-.og{width:700px;height:700px;right:-120px;top:-160px;
-  background:radial-gradient(circle,rgba(43,224,138,.30),rgba(43,224,138,.10) 40%,transparent 70%);
-  animation:float1 12s ease-in-out infinite}
-.oa{width:520px;height:520px;left:-160px;bottom:-160px;
-  background:radial-gradient(circle,rgba(242,163,61,.22),rgba(242,163,61,.07) 40%,transparent 70%);
-  animation:float2 15s ease-in-out infinite}
-@keyframes float1{50%{transform:translateY(40px);opacity:.8}}
-@keyframes float2{50%{transform:translateX(50px)}}
-
-/* the candlestick chart, as CSS 3D boxes */
-.c3d{position:absolute;right:-1%;top:16%;width:480px;height:260px;perspective:1100px;opacity:.36;
-  transform:scale(.8);transform-origin:right top}
-.c3r{position:absolute;inset:0;transform-style:preserve-3d;
-  transform:rotateX(10deg) rotateY(-22deg);animation:sway 16s ease-in-out infinite}
-@keyframes sway{50%{transform:rotateX(8deg) rotateY(-14deg) translateY(-12px)}}
-.cb{position:absolute;width:18px;height:var(--h);transform-style:preserve-3d}
-.cb i{position:absolute;display:block}
-.cb .fr{inset:0;border-radius:2px}
-.cb .sd{top:0;right:-6px;width:6px;height:100%;transform-origin:left;transform:rotateY(90deg)}
-.cb .tp{left:0;top:-6px;width:100%;height:6px;transform-origin:bottom;transform:rotateX(90deg)}
-.cb .wk{left:8.5px;width:1px;background:rgba(139,147,163,.45);transform:translateZ(-3px)}
-.cb.u .fr{background:linear-gradient(180deg,#4dffab,#0f9b57);box-shadow:0 0 18px rgba(43,224,138,.35)}
-.cb.u .sd{background:#0b6e3e} .cb.u .tp{background:#5dffb6}
-.cb.d .fr{background:linear-gradient(180deg,#ff7a91,#a5203c);box-shadow:0 0 18px rgba(239,85,112,.3)}
-.cb.d .sd{background:#7a1a2e} .cb.d .tp{background:#ff8ea2}
-
-/* glass */
-header{background:rgba(5,6,10,.62);border-bottom:1px solid var(--bd-soft)}
-.card,ol.steps li,details,.next a,.panel,.diagram,.mcard button,.cool,.eyebrow,
-footer .legal,.warm,.fig{
-  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),rgba(9,11,17,.72);
-  border:1px solid var(--bd);border-radius:16px;
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  box-shadow:0 20px 40px -25px rgba(0,0,0,.7)}
-.eyebrow{border-radius:999px}
-.warm,footer .legal{border-color:rgba(242,163,61,.3);
-  background:linear-gradient(180deg,rgba(242,163,61,.08),rgba(242,163,61,.02)),rgba(9,11,17,.72)}
-.fig{border-color:rgba(242,163,61,.3)}
-.shotwrap,figure img{border-radius:16px;border-color:var(--bd);
-  box-shadow:0 40px 100px -30px rgba(0,0,0,.8),0 0 90px -30px var(--glow-up)}
-footer{background:rgba(5,6,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.subnav{background:rgba(5,6,10,.8)}
-.btn{background:linear-gradient(180deg,#5aa2ee,#3a7fd0)}
-.btn.ghost{background:rgba(255,255,255,.04)}
-.hero h1{text-shadow:0 0 50px rgba(43,224,138,.25)}
-.dot{box-shadow:0 0 10px var(--glow-up)}
-.card .idx,.kicker{color:var(--up)}
-.tbl code{background:rgba(255,255,255,.07)}
-.dg-box,.dg-wait{fill:rgba(255,255,255,.05)}
-
-/* depth on hover - the CSS stand-in for the tool's cursor tilt */
-.card,ol.steps li,.next a,.mcard button{transition:transform .25s ease,box-shadow .3s ease,border-color .3s}
-.card:hover,ol.steps li:hover,.next a:hover,.mcard button:hover{
-  transform:perspective(900px) rotateX(2deg) translateY(-3px);
-  border-color:rgba(43,224,138,.35);
-  box-shadow:0 0 0 1px rgba(43,224,138,.15),0 25px 60px -20px var(--glow-up)}
-
-@media (prefers-reduced-motion: reduce){
-  .stars,.orb,.c3r{animation:none}
-  .card,ol.steps li,.next a,.mcard button{transition:none}
-  .card:hover,ol.steps li:hover,.next a:hover,.mcard button:hover{transform:none}
-}
-/* Beside the centred hero text only when there is room for it to be beside. */
-@media (max-width:1180px){.c3d{display:none}}
-@media (max-width:760px){
-  .c3d{display:none}
-  .card,ol.steps li,details,.panel{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-}
-"""
 
 
 def shell(title, body, user=None, active="", description="", noindex=False):
@@ -783,19 +598,34 @@ def shell(title, body, user=None, active="", description="", noindex=False):
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <script>document.documentElement.className+=" js"</script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 {'<meta name="robots" content="noindex">' if noindex else ''}
 <meta name="description" content="{_esc(description or (BRAND + ' — a rule-based decision-support screen for Nifty, Bank Nifty and Sensex index options. Not advice, not SEBI-registered.'))}">
 <title>{_esc(title) if title.startswith(BRAND) else _esc(title) + ' — ' + _esc(BRAND)}</title>
-<style>{CSS}{SCENE_CSS}</style>
+<style>{CSS}</style>
+<script>
+// The same white-by-default, dark-on-choice scheme as the app, read from the SAME localStorage key
+// (same origin, so a choice made on either side carries to the other) - set before anything paints,
+// so the page never flashes white then dark.
+(function(){{
+  const de = document.documentElement;
+  let scheme = "light";
+  try{{
+    const v = localStorage.getItem("nbs.scheme.v1");
+    scheme = (v === "dark" || v === "light") ? v : "light";
+  }}catch(e){{}}
+  de.dataset.scheme = scheme;
+  const m = document.querySelector('meta[name="color-scheme"]');
+  if(m) m.setAttribute("content", scheme);
+}})();
+</script>
 </head><body>
-{scene_html()}
 
 <header><div class="hd">
  <a class="brand" href="/">{LOGO}<div>{_esc(BRAND)}<small>{_esc(TAGLINE)}</small></div></a>
- <nav>{links}{cta}</nav>
+ <nav>{links}<button class="lbtn" type="button" id="schemebtn">Theme</button>{cta}</nav>
 </div></header>
 <div class="subnav"><ul>{sublinks}</ul></div>
 
@@ -880,6 +710,20 @@ def shell(title, body, user=None, active="", description="", noindex=False):
 
   // The backstop. Whatever happened above, nothing stays invisible for long.
   setTimeout(showAll, 3000);
+}})();
+
+// The theme switch: same localStorage key as the app (nbs.scheme.v1), so a
+// choice made here or in the tool carries to the other, same origin.
+(function(){{
+  var btn = document.getElementById("schemebtn");
+  if(!btn) return;
+  var cur = document.documentElement.dataset.scheme === "dark" ? "dark" : "light";
+  btn.textContent = "Theme: " + (cur === "dark" ? "Dark" : "White");
+  btn.addEventListener("click", function(){{
+    var next = cur === "dark" ? "light" : "dark";
+    try{{ localStorage.setItem("nbs.scheme.v1", next); }}catch(e){{}}
+    location.reload();
+  }});
 }})();
 </script>
 </body></html>"""
