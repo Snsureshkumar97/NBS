@@ -87,6 +87,21 @@ EVENT_REVIEW_GAP_S = 300
 # actually enter.
 MAX_EVENT_ENTRIES = 6
 EVENT_ENTRY_GAP_S = 300
+# Asked for by the user on 28 Sep 2026 ("everytime it gives me explanations but doest actual
+# enters any trades... even after it does again it will give me any other reason"): neither path
+# above checked whether there was even a plausible case before paying for a model call - the
+# scheduled clock asks every 15-minute candle regardless of the rule engine's own view, which on
+# Bitcoin's 24/7 clock alone is up to 96 asks a day before a single event trigger fires. These are
+# free checks - no model call, reusing data the feed already computes for the live page - built
+# from the same reasons the model itself gave over and over in its own "wait" answers on the live
+# account's decision log: a marginal ADX crossing, buying into a move that has already run most of
+# the day's range, and taker flow actively disagreeing with the side under consideration. None of
+# them is a reason TO enter by itself - only ever a reason not to ask, on a case this thin. See
+# _worth_asking() below and t1_ratchet_delay_study.py's neighbour, ai_prefilter_backtest.py, for
+# how these were checked against the account's own real history before being wired in.
+PREFILTER_ADX_MARGIN = 2.0        # ADX must clear the trend gate by at least this much to ask at all
+PREFILTER_MAX_RANGE_POS = 85.0    # skip a BULLISH ask this far into the day's range already (chasing) - mirrored for BEARISH
+PREFILTER_TAKER_FLOW_VETO = 15.0  # skip when 15m taker CVD disagrees with the side by at least this much (BTC only)
 ENTRY_LABELS = {"trend_started": "ADX crossed above the trend gate",
                "momentum_turned": "MACD histogram turned - momentum changed side",
                "vwap_crossed": "Price crossed VWAP",
@@ -365,6 +380,8 @@ class AIDesk:
                 why = self.entry_block(name)
                 if why:
                     continue                     # not asked at all: nothing to decide, nothing billed
+                if not self._worth_asking(name, rec):
+                    continue                     # the free pre-check found no plausible case - see PREFILTER_* above
                 self._entry(name, rec, client)
             self._save()
         self._save()
@@ -423,6 +440,9 @@ class AIDesk:
                 rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec")
             if not rec:
                 continue
+            if not self._worth_asking(name, rec):
+                continue                     # a free pre-check found no plausible case - not asked, not billed,
+                                              # and does not spend one of today's MAX_EVENT_ENTRIES looks either
             self.event_entries[name] = self.event_entries.get(name, 0) + 1
             self.last_event_entry[name] = self.clock()
             self._entry(name, rec, client, why=sorted(set(why)))
@@ -518,6 +538,39 @@ class AIDesk:
             return round(float(entry) * float(lot_size) * float(lots or 1), 2)
         except (TypeError, ValueError):
             return None
+
+    def _worth_asking(self, name, rec):
+        """A free pre-check before EITHER path (scheduled or event) pays for a model call - see
+        PREFILTER_* above for why. True only means there is at least a plausible case to put to
+        the model; it changes nothing else - entry_block(), the daily cap and event_entries all
+        still apply exactly as before to whatever gets through this."""
+        bias = rec.get("bias") if rec else None
+        if bias not in ("BULLISH", "BEARISH"):
+            return False
+        tech = rec.get("technical") or {}
+        adx = tech.get("adx")
+        gate = (config.strictness() or {}).get("adx", config.ADX_TREND_THRESHOLD)
+        if adx is None or adx < gate + PREFILTER_ADX_MARGIN:
+            return False
+        pos = (rec.get("trend") or {}).get("range_pos_pct")
+        if pos is not None:
+            if bias == "BULLISH" and pos >= PREFILTER_MAX_RANGE_POS:
+                return False
+            if bias == "BEARISH" and pos <= (100 - PREFILTER_MAX_RANGE_POS):
+                return False
+        if hasattr(self.feed, "taker_flow"):
+            try:
+                import taker_flow
+                tf = taker_flow.brief(self.feed.taker_flow(name))
+            except Exception:
+                tf = None
+            cvd = (tf or {}).get("cvd_15m_pct")
+            if cvd is not None:
+                if bias == "BULLISH" and cvd <= -PREFILTER_TAKER_FLOW_VETO:
+                    return False
+                if bias == "BEARISH" and cvd >= PREFILTER_TAKER_FLOW_VETO:
+                    return False
+        return True
 
     def entry_block(self, name):
         """Why no AI entry may be considered on this index right now, or None."""
