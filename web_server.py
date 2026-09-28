@@ -4862,13 +4862,16 @@ button.mgroup:hover{color:var(--ink-2)}
    <div class="watchwrap"><table class="watch" id="aiclosed"></table></div>
    <div class="gnote" id="ainote"></div>
    <div class="botwatchnote" style="margin-top:14px">Each index has its own switch. When it is on, Ask TradePicker
-    picks its own entries, targets and stops for that index from every section of the tool, at each 15-minute
-    close, on paper - nothing is ever sent to Zerodha. It runs beside the rule tickets with a record of its own.
-    The tool still enforces the session, the loss limit, at most 4 AI entries a day across the market (2 per
-    index), a 30-minute wait after an exit, and no contract twice in a day. Two things do not wait for the next
-    close: the tool closes a trade itself once it has come 60% of the way to its target and then given back half
-    of that gain, and the bot is asked to review as soon as a trade turns - halfway to its stop, ADX below the
-    gate, MACD against it, or no progress for 30 minutes. Each decision is billed to your Anthropic key.</div>
+    picks its own entries, targets and stops for that index from every section of the tool - at each 15-minute
+    close, and again the instant a real trigger fires between closes (an ADX crossing, momentum turning, a VWAP
+    cross, an opening-range break) - on paper - nothing is ever sent to Zerodha. A free check runs before either
+    kind of ask ever reaches the model: no view from the rules, a marginal reading, chasing a move that has
+    mostly already run, or (on Bitcoin) order flow arguing the other way are reasons not to ask, never reasons
+    to enter. It runs beside the rule tickets with a record of its own. The tool still enforces the session, the
+    loss limit, at most 4 AI entries a day across the market (2 per index), a 30-minute wait after an exit, and
+    no contract twice in a day. Once a trade is open its stop only ever moves up, in stages, as it nears its
+    target, and the bot is asked to review as soon as it turns - halfway to its stop, ADX below the gate, MACD
+    against it, or no progress for 30 minutes. Each decision is billed to your Anthropic key.</div>
   </div>
  </section>
 
