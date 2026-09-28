@@ -73,17 +73,21 @@ def open_one(b):
     feed(b, rec(), n=config.SIGNAL_CONFIRM_SECONDS + 5)
     return b.books["NIFTY"].trade
 
-print("1. OFF BY DEFAULT")
-check("EARLY_EXIT_ON_REVERSAL is False in the shipped config", config.EARLY_EXIT_ON_REVERSAL is False)
-
-print("2. WITH IT OFF, EVEN A LONG SUSTAINED REVERSAL CHANGES NOTHING (today's behaviour, unchanged)")
-book = new_book()
-t = open_one(book)
-check("a first ticket opens", t is not None and t["status"] == "OPEN")
-feed(book, rec("PE", spot=24500.0), n=config.SIGNAL_CONFIRM_SECONDS + 60)   # the opposite side, held far longer than needed - spot 24500 touches neither the frozen stop (24440) nor T1 (24560)
-check("...and is still open: nothing closes it without the switch", book.books["NIFTY"].trade["status"] == "OPEN")
+print("1. SWITCHED ON 27 Sep 2026 - KEPT by reversal_exit_study.py (better in both periods; config.py has the numbers)")
+check("EARLY_EXIT_ON_REVERSAL is True in the shipped config", config.EARLY_EXIT_ON_REVERSAL is True)
 
 _saved = config.EARLY_EXIT_ON_REVERSAL
+config.EARLY_EXIT_ON_REVERSAL = False
+try:
+    print("2. WITH IT OFF, EVEN A LONG SUSTAINED REVERSAL CHANGES NOTHING (the switch genuinely gates this)")
+    book = new_book()
+    t = open_one(book)
+    check("a first ticket opens", t is not None and t["status"] == "OPEN")
+    feed(book, rec("PE", spot=24500.0), n=config.SIGNAL_CONFIRM_SECONDS + 60)   # the opposite side, held far longer than needed - spot 24500 touches neither the frozen stop (24440) nor T1 (24560)
+    check("...and is still open: nothing closes it without the switch", book.books["NIFTY"].trade["status"] == "OPEN")
+finally:
+    config.EARLY_EXIT_ON_REVERSAL = _saved
+
 config.EARLY_EXIT_ON_REVERSAL = True
 try:
     print("3. A BRIEF REVERSAL - LESS THAN THE CONFIRMATION WINDOW - CHANGES NOTHING")

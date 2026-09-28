@@ -905,10 +905,20 @@ CLOSE_ON_SIGNAL_FLIP = False
 #    that reset, a reversal that just satisfied the confirmation gate would satisfy it again on
 #    the very next reading, and this would reopen CLOSE_ON_SIGNAL_FLIP's churn by another door.
 #
-#    Off by default: this changes when a real trade exits, and per this file's own standing
-#    practice such a change is adopted only once it has been run through pro_study.py /
-#    regime_study.py (in-sample vs held-out, after costs) and it has held up.
-EARLY_EXIT_ON_REVERSAL = False
+#    Run through reversal_exit_study.py before being trusted, per this file's own standing practice -
+#    against today's real entry gates (tickets.py's own _regime_hold / _divergence_hold / _reward_hold
+#    / _spread_hold, called directly, not a snapshot of them), pro_study.py's own pricing (real
+#    expiries, Zerodha's costs). History to 11 Sep 2026, per lot after costs, pooled NIFTY/BANKNIFTY/
+#    SENSEX (3,627 trades in-sample, 2,385 held-out in both rows - only the exit differs; 328 of 6,012
+#    trades, 5.5%, exited earlier than the live hold-to-target/stop would have):
+#                    hold to T2/stop (before)         with this
+#   in-sample        +643,422  PF 1.17  DD 163,495    +652,688  PF 1.17  DD 161,734
+#   held-out year     +224,975  PF 1.08  DD 288,442   +252,730  PF 1.10  DD 273,776
+# Better in both periods, with a shallower held-out drawdown. Switched on 27 Sep 2026 at the user's
+# choice. One caveat the study cannot resolve: it can only see whether a 15-minute candle's CLOSE read
+# a reversed signal, not whether that reading had genuinely held the full 120s/4 readings by then - so
+# this is not proof live performs exactly this well, a reason to watch it, not a guarantee.
+EARLY_EXIT_ON_REVERSAL = True
 
 _STRICTNESS = {
     "strict":   {"min_agree": 3, "max_dissent": 1, "adx": 20, "min_rr": 0.6},
