@@ -3114,7 +3114,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .jbadge.ai{color:#b07d15;border-color:rgba(176,125,21,.45)}
 .jbadge.live{color:var(--up);border-color:rgba(76,175,80,.45)}
 .tvframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:0;border-radius:12px;background:#0b0e14}
-#jdaytbl td:nth-child(-n+3),#jdaytbl th:nth-child(-n+3),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
+#jdaytbl td:nth-child(-n+5),#jdaytbl th:nth-child(-n+5),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
 #jdaytbl td.jnote{white-space:normal;min-width:180px;max-width:320px;color:var(--ink-2)}
 .rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
 .rrcard:empty{display:none}
@@ -5879,11 +5879,19 @@ function jdayPaint(d){
   const tot = lines.reduce((t, e) => t + e.gross, 0);
   $("jdaytitle").textContent = `${jdate(JN_DAY)} · ` + (lines.length ? `${lines.length} trade${lines.length === 1 ? "" : "s"} · ${money(tot)}` : "no trades");
   const dp = v => v == null ? "—" : num(v, 2);
+  // The strike's own day range (a ticket tracked on its live premium, or a manual CE/PE trade) - what
+  // the entry and exit were actually measured against, not the index's. "—" where it is not known:
+  // crypto, an index-tracked ticket, or a day record_options.py has not recorded (including today,
+  // before its own job runs after the close).
+  const srange = e => e.strike_day_high == null || e.strike_day_low == null ? "—"
+    : `${num(e.strike_day_low, 2)} – ${num(e.strike_day_high, 2)}`;
   $("jdaytbl").innerHTML = lines.length
-    ? `<thead><tr><th>Source</th><th>Time</th><th>Contract</th><th>Lots</th><th>Cost</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
+    ? `<thead><tr><th>Source</th><th>Entered</th><th>Closed</th><th>Contract</th><th>Strike range</th><th>Lots</th><th>Cost</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
       + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : e.source === "ai" ? '<span class="jbadge ai">AI</span>' : '<span class="jbadge">Tool</span>'}${e.live ? ' <span class="jbadge live" title="A real order: the entry, exit and result are what ' + esc(e.live === "delta" ? "Delta" : "Zerodha") + ' filled at">Live</span>' : ""}</td>`
+        + `<td>${esc(e.entry_time || "")}</td>`
         + `<td>${esc(e.time || "")}</td>`
         + `<td class="sym">${esc(e.instrument || "")} ${e.strike != null ? esc(String(e.strike)) : ""} ${esc(e.side || "")}${e.dir === "sell" ? " sold" : ""}</td>`
+        + `<td>${srange(e)}</td>`
         + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${e.cost == null ? "—" : num(e.cost, 0)}</td><td>${dp(e.entry)}</td><td>${dp(e.exit)}</td>`
         + `<td style="color:${jcol(e.gross)}">${money(e.gross)}</td>`
         + `<td>${e.charges == null ? "—" : money(e.charges, false) + (e.charges_estimated ? " est." : "")}</td>`

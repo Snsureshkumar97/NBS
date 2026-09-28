@@ -227,6 +227,69 @@ def ai_log_path(email, market):
     return os.path.join(os.path.dirname(trade_log.user_log_path(email, market)), "ai_trades.csv")
 
 
+# ---------------------------------------------------------------------------
+# a strike's own day range, for a ticket tracked on its live premium
+# ---------------------------------------------------------------------------
+# One shared file per calendar day, not per account: record_options.py saves real minute candles for
+# every strike an Indian-index ticket could have suggested that day, because Kite drops an expired
+# weekly's own history the morning after it settles - this is the only way to ever see it again once
+# it has. Crypto is not covered (Delta's own history is not archived this way), and a ticket tracked
+# on the index rather than its live premium has no "strike" whose range would mean anything.
+OPTION_HISTORY_DIR = os.path.join(os.path.expanduser("~"), "trading-tool-logs", "option_history")
+_STRIKE_RANGE_CACHE = {}   # the day file's path -> (its (mtime, size), {(strike, "CE"/"PE"): (day_high, day_low)})
+_STRIKE_RANGE_CACHE_MAX = 40
+
+
+def _strike_ranges_for_day(date_str):
+    """{(index, strike, "CE"/"PE"): (day_high, day_low)} for EVERY option of every index recorded on
+    date_str, from record_options.py's saved file - one file, all indices, so one read serves all of
+    them; {} when there is none (a day it never ran, a holiday, or a date still in the future). Read
+    once and kept until the file's own mtime or size changes, which in practice is once: the file is
+    written a single time, after the close, and never touched again."""
+    path = os.path.join(OPTION_HISTORY_DIR, f"{date_str}.csv.gz")
+    try:
+        st = os.stat(path)
+    except OSError:
+        return {}
+    sig = (st.st_mtime_ns, st.st_size)
+    hit = _STRIKE_RANGE_CACHE.get(path)
+    if hit and hit[0] == sig:
+        return hit[1]
+    import pandas as pd
+    try:
+        df = pd.read_csv(path, compression="gzip")
+    except Exception:
+        return {}
+    if "kind" not in df.columns or "index" not in df.columns:
+        return {}
+    df = df[df["kind"] == "OPT"]
+    out = {}
+    for (idx, strike, opt), rows in df.groupby(["index", "strike", "opt"]):
+        try:
+            out[(str(idx), float(strike), str(opt))] = (float(rows["high"].max()), float(rows["low"].min()))
+        except (TypeError, ValueError):
+            continue
+    with _lock:
+        _STRIKE_RANGE_CACHE[path] = (sig, out)
+        # Bounded the cheap way - this is read far more than it is written, and a journal spanning many
+        # months would otherwise keep every day's file open in memory for the rest of the process's life.
+        if len(_STRIKE_RANGE_CACHE) > _STRIKE_RANGE_CACHE_MAX:
+            for k in list(_STRIKE_RANGE_CACHE)[:len(_STRIKE_RANGE_CACHE) - _STRIKE_RANGE_CACHE_MAX]:
+                _STRIKE_RANGE_CACHE.pop(k, None)
+    return out
+
+
+def strike_day_range(index, strike, option_type, date_str):
+    """(day_high, day_low) of one option contract's own premium on one date, or (None, None) when it
+    cannot be known - not an Indian index option, no strike or side to look up, or that day was never
+    recorded (including today, before record_options.py's own job has run after the close)."""
+    if (config.INSTRUMENTS.get(index) or {}).get("kite_exchange") not in ("NSE", "BSE"):
+        return None, None
+    if strike is None or option_type not in ("CE", "PE") or not _DATE.match(date_str or ""):
+        return None, None
+    return _strike_ranges_for_day(date_str).get((index, float(strike), option_type), (None, None))
+
+
 def _status_text(status, pnl):
     """What the journal's note says about how a ticket ended.
 
@@ -248,6 +311,10 @@ def _ticket_lines(path, source):
         rows = trade_log._read_rows(path)
     except Exception:
         rows = []
+    # The OPEN row that named a trade_id is the only place its entry time is written - a CLOSE row
+    # carries only when IT happened. Read once for the whole file, not once per closed trade.
+    opened_at = {r.get("trade_id"): (r.get("time_ist") or "")[:5] or None
+                for r in rows if r.get("event") == "OPEN" and r.get("trade_id")}
     out = []
     for r in rows:
         if r.get("event") != "CLOSE" or "the tool stopped" in (r.get("status") or ""):
@@ -258,10 +325,15 @@ def _ticket_lines(path, source):
         entry, exit_price = _f(r.get("entry")), _f(r.get("exit"))
         lots, lot_size = _f(r.get("lots")) or 1.0, _f(r.get("lot_size")) or 1.0
         charges = estimate_charges(r.get("index"), entry, exit_price, lots * lot_size)
+        strike = _f(r.get("strike"))
+        day_high = day_low = None
+        if r.get("tracked_on") == "premium":
+            day_high, day_low = strike_day_range(r.get("index"), strike, r.get("option_type"), r.get("date"))
         out.append({
             "id": r.get("trade_id") or "", "source": source, "date": r.get("date") or "",
-            "time": (r.get("time_ist") or "")[:5] or None, "instrument": r.get("index"),
-            "side": r.get("option_type"), "dir": "buy", "strike": _f(r.get("strike")),
+            "time": (r.get("time_ist") or "")[:5] or None,
+            "entry_time": opened_at.get(r.get("trade_id")), "instrument": r.get("index"),
+            "side": r.get("option_type"), "dir": "buy", "strike": strike,
             "lots": lots, "lot_size": lot_size, "entry": entry, "exit": exit_price,
             # What the premium cost to buy - the money that was actually at risk.
             "cost": round(entry * lots * lot_size, 2) if entry is not None else None,
@@ -270,7 +342,10 @@ def _ticket_lines(path, source):
             "net": None if charges is None else round(pnl - charges, 2),
             "status": _status_text(r.get("status"), pnl), "notes": "",
             # A live order: the venue that filled it (its entry, exit and result above are the real ones), else None
-            "live": r.get("filled") or None})
+            "live": r.get("filled") or None,
+            # The strike's OWN high and low that day (tracked-on-premium tickets only) - what the ticket's
+            # entry and exit were measured against, not the index's.
+            "strike_day_high": day_high, "strike_day_low": day_low})
     return out
 
 
@@ -287,11 +362,17 @@ def entries(email, market, source="all"):
             if charges is None and t.get("side") in ("CE", "PE"):
                 charges = estimate_charges(t["instrument"], t["entry"], t["exit"], qty, t.get("dir", "buy"))
                 estimated = charges is not None
+            # A trade you typed in yourself names the price you actually paid and sold at - a real
+            # premium, the same as a ticket tracked on one - so the strike's own day range applies here
+            # too, the one thing a manual entry has no way to work out for itself.
+            day_high = day_low = None
+            if t.get("side") in ("CE", "PE") and t.get("strike") is not None:
+                day_high, day_low = strike_day_range(t.get("instrument"), t.get("strike"), t.get("side"), t.get("date"))
             out.append(dict(t, source="mine", gross=gross, charges=charges,
                             charges_estimated=estimated,
                             cost=round(t["entry"] * qty, 2) if qty else None,
                             net=None if charges is None else round(gross - charges, 2),
-                            status=None))
+                            status=None, strike_day_high=day_high, strike_day_low=day_low))
     if source in ("all", "tool", "live"):
         out += _ticket_lines(trade_log.user_log_path(email, market), "tool")
     if source in ("all", "ai", "live"):
