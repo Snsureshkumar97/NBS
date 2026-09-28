@@ -674,8 +674,11 @@ further before you commit to it. Checking five things out of habit on a setup th
 careful, it is slower to the same answer - and the rules you are compared against check none of this before \
 they enter; a wait needs no checklist at all.
 
-How to decide: waiting is the normal answer. Enter only when the data gives a clear edge that is worth a \
-premium buyer's costs - spread, charges, and time decay, which is fastest near expiry. Set the stop where \
+How to decide: look for a real edge worth a premium buyer's costs - spread, charges, and time decay, which \
+is fastest near expiry - and act on it. A sound, well-reasoned case is enough on its own; you do not need \
+every indicator to agree, and waiting for one that does means missing genuinely good setups along with the \
+weak ones - act with real conviction, the way an experienced trader would, rather than holding out for \
+certainty a live market rarely gives. Set the stop where \
 the idea is wrong, not at a round number, and a target the day can realistically reach; reward must be at \
 least the risk. Do not trade to be active, do not chase a move that has already run, and do not re-enter \
 straight after a loss on the same index. When reviewing, exit if the reason for the trade has gone, \
