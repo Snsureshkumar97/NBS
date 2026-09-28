@@ -88,6 +88,10 @@ SHOTS = {
                 "The same tool on a phone. The menu sits behind the button at the top, which names the section you are on; Home, Signal, Chart and the option chain are in a bar along the bottom, and the three indices share one row."),
     "full":    ("web_full.png", "The whole screen",
                 "The desktop layout: every section in a rail down the left, the three indices and the session total across the top, and the signal below them. Nothing is more than one click away."),
+    "journal": ("web_journal.png", "The journal's day view",
+                "One day, with the tool's own tickets and what you typed in yourself side by side. Entered and Closed are two separate columns — an entry time is read from the OPEN record, not just the close — and Strike range is that contract's own high and low for the day, read from the real per-minute option candles the tool records, not the index's. Captured on a sanitised demo account with invented round-number trades, not a real session — every other image on this site is real, and this is the one exception, said plainly.",),
+    "aidesk":  ("web_aidesk.png", "The AI desk's own record",
+                "Its own tab, its own switch per index, and its own closed trades — paper unless real orders are switched on. Today's count, the all-time record, and today's entries and decisions against the daily caps sit above a table of what it has closed and why, in the same words it used to decide. Captured on a sanitised demo account with an invented round-number trade, not a real session."),
 }
 
 
@@ -1261,6 +1265,7 @@ def home_page(user=None, record=None):
    flow, that was never recorded and does not exist to replay. What is kept
    instead is its own track record: every closed AI trade, win or lose, is
    on file and handed back to it with the next decision.</p>
+  {_figure("aidesk")}
  </section>
 
  <section>
@@ -1582,8 +1587,11 @@ def how_page(user=None, record=None):
 def screen_page(user=None, record=None):
     body = _phead("The screen",
         "Every image below is the browser tool itself, captured at 2x from a "
-        "live session against a real Zerodha feed. Nothing here is a mockup. "
-        "The account name, email and Zerodha client ID are masked and the "
+        "live session against a real Zerodha feed, except the journal and AI "
+        "desk ones - a sanitised demo account with invented round-number "
+        "trades, said plainly in their own captions, so nothing real is on "
+        "a public page. Nowhere else is anything a mockup. The account name, "
+        "email and Zerodha client ID are masked on the rest and the "
         "owner-only Admin menu item is hidden; those are the only edits.") + f"""
 <div class="wrap">
  <section class="first">
@@ -1599,6 +1607,8 @@ def screen_page(user=None, record=None):
   {_figure("trend")}
   {_figure("map")}
   {_figure("why")}
+  {_figure("journal")}
+  {_figure("aidesk")}
   {_figure("full")}
   {_figure("phone")}
  </section>
