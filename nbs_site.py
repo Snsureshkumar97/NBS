@@ -1073,6 +1073,17 @@ def _first_rows():
             '<td>the full session &mdash; analysing, and issuing tickets</td></tr>')
 
 
+def _early_exit_text():
+    """Read from config, same reason _first_rows() is: the page cannot promise
+    a rule the server no longer runs."""
+    if not getattr(config, "EARLY_EXIT_ON_REVERSAL", False):
+        return ""
+    return (" A ticket also closes early if the opposite direction holds for "
+            "the same confirmation a fresh entry itself needs, rather than "
+            "riding out to target or stop &mdash; in use from 27 Sep 2026, see "
+            "<a href=\"/results\">what it measured</a>.")
+
+
 def _watch_only_text():
     names = [n for n in getattr(config, "WATCH_ONLY_INDICES", ())]
     if not names:
@@ -1219,6 +1230,37 @@ def home_page(user=None, record=None):
     from a live session. None of it is a mockup.</p>
   {_figure("chart")}
   <p><a href="/screen">Every screen in the app &rarr;</a></p>
+ </section>
+
+ <section>
+  <p class="kicker">Also on this account</p>
+  <h2>A second, independent take: the AI desk</h2>
+  <p class="sub">Not a variation on the rule set above. It reads the same
+   market, on its own account, and makes its own call &mdash; paper unless
+   you switch real orders on for that index.</p>
+  <p>Where the rules above are a fixed sequence with a gate at the end, the
+   AI desk is asked directly: enter or wait, given every section of the tool
+   as a lookup &mdash; the option chain, the chart, Gann levels, order flow,
+   futures build-up, and its own past decisions and how they turned out. It
+   writes its reason in full sentences before every entry, argues the case
+   against itself first, and gives an honest chance the trade reaches its
+   target before deciding &mdash; not how good the idea feels.</p>
+  <p>It is asked once a candle closes, and again the instant a real trigger
+   fires between closes &mdash; an ADX crossing, momentum turning, a VWAP
+   cross, an opening-range break &mdash; so a setup does not sit unconsidered
+   for up to fifteen minutes. A free check runs before either ask ever reaches
+   the model: no view at all from the rules, a marginal indicator reading,
+   chasing a move that has mostly already run, or (on Bitcoin) order flow
+   actively arguing the other way are all reasons not to ask, never reasons
+   to enter.</p>
+  <p>It has no backtest the way the rules above do. A backtest replays a
+   fixed formula; this is a judgement made fresh by a model each time, and
+   there is no way to know what it would have decided on a candle from years
+   ago without actually asking it &mdash; which costs real money, and for
+   most of that history would mean asking about context, such as live order
+   flow, that was never recorded and does not exist to replay. What is kept
+   instead is its own track record: every closed AI trade, win or lose, is
+   on file and handed back to it with the next decision.</p>
  </section>
 
  <section>
@@ -1410,6 +1452,10 @@ def how_page(user=None, record=None):
   <p>ATR length is <code>{_cfg("ATR_LENGTH", 14)}</code>. Reach is estimated
    before anything is issued, which is the point — a gate applied afterwards
    would be a report, not a brake.</p>
+  <p>Once a ticket is open its stop only ever moves in its favour: each tier
+   before the exit one becomes the new stop the instant price reaches it, so a
+   reversal after T1 costs back only to T1, never all the way to the original
+   stop.{_early_exit_text()}</p>
  </section>
 
  <section>
@@ -1921,6 +1967,29 @@ def results_page(user=None, record=None):
     2026</b>, on the Indian indices only &mdash; Bitcoin was not tested with it.
     ADX over 7 candles also beat the old measure, but on many more trades and a
     deeper drawdown in the first two years; it is not used.</li>
+   <li><b>An early exit on a sustained reversal.</b> While a ticket is open,
+    the opposite direction has to hold for the same confirmation a fresh entry
+    itself needs before the ticket closes early, instead of riding out to its
+    target or stop. Replayed on the rules&rsquo; own real entry gates rather
+    than an older, stale copy of them: 328 of 6,012 trades exited earlier than
+    holding to target or stop would have, for &#8377;9,266 more in the first
+    two years and &#8377;27,755 more in the held-out year, with the held-out
+    drawdown &#8377;14,666 shallower. <b>In use from 27 Sep 2026.</b></li>
+   <li><b>Waiting before moving the stop up to T1.</b> The stop already moves
+    to T1 the instant price first reaches it (see how-it-works). Delaying that
+    by 15 minutes to 3 hours, so a pullback right after T1 gets some room, was
+    tested against the instant version and against never moving the stop at
+    all: every delay tried did worse than both. The instant version wins
+    because it locks in T1 before a genuine reversal has any distance to
+    travel back toward the original, farther stop; a delay only gives that
+    reversal room to do so. Tested and measured 28 Sep 2026, not used &mdash;
+    the stop keeps moving to T1 instantly.</li>
+   <li><b>Which target the ticket exits at.</b> Tickets exit at T2 today. Priced
+    the same way, on the same entries, T3 came out ahead of T2 on every
+    measure in both periods &mdash; more total, a better profit factor, and a
+    shallower drawdown &mdash; while T1 alone was underwater in the held-out
+    year. Measured 28 Sep 2026; the exit target has not been changed while
+    this is looked at further.</li>
   </ul>
  </section>
 
