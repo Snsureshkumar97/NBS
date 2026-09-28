@@ -39,6 +39,7 @@ def desk():
     d.enabled, d.decisions_today, d.decisions_by_index = {"NIFTY": True}, 0, {}
     d.tokens_today = {"input": 0, "output": 0}
     d.entries, d.contracts, d.last_candle, d.last_exit = {}, [], {}, {}
+    d.event_entries, d.last_event_entry, d.event_reviews, d.last_event_review = {}, {}, {}, {}
     d._lots = None
     return d
 

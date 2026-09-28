@@ -224,6 +224,17 @@ class AIDesk:
         self.last_exit = s.get("last_exit") or {}
         self.recent = s.get("recent") or []
         self.decision_no = s.get("decision_no") or {}
+        # The clocks and counts that pace an off-cycle look between candle closes (_event_entries,
+        # _event_reviews) - not saved until 28 Sep 2026. Without this a restart forgot both how
+        # recently one had just been asked and how many the day had already spent, so the first
+        # off-cycle look after ANY restart went out ungated - the user found duplicate "entry" asks
+        # on the same index seconds apart in the decision log, one literally answered "Identical
+        # snapshot to the wait I logged seconds ago". event_entries/event_reviews are still zeroed
+        # on a genuine new day, in _roll_day() - this only stops a RESTART doing the same thing.
+        self.event_entries = {k: int(v) for k, v in (s.get("event_entries") or {}).items()}
+        self.last_event_entry = {k: float(v) for k, v in (s.get("last_event_entry") or {}).items()}
+        self.event_reviews = {k: int(v) for k, v in (s.get("event_reviews") or {}).items()}
+        self.last_event_review = {k: float(v) for k, v in (s.get("last_event_review") or {}).items()}
         self._lots = float(s["lots"]) if s.get("lots") not in (None, "") else None
 
     def _save(self):
@@ -233,7 +244,9 @@ class AIDesk:
                     "tokens_today": self.tokens_today, "entries": self.entries, "contracts": self.contracts,
                     "last_candle": self.last_candle, "last_exit": self.last_exit,
                     "recent": self.recent[:RECENT_KEPT], "lots": self._lots,
-                    "decision_no": self.decision_no}
+                    "decision_no": self.decision_no,
+                    "event_entries": self.event_entries, "last_event_entry": self.last_event_entry,
+                    "event_reviews": self.event_reviews, "last_event_review": self.last_event_review}
             tmp = self.state_path + ".tmp"
             with open(tmp, "w") as fh:
                 json.dump(data, fh, default=str)
