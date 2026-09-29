@@ -99,6 +99,34 @@ legs = tbs.simulate_time_breakeven(A, i, t, hold_bars=20, wait_bars=8, target="t
 check("exits at the target (120) on bar 4, well before wait_bars, exactly like a normal trade",
       legs[0][0] == 120 and legs[0][1] == 4, legs)
 
+print("6. price_bitcoin_trade(): POINTS SIGN CONVENTION, CE VS PE")
+A6 = bars(3, [0, 101, 101], [0, 99, 99], [0, 100, 100])
+tr_ce = tr("CE", 100, 90, 110, 120, 130)
+tr_pe = tr("PE", 100, 110, 90, 80, 70)
+pos = {"CE_KEY": 0, "PE_KEY": 0}
+tr_ce["when"], tr_pe["when"] = "CE_KEY", "PE_KEY"
+tr_ce["exit"], tr_pe["exit"] = 105.0, 95.0   # bt.run()'s own baked-in exit (exit_fn=None path)
+check("CE with exit_fn=None uses tr['exit'] directly and profits when exit>entry",
+      tbs.price_bitcoin_trade(A6, pos, tr_ce, None) == 5.0)
+check("PE with exit_fn=None also uses tr['exit'] directly, but profits when exit<entry",
+      tbs.price_bitcoin_trade(A6, pos, tr_pe, None) == 5.0)
+
+print("7. price_bitcoin_trade(): WITH AN EXIT FUNCTION, IT USES THAT FUNCTION'S FIRST LEG")
+def fake_exit(A, i, t, hold_bars=None, square_off=None, target=None):
+    return [(108.0, i + 1, 1.0)]
+check("a CE priced through a custom exit function uses ITS price, not tr['exit']",
+      tbs.price_bitcoin_trade(A6, pos, tr_ce, fake_exit) == 8.0)
+
+print("8. bitcoin_stats(): TOTAL, PROFIT FACTOR, DRAWDOWN")
+s = tbs.bitcoin_stats([100, -40, 60, -20])
+check("total is the sum", s["total"] == 100, s["total"])
+check("profit factor is winners over losers", s["pf"] == (160 / 60), s["pf"])
+check("drawdown is the worst peak-to-trough give-back, walked in order (peak 100, trough 60: DD 40)",
+      s["dd"] == 40, s["dd"])
+check("bitcoin_stats([]) is None, not a crash", tbs.bitcoin_stats([]) is None)
+check("an all-winning set has an infinite profit factor, not a divide-by-zero",
+      tbs.bitcoin_stats([10, 20])["pf"] == float("inf"))
+
 print()
 print("TIME BREAKEVEN STUDY TEST PASSED" if not fails else f"TIME BREAKEVEN STUDY TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

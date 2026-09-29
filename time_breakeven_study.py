@@ -183,5 +183,91 @@ def main():
     return {"live": base, "time_breakeven": variant, "sweep": sweep}
 
 
+def price_bitcoin_trade(A, pos, tr, exit_fn, hold_bars=96, square_off=False, target="t2"):
+    """One BTC trade's points P&L under either bt.run()'s own baked-in exit (exit_fn=None) or a
+    custom exit function - CE profits when exit>entry, PE when exit<entry: points per contract,
+    no option premium, since BTC is a Delta Exchange futures/perp position, not an option."""
+    i = pos[tr["when"]]
+    if exit_fn is None:
+        exit_px = tr["exit"]
+    else:
+        legs = exit_fn(A, i, tr, hold_bars=hold_bars, square_off=square_off, target=target)
+        exit_px = legs[0][0]
+    return (exit_px - tr["entry"]) * (1.0 if tr["side"] == "CE" else -1.0)
+
+
+def bitcoin_stats(pts):
+    """n, total, profit factor and worst drawdown (equity walked in trade order) from a plain
+    list of points-per-contract results - the same shape gann_volume_study.py's own BTC stats
+    already use, reused here rather than re-derived."""
+    if not pts:
+        return None
+    wins = [x for x in pts if x > 0]
+    losses = [x for x in pts if x < 0]
+    pf = (sum(wins) / -sum(losses)) if losses else float("inf")
+    eq = peak = dd = 0.0
+    for x in pts:
+        eq += x
+        peak = max(peak, eq)
+        dd = max(dd, peak - eq)
+    return {"n": len(pts), "total": sum(pts), "pf": pf, "dd": dd}
+
+
+def study_bitcoin():
+    """The user, 29 Sep 2026: "did you backtested on btc" - no, the study above only covers the
+    Indian indices. This fills that gap, with its real limit stated up front: BTC's actual live
+    entries come from the AI desk (an LLM decision, ai_desk.py), not the rule engine, and
+    backtesting the AI's real decisions needs real (costly) LLM calls against 3 years of history -
+    already declined earlier this session for exactly that reason. What CAN be tested without
+    that: the EXIT mechanic itself, on BTC's own price action, using the same proxy entries
+    gann_volume_study.py's own study_bitcoin() already established for this exact limitation -
+    signal_engine's own technical bias, unfiltered by the Indian rule-book gates that do not
+    apply to crypto anyway. The exit does not care how the entry was decided, only what price
+    does afterward, so this is a meaningful check of the mechanic even though it cannot validate
+    the AI's own entries. Priced in points per contract, not rupees - BTC is a Delta Exchange
+    futures/perp position, not an option premium, so there is no Black-Scholes step here."""
+    df = bt.fetch_history("BTC", years=3, use_cache=True)
+    split = SPLIT.tz_convert(df.index.tz) if df.index.tz is not None else SPLIT.tz_localize(None)
+    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(),
+         "end": (pd.Series(df.index.date) != pd.Series(df.index.date).shift(-1)).to_numpy()}
+    result = bt.run("BTC", df, gate=None)   # crypto: always_open -> hold_bars=96 (24h), square_off=False
+    trades = result["trades"]
+    pos = {t: n for n, t in enumerate(df.index)}
+
+    def split_stats(exit_fn):
+        is_pts, oos_pts = [], []
+        for tr in trades:
+            pts = price_bitcoin_trade(A, pos, tr, exit_fn)
+            (is_pts if tr["when"] < split else oos_pts).append(pts)
+        return {"is": bitcoin_stats(is_pts), "oos": bitcoin_stats(oos_pts)}
+
+    def line(name, r):
+        f = lambda s: (f"{s['n']:>5} {s['total']:>+10,.0f} pts PF {s['pf']:4.2f} DD {s['dd']:>8,.0f}"
+                       if s else "   no trades")
+        return f" {name:34s} {f(r['is'])}  | {f(r['oos'])}"
+
+    print("\n" + "=" * 132)
+    print(" BITCOIN - index points per contract, no option pricing. Proxy entries (signal_engine's")
+    print(" own technical bias) - NOT the AI desk's real decisions, which cost real LLM calls to")
+    print(" backtest and were declined earlier this session. Exit mechanic tested on real price action.")
+    print("=" * 132)
+    base = split_stats(None)
+    print(line("hold to T2/stop (bt.run() default)", base))
+    variant = split_stats(simulate_time_breakeven)
+    print(line(f"+ breakeven at {WAIT_BARS} bars if no T1 yet", variant))
+    print("-" * 132)
+    print("\n VERDICT — kept only if better than the baseline both in-sample and out-of-sample")
+    if base["is"] and base["oos"] and variant["is"] and variant["oos"]:
+        di = variant["is"]["total"] - base["is"]["total"]
+        do = variant["oos"]["total"] - base["oos"]["total"]
+        keep = di > 0 and do > 0
+        print(f"   {'KEEP ' if keep else 'DROP '} time-based breakeven (BTC)   in-sample {di:>+10,.0f} pts   "
+              f"out-of-sample {do:>+10,.0f} pts")
+    else:
+        print("   too few trades in one period to compare")
+    return {"live": base, "time_breakeven": variant}
+
+
 if __name__ == "__main__":
     main()
+    study_bitcoin()
