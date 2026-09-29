@@ -1566,10 +1566,11 @@ def screen_page(user=None, record=None):
    <table class="tbl">
     <tr><th>Section</th><th>What it shows</th></tr>
     <tr><td>Chart</td><td>Fifteen-minute candles, or five-minute and daily, with the
-     20 and 50 EMAs and a VWAP weighted by the index future&rsquo;s real volume.
-     A live signal&rsquo;s T1, T2, T3 and stop are drawn as lines. Beside it,
-     today&rsquo;s range: where price sits between the day&rsquo;s low and
-     high.</td></tr>
+     20 and 50 EMAs, a VWAP weighted by the index future&rsquo;s real volume, and
+     RSI and MACD each in their own pane below &mdash; pinch or scroll to zoom,
+     drag to pan, on a phone or a mouse alike. A live signal&rsquo;s T1, T2, T3
+     and stop are drawn as lines. Beside it, today&rsquo;s range: where price
+     sits between the day&rsquo;s low and high.</td></tr>
     <tr><td>Option chain</td><td>The option clock: how open interest changed at each
      strike within a time window you choose, read from the tool&rsquo;s own
      recording of the chain. It is change within the window, not OI added today
