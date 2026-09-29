@@ -48,6 +48,8 @@ FAIL_WINDOW = 15 * 60
 
 _lock = threading.RLock()
 _fails = {}                   # key -> [timestamps]
+_cache_mtime = None            # last on-disk mtime_ns _load() served from
+_cache_data = None             # the parsed users.json that goes with it
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
 
@@ -60,17 +62,39 @@ def _path():
 
 
 def _load():
+    """Called under `_lock` on every single request (session_user() is the hot
+    path - it runs before every page and API call in web_server.py). Reading
+    and JSON-parsing the file every time held the lock long enough, multiplied
+    across enough concurrent requests, to queue hundreds of threads behind it
+    (29 Sep 2026 slowdown: up to 133 of ~220 threads stuck here at once).
+
+    So this only touches disk when the file has actually changed since the
+    last call - one cheap stat() instead of open+read+parse - and otherwise
+    hands back the same in-memory dict `_save()` last wrote. Any out-of-band
+    edit to users.json (e.g. by hand over SSH) still gets picked up, because
+    that changes the mtime too."""
+    global _cache_mtime, _cache_data
+    path = _path()
     try:
-        with open(_path()) as f:
+        mtime = os.stat(path).st_mtime_ns
+    except OSError:
+        mtime = None
+    if mtime is not None and mtime == _cache_mtime and _cache_data is not None:
+        return _cache_data
+    try:
+        with open(path) as f:
             data = json.load(f)
     except (OSError, ValueError):
-        return {"users": {}, "sessions": {}}
+        data = {"users": {}, "sessions": {}}
     data.setdefault("users", {})
     data.setdefault("sessions", {})
+    _cache_mtime = mtime
+    _cache_data = data
     return data
 
 
 def _save(data):
+    global _cache_mtime, _cache_data
     path = _path()
     tmp = path + ".tmp"
     # Written to a temp file and renamed, so a crash mid-write can't leave you
@@ -82,6 +106,14 @@ def _save(data):
     except OSError:
         pass
     os.replace(tmp, path)
+    # The cache now holds exactly what's on disk, so the next _load() (maybe
+    # this same thread, a line later) doesn't need to re-read what it just
+    # wrote - it just confirms the mtime still matches.
+    try:
+        _cache_mtime = os.stat(path).st_mtime_ns
+    except OSError:
+        _cache_mtime = None
+    _cache_data = data
 
 
 # ---------------------------------------------------------------------------
