@@ -1769,11 +1769,11 @@ def results_page(user=None, record=None):
    against the stop and <b>before any cost</b>.</p>
   <table class="tbl">
    <tr><th></th><th>Signals</th><th>Reached T1</th><th>Reached T2</th><th>Reached T3</th><th>Stopped out</th><th>Average</th></tr>
-   <tr><td>Nifty</td><td>2,165</td><td>36%</td><td>19%</td><td>11%</td><td>33%</td><td>+0.041R</td></tr>
-   <tr><td>Bank Nifty</td><td>2,147</td><td>35%</td><td>18%</td><td>11%</td><td>32%</td><td>&minus;0.002R</td></tr>
-   <tr><td>Sensex</td><td>2,161</td><td>34%</td><td>18%</td><td>10%</td><td>32%</td><td>+0.026R</td></tr>
+   <tr><td>Nifty</td><td>2,185</td><td>34%</td><td>17%</td><td>10%</td><td>31%</td><td>+0.078R</td></tr>
+   <tr><td>Bank Nifty</td><td>2,191</td><td>33%</td><td>17%</td><td>10%</td><td>30%</td><td>+0.020R</td></tr>
+   <tr><td>Sensex</td><td>2,194</td><td>31%</td><td>17%</td><td>10%</td><td>32%</td><td>+0.056R</td></tr>
   </table>
-  <p>About +0.02R a trade before costs across the three: the signal on its own
+  <p>About +0.05R a trade before costs across the three: the signal on its own
    is close to nothing. What the options test measures is that signal with its
    filters, its exit at T2 and the leverage of an option on the moves that do
    come &mdash; which is why the two can differ, and why the options result
