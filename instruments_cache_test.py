@@ -128,8 +128,8 @@ shutil.rmtree(CACHE, ignore_errors=True)
 today = dp._now_ist_naive().date()
 NFO = [{"tradingsymbol": "NIFTY26SEP23400CE", "name": "NIFTY", "instrument_type": "CE", "strike": 23400.0,
         "expiry": dt.date(2026, 9, 22), "lot_size": 65, "instrument_token": 111},
-       {"tradingsymbol": "NIFTY26SEPFUT", "name": "NIFTY", "instrument_type": "FUT", "expiry": dt.date(2026, 9, 29),
-        "instrument_token": 222}]
+       {"tradingsymbol": "NIFTY26SEPFUT", "name": "NIFTY", "instrument_type": "FUT",
+        "expiry": today + dt.timedelta(days=45), "instrument_token": 222}]
 ROWS["NFO"] = NFO
 fresh()
 k6 = FakeKite()
@@ -193,6 +193,32 @@ finally:
     os.replace = real_replace
 check("a disk that cannot be written never stops the tool: the list is still served from memory", ok
       and not glob.glob(os.path.join(CACHE, "*.tmp")))
+
+print("5. THE FUTURES CUTOFF FOLLOWS THE INJECTED IST CLOCK, NOT A HARDCODED DATE")
+print("   (regression for a stale test fixture: the assertion above broke because its")
+print("   FUT row's expiry was a literal date that fell into the past once real IST")
+print("   time moved on - this pins the clock instead, straddling IST midnight)")
+real_now_ist = dp._now_ist_naive
+just_before = dt.datetime(2030, 1, 15, 23, 59)          # IST wall clock, a minute to midnight
+just_after = dt.datetime(2030, 1, 16, 0, 1)             # IST wall clock, a minute past midnight
+ROWS["NFO"] = [{"tradingsymbol": "NIFTY30JANFUT", "name": "NIFTY", "instrument_type": "FUT",
+                "expiry": just_before.date(), "instrument_token": 333}]
+try:
+    dp._now_ist_naive = lambda: just_before
+    fresh(); dp._FUT_ROWS.clear(); dp._FUT_TOKENS.clear()
+    k13 = FakeKite()
+    fut13 = provider(k13).near_future("NFO", "NIFTY")
+    check("a contract expiring today is still found right up to IST midnight",
+          fut13 is not None and fut13["instrument_token"] == 333, fut13)
+
+    dp._now_ist_naive = lambda: just_after
+    fresh(); dp._FUT_ROWS.clear(); dp._FUT_TOKENS.clear()
+    k14 = FakeKite()
+    fut14 = provider(k14).near_future("NFO", "NIFTY")
+    check("...and it is gone a minute later, once IST alone has rolled to the next day",
+          fut14 is None, fut14)
+finally:
+    dp._now_ist_naive = real_now_ist
 
 print("INSTRUMENTS CACHE TEST PASSED" if not fails else f"INSTRUMENTS CACHE TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
