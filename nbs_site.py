@@ -932,6 +932,21 @@ def _early_exit_text():
             "<a href=\"/results\">what it measured</a>.")
 
 
+def _time_breakeven_text():
+    """Read from config, same reason _early_exit_text() is: the page cannot promise
+    a rule the server no longer runs."""
+    minutes = getattr(config, "TIME_BREAKEVEN_MINUTES", 0)
+    if not minutes:
+        return ""
+    hours = minutes / 60.0
+    when = f"{hours:g} hours" if hours != 1 else "an hour"
+    return (f" If T1 is not reached within {when} of entry the stop tightens to "
+            "breakeven and never loosens again &mdash; it does not close the "
+            "ticket by itself, only gives less back if a stalled trade turns "
+            "&mdash; in use from 29 Sep 2026, see "
+            "<a href=\"/results\">what it measured</a>.")
+
+
 def _watch_only_text():
     names = [n for n in getattr(config, "WATCH_ONLY_INDICES", ())]
     if not names:
@@ -1304,7 +1319,7 @@ def how_page(user=None, record=None):
   <p>Once a ticket is open its stop only ever moves in its favour: each tier
    before the exit one becomes the new stop the instant price reaches it, so a
    reversal after T1 costs back only to T1, never all the way to the original
-   stop.{_early_exit_text()}</p>
+   stop.{_early_exit_text()}{_time_breakeven_text()}</p>
  </section>
 
  <section>
@@ -1654,7 +1669,9 @@ def screen_page(user=None, record=None):
 # ===========================================================================
 def results_page(user=None, record=None):
     # Figures from backtest_intraday.py and pro_study.py on 15-minute history
-    # to 11 Sep 2026, and btst_study.py. Re-run them before changing a number.
+    # to 11 Sep 2026, and btst_study.py. From 29 Sep 2026 the headline and by-index
+    # tables include time_breakeven_study.py's exit (see that file for the BTC
+    # figures and the wait-time sweep). Re-run them before changing a number.
     body = _phead("What it measured",
         "The rule set on this site has been backtested, and the result is on its "
         "own page in the main navigation, with what it rests on and what it "
@@ -1663,14 +1680,16 @@ def results_page(user=None, record=None):
 
  <section class="first">
   <div class="callout warm reveal">
-   <h2 style="margin-top:0">A thin, modelled result after costs &mdash; barely positive in the last year.</h2>
+   <h2 style="margin-top:0">A modelled result after costs &mdash; positive across all three indices in both periods.</h2>
    <p>The rules the tool runs today were replayed across three years of
     15-minute candles and every trade was priced as the option you would have
     bought, with Zerodha&rsquo;s charges and slippage taken off. Across all three
     indices they came out <b>positive after costs in the first two years and
-    slightly positive in the held-out final year</b>: Nifty and Sensex made money
-    in both periods, and Bank Nifty lost about half of what they made in the
-    final year. Read the next section before reading anything into that.</p>
+    positive again in the held-out final year</b>: Nifty, Bank Nifty and Sensex
+    all made money in both periods &mdash; Bank Nifty only since a stop that
+    tightens to breakeven on a stalled trade was added 29 Sep 2026; before that
+    it had been losing money in the held-out year since its weekly expiry
+    ended. Read the next section before reading anything into that.</p>
    {_record_figs(record)}
   </div>
  </section>
@@ -1682,10 +1701,12 @@ def results_page(user=None, record=None):
     Black-Scholes from India VIX, not from recorded option quotes, and
     volatility is held constant through the trade. Real fills, a widening spread
     and implied volatility falling after you buy all make real results worse.</li>
-   <li><b>All of the held-out year&rsquo;s profit came on expiry days.</b>
-    Across the three indices, trades on a contract&rsquo;s own expiry day made
-    &#8377;3,09,635 per lot in that year (360 trades, profit factor 1.93); every
-    other day together <b>lost &#8377;59,099</b> (2,025 trades, 0.98). Expiry
+   <li><b>Expiry days still do disproportionately well.</b> Across the three
+    indices, trades on a contract&rsquo;s own expiry day made &#8377;1,89,695
+    per lot in the held-out year (360 trades, profit factor 1.77); every
+    other day together made &#8377;2,62,601 (2,025 trades, 1.20) &mdash; both
+    positive since the breakeven-on-a-stall exit was added 29 Sep 2026, but
+    expiry day still earns roughly four times as much per trade. Expiry
     day is exactly where a constant-volatility model is least
     trustworthy.</li>
    <li><b>The held-out year is no longer clean.</b> Several of today&rsquo;s
@@ -1693,10 +1714,12 @@ def results_page(user=None, record=None):
     reward-to-risk floor on 11 Sep 2026, and on 15 Sep 2026 dropping the
     opening-range break, trading Bank Nifty again and skipping entries into an
     RSI divergence, on 16 Sep giving a trend day more room to run and
-    dropping the opening-range wait, and on 17 Sep a faster trend measure. A test you have used to
+    dropping the opening-range wait, on 17 Sep a faster trend measure, on
+    27 Sep an early exit on a sustained reversal, and on 29 Sep a stop that
+    tightens to breakeven on a stalled trade. A test you have used to
     choose rules is no longer an independent test of them.</li>
    <li><b>The drawdowns are large.</b> The worst run in the held-out year was
-    &#8377;3,00,843 per lot, with the three indices&rsquo; trades taken in the
+    &#8377;1,29,881 per lot, with the three indices&rsquo; trades taken in the
     order they happened. An account sized so that a drawdown like that is
     survivable is the only kind this should be run with.</li>
    <li><b>There is no long live record.</b> The trades this server has logged
@@ -1718,22 +1741,25 @@ def results_page(user=None, record=None):
    dates. All three indices are traded: Nifty, Bank Nifty and Sensex.</p>
   <table class="tbl">
    <tr><th></th><th>Trades</th><th>Total per lot</th><th>Per trade</th><th>Profit factor</th><th>Worst drawdown</th></tr>
-   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,627</td><td>+&#8377;6,91,171</td><td>+&#8377;191</td><td>1.17</td><td>&#8377;1,70,001</td></tr>
-   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,385</td><td>+&#8377;2,50,536</td><td>+&#8377;105</td><td>1.09</td><td>&#8377;3,00,843</td></tr>
+   <tr><td>First two years <small>(to 15 Aug 2025)</small></td><td>3,627</td><td>+&#8377;12,30,015</td><td>+&#8377;339</td><td>1.48</td><td>&#8377;83,630</td></tr>
+   <tr><td>Held-out year <small>(15 Aug 2025 to 11 Sep 2026)</small></td><td>2,385</td><td>+&#8377;4,52,296</td><td>+&#8377;190</td><td>1.29</td><td>&#8377;1,29,881</td></tr>
   </table>
-  <p>A profit factor of 1.09 means about &#8377;1.09 won for every &#8377;1 lost:
-   a thin margin. A modest increase in real costs over the modelled ones would take
-   most of it.</p>
+  <p>A profit factor of 1.29 means about &#8377;1.29 won for every &#8377;1 lost.
+   A modest increase in real costs over the modelled ones would still take a real
+   bite out of it.</p>
   <h3>By index</h3>
   <table class="tbl">
    <tr><th></th><th>First two years</th><th>PF</th><th>Held-out year</th><th>PF</th></tr>
-   <tr><td>Nifty</td><td>+&#8377;3,02,326</td><td>1.24</td><td>+&#8377;1,53,847</td><td>1.16</td></tr>
-   <tr><td>Bank Nifty</td><td>+&#8377;1,40,540</td><td>1.09</td><td>&minus;&#8377;48,082</td><td>0.95</td></tr>
-   <tr><td>Sensex</td><td>+&#8377;2,48,305</td><td>1.21</td><td>+&#8377;1,44,771</td><td>1.18</td></tr>
+   <tr><td>Nifty</td><td>+&#8377;4,24,337</td><td>1.58</td><td>+&#8377;1,43,094</td><td>1.28</td></tr>
+   <tr><td>Bank Nifty</td><td>+&#8377;3,76,614</td><td>1.37</td><td>+&#8377;1,25,323</td><td>1.21</td></tr>
+   <tr><td>Sensex</td><td>+&#8377;4,29,064</td><td>1.53</td><td>+&#8377;1,83,879</td><td>1.38</td></tr>
   </table>
-  <p>Bank Nifty has lost money under these rules since its weekly expiry ended
-   in November 2024. It is traded because that was chosen on 15 Sep 2026, not
-   because the test supports it.</p>
+  <p>Bank Nifty lost money under these rules, in the held-out year, every time
+   this was measured before 29 Sep 2026 &mdash; since its weekly expiry ended
+   in November 2024, every earlier version of the rules lost money on it in
+   that year. It is traded because that was chosen on 15 Sep 2026, before the
+   test supported it; the breakeven-on-a-stall exit is the first change that
+   makes the test agree.</p>
 
   <h3>The raw signal, in index points</h3>
   <p>Every signal the engine produced on all three indices, before the
@@ -1844,6 +1870,52 @@ def results_page(user=None, record=None):
     shallower drawdown &mdash; while T1 alone was underwater in the held-out
     year. Measured 28 Sep 2026; the exit target has not been changed while
     this is looked at further.</li>
+   <li><b>A candlestick pattern filter.</b> Requiring the entry bar to also show
+    a Hammer, Shooting Star or Engulfing pattern &mdash; the standard shapes,
+    not swept or re-tuned &mdash; kept only 1,614 of 6,024 entries that already
+    clear today&rsquo;s real gates (27%), and the ones it kept did worse, not
+    better: profit factor 1.17 to 1.03 in the first two years, and a net loss
+    in the held-out year (&minus;&#8377;41,122 against the rules&rsquo; own
+    +&#8377;2,24,975). Not used.</li>
+   <li><b>Gann Square of Nine levels, and a volume-weighted momentum read.</b>
+    Re-measured against today&rsquo;s real entry gates after an earlier run of
+    this test had used an older, superseded approximation of them. Skipping an
+    entry with a Gann level closer than the stop kept only 8% of entries and
+    lost money outright, in both periods; only taking one with a level just
+    behind the entry kept 63% and cut the held-out year&rsquo;s worst drawdown
+    by a third, but still made less than the rules alone in both periods.
+    Neither is used. The volume read still cannot be measured on the Indian
+    indices &mdash; there is no futures volume history to read it from.</li>
+   <li><b>A veto for a &ldquo;stalled&rdquo; trend.</b> The market-trend panel
+    already says when ADX reads a trend but price has not actually moved
+    &mdash; &ldquo;STALLED &mdash; GOING NOWHERE.&rdquo; The entry rules never
+    read that: their own trend gate is a bare ADX threshold. Carrying the
+    same displacement check over as an entry veto was tested at the trend
+    panel&rsquo;s own threshold and swept across a wide range either side of
+    it: every threshold tried, from half an ATR to twice one, lost money in
+    the held-out year &mdash; most gained in the first two, the tightest
+    setting lost in both. Priced the trades it would have removed on their
+    own: in the first two years they were genuine losers (37.9% win rate
+    against 43.7% for the rest), but in the held-out year they were
+    statistically ordinary trades (44.1% against 44.3%) &mdash; the same rule
+    meant something real in one period and nothing in the other. Not
+    used.</li>
+   <li><b>A stop that tightens to breakeven if a trade goes nowhere.</b> The
+    stop already moves to breakeven once T1 is reached (see how-it-works);
+    this is the untested other half &mdash; if T1 is <i>not</i> reached
+    within two hours of entry, the stop tightens to breakeven and never
+    loosens again, without closing the trade the way a fixed time stop
+    (tested and dropped earlier) does. Priced on the same entries as the
+    rules already run, only the exit differs: it roughly doubled profit and
+    roughly halved the worst drawdown, in <i>both</i> periods. Swept from 30
+    minutes to 10 hours to check it was not a fluke of one setting &mdash;
+    every value tried beat the rules in both periods too, a smooth curve
+    rather than a spike at one lucky number. Also measured on Bitcoin, with
+    the same kind of gain and a drawdown cut of roughly three-quarters in
+    both periods, using the technical signal as a stand-in for the AI
+    desk&rsquo;s own entries &mdash; which would need real, paid model calls
+    against three years of history to replay exactly. <b>In use from 29 Sep
+    2026, on the Indian indices and Bitcoin alike.</b></li>
   </ul>
  </section>
 
@@ -1893,8 +1965,8 @@ def results_page(user=None, record=None):
 </div></div>"""
     return shell("What it measured", body, user=user, active="/results",
                  description=("The backtest behind TradePicker: the current rules priced "
-                              "as options after costs over three years - a thin, "
-                              "modelled edge, with what it rests on and what it cannot "
+                              "as options after costs over three years - a modelled "
+                              "edge, with what it rests on and what it cannot "
                               "show."))
 
 
