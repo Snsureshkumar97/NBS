@@ -699,6 +699,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # rupee sign is a wrong number that looks like a right one.
             "currency": "USD" if market == "crypto" else "INR",
             "markets": _available_markets(),
+            # Every available market's own label, keyed by its id - so the switch-market
+            # dropdown in the header can be built without hard-coding what the two markets
+            # are called (asked for by the user, 28 Sep 2026: a dropdown in the header
+            # instead of a click-through to a separate chooser page).
+            "market_options": {m: (config.MARKETS.get(m) or {}).get("label", m)
+                               for m in _available_markets()},
             "updated": snap["updated"],
             "mode": _state["mode"],
             "user": user,
@@ -4270,7 +4276,9 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .ktg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 4px;font-size:13px;color:var(--ink-3)}
   :root[data-look="kite"] .ktg .hit{color:var(--up);font-weight:500}
   :root[data-look="kite"] .kclear{margin-top:10px;width:100%;justify-content:center}
-  :root[data-look="kite"] .klink{display:inline-block;margin-top:8px;font-size:13px;color:var(--accent)}
+  :root[data-look="kite"] .klink{display:inline-block;margin-top:8px;font-size:13px;color:var(--accent);
+    background:none;border:0;padding:0;font-family:inherit;cursor:pointer}
+  :root[data-look="kite"] .klink:hover{text-decoration:underline}
   /* 2 and 3. the signal card: the trade first, the working after; the indicators beside the room to run */
   :root[data-look="kite"] .pane[data-pane="signal"].on{display:flex;flex-direction:column}
   :root[data-look="kite"] #sigcard{order:1}
@@ -4467,7 +4475,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
  </a>
  <div class="sidechips" id="sidechips">
-  <a class="chip" id="sidemkt" href="/market" hidden>Switch market</a>
+  <select class="chip" id="sidemkt" hidden aria-label="Switch market"></select>
   <a class="chip" id="sidekite" href="/connect" hidden>Connect Zerodha</a>
  </div>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
@@ -4547,8 +4555,8 @@ button.mgroup:hover{color:var(--ink-2)}
    <span class="st-clock" id="upd">&mdash;</span>
   </div>
   <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <a class="chip" id="mktsw" href="/market" style="display:none"
-       title="Switch market">&mdash;</a>
+    <select class="chip" id="mktsw" style="display:none" title="Switch market"
+       aria-label="Switch market"></select>
     <!-- Who you are signed in as, and signing out, are in the sidebar footer.
          They were printed here as well, and the duplicate is what collided
          with the market chip in the top corner. Zerodha stays: it changes to
@@ -7606,11 +7614,37 @@ function render(s){
   const sw = $("mktsw");
   if(sw){
     if(s.market_label){
-      sw.textContent = "Switch market";
       sw.style.display = "inline-flex";
-      sw.title = (s.markets && s.markets.length > 1)
-        ? "Switch market" : "This server runs one market";
+      const multi = s.markets && s.markets.length > 1;
+      sw.title = multi ? "Switch market" : "This server runs one market";
+      sw.disabled = !multi;
+      // Rebuilt only when the option list itself would actually differ - not on every
+      // poll, which would otherwise drop whatever the dropdown was mid-click on.
+      const opts = Object.entries(s.market_options || {});
+      const key = opts.map(([k]) => k).join(",") + "|" + s.market;
+      if(sw.dataset.key !== key){
+        sw.dataset.key = key;
+        sw.innerHTML = opts.map(([k, label]) =>
+          `<option value="${esc(k)}"${k === s.market ? " selected" : ""}>${esc(label)}</option>`).join("");
+      }
     } else sw.style.display = "none";
+  }
+  // The phone menu's own copy - the header's select is hidden entirely below 901px (no room for
+  // it there), so the slide-out menu carries its own independent dropdown, same options, same
+  // change handler, rather than pointing at a select the phone can never actually show.
+  const sm = $("sidemkt");
+  if(sm){
+    sm.hidden = !s.market_label;
+    const multi = s.markets && s.markets.length > 1;
+    sm.title = multi ? "Switch market" : "This server runs one market";
+    sm.disabled = !multi;
+    const opts = Object.entries(s.market_options || {});
+    const key = opts.map(([k]) => k).join(",") + "|" + s.market;
+    if(sm.dataset.key !== key){
+      sm.dataset.key = key;
+      sm.innerHTML = opts.map(([k, label]) =>
+        `<option value="${esc(k)}"${k === s.market ? " selected" : ""}>${esc(label)}</option>`).join("");
+    }
   }
   // Needing to connect and having a broken feed are different problems with
   // different fixes, so they are different notices — and only ever one of
@@ -8582,13 +8616,18 @@ function kiteSide(s){
     f = `<div class="knum">${esc(fundsLabel(br.funds))}</div><div class="kmuted">available on ${esc(br.name)}</div>`;
   else if(br.name)
     f = `<div class="kmuted">${esc(br.name)} is not connected.</div><a class="klink" href="${esc(br.connect_url || "/connect")}">Connect ${esc(br.name)}</a>`;
-  if(s.market_label) f += `<div><a class="klink" href="/market">Switch market</a></div>`;
+  if(s.market_label) f += `<div><button class="klink" type="button" data-kact="switchmarket">Switch market</button></div>`;
   if(f) h += box("Funds", f, "kb-funds");
   if(h !== KSIDE_HTML){ KSIDE_HTML = h; el.innerHTML = h; }
   if(!el.dataset.wired){
     el.dataset.wired = "1";
     el.addEventListener("click", e => {
       const b = e.target.closest("[data-kact]"); if(!b) return;
+      if(b.dataset.kact === "switchmarket"){
+        const sw = visibleMarketSwitch(); if(!sw) return;
+        if(sw.showPicker) sw.showPicker(); else sw.focus();
+        return;
+      }
       const t = b.dataset.kact === "live" ? $("tlive") : $("tclear");
       if(t) t.click();
     });
@@ -10703,9 +10742,12 @@ function setScheme(v){ try{ localStorage.setItem("nbs.scheme.v1", v); }catch(e){
     b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
     b.addEventListener("click", () => { if(b.dataset.scheme !== SCHEME) setScheme(b.dataset.scheme); });
   }); }
-// On a phone the header has no room for the market and broker chips, so the menu carries copies:
-// they follow the header's own chips (text, link, hidden) whenever those change.
-[["mktsw", "sidemkt"], ["kite", "sidekite"]].forEach(([a, b]) => {
+// On a phone the header has no room for the broker chip, so the menu carries a copy: it follows
+// the header's own chip (text, link, hidden) whenever that changes. The market switch used to be
+// mirrored the same way, back when it was a link like this one - now it is a dropdown in the
+// header itself (asked for by the user, 28 Sep 2026), so its own menu copy is driven straight
+// from state instead, in paint() below, rather than mirrored from a differently-shaped element.
+[["kite", "sidekite"]].forEach(([a, b]) => {
   const src = document.getElementById(a), dst = document.getElementById(b);
   if(!src || !dst) return;
   const sync = () => { dst.textContent = src.textContent; dst.setAttribute("href", src.getAttribute("href") || "#");
@@ -10713,6 +10755,30 @@ function setScheme(v){ try{ localStorage.setItem("nbs.scheme.v1", v); }catch(e){
   new MutationObserver(sync).observe(src, {attributes: true, childList: true, characterData: true, subtree: true});
   sync();
 });
+// The market dropdowns themselves - the header's (desktop) and the phone menu's own copy - built
+// fresh whenever the option list changes (see paint()), and switching either one posts straight
+// to the same /market the old chooser page already posted to, so nothing on the server had to
+// change, only how the choice reaches it: no more click-through to a page just to pick.
+function switchMarketOn(sel){
+  const body = new URLSearchParams({market: sel.value});
+  fetch("/market", {method: "POST", body}).then(r => {
+    if(r.redirected || r.ok) location.href = "/app";
+  }).catch(() => { location.href = "/market"; });   // the old chooser page, as a fallback
+}
+["mktsw", "sidemkt"].forEach(id => {
+  const sel = document.getElementById(id);
+  if(sel) sel.addEventListener("change", () => switchMarketOn(sel));
+});
+// Whichever of the two is actually visible right now - the header's above 901px, the phone
+// menu's below it (see the .hd .row{display:none} rule) - for the palette and the Funds box's
+// own "Switch market" shortcut, neither of which can assume which width they were opened at.
+function visibleMarketSwitch(){
+  const sw = document.getElementById("mktsw");
+  if(sw && sw.offsetParent !== null) return sw;
+  const sm = document.getElementById("sidemkt");
+  if(sm && sm.offsetParent !== null) return sm;
+  return sw || sm;
+}
 const PAL = {items: [], sel: 0};
 function palItems(){
   const out = [];
@@ -10720,7 +10786,8 @@ function palItems(){
     {t:"Index", label:k, sub:"show this index", run:() => { selectIndex(k); chainFetch(true); }}));
   if(((LAST && LAST.markets) || []).length > 1)
     out.push({t:"Market", label:"Switch market", sub:"Indian indices / crypto",
-              run:() => location.href = "/market"});
+              run:() => { const sw = visibleMarketSwitch(); if(!sw) return;
+                          if(sw.showPicker) sw.showPicker(); else sw.focus(); }});
   PANELS.forEach(([k, label], i) => out.push(
     {t:"Panel", label:(HIDDEN.has(k) ? "Show " : "Hide ") + label,
      sub:(i < 9 ? "⌥" + (i + 1) + " · " : "") + (HIDDEN.has(k) ? "hidden" : "showing"),

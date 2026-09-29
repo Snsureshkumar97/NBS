@@ -60,7 +60,7 @@ check("each fold button says whether it is open", 'b.setAttribute("aria-expanded
 print("7. PHONE TARGETS")
 check("controls are at least 44px tall on a phone",
       ":is(button,.lbtn,select,.menu .tab,.navbtn,.hd .chip,input:not([type=checkbox]):not([type=radio])){min-height:44px}" in SRC)
-check("...including Switch market, which is a link styled as a chip", 'class="chip" id="mktsw"' in SRC)
+check("...including Switch market, a select styled as a chip", 'class="chip" id="mktsw"' in SRC)
 check("drag handles are gone on touch screens", "@media(hover:none){.grip{display:none}}" in SRC)
 check("the one small text link has a bigger hit area",
       'class="honestlink"' in SRC and ".honestlink{display:inline-block;padding:14px 4px;margin:-14px 0}" in SRC)

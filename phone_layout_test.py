@@ -66,12 +66,12 @@ check("the AI desk's heading row: heading on its own line, each switch full widt
 check("the bottom bar's labels stay visible and each button is a comfortable target",
       ".botnav button{min-height:52px;font-size:12px;gap:2px}" in PHONE)
 
-print("4. THE MENU'S CHIPS FOLLOW THE HEADER'S")
+print("4. THE MENU'S BROKER CHIP FOLLOWS THE HEADER'S, AND THE MARKET DROPDOWNS SWITCH ON PICK")
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if not NODE:
-    check("node is available to run the page's own mirror code", False, "install node")
+    check("node is available to run the page's own wiring code", False, "install node")
 else:
-    m0 = SRC.index("// On a phone the header has no room for the market and broker chips")
+    m0 = SRC.index("// On a phone the header has no room for the broker chip")
     m1 = SRC.index("const PAL = {items: [], sel: 0};", m0)
     prog = r'''
 const assert = require("assert");
@@ -79,27 +79,79 @@ const observers = [];
 class MutationObserver { constructor(f){ this.f = f; observers.push(this); } observe(el){ this.el = el; } fire(){ this.f(); } }
 const mk = (href, text, display) => ({attrs: {href}, textContent: text, title: "", hidden: null, style: {display: display || ""},
                                       getAttribute(k){ return this.attrs[k] || null; }, setAttribute(k, v){ this.attrs[k] = v; }});
-const els = {mktsw: mk("/market", "Switch market", "none"), kite: mk("/connect", "Delta Exchange · USD 0.56 (₹0) available", "inline-flex"),
-             sidemkt: mk("#", ""), sidekite: mk("#", "")};
+const mkSel = (value, offsetParent) => ({value, offsetParent: offsetParent === undefined ? {} : offsetParent,
+                                        _onchange: null, addEventListener(evt, fn){ if(evt === "change") this._onchange = fn; },
+                                        fire(){ this._onchange && this._onchange(); }, showPicker(){}, focus(){}});
+const els = {kite: mk("/connect", "Delta Exchange · USD 0.56 (₹0) available", "inline-flex"), sidekite: mk("#", ""),
+             mktsw: mkSel("nse_index"), sidemkt: mkSel("crypto")};
 const document = {getElementById: id => els[id] || null};
-new Function("document", "MutationObserver", ''' + json.dumps(SRC[m0:m1]) + r''')(document, MutationObserver);
+const calls = []; let resolveOk = true;
+global.fetch = (url, opts) => { calls.push([url, opts]);
+  return resolveOk ? Promise.resolve({ok: true, redirected: false}) : Promise.reject(new Error("network")); };
+const loc = {href: null}; global.location = loc; global.URLSearchParams = URLSearchParams;
+// new Function()'s body is its own scope - switchMarketOn/visibleMarketSwitch declared inside it
+// are not visible out here unless handed back, so the extracted source returns them itself.
+const api = new Function("document", "MutationObserver",
+  ''' + json.dumps(SRC[m0:m1]) + r''' + "\nreturn {switchMarketOn, visibleMarketSwitch};"
+)(document, MutationObserver);
+const {visibleMarketSwitch} = api;
+
+// The broker chip still mirrors exactly as before - just the one pair now, not two.
+assert.strictEqual(observers.length, 1, "only the broker chip is mirrored now - the market switch is not a link to mirror");
 assert.strictEqual(els.sidekite.textContent, els.kite.textContent, "the funds chip's words are copied at once");
 assert.strictEqual(els.sidekite.hidden, false); assert.strictEqual(els.sidekite.getAttribute("href"), "/connect");
-assert.strictEqual(els.sidemkt.hidden, true, "a header chip that is hidden is hidden in the menu too");
-els.mktsw.style.display = "inline-flex"; els.mktsw.textContent = "Switch market"; observers[0].fire();
-assert.strictEqual(els.sidemkt.hidden, false); assert.strictEqual(els.sidemkt.textContent, "Switch market");
-els.kite.textContent = "Connect Zerodha"; els.kite.attrs.href = "/connect"; observers[1].fire();
+els.kite.textContent = "Connect Zerodha"; els.kite.attrs.href = "/connect"; observers[0].fire();
 assert.strictEqual(els.sidekite.textContent, "Connect Zerodha", "when the header's chip changes, the menu's follows");
-els.kite.style.display = "none"; observers[1].fire();
+els.kite.style.display = "none"; observers[0].fire();
 assert.strictEqual(els.sidekite.hidden, true);
-assert.strictEqual(observers.length, 2, "one watcher per chip");
-const missing = {getElementById: id => id === "mktsw" ? els.mktsw : null};
+
+// Each market dropdown posts to /market and moves on to /app on pick - no page in between.
+els.mktsw.value = "crypto"; els.mktsw.fire();
+assert.strictEqual(calls.length, 1); assert.strictEqual(calls[0][0], "/market");
+assert.strictEqual(calls[0][1].method, "POST");
+assert.strictEqual(calls[0][1].body.get("market"), "crypto", "the header select posts its own picked value");
+await new Promise(r => setTimeout(r, 0));
+assert.strictEqual(loc.href, "/app", "a successful switch goes straight to the app, never the old chooser page");
+loc.href = null;
+els.sidemkt.value = "nse_index"; els.sidemkt.fire();
+assert.strictEqual(calls.length, 2); assert.strictEqual(calls[1][1].body.get("market"), "nse_index",
+      "the phone menu's own dropdown switches independently, not through the (hidden, on phone) header one");
+await new Promise(r => setTimeout(r, 0));
+assert.strictEqual(loc.href, "/app");
+
+// If the POST itself fails, the old chooser page is still there as a fallback - never a dead click.
+resolveOk = false; loc.href = null;
+els.mktsw.fire();
+await new Promise(r => setTimeout(r, 0));
+assert.strictEqual(loc.href, "/market", "a failed switch falls back to the page it replaced, not a stuck dropdown");
+
+// visibleMarketSwitch() picks whichever of the two is actually on screen - the header's above
+// 901px, the phone menu's below it, where the header one is display:none (offsetParent null).
+els.mktsw.offsetParent = {};
+assert.strictEqual(visibleMarketSwitch(), els.mktsw, "desktop: the header's own select");
+els.mktsw.offsetParent = null;
+assert.strictEqual(visibleMarketSwitch(), els.sidemkt, "phone: the header's is hidden, so the menu's own select is used");
+
+const missing = {getElementById: id => id === "kite" ? els.kite : null};
 new Function("document", "MutationObserver", ''' + json.dumps(SRC[m0:m1]) + r''')(missing, MutationObserver);
 console.log("ok:mirror");
 '''
-    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
-    check("the page's own mirror code, run for real: text, link and hidden follow the header's chips, and a missing element is not an error",
-          "ok:mirror" in r.stdout and r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-500:])
+    r = subprocess.run([NODE, "-e", "(async()=>{" + prog + "})().catch(e=>{console.error(e);process.exit(1)})"],
+                       capture_output=True, text=True, timeout=60)
+    check("the page's own wiring code, run for real: the broker chip mirrors, both market dropdowns "
+          "post and redirect, a failed post falls back to the old page, and a missing element is not an error",
+          "ok:mirror" in r.stdout and r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-800:])
+check("the state payload carries every available market's own label, for the dropdown to build "
+      "itself from - not the two markets hard-coded into the page",
+      '"market_options": {m: (config.MARKETS.get(m) or {}).get("label", m)' in SRC
+      and "for m in _available_markets()}" in SRC)
+check("both dropdowns are built from that same list, the current market pre-selected, and disabled "
+      "outright when there is only the one (nothing to switch to)",
+      'k === s.market ? " selected" : ""' in SRC and "sw.disabled = !multi" in SRC and "sm.disabled = !multi" in SRC)
+check("the header's own select carries the market options as real <option>s, escaped",
+      'sw.innerHTML = opts.map(([k, label]) =>' in SRC)
+check("the phone menu's select is built the same way, independently of the header's",
+      'sm.innerHTML = opts.map(([k, label]) =>' in SRC)
 
 print("5. THE CALENDAR'S FIGURES STAY READABLE ON THEIR TINT")
 check("each tinted day carries the type colour chosen for its tint, and every figure in it uses it",

@@ -194,7 +194,7 @@ else:
     h1 = SRC.index("</script></head><body>", h0)
     head_js = SRC[SRC.index("(function(){", h0):h1]
     s0 = SRC.index("const SCHEMES = {light:")
-    s1 = SRC.index("// On a phone the header has no room for the market and broker chips")
+    s1 = SRC.index("// On a phone the header has no room for the broker chip")
     sw_js = SRC[s0:s1]
     import json
     prog = r"""
@@ -477,7 +477,7 @@ assert.ok(h.includes("Market open") && h.includes("beat live") && h.includes("23
 assert.ok(h.includes("Live orders") && h.includes('aria-checked="false"') && h.includes(">OFF<") && !h.includes("klive on"), "the switch reads OFF");
 assert.ok(h.includes("No open trade on BTC. No trade."), "no trade open");
 assert.ok(h.includes("Today") && h.includes("+$98") && h.includes("10 tickets") && h.includes("2 stopped out"), "today");
-assert.ok(h.includes("Funds") && h.includes("USD 0.56") && h.includes("available on Delta Exchange") && h.includes('href="/market"'), "funds and the way to the other market");
+assert.ok(h.includes("Funds") && h.includes("USD 0.56") && h.includes("available on Delta Exchange") && h.includes('data-kact="switchmarket"'), "funds and the way to the other market - now a button that opens the header's own dropdown, not a link to a separate page");
 assert.ok(h.includes("kb-today") && h.includes("kb-funds"), "the panels the Dashboard hides are marked");
 
 // an open trade, live orders on
