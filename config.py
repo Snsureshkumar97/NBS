@@ -920,6 +920,35 @@ CLOSE_ON_SIGNAL_FLIP = False
 # this is not proof live performs exactly this well, a reason to watch it, not a guarantee.
 EARLY_EXIT_ON_REVERSAL = True
 
+# ---------------------------------------------------------------------------
+# TIME-BASED BREAKEVEN — a trade that hasn't started working yet gets less room
+# ---------------------------------------------------------------------------
+# pro_study.simulate()'s be_after_t1 moves the stop to breakeven once T1 IS touched - a trade
+# that's working. This is the untested other half, from the user, 29 Sep 2026: "look for a new
+# exit or sizing idea" (after three entry-side filters that day all failed to generalize). If
+# T1 has NOT been touched within TIME_BREAKEVEN_MINUTES of entry, the stop tightens to
+# breakeven and never loosens again - it does not close the trade by itself, unlike the
+# (already tried, dropped) fixed time stop that force-closes at the current price. Target, the
+# real stop and square-off are all unaffected.
+#
+# Run through time_breakeven_study.py before being trusted, per this file's own standing
+# practice - against today's real entry gates (reversal_exit_study.live_gate), pro_study.py's
+# own pricing. History to 11 Sep 2026, per lot after costs, pooled NIFTY/BANKNIFTY/SENSEX
+# (3,627 trades in-sample, 2,385 held-out in both rows - identical entries, only the exit
+# differs):
+#                    hold to T2/stop (before)          with this (120 minutes)
+#   in-sample        +643,422   PF 1.17  DD 163,495    +1,230,015  PF 1.48  DD 83,630
+#   held-out year     +224,975  PF 1.08  DD 288,442      +452,296  PF 1.29  DD 129,881
+# Roughly doubles profit and roughly halves the worst drawdown, in BOTH periods. A result this
+# large earned extra scrutiny before being trusted on one setting: swept 30 minutes to 10 hours
+# on the identical entries and pricing, and it KEEPS at every value tried, a smooth curve (a
+# shorter wait trades a bigger drawdown cut for less total profit) rather than a spike at one
+# lucky number - the opposite pattern from the entry-side filters tested the same day, which
+# all failed the same way at every setting swept. 120 minutes is the pre-declared value (not
+# the best-performing one in the sweep - that discipline is why the sweep is trustworthy).
+# Switched on 29 Sep 2026 at the user's choice.
+TIME_BREAKEVEN_MINUTES = 120        # 0 disables
+
 _STRICTNESS = {
     "strict":   {"min_agree": 3, "max_dissent": 1, "adx": 20, "min_rr": 0.6},
     "balanced": {"min_agree": 3, "max_dissent": 2, "adx": 18, "min_rr": 0.45},

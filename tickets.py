@@ -713,6 +713,29 @@ class TicketBook:
                     trade[sl_field] = tv
                     ratcheted = True
 
+        # TIME-BASED BREAKEVEN (config.TIME_BREAKEVEN_MINUTES, 0 disables) — tested via
+        # time_breakeven_study.py, 29 Sep 2026: KEEP, and robustly so — every wait time from
+        # 30 minutes to 10 hours beat the live exit both in-sample and held-out on identical
+        # entries, roughly doubling profit and roughly halving the worst drawdown in both
+        # periods. If T1 has not been touched within this many minutes of entry, the stop
+        # tightens to breakeven and never loosens again — it does not close the trade by
+        # itself; target, the real stop and square-off are all unaffected. A T1 touch already
+        # ratchets the stop to T1 above, more favourable than breakeven, so this only ever
+        # matters — and only ever tightens further — while T1 is still untouched.
+        wait_min = _cfg("TIME_BREAKEVEN_MINUTES", 0)
+        if (wait_min and not trade["sl_hit"] and not trade["hit"]["T1"]
+                and not trade["time_breakeven_done"]):
+            elapsed_min = (now_ist() - trade["entry_ts"]).total_seconds() / 60.0
+            if elapsed_min >= wait_min:
+                be = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
+                if be is not None:
+                    current = trade[sl_field]
+                    tightened = max(current, be) if opt == "CE" else min(current, be)
+                    if tightened != current:
+                        trade[sl_field] = tightened
+                        ratcheted = True
+                trade["time_breakeven_done"] = True
+
         if trade["hit"][exit_key]:
             trade["status"] = f"CLOSED — {exit_key} hit (full target reached)"
         elif trade["sl_hit"]:
@@ -1141,6 +1164,7 @@ class TicketBook:
             "hit_time": {k: None for k in TARGET_KEYS},
             "sl_hit": False,
             "sl_hit_time": None,
+            "time_breakeven_done": False,
             "status": "OPEN",
             "trade_id": f"{rec['index']}-{stamp.strftime('%Y%m%d-%H%M%S')}",
             # Issued only because you skipped a cooldown by hand. Kept with the

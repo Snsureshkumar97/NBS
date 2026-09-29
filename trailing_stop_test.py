@@ -39,9 +39,13 @@ def book():
 
 
 def mk(option_type="CE", use_premium=True, entry=90.0, targets=(105.0, 114.0, 120.0),
-       stop=70.0, exit_at="T3", index_entry=25000.0):
+       stop=70.0, exit_at="T3", index_entry=25000.0, entry_ts=None):
     return {"index": "NIFTY", "option_type": option_type, "strike": 25000,
             "entry_time": "10:00:00", "entry_spot": index_entry,
+            # Real tickets always have this - now_ist() is patched to a fixed instant above, so
+            # defaulting to "right now" (elapsed 0) keeps every test below exactly as it was
+            # before TIME_BREAKEVEN_MINUTES existed, unless a test asks for a specific age.
+            "entry_ts": entry_ts if entry_ts is not None else tickets.now_ist(),
             "entry_ltp": entry if use_premium else None,
             "use_premium": use_premium, "lot_size": 65, "lots": 1, "exit_at": exit_at,
             "index_targets": [] if use_premium else list(targets),
@@ -50,8 +54,8 @@ def mk(option_type="CE", use_premium=True, entry=90.0, targets=(105.0, 114.0, 12
             "premium_sl": stop if use_premium else None,
             "hit": {"T1": False, "T2": False, "T3": False},
             "hit_time": {"T1": None, "T2": None, "T3": None},
-            "sl_hit": False, "sl_hit_time": None, "status": "OPEN",
-            "trade_id": "NIFTY-trailtest"}
+            "sl_hit": False, "sl_hit_time": None, "time_breakeven_done": False,
+            "status": "OPEN", "trade_id": "NIFTY-trailtest"}
 
 
 sl_field = lambda t: "premium_sl" if t["use_premium"] else "index_sl"
