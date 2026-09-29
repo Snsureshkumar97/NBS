@@ -152,6 +152,7 @@ for sel, decl in rules:
 # The only rules that need no override of their own, and why:
 FINE = {".aipicker .lbtn.on .pl": "white type inside .aipicker .lbtn.on, which the Zerodha block fills with blue",
         ".key.dash": "a legend swatch drawn in --vwap, a token",
+        ".key.dash2": "a legend swatch drawn in --macd-signal, a token",
         ".notice.risk .more": "covered by `.notice.risk :is(b,.more,summary b)`",
         ".notice.risk b": "covered by `.notice.risk :is(b,.more,summary b)`"}
 # the selectors the Zerodha block itself names (its :is(...) groups flattened), so a mention in a comment
@@ -562,7 +563,7 @@ check("the confidence ring sits beside its words in the band, so the band is no 
 print("9. THE CHART FITS THE WINDOW BESIDE THE SIGNAL (25 Sep 2026: 'to see the full chart like this i have to scroll all the way down')")
 check("from 1500px the pinned chart pane gives up Today's range and its canvas is sized to the window, so the whole chart is in view once it pins",
       '> .pane[data-pane="chart"] #colR{display:none}' in KITE
-      and '> .pane[data-pane="chart"] #cv{height:clamp(320px,calc(100vh - 300px),860px)}' in KITE
+      and '> .pane[data-pane="chart"] #cv{height:clamp(460px,calc(100vh - 300px),1000px)}' in KITE
       and "position:sticky;top:64px;" in KITE)
 check("the left column cannot slide over the footer: its sticky part is inside a full-height wrapper",
       ".wrap > .kcol{display:block;grid-column:1;grid-row:1 / span 6;align-self:stretch;margin-top:16px}" in KITE

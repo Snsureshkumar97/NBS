@@ -2528,6 +2528,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             vwap = clean(ind.vwap(df))
         except Exception:
             vwap = None
+        try:
+            rsi = clean(ind.rsi(df["Close"], config.RSI_LENGTH))
+        except Exception:
+            rsi = None
+        try:
+            macd_line, macd_signal, macd_hist = ind.macd(
+                df["Close"], config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
+            macd_line, macd_signal, macd_hist = clean(macd_line), clean(macd_signal), clean(macd_hist)
+        except Exception:
+            macd_line = macd_signal = macd_hist = None
 
         # Epoch seconds, so the browser can format them in the viewer's own
         # locale instead of us shipping pre-formatted strings we would then
@@ -2554,6 +2564,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "candles": bars,
             "ema_fast": ema_fast, "ema_slow": ema_slow, "vwap": vwap,
             "ema_fast_len": config.EMA_FAST, "ema_slow_len": config.EMA_SLOW,
+            "rsi": rsi, "rsi_len": config.RSI_LENGTH,
+            "macd_line": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
+            "macd_fast": config.MACD_FAST, "macd_slow": config.MACD_SLOW, "macd_sig_len": config.MACD_SIGNAL,
             "levels": {
                 "t1": tg[0] if len(tg) > 0 else None,
                 "t2": tg[1] if len(tg) > 1 else None,
@@ -2877,6 +2890,7 @@ PAGE = r"""<!doctype html>
   --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#82828e;
   --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --ema-fast:#4d94e8; --ema-slow:#f6a500; --vwap:#b07ad4;
+  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9;
   --r:3px; --r-sm:3px;
 }
 *{box-sizing:border-box}
@@ -3368,6 +3382,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .key{width:15px;height:2.5px;border-radius:2px;flex:none}
 .key.dash{background:repeating-linear-gradient(90deg,var(--vwap) 0 4px,transparent 4px 7px)}
+.key.dash2{background:repeating-linear-gradient(90deg,var(--macd-signal) 0 4px,transparent 4px 7px)}
 
 /* ---------- why ---------- */
 .why{display:flex;flex-direction:column;gap:0}
@@ -4001,8 +4016,8 @@ button.mgroup:hover{color:var(--ink-2)}
 .pane[data-pane="chart"] .grid{grid-template-columns:1fr}
 .pane[data-pane="chart"] #colR{order:-1}
 .pane[data-pane="chart"] #trendtiles{grid-template-columns:repeat(auto-fit,minmax(220px,1fr)) !important}
-.pane[data-pane="chart"] #cv{height:clamp(380px,58vh,760px)}
-@media(max-width:640px){.pane[data-pane="chart"] #cv{height:330px}}
+.pane[data-pane="chart"] #cv{height:clamp(520px,68vh,900px)}
+@media(max-width:640px){.pane[data-pane="chart"] #cv{height:460px}}
 /* 9. no signal: one sentence instead of four empty rows */
 .ladempty{margin:8px 0 2px;padding:12px 14px;border:1px dashed var(--bd);border-radius:var(--r-sm);
   color:var(--ink-2);font-size:13px;line-height:1.5}
@@ -4033,6 +4048,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#2f6fc0;
   --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
   --ema-fast:#387ed1; --ema-slow:#b26a00; --vwap:#8e44ad;
+  --rsi:#0f8a7e; --macd-line:#b0305c; --macd-signal:#5c6f8a;
   /* pale notices and badges, the current row of the chain, the switch's track and knob, the veil behind a dialog */
   --note-bg:#fff8e1; --note-bd:#f1dca0; --note-ink:#5f4b00; --note-strong:#8a5a00;
   --warn-bg:#fff4ef; --warn-bd:#ffd0bd; --warn-strong:#c2410c;
@@ -4049,6 +4065,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --up:#4caf50; --down:#e8615c; --warn:#e8a33d; --accent:#4184f3;
   --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#5a92f5;
   --ema-fast:#4184f3; --ema-slow:#e8a33d; --vwap:#c08adf;
+  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9;
   --note-bg:#2a2410; --note-bd:#4d4318; --note-ink:#e8dca8; --note-strong:#f0c65a;
   --warn-bg:#2f1d17; --warn-bd:#5a3324; --warn-strong:#ff8a65;
   --ok-bg:#1c2e1f; --ok-bd:#2f5233; --hold-bg:#2f2814;
@@ -4351,7 +4368,7 @@ button.mgroup:hover{color:var(--ink-2)}
      like this I have to scroll all the way down"). Today's range is said elsewhere on this page (the day move's low and
      high, the VWAP row), so its card gives the height back to the chart. */
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #colR{display:none}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #cv{height:clamp(320px,calc(100vh - 300px),860px)}
+  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #cv{height:clamp(460px,calc(100vh - 300px),1000px)}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="signal"]{display:contents}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) .top3{grid-column:1 / -1;grid-row:1}
   :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) :is(#sigcard,#posgkcard){grid-column:1}
@@ -4763,6 +4780,9 @@ button.mgroup:hover{color:var(--ink-2)}
     <span><i class="key dash"></i>VWAP</span>
     <span><i class="swatch" style="background:var(--up)"></i>Up candle</span>
     <span><i class="swatch" style="background:var(--down)"></i>Down candle</span>
+    <span><i class="key" style="background:var(--rsi)"></i>RSI</span>
+    <span><i class="key" style="background:var(--macd-line)"></i>MACD</span>
+    <span><i class="key dash2"></i>MACD signal</span>
     </div>
     </div>
    </div>
@@ -7210,7 +7230,7 @@ function chartDraw(){
     bd: css("--bd"), bdSoft: css("--bd-soft"), bg: css("--bg"),
     up: css("--up"), down: css("--down"), warn: css("--warn"),
     accent: css("--accent"), fast: css("--ema-fast"), slow: css("--ema-slow"),
-    vwap: css("--vwap"),
+    vwap: css("--vwap"), rsi: css("--rsi"), macdLine: css("--macd-line"), macdSignal: css("--macd-signal"),
   };
   cx.clearRect(0,0,w,h);
   cx.fillStyle = C.bg; cx.fillRect(0,0,w,h);
@@ -7231,6 +7251,20 @@ function chartDraw(){
 
   const plotW = w - PAD.l - PAD.r, plotH = h - PAD.t - PAD.b;
   const bw = plotW / view.length;
+
+  // ---- price pane vs. the RSI/MACD sub-panes below it -----------------
+  // Each sub-pane gets a modest, roughly fixed height regardless of the
+  // canvas's own height (the way Kite/TradingView keep them) - the price
+  // pane, the one that matters most, gets whatever is left over.
+  const hasRsi = !!d.rsi, hasMacd = !!(d.macd_line || d.macd_hist);
+  const subCount = (hasRsi?1:0) + (hasMacd?1:0);
+  const paneGap = 10;
+  const subH = subCount ? Math.max(50, Math.min(90, plotH * 0.16)) : 0;
+  const priceTop = PAD.t;
+  const priceH = Math.max(60, plotH - subCount * (subH + paneGap));
+  let rsiTop = null, macdTop = null, nextTop = priceTop + priceH;
+  if(hasRsi){ nextTop += paneGap; rsiTop = nextTop; nextTop += subH; }
+  if(hasMacd){ nextTop += paneGap; macdTop = nextTop; nextTop += subH; }
 
   // ---- price range over what is actually on screen -------------------
   let lo = Infinity, hi = -Infinity;
@@ -7260,7 +7294,7 @@ function chartDraw(){
   }
   const pad = (hi-lo||1) * 0.08; lo -= pad; hi += pad;
   const span = hi - lo || 1;
-  const Y = v => PAD.t + (hi - v) / span * plotH;
+  const Y = v => priceTop + (hi - v) / span * priceH;
   const X = i => PAD.l + (i - i0 + 0.5) * bw;
 
   // ---- horizontal grid + price axis ----------------------------------
@@ -7316,14 +7350,15 @@ function chartDraw(){
   }
 
   // ---- overlays --------------------------------------------------------
-  function line(arr, colour, dash){
+  function line(arr, colour, dash, yFn){
     if(!arr) return;
+    const Yf = yFn || Y;
     cx.save(); cx.strokeStyle = colour; cx.lineWidth = 1.4;
     cx.setLineDash(dash||[]); cx.beginPath();
     let started = false;
     for(let i=i0;i<i1;i++){
       const v = arr[i]; if(v == null){ started = false; continue; }
-      const x = X(i), y = Y(v);
+      const x = X(i), y = Yf(v);
       if(!started){ cx.moveTo(x,y); started = true; } else cx.lineTo(x,y);
     }
     cx.stroke(); cx.restore();
@@ -7331,6 +7366,61 @@ function chartDraw(){
   line(d.vwap, C.vwap, [4,3]);
   line(d.ema_slow, C.slow);
   line(d.ema_fast, C.fast);
+
+  // ---- RSI / MACD sub-panes --------------------------------------------
+  // Each pane starts with a divider and a small label, then its own
+  // reference lines drawn UNDER the indicator line, the same layering the
+  // price pane's grid + candles already use.
+  function paneLabel(top, label){
+    cx.save();
+    cx.strokeStyle = C.bd; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(PAD.l, Math.round(top)+0.5); cx.lineTo(w-PAD.r, Math.round(top)+0.5); cx.stroke();
+    cx.fillStyle = C.ink3; cx.font = "10px -apple-system,sans-serif";
+    cx.textAlign = "left"; cx.textBaseline = "top";
+    cx.fillText(label, PAD.l+4, top+3);
+    cx.restore();
+  }
+  if(rsiTop != null){
+    paneLabel(rsiTop, `RSI ${d.rsi_len||14}`);
+    const rsiY = v => rsiTop + (100 - v) / 100 * subH;
+    cx.save(); cx.strokeStyle = C.bdSoft; cx.lineWidth = 1; cx.setLineDash([3,3]);
+    for(const lvl of [30,50,70]){
+      const y = Math.round(rsiY(lvl))+0.5;
+      cx.beginPath(); cx.moveTo(PAD.l, y); cx.lineTo(w-PAD.r, y); cx.stroke();
+    }
+    cx.restore();
+    cx.fillStyle = C.ink3; cx.font = "10px -apple-system,sans-serif";
+    cx.textAlign = "left"; cx.textBaseline = "middle";
+    for(const lvl of [30,70]) cx.fillText(String(lvl), w-PAD.r+7, rsiY(lvl));
+    line(d.rsi, C.rsi, null, rsiY);
+  }
+  if(macdTop != null){
+    paneLabel(macdTop, `MACD ${d.macd_fast||12},${d.macd_slow||26},${d.macd_sig_len||9}`);
+    // MACD has no fixed scale like RSI's 0-100 - symmetric around zero, sized
+    // to whatever is actually on screen.
+    let m = 1e-6;
+    for(const arr of [d.macd_line, d.macd_signal, d.macd_hist]){
+      if(!arr) continue;
+      for(let i=i0;i<i1;i++){ const v=arr[i]; if(v!=null) m = Math.max(m, Math.abs(v)); }
+    }
+    m *= 1.15;
+    const macdY = v => macdTop + (m - v) / (2*m) * subH;
+    cx.save(); cx.strokeStyle = C.bdSoft; cx.lineWidth = 1;
+    const zy = Math.round(macdY(0))+0.5;
+    cx.beginPath(); cx.moveTo(PAD.l, zy); cx.lineTo(w-PAD.r, zy); cx.stroke();
+    cx.restore();
+    if(d.macd_hist){
+      const hw = Math.max(1, bw*0.5);
+      for(let i=i0;i<i1;i++){
+        const v = d.macd_hist[i]; if(v==null) continue;
+        const x = X(i), y0 = macdY(0), y1 = macdY(v);
+        cx.fillStyle = v >= 0 ? C.up : C.down;
+        cx.fillRect(x-hw/2, Math.min(y0,y1), hw, Math.max(1, Math.abs(y1-y0)));
+      }
+    }
+    line(d.macd_line, C.macdLine, null, macdY);
+    line(d.macd_signal, C.macdSignal, [4,3], macdY);
+  }
 
   // ---- candles ---------------------------------------------------------
   const body = Math.max(1, Math.min(bw*0.68, 14));
@@ -7363,7 +7453,7 @@ function chartDraw(){
               [L.entry, "Entry", C.warn]]
     .filter(a => a[0] != null)
     .map(a => ({v: a[0], label: a[1], colour: a[2], y: Y(a[0])}))
-    .filter(a => a.y >= PAD.t-1 && a.y <= PAD.t+plotH+1);
+    .filter(a => a.y >= priceTop-1 && a.y <= priceTop+priceH+1);
   lv.forEach(a => {
     cx.save(); cx.strokeStyle = a.colour; cx.lineWidth = 1; cx.setLineDash([5,4]);
     cx.beginPath(); cx.moveTo(PAD.l, Math.round(a.y)+0.5);
@@ -7377,9 +7467,9 @@ function chartDraw(){
   const slots = lv.slice();
   if(i1 >= bars.length && lastBar){
     const py = Y(lastBar[4]);
-    if(py >= PAD.t && py <= PAD.t+plotH) slots.push({y: py, ty: py, fixed: true});
+    if(py >= priceTop && py <= priceTop+priceH) slots.push({y: py, ty: py, fixed: true});
   }
-  const tagLo = PAD.t + 8, tagHi = PAD.t + plotH - 8, GAP = 17;
+  const tagLo = priceTop + 8, tagHi = priceTop + priceH - 8, GAP = 17;
   for(let pass = 0; pass < 30; pass++){
     slots.sort((a, b) => a.ty - b.ty);
     let moved = false;
@@ -7432,7 +7522,10 @@ function chartDraw(){
                 Math.floor((CH.hover.x - PAD.l) / bw)));
     hoverIdx = i0 + k; readout = bars[hoverIdx];
     const x = Math.round(X(hoverIdx)) + 0.5;
-    const y = Math.max(PAD.t, Math.min(PAD.t+plotH, CH.hover.y));
+    // The horizontal line and the price it reads stay within the price pane
+    // even when the pointer is actually down over RSI/MACD - there is no
+    // price to read there, so this is the nearest sensible thing to show.
+    const y = Math.max(priceTop, Math.min(priceTop+priceH, CH.hover.y));
     cx.save();
     cx.strokeStyle = C.ink3; cx.setLineDash([3,3]); cx.lineWidth = 1;
     cx.beginPath(); cx.moveTo(x, PAD.t); cx.lineTo(x, PAD.t+plotH); cx.stroke();
@@ -7440,7 +7533,7 @@ function chartDraw(){
     cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
     cx.setLineDash([]);
     // price under the pointer, on the axis
-    const pv = hi - (y - PAD.t) / plotH * span;
+    const pv = hi - (y - priceTop) / priceH * span;
     cx.fillStyle = C.ink; cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
     cx.fillStyle = onColour(C.ink); cx.font = "11px -apple-system,sans-serif";
     cx.textAlign = "left"; cx.textBaseline = "middle";
@@ -7473,6 +7566,12 @@ function chartDraw(){
   + `<span class="o">EMA ${d.ema_slow_len||50}<i class="key" style="display:inline-block;`
   + `margin-left:5px;background:${C.slow}"></i></span>`
   + `<span class="o">VWAP<i class="key dash" style="display:inline-block;margin-left:5px"></i></span>`
+  + (d.rsi ? `<span class="o">RSI ${d.rsi_len||14}<i class="key" style="display:inline-block;`
+             + `margin-left:5px;background:${C.rsi}"></i></span>` : "")
+  + ((d.macd_line || d.macd_hist)
+     ? `<span class="o">MACD ${d.macd_fast||12},${d.macd_slow||26},${d.macd_sig_len||9}`
+       + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.macdLine}"></i></span>`
+     : "")
   + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
 }
 
@@ -7498,14 +7597,42 @@ cv.addEventListener("wheel", e => {
   chartZoom(e.deltaY > 0 ? 1.15 : 1/1.15, e.clientX - r.left);
 }, {passive:false});
 
+// Two fingers down: pinch to zoom, drag the midpoint to pan while doing it -
+// the way TradingView's own touch chart behaves (the user, 29 Sep 2026).
+// One finger: the drag-to-pan above, unchanged. Pointer Events cover touch
+// as well as mouse (#cv already sets touch-action:none so the page itself
+// never steals a one-finger drag to scroll instead of panning the chart).
+const touchPts = new Map();      // pointerId -> {x,y}, only while 2+ are down
+
 cv.addEventListener("pointerdown", e => {
-  cv.setPointerCapture(e.pointerId);
-  CH.drag = {x:e.clientX, i0:CH.i0};
-  cv.style.cursor = "grabbing";
+  // A capture failure (a stale or already-released pointer id) must not skip
+  // the bookkeeping below - that is what actually drives panning and pinch.
+  try { cv.setPointerCapture(e.pointerId); } catch(err) {}
+  touchPts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(touchPts.size >= 2){
+    const pts = [...touchPts.values()];
+    CH.pinch = {dist: Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y)};
+    CH.drag = null;
+  } else {
+    CH.drag = {x:e.clientX, i0:CH.i0};
+    cv.style.cursor = "grabbing";
+  }
 });
 cv.addEventListener("pointermove", e => {
   const r = cv.getBoundingClientRect();
   CH.hover = {x: e.clientX - r.left, y: e.clientY - r.top};
+  if(touchPts.has(e.pointerId)) touchPts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(touchPts.size >= 2 && CH.pinch){
+    const pts = [...touchPts.values()];
+    const dist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+    const midX = (pts[0].x + pts[1].x) / 2 - r.left;
+    // Each frame's factor is against the PREVIOUS frame's distance, not the
+    // pinch's start - that is what keeps a long, uneven pinch smooth instead
+    // of jumping once the fingers have moved far from where they started.
+    if(CH.pinch.dist > 5 && dist > 5) chartZoom(CH.pinch.dist / dist, midX);
+    CH.pinch.dist = dist;
+    return;               // chartZoom already redrew; the pan path below is for one finger
+  }
   if(CH.drag){
     const bars = ((CH.data||{}).candles)||[];
     const bw = (cv.clientWidth - PAD.l - PAD.r) / Math.max(1, CH.n);
@@ -7516,10 +7643,21 @@ cv.addEventListener("pointermove", e => {
   }
   chartDraw();
 });
-function endDrag(){ CH.drag = null; cv.style.cursor = "crosshair"; }
+function endDrag(e){
+  if(e && e.pointerId != null) touchPts.delete(e.pointerId);
+  if(touchPts.size < 2) CH.pinch = null;
+  if(touchPts.size === 1){
+    // lifting one finger out of a pinch keeps panning with the other, rather
+    // than needing a fresh touch-down to resume
+    const p = [...touchPts.values()][0];
+    CH.drag = {x: p.x, i0: CH.i0};
+  } else if(touchPts.size === 0){
+    CH.drag = null; cv.style.cursor = "crosshair";
+  }
+}
 cv.addEventListener("pointerup", endDrag);
 cv.addEventListener("pointercancel", endDrag);
-cv.addEventListener("pointerleave", () => { endDrag(); CH.hover = null; chartDraw(); });
+cv.addEventListener("pointerleave", e => { endDrag(e); CH.hover = null; chartDraw(); });
 cv.addEventListener("dblclick", () => chartReset());
 
 function chartReset(){

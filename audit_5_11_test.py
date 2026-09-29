@@ -68,8 +68,8 @@ check("the one small text link has a bigger hit area",
 print("8. THE CHART")
 check("full width on its page", '.pane[data-pane="chart"] .grid{grid-template-columns:1fr}' in SRC)
 check("today's range sits above it as a strip", '.pane[data-pane="chart"] #colR{order:-1}' in SRC)
-check("most of the screen's height on a desktop", '.pane[data-pane="chart"] #cv{height:clamp(380px,58vh,760px)}' in SRC)
-check("unchanged on a phone", '@media(max-width:640px){.pane[data-pane="chart"] #cv{height:330px}}' in SRC)
+check("most of the screen's height on a desktop", '.pane[data-pane="chart"] #cv{height:clamp(520px,68vh,900px)}' in SRC)
+check("unchanged on a phone", '@media(max-width:640px){.pane[data-pane="chart"] #cv{height:460px}}' in SRC)
 
 print("9. NO SIGNAL")
 check("one sentence instead of four empty rows",
