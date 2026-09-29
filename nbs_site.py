@@ -991,15 +991,16 @@ def _record_figs(record):
     sample, and averaging them would quietly let a good week improve a
     three-year result.
     """
-    # pro_study.py pricing on history to 11 Sep 2026: the rules live from
-    # 17 Sep 2026 (no opening-range wait, T3 >= 1x stop, no entry into an RSI
-    # divergence, more room on a trend day, the faster trend measure, all three indices),
-    # priced as the options you would buy, per lot, after Zerodha's charges and
-    # 0.25% slippage a side. Held out from 15 Aug 2025.
+    # pro_study.py / time_breakeven_study.py pricing on history to 11 Sep 2026: the rules
+    # live from 29 Sep 2026 (no opening-range wait, T3 >= 1x stop, no entry into an RSI
+    # divergence, more room on a trend day, the faster trend measure, an early exit on a
+    # sustained reversal, a stop that tightens to breakeven if T1 is not reached within 2
+    # hours, all three indices), priced as the options you would buy, per lot, after
+    # Zerodha's charges and 0.25% slippage a side. Held out from 15 Aug 2025.
     figs = [
         ("6,012", "trades on the current rules over three years"),
-        ("PF 1.09", "profit factor in the held-out year, after costs: slightly positive"),
-        ("\u20b93.01 lakh", "worst drawdown per lot in that year"),
+        ("PF 1.29", "profit factor in the held-out year, after costs: positive"),
+        ("\u20b91.30 lakh", "worst drawdown per lot in that year"),
         ("modelled", "option prices, not real fills - unproven"),
     ]
     html = "".join(f'<div class="fig"><div class="n">{_esc(n)}</div>'
@@ -2650,11 +2651,12 @@ def signup_page(error=None, email=""):
     set applied to Nifty, Bank Nifty and Sensex. It is <b>not advice</b>, and it
     does not come from a SEBI-registered research analyst or investment
     adviser.</p>
-   <p style="font-size:14px"><b>It has been tested, and the result is thin
-    and unproven.</b> Priced as options after costs, the current rules came out
-    positive over three years on Nifty and Sensex &mdash; but on modelled prices
-    rather than real fills, with most of the profit on expiry days, and with a
-    worst drawdown of about &#8377;1 lakh per lot in the most recent year.
+   <p style="font-size:14px"><b>It has been tested, and the result is
+    unproven.</b> Priced as options after costs, the current rules came out
+    positive over three years on all three indices &mdash; but on modelled
+    prices rather than real fills, with expiry days earning several times as
+    much per trade as an ordinary one, and with a worst drawdown of about
+    &#8377;1.30 lakh per lot in the most recent year.
     Nothing about a backtest says it will keep working.</p>
    <p style="font-size:14px">It is published so it can be checked, not because
     it is known to work. Options can lose their entire value.
