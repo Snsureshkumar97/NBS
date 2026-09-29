@@ -79,22 +79,26 @@ const observers = [];
 class MutationObserver { constructor(f){ this.f = f; observers.push(this); } observe(el){ this.el = el; } fire(){ this.f(); } }
 const mk = (href, text, display) => ({attrs: {href}, textContent: text, title: "", hidden: null, style: {display: display || ""},
                                       getAttribute(k){ return this.attrs[k] || null; }, setAttribute(k, v){ this.attrs[k] = v; }});
-const mkSel = (value, offsetParent) => ({value, offsetParent: offsetParent === undefined ? {} : offsetParent,
+const mkSel = (id, value, offsetParent) => ({id, value, offsetParent: offsetParent === undefined ? {} : offsetParent,
                                         _onchange: null, addEventListener(evt, fn){ if(evt === "change") this._onchange = fn; },
                                         fire(){ this._onchange && this._onchange(); }, showPicker(){}, focus(){}});
 const els = {kite: mk("/connect", "Delta Exchange · USD 0.56 (₹0) available", "inline-flex"), sidekite: mk("#", ""),
-             mktsw: mkSel("nse_index"), sidemkt: mkSel("crypto")};
+             mktsw: mkSel("mktsw", "nse_index"), sidemkt: mkSel("sidemkt", "crypto")};
 const document = {getElementById: id => els[id] || null};
 const calls = []; let resolveOk = true;
 global.fetch = (url, opts) => { calls.push([url, opts]);
   return resolveOk ? Promise.resolve({ok: true, redirected: false}) : Promise.reject(new Error("network")); };
 const loc = {href: null}; global.location = loc; global.URLSearchParams = URLSearchParams;
-// new Function()'s body is its own scope - switchMarketOn/visibleMarketSwitch declared inside it
-// are not visible out here unless handed back, so the extracted source returns them itself.
+global.LAST = {market: "nse_index", markets: ["nse_index", "crypto"]};
+let navOpened = 0; global.navOpen = () => { navOpened++; };
+// new Function()'s body is its own scope - switchMarketOn/switchMarketShortcut declared inside
+// it are not visible out here unless handed back, so the extracted source returns them itself.
+// LAST and navOpen are read as bare names inside that source, exactly as they are in the real
+// page - resolved here as the globals set above, the same way a <script> tag would resolve them.
 const api = new Function("document", "MutationObserver",
-  ''' + json.dumps(SRC[m0:m1]) + r''' + "\nreturn {switchMarketOn, visibleMarketSwitch};"
+  ''' + json.dumps(SRC[m0:m1]) + r''' + "\nreturn {switchMarketOn, switchMarketShortcut};"
 )(document, MutationObserver);
-const {visibleMarketSwitch} = api;
+const {switchMarketShortcut} = api;
 
 // The broker chip still mirrors exactly as before - just the one pair now, not two.
 assert.strictEqual(observers.length, 1, "only the broker chip is mirrored now - the market switch is not a link to mirror");
@@ -125,12 +129,29 @@ els.mktsw.fire();
 await new Promise(r => setTimeout(r, 0));
 assert.strictEqual(loc.href, "/market", "a failed switch falls back to the page it replaced, not a stuck dropdown");
 
-// visibleMarketSwitch() picks whichever of the two is actually on screen - the header's above
-// 901px, the phone menu's below it, where the header one is display:none (offsetParent null).
+// switchMarketShortcut() - the Funds box's button and the command palette's entry, neither of
+// which is the select itself - switches straight to the other market with exactly two, rather
+// than trying to indirectly open a select (showPicker() is missing on some browsers, .focus()
+// alone never opens a native select's list, and the phone menu's select sits in a closed drawer
+// until navOpen() runs) - the bug the user actually hit, 28 Sep 2026: a click that did nothing.
+calls.length = 0; resolveOk = true; loc.href = null;
+switchMarketShortcut();
+assert.strictEqual(calls.length, 1, "with exactly two markets, the shortcut switches directly - no select involved at all");
+assert.strictEqual(calls[0][1].body.get("market"), "crypto", "switches to the OTHER market, not back to the one already active");
+assert.strictEqual(navOpened, 0, "and never needed to open the phone drawer, since nothing was being shown to pick from");
+await new Promise(r => setTimeout(r, 0));
+assert.strictEqual(loc.href, "/app");
+
+// Three or more markets: nothing to pick FOR you, so it falls back to opening a select - the
+// header's if it is on screen, opening the phone drawer first if it has to fall back further.
+loc.href = null; global.LAST = {market: "nse_index", markets: ["nse_index", "crypto", "gold"]};
 els.mktsw.offsetParent = {};
-assert.strictEqual(visibleMarketSwitch(), els.mktsw, "desktop: the header's own select");
+switchMarketShortcut();
+assert.strictEqual(calls.length, 1, "three markets: falls back to opening a select, not a direct switch");
+assert.strictEqual(navOpened, 0, "the header's own select was on screen, so the drawer never had to open");
 els.mktsw.offsetParent = null;
-assert.strictEqual(visibleMarketSwitch(), els.sidemkt, "phone: the header's is hidden, so the menu's own select is used");
+switchMarketShortcut();
+assert.strictEqual(navOpened, 1, "the header's select was hidden, so falling back to the phone menu's opens the drawer first");
 
 const missing = {getElementById: id => id === "kite" ? els.kite : null};
 new Function("document", "MutationObserver", ''' + json.dumps(SRC[m0:m1]) + r''')(missing, MutationObserver);

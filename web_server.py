@@ -8623,11 +8623,7 @@ function kiteSide(s){
     el.dataset.wired = "1";
     el.addEventListener("click", e => {
       const b = e.target.closest("[data-kact]"); if(!b) return;
-      if(b.dataset.kact === "switchmarket"){
-        const sw = visibleMarketSwitch(); if(!sw) return;
-        if(sw.showPicker) sw.showPicker(); else sw.focus();
-        return;
-      }
+      if(b.dataset.kact === "switchmarket"){ switchMarketShortcut(); return; }
       const t = b.dataset.kact === "live" ? $("tlive") : $("tclear");
       if(t) t.click();
     });
@@ -10769,15 +10765,27 @@ function switchMarketOn(sel){
   const sel = document.getElementById(id);
   if(sel) sel.addEventListener("change", () => switchMarketOn(sel));
 });
-// Whichever of the two is actually visible right now - the header's above 901px, the phone
-// menu's below it (see the .hd .row{display:none} rule) - for the palette and the Funds box's
-// own "Switch market" shortcut, neither of which can assume which width they were opened at.
-function visibleMarketSwitch(){
+// The Funds box's own "Switch market" button and the command palette's entry are a SECOND way
+// to switch, not the select itself - and trying to reach the select indirectly (focus it, or
+// showPicker() it) turned out not to work: showPicker() is missing on older browsers and on
+// Safari, .focus() alone never opens a native select's list by itself, and the phone menu's own
+// select sits inside a drawer that is closed until navOpen() runs - so a click did nothing a
+// person could see, exactly the bug the user reported, 28 Sep 2026: "i see the switch market...
+// but when i click it it doesnt do anything." With exactly two markets - true of every server
+// this has ever run on - there is nothing to indirectly "open": switch straight to the other one.
+function switchMarketShortcut(){
+  const markets = (LAST && LAST.markets) || [];
+  if(markets.length === 2){
+    const other = markets.find(m => m !== (LAST && LAST.market));
+    if(other){ switchMarketOn({value: other}); return; }
+  }
+  // Three or more markets: nothing to pick FOR you, so open whichever select is actually
+  // reachable and let the person choose - opening the phone drawer first if that is the one.
   const sw = document.getElementById("mktsw");
-  if(sw && sw.offsetParent !== null) return sw;
-  const sm = document.getElementById("sidemkt");
-  if(sm && sm.offsetParent !== null) return sm;
-  return sw || sm;
+  const sel = (sw && sw.offsetParent !== null) ? sw : document.getElementById("sidemkt");
+  if(!sel) return;
+  if(sel.id === "sidemkt" && typeof navOpen === "function") navOpen();
+  if(sel.showPicker) sel.showPicker(); else sel.focus();
 }
 const PAL = {items: [], sel: 0};
 function palItems(){
@@ -10786,8 +10794,7 @@ function palItems(){
     {t:"Index", label:k, sub:"show this index", run:() => { selectIndex(k); chainFetch(true); }}));
   if(((LAST && LAST.markets) || []).length > 1)
     out.push({t:"Market", label:"Switch market", sub:"Indian indices / crypto",
-              run:() => { const sw = visibleMarketSwitch(); if(!sw) return;
-                          if(sw.showPicker) sw.showPicker(); else sw.focus(); }});
+              run: switchMarketShortcut});
   PANELS.forEach(([k, label], i) => out.push(
     {t:"Panel", label:(HIDDEN.has(k) ? "Show " : "Hide ") + label,
      sub:(i < 9 ? "⌥" + (i + 1) + " · " : "") + (HIDDEN.has(k) ? "hidden" : "showing"),
