@@ -29,12 +29,20 @@ WHAT THE CODE ACTUALLY DOES TODAY - THE TWO PATHS NEVER TALK
 WHAT THIS TESTS
     Whether it SHOULD be carried over: the same "stalled" definition compute_market_trend() uses
     (ADX at/above the trend threshold, but net price displacement over the ADX window under
-    TREND_MIN_DISPLACEMENT_ATR - regime_study.features()'s own "stalled" column, already a
-    faithful match: same formula, reused rather than re-derived) as an ADDITIONAL veto on top of
-    today's real entry gates. Same 3-year real NIFTY/BANKNIFTY/SENSEX history, the same real gates
-    (reversal_exit_study.live_gate, not a re-approximation), the same live exit (hold to T2/stop),
-    the same real-expiry pricing and after-costs stats(). Kept only if it beats the baseline both
-    in-sample and on the held-out final year - this project's own standing bar.
+    TREND_MIN_DISPLACEMENT_ATR) as an ADDITIONAL veto on top of today's real entry gates. Same
+    3-year real NIFTY/BANKNIFTY/SENSEX history, the same real gates (reversal_exit_study.live_
+    gate, not a re-approximation), the same live exit (hold to T2/stop), the same real-expiry
+    pricing and after-costs stats(). Kept only if it beats the baseline both in-sample and on the
+    held-out final year - this project's own standing bar.
+
+    29 Sep 2026, the user: "adjust the min displacement threshold and retest" - at the live
+    default (1.0 ATR) this was a close DROP (won in-sample, lost a little held-out). This now
+    sweeps a small, pre-declared range of thresholds around it (0.5-2.0) rather than hand-picking
+    one number after seeing a result - pro_study.py's own module docstring says why: "trying ten
+    settings of each and keeping the best is how a backtest learns the past instead of the
+    market." Every threshold's numbers are printed, not just the best one, and a threshold is
+    trusted only if it clears the same both-periods bar - a table with one lucky row is not
+    evidence that row is real.
 
     python3 stalled_trend_filter_study.py
 """
@@ -54,7 +62,7 @@ INDICES = ps.INDICES
 SPLIT = ps.SPLIT
 
 
-def stalled_series(df, index_key):
+def stalled_series(df, index_key, threshold=None):
     """The exact formula signal_engine.compute_market_trend() uses, vectorised over the whole
     series - NOT regime_study.features()'s 'stalled' column, which leaves out the per-market DX
     smoothing (config.ADX_DX_SMOOTHING) compute_market_trend()'s own ADX call passes. That gap is
@@ -62,14 +70,19 @@ def stalled_series(df, index_key):
     on real NIFTY history in the test - it does not always agree), so this recomputes it directly
     rather than reuse a column that is close but not the same thing the trend panel prints. ADX
     and ATR are both causal (backward-looking only), so a bar's value here is identical to what
-    compute_market_trend() would compute if called with history truncated to that bar."""
+    compute_market_trend() would compute if called with history truncated to that bar.
+
+    `threshold` overrides config.TREND_MIN_DISPLACEMENT_ATR (1.0, today's live value) - RAISING it
+    calls MORE bars stalled (a smaller net move now counts as "hasn't gone anywhere"), LOWERING it
+    calls fewer."""
+    th = config.TREND_MIN_DISPLACEMENT_ATR if threshold is None else threshold
     close = df["Close"]
     adx = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
     atr = ind.atr(df, config.ATR_LENGTH)
     n = config.ADX_LENGTH
     displacement = (close - close.shift(n)).abs() / atr
     strong_or_moderate = adx >= config.ADX_TREND_THRESHOLD
-    return (strong_or_moderate & (displacement < config.TREND_MIN_DISPLACEMENT_ATR)).to_numpy()
+    return (strong_or_moderate & (displacement < th)).to_numpy()
 
 
 def stalled_gate(index_key, i, rec, df, stalled_arr):
@@ -92,14 +105,7 @@ def main():
                 "end": (pd.Series(df.index.date) != pd.Series(df.index.date).shift(-1)).to_numpy(),
                 "days": set(df.index.date)}
 
-    stalled_arrs = {k: stalled_series(hists[k], k) for k in INDICES}
-    for k in INDICES:
-        st = stalled_arrs[k]
-        n = len(st)
-        print(f"  {k:10s} stalled at {int(st.sum()):>5} of {n:>6} bars ({100*st.sum()/max(1,n):4.1f}%)")
-
     base_gate = {k: (lambda i, rec, k=k: res.live_gate(k, i, rec, hists[k])) for k in INDICES}
-    filt_gate = {k: (lambda i, rec, k=k: stalled_gate(k, i, rec, hists[k], stalled_arrs[k])) for k in INDICES}
 
     def run_one(gate_map):
         rows = []
@@ -127,37 +133,56 @@ def main():
         return (f" {name:34s} {a['n']:>5} ₹{a['total']:>+10,.0f} PF {a['pf']:4.2f} DD ₹{a['dd']:>8,.0f}"
                 f"  | {b['n']:>4} ₹{b['total']:>+10,.0f} PF {b['pf']:4.2f} DD ₹{b['dd']:>8,.0f}")
 
+    # Pre-declared before any of them are run, not picked after seeing a result. 1.0 is today's
+    # live TREND_MIN_DISPLACEMENT_ATR - kept in the sweep as the reference row, since it is the
+    # one already reported once (29 Sep 2026: close DROP, +57,604 in-sample, -13,042 held-out).
+    THRESHOLDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+
     hdr = (f" {'variant':34s} {'IN-SAMPLE: trades, total, profit factor, worst drawdown':50s}"
            f"  | OUT-OF-SAMPLE (held-out final year)")
     print("=" * 132)
     print(" All per lot, pooled across NIFTY / BANKNIFTY / SENSEX, real expiries, after costs")
     print(" Entries: today's real gates (unchanged). Exit: hold to T2/stop (live, today), unchanged.")
-    print(" Only variable: whether the entry bar is one the trend panel would call 'stalled'.")
+    print(" Only variable: the ATR displacement threshold below which a strong-ADX bar is vetoed")
+    print(" as 'stalled' - TREND_MIN_DISPLACEMENT_ATR is 1.0 live. Higher = stricter (vetoes more).")
     print("=" * 132)
     print(hdr)
     print("-" * 132)
 
     base, base_raw = run_one(base_gate)
     print(line("today's live gate (baseline)", base))
-
-    filt, filt_raw = run_one(filt_gate)
-    print(line("+ vetoes a stalled entry bar", filt))
-    kept_pct = 100 * filt_raw / base_raw if base_raw else 0.0
-    print(f"   (kept {filt_raw} of {base_raw} entries that clear today's real gates - {kept_pct:.1f}%)")
     print("-" * 132)
 
-    print("\n VERDICT — kept only if better than the baseline both in-sample and out-of-sample")
-    di = filt["is"]["total"] - base["is"]["total"]
-    do = filt["oos"]["total"] - base["oos"]["total"]
-    dd = filt["oos"]["dd"] - base["oos"]["dd"]
-    keep = di > 0 and do > 0
-    print(f"   {'KEEP ' if keep else 'DROP '} stalled-trend veto   in-sample {di:>+10,.0f}   "
-          f"out-of-sample {do:>+10,.0f}   held-out drawdown {dd:>+9,.0f}")
-    verdict_line = ("This clears the project's own bar to be adopted as a real entry filter."
-                    if keep else
-                    "This does NOT clear the bar; no stalled-trend veto is added anywhere.")
-    print(f"\n   {verdict_line}")
-    return {"base": base, "filtered": filt}
+    results = {}
+    for th in THRESHOLDS:
+        stalled_arrs = {k: stalled_series(hists[k], k, threshold=th) for k in INDICES}
+        filt_gate = {k: (lambda i, rec, k=k, sa=stalled_arrs: stalled_gate(k, i, rec, hists[k], sa[k]))
+                     for k in INDICES}
+        r, raw = run_one(filt_gate)
+        results[th] = (r, raw)
+        kept_pct = 100 * raw / base_raw if base_raw else 0.0
+        live = "  (today's live value)" if th == config.TREND_MIN_DISPLACEMENT_ATR else ""
+        print(line(f"veto below {th:.2f} ATR" + live, r) + f"   (kept {kept_pct:4.1f}%)")
+    print("-" * 132)
+
+    print("\n VERDICT — kept only if better than the baseline both in-sample and out-of-sample,")
+    print(" at EVERY threshold reported, not just whichever one happens to win here")
+    kept_any = False
+    for th in THRESHOLDS:
+        r, raw = results[th]
+        di = r["is"]["total"] - base["is"]["total"]
+        do = r["oos"]["total"] - base["oos"]["total"]
+        dd = r["oos"]["dd"] - base["oos"]["dd"]
+        keep = di > 0 and do > 0
+        kept_any = kept_any or keep
+        print(f"   {'KEEP ' if keep else 'drop '} {th:.2f} ATR   in-sample {di:>+10,.0f}   "
+              f"out-of-sample {do:>+10,.0f}   held-out drawdown {dd:>+9,.0f}")
+    print(f"\n   {'At least one threshold clears the bar.' if kept_any else 'No threshold in this range clears the bar both periods.'}")
+    if kept_any:
+        print("   A single winning threshold in a swept range this narrow is exactly the kind of")
+        print("   result pro_study.py's own docstring warns about - it is evidence worth a second")
+        print("   look (a held-out year beyond this one, or a live paper run), not adoption on its own.")
+    return {"base": base, "results": results}
 
 
 if __name__ == "__main__":

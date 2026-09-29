@@ -66,6 +66,21 @@ check("every sampled bar agrees with compute_market_trend()'s own stalled flag",
 check("...and it is not a trivial always-False match: some bars really are stalled",
       both_true > 0, both_true)
 
+print("3. threshold RAISES OR LOWERS HOW MANY BARS COUNT AS STALLED, IN THE RIGHT DIRECTION")
+# A higher threshold means a bigger net move still counts as "hasn't gone anywhere", so it must
+# flag the SAME bars a lower threshold does, plus more - never fewer. Checked as a strict subset,
+# not just a bigger count, so a formula that flagged a DIFFERENT set of the same size would fail.
+sweep = (0.5, 1.0, 1.5, 2.0)
+arrs = {th: sts.stalled_series(df, "NIFTY", threshold=th) for th in sweep}
+counts = {th: int(arrs[th].sum()) for th in sweep}
+for lo, hi in zip(sweep, sweep[1:]):
+    check(f"{lo} ATR's stalled bars are a subset of {hi} ATR's", np.all(arrs[lo] <= arrs[hi]))
+check("stricter (lower) thresholds flag fewer or equal bars, monotonically",
+      counts[0.5] <= counts[1.0] <= counts[1.5] <= counts[2.0], counts)
+check("threshold=None falls back to config.TREND_MIN_DISPLACEMENT_ATR",
+      np.array_equal(sts.stalled_series(df, "NIFTY"),
+                     sts.stalled_series(df, "NIFTY", threshold=config.TREND_MIN_DISPLACEMENT_ATR)))
+
 print()
 print("STALLED TREND FILTER STUDY TEST PASSED" if not fails
       else f"STALLED TREND FILTER STUDY TEST FAILED: {fails}")
