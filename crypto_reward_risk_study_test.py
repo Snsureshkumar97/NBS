@@ -69,7 +69,7 @@ try:
     rec = {"index": "BTC", "spot": 100.0, "risk_points": 10.0, "index_targets": [None, None, 122.0]}
     config.MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 1.0}
     check("2.2 to 1 passes need=1.0", crs.reward_gate(0, rec) is True)
-    config.MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.5}
+    config.MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 3.0}   # arbitrary, just > 2.2 - not "the deployed value"
     check("the SAME rec fails once crypto's OWN config value is turned up past it - reads config fresh, not a snapshot",
           crs.reward_gate(0, rec) is False)
 finally:
@@ -79,7 +79,11 @@ check("MIN_REWARD_RISK_T3 was correctly restored after the try/finally", config.
 print("6. THE SWEEP ITSELF NAMES TODAY'S ACTUAL BEFORE/AFTER VALUES")
 check("0 (no gate at all - config.py's own convention) is in the sweep", 0 in crs.SWEEP)
 check("1.0 (what crypto had before 30 Sep 2026) is in the sweep", 1.0 in crs.SWEEP)
-check("2.5 (today's deployed value) is in the sweep", 2.5 in crs.SWEEP)
+check("DEPLOYED reads config.min_reward_risk_t3('BTC') live, not a number hard-coded into this file - "
+      "the whole reason for it, after the deployed value moved twice in one day",
+      crs.DEPLOYED == config.min_reward_risk_t3("BTC"), crs.DEPLOYED)
+check("today's actual deployed value (2.0) is in the sweep, so main() can rank it against every alternative",
+      crs.DEPLOYED in crs.SWEEP and crs.DEPLOYED == 2.0, crs.DEPLOYED)
 check("the sweep is sorted ascending, so the printed table reads as a trend, not shuffled",
       list(crs.SWEEP) == sorted(crs.SWEEP))
 

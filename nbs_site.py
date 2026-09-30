@@ -1314,9 +1314,10 @@ def how_page(user=None, record=None):
      <code>{_esc(config.min_reward_risk_t3("BTC"))}</code> on crypto</td>
     <td>if the market cannot even travel as far as the stop, the trade is not
      worth its risk &mdash; it would have to win well over half the time just
-     to stand still. Crypto&rsquo;s bar is higher and, unlike the Indian
-     indices&rsquo; 1.0, has not been tested at that value against its own
-     history</td></tr>
+     to stand still. Crypto&rsquo;s figure is the user&rsquo;s own choice, not
+     the Indian indices&rsquo; pro_study-tested 1.0; a sweep against BTC&rsquo;s
+     own history did not single this value out as the best for profit
+     either</td></tr>
   </table>
   <p>ATR length is <code>{_cfg("ATR_LENGTH", 14)}</code>. Reach is estimated
    before anything is issued, which is the point — a gate applied afterwards

@@ -1240,11 +1240,17 @@ REGIME_OR_REQUIRE_BREAK = False
 # Better per trade and shallower in both periods; the in-sample total is lower
 # only because 11% fewer trades are taken. 0 switches it off.
 #
-# Per market since 30 Sep 2026, at the user's choice: crypto raised to 2.5
-# (untested at that value - the pro_study figures above are the Indian
-# indices' own history, on the Indian indices' rules; crypto was never swept
-# on this gate). 0 for a market still switches the gate off for it.
-MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.5}
+# Per market since 30 Sep 2026. Crypto raised to 2.5 first, at the user's own
+# choice; crypto_reward_risk_study.py then swept 0-4.0 against BTC's own
+# history (backtest_intraday.py's real proxy entries, no real option chain -
+# see that file's own module docstring for the fuller caveats) and found 2.5
+# ranked 9th of 13 in-sample and 12th of 13 held-out on raw profit - among
+# the worst of everything swept; 1.0, what crypto had before, was the most
+# robust single value across both periods, though the sweep itself was not a
+# smooth trend, so no single point in it should be trusted blindly. The user
+# then chose 2.0 - a middle value the sweep did not single out either, but
+# their own call to make. 0 for a market still switches the gate off for it.
+MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.0}
 
 
 def min_reward_risk_t3(index_key=None):

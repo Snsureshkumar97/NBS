@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""crypto_reward_risk_study.py — what did raising crypto's MIN_REWARD_RISK_T3 from
-1.0 to 2.5 actually do, on BTC's own history?
+"""crypto_reward_risk_study.py — which value of crypto's MIN_REWARD_RISK_T3 gate is
+actually best for profit, on BTC's own history?
 
-The user, 30 Sep 2026: first "i want to change crypto risk reward from 1:1 to
-1:2.50" (built and deployed the same day - config.MIN_REWARD_RISK_T3 is now per-
-market, {"nse_index": 1.0, "crypto": 2.5}, stated at the time as the user's own
-choice and UNTESTED against crypto's own history on this gate), then "run a study
-on crypto with 2.5". This is that study - retroactive, since the value is already
-live, checking what it actually does rather than leaving it untested.
+The user, 30 Sep 2026, in order: "i want to change crypto risk reward from 1:1 to
+1:2.50" (built and deployed the same day), "run a study on crypto with 2.5" (this
+file, first version: 2.5 ranked below 1.0 in both periods on raw profit), "test
+which risk reward will be better for crypto for better profits" (the sweep below
+widened to find the actual best value, not just check the one already chosen - the
+robust pick across both periods turned out to be 1.0, what crypto had before any of
+this; today's 2.5 ranked 9th of 13 in-sample and 12th of 13 held-out), then "change
+it to 2.0 and deploy" (config.MIN_REWARD_RISK_T3 now {"nse_index": 1.0, "crypto":
+2.0} - the user's own choice, not the value this sweep singled out either).
 
 METHODOLOGY, AND ITS REAL LIMITS (same shape as time_breakeven_study.py's own
 study_bitcoin() - see that file for the fuller explanation of this limitation)
@@ -31,14 +34,14 @@ study_bitcoin() - see that file for the fuller explanation of this limitation)
     other two (same limit backtest_intraday.py already states for the Indian
     indices' own PCR/expected-move votes). So T3 here, and therefore the
     reward:risk ratio this gate actually measures, is narrower than a real chain
-    would sometimes make it live - which makes the 2.5 bar HARDER to clear here
-    than it would be with a real chain, not easier. Worth stating plainly, and it
-    is a bias toward caution, not toward a flattering result.
+    would sometimes make it live - which makes every value swept HARDER to clear
+    here than it would be with a real chain, not easier. Worth stating plainly, and
+    it is a bias toward caution, not toward a flattering result.
 
-    Only the reward:risk gate is toggled between the two runs. Every other entry
-    gate backtest_intraday.run() already applies live to every backtest (ADX,
-    momentum, RSI-divergence, the day-range room check inside
-    build_recommendation() itself) is identical in both.
+    Only the reward:risk gate is toggled between runs. Every other entry gate
+    backtest_intraday.run() already applies live to every backtest (ADX, momentum,
+    RSI-divergence, the day-range room check inside build_recommendation() itself)
+    is identical across the whole sweep.
 
     python3 crypto_reward_risk_study.py
 """
@@ -112,9 +115,13 @@ def line(name, r):
 
 SWEEP = (0, 0.5, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5, 4.0)
 # 0 disables the gate outright (config.py's own convention) - the true baseline with no
-# filter at all. 1.0 is what crypto had until 30 Sep 2026; 2.5 is today's deployed value.
-# The rest exist to find the best value for profit, not just confirm 2.5 - the user, 30
+# filter at all. 1.0 is what crypto had before 30 Sep 2026. The rest exist to find the
+# best value for profit, not just confirm whatever is currently deployed - the user, 30
 # Sep 2026: "test which risk reward will be better for crypto for better profits."
+
+DEPLOYED = config.min_reward_risk_t3("BTC")
+# Whatever is live RIGHT NOW, read once at import - not a hard-coded number, which has
+# already gone stale twice in one day as the deployed value moved 1.0 -> 2.5 -> 2.0.
 
 
 def best_by_period(results, period):
@@ -154,7 +161,7 @@ def main():
     try:
         print("\n" + "=" * 132)
         print(" CRYPTO REWARD:RISK GATE - which value is actually best for profit? 0 = no gate, 1.0 = what crypto")
-        print(" had before 30 Sep 2026, 2.5 = today's deployed value.")
+        print(f" had before 30 Sep 2026, {DEPLOYED:g} = today's deployed value.")
         print(" BTC, index points per contract. Proxy entries (signal_engine's own technical bias) - NOT the")
         print(" AI desk's real LLM decisions, which cost real money to backtest and were declined this session.")
         print(" Exit is bt.run()'s own baked-in T3-or-stop, unchanged across every value swept.")
@@ -165,7 +172,7 @@ def main():
             res = bt.run("BTC", df, gate=reward_gate)
             results[need] = split_stats(res["trades"])
             tag = "  (no gate)" if need == 0 else "  (before today)" if need == 1.0 else \
-                  "  (today's live value)" if need == 2.5 else ""
+                  "  (today's live value)" if need == DEPLOYED else ""
             print(line(f"need >= {need:g}{tag}", results[need]))
 
         print("-" * 132)
@@ -189,10 +196,13 @@ def main():
             print(f"   in-sample {r['is']['total']:>+,.0f} pts, PF {r['is']['pf']:.2f}, DD {r['is']['dd']:,.0f}")
             print(f"   held-out  {r['oos']['total']:>+,.0f} pts, PF {r['oos']['pf']:.2f}, DD {r['oos']['dd']:,.0f}")
 
-        print("\n Today's deployed value (2.5) against this same sweep:")
-        i25, o25 = results[2.5]["is"], results[2.5]["oos"]
-        print(f"   in-sample rank {sorted(SWEEP, key=lambda v: -(results[v]['is']['total'] if results[v]['is'] else float('-inf'))).index(2.5) + 1} of {len(SWEEP)}"
-              f", held-out rank {sorted(SWEEP, key=lambda v: -(results[v]['oos']['total'] if results[v]['oos'] else float('-inf'))).index(2.5) + 1} of {len(SWEEP)}")
+        if DEPLOYED in results:
+            rank_is = sorted(SWEEP, key=lambda v: -(results[v]["is"]["total"] if results[v]["is"] else float("-inf"))).index(DEPLOYED) + 1
+            rank_oos = sorted(SWEEP, key=lambda v: -(results[v]["oos"]["total"] if results[v]["oos"] else float("-inf"))).index(DEPLOYED) + 1
+            print(f"\n Today's deployed value ({DEPLOYED:g}) against this same sweep: "
+                  f"in-sample rank {rank_is} of {len(SWEEP)}, held-out rank {rank_oos} of {len(SWEEP)}")
+        else:
+            print(f"\n Today's deployed value ({DEPLOYED:g}) is not one of the swept points, so it has no rank here.")
 
         # Monotonic check: does total profit fall smoothly and steadily as the bar rises,
         # or spike/dip at particular values - the thing a single best-value number alone
