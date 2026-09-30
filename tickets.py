@@ -1334,6 +1334,29 @@ class TicketBook:
         stamps = [b.last_ticket_at for b in self.books.values() if b.last_ticket_at]
         return max(stamps) if stamps else None
 
+    def clear_all(self):
+        """The bulk form of clear() - drop every open ticket across every index in
+        this book at once, without waiting for a target or a stop. Each one is
+        still logged, because it still happened.
+
+        Defensive per ticket, like close_all_at_bell(): one index's price lookup
+        failing must not stop the rest from clearing too - the entire point of a
+        bulk "get me out of everything" action is that it cannot half-work."""
+        out = []
+        with self.lock:
+            for book in self.books.values():
+                t = book.trade
+                if t is None or t["status"] != "OPEN":
+                    continue
+                try:
+                    px = self._price_for(t, book.last_rec)
+                except Exception:
+                    px = None
+                t["status"] = "CLOSED — cleared manually"
+                out.append(self._close(book, t, px, book.last_rec))
+                book.trade = None
+        return out
+
     def close_all_at_bell(self):
         """Square up every open ticket at the close.
 

@@ -1520,7 +1520,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _do_live(self, form):
         """Switch real Zerodha orders on or off for one Indian index, for this
-        account only. Switching off never touches a position already open."""
+        account only - or, with index=ALL, every index and every kind of
+        ticket on this market at once (the Dashboard's single "turn on live
+        trades" button). Switching off never touches a position already open."""
         def reply(ok, message="", code=200, **extra):
             return self._send(json.dumps(dict({"ok": bool(ok), "message": message}, **extra)),
                               "application/json", code=code)
@@ -1541,7 +1543,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             import delta_orders
             allowed = delta_orders.INDICES
-        if index not in allowed:
+        if index != "ALL" and index not in allowed:
             return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex on Zerodha, and Bitcoin "
                                 "on Delta Exchange India.", 400)
         ex = getattr(feeds.for_user(user, market), "live", None)
@@ -1559,6 +1561,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if not user_delta.keys_for(user):
                     return reply(False, "Add your Delta Exchange keys first (the Delta Exchange page) - orders go "
                                         "through your own account.", 400)
+        if index == "ALL":
+            # Every index in this market, rule tickets and the AI desk alike, in
+            # one call. Defensive per (index, source) pair - one failure must not
+            # stop the rest of the market from being switched, the same reason
+            # TicketBook.clear_all() is defensive per ticket.
+            failed = []
+            for idx in allowed:
+                for src in ("rule", "ai"):
+                    try:
+                        ex.set_enabled(idx, on, src)
+                    except (ValueError, OSError) as exc:
+                        failed.append(f"{idx} ({src}): {exc or 'could not save'}")
+            if failed:
+                return reply(False, "Some could not be changed: " + "; ".join(failed), 500, live=ex.public())
+            return reply(True, f"Live orders for every index and every kind of ticket on this market "
+                              f"are {'ON' if on else 'OFF'}.", live=ex.public())
         try:
             ex.set_enabled(index, on, source)
         except (ValueError, OSError) as exc:
@@ -2248,6 +2266,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         action = form.get("action")
         if action == "clear":
             book.clear(form.get("index") or "")
+        elif action == "clear_all":
+            # The bulk "clear all positions" button on the Dashboard - every open
+            # ticket on this market, rule AND AI desk alike, since both share this
+            # one _check_price()/close() machinery (ai_desk.py's own book is a
+            # separate TicketBook, not this one).
+            cleared = book.clear_all()
+            if feed.ai is not None:
+                cleared += feed.ai.book.clear_all()
+            return self._send(json.dumps({"ok": True, "cleared": len(cleared),
+                                          "session": book.session()}),
+                              "application/json")
         elif action == "skip_cooldown":
             # Lifts only the clock on one index, once. The ticket itself is
             # still issued by the rules on the next reading, or not at all.
@@ -4127,8 +4156,9 @@ button.mgroup:hover{color:var(--ink-2)}
 /* the buttons you press to act: Kite blue, white type */
 :root[data-look="kite"] :is(.lbtn.on,.lbtn.tf.on,.aipicker .lbtn.on,.acct i,.bmsg.user,.skip,.looksw button.on){
   background:var(--accent-strong);border-color:var(--accent-strong);color:#fff;background-image:none}
-:root[data-look="kite"] :is(#tlive.on,#ailive.on){background:#c62828;border-color:#c62828;color:#fff}
+:root[data-look="kite"] :is(#tlive.on,#ailive.on,#dashlive.on){background:#c62828;border-color:#c62828;color:#fff}
 :root[data-look="kite"] .lbtn.ao.on{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
+:root[data-look="kite"] .lbtn.dashclearall{border-color:var(--down);color:var(--down)}
 /* warnings and notices: Kite's pale tints with dark type, not the dark theme's glowing ones */
 :root[data-look="kite"] .notice.risk{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--ink-2)}
 :root[data-look="kite"] .notice.risk :is(b,.more,summary b){color:var(--warn-strong)}
@@ -4335,6 +4365,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"].on{display:flex;flex-direction:column}
   :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
+  :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#htoday){display:none}
   :root[data-look="kite"]:has(.pane[data-pane="home"].on) .kside :is(.kb-today,.kb-funds){display:none}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
@@ -4645,6 +4676,12 @@ button.mgroup:hover{color:var(--ink-2)}
 
  <section class="pane on" data-pane="home">
   <div class="kdash" id="kdash"></div>
+  <div class="dashbulk" id="dashbulk">
+   <button class="lbtn dashlive" id="dashlive" type="button" aria-pressed="false"
+   hidden>Turn on live trades</button>
+   <button class="lbtn dashclearall" id="dashclearall" type="button"
+   hidden>Clear all positions</button>
+  </div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -6384,6 +6421,28 @@ function liveStateText(p, onDelta){
   })[p.state] || "";
 }
 
+// The Dashboard's two bulk buttons: turn live orders on for every index and
+// every kind of ticket on this market at once, or clear every open position
+// on it at once. Shown only when live orders exist for this account at all
+// (the same test liveBox() uses) - the button label reflects the RULE-ticket
+// state across every index (always fresh on every poll), even though a click
+// switches the AI desk's tickets too; AI state lives in a separate fetch
+// (aiFetch()) that is not always loaded, so it is not what decides the label.
+function dashBulkBox(s){
+  const L = s && s.live, lv = $("dashlive"), ca = $("dashclearall");
+  if(!lv || !ca) return;
+  const idxs = Object.keys((L && L.enabled) || {});
+  if(!L || !idxs.length){
+    lv.hidden = true; ca.hidden = true; return;
+  }
+  lv.hidden = false; ca.hidden = false;
+  const allOn = idxs.every(k => L.enabled[k]);
+  lv.classList.toggle("on", allOn);
+  lv.setAttribute("aria-pressed", String(allOn));
+  lv.textContent = "Live trades: " + (allOn ? "ALL ON" : "turn all on");
+  lv.dataset.on = allOn ? "1" : "0";
+}
+
 function liveBox(s){
   const L = s && s.live, b = $("tlive"), st = $("tlivestat");
   if(!b || !st) return;
@@ -6443,6 +6502,69 @@ $("tlive").onclick = async () => {
   }finally{
     b.disabled = false;
   }
+};
+
+// -------------------------------------------------- dashboard bulk actions
+// The user, 29 Sep 2026: "add two button where i can turn on live trades for
+// all the market with one button and other with clear all positions" - then,
+// on being asked: "indian and crytp is separate". Both buttons act only on
+// the CURRENT market (whichever the switch-market control has selected) -
+// there is no single click that reaches across nse_index and crypto, because
+// switching markets is already how this tool keeps the two apart everywhere
+// else. Every index AND every kind of ticket (rule, AI desk) on that one
+// market, at once.
+$("dashlive").onclick = async () => {
+  const L = LAST && LAST.live, lv = $("dashlive");
+  if(!L) return;
+  const idxs = Object.keys(L.enabled || {});
+  if(!idxs.length) return;
+  const on = lv.dataset.on !== "1";
+  const btc = idxs.includes("BTC");
+  const names = idxs.join(", ");
+  if(on && btc && !confirm(`Place REAL orders on Bitcoin at Delta Exchange India, for EVERY kind of ticket?\n\n`
+      + "From now on every ticket on Bitcoin - the rules' own and the AI desk's - is also bought on Delta with "
+      + "your money, with a stop-loss order sent to Delta and moved up as each ticket's stop trails. The tool "
+      + "also sells at the target, when you clear a ticket, and 30 minutes before the contract settles.\n\n"
+      + "Delta refuses orders until this server's IP is whitelisted on your API key.\n\n"
+      + "Past results do not predict future ones. This is your decision.")) return;
+  if(on && !btc && !confirm(`Place REAL orders at Zerodha on ${names}, for EVERY kind of ticket?\n\n`
+      + "From now on every ticket on these indices - the rules' own and the AI desk's - is also bought at "
+      + "Zerodha with your money, with a stop-loss order at your ticket's stop. The tool sells at target, when "
+      + "you clear a ticket, and at 15:20 at the latest - intraday only.\n\n"
+      + "Zerodha rejects these orders until this connection's static IP is registered on "
+      + "developers.kite.trade.\n\nPast results do not predict future ones. This is your decision.")) return;
+  if(!on && !confirm(`Stop placing live orders on ${names}, for every kind of ticket?\n\n`
+      + "A position already open on any of them is still managed to its exit.")) return;
+  lv.disabled = true;
+  try{
+    const r = await fetch("/api/live", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: new URLSearchParams({index: "ALL", on: on ? "1" : "0"})});
+    const j = await r.json();
+    if(!j.ok) alert(j.message || "That could not be changed.");
+    else if(LAST){ LAST.live = j.live; render(LAST); }
+    if(typeof aiFetch === "function") aiFetch();
+  }catch(e){
+    alert("Could not reach this tool's own server.");
+  }finally{
+    lv.disabled = false;
+  }
+};
+
+$("dashclearall").onclick = () => {
+  if(!confirm("Clear EVERY open position on this market?\n\n"
+      + "Every ticket that is OPEN right now - the rules' own and the AI desk's, on every index - is closed. "
+      + "For any that is a REAL position at your broker, its stop-loss order is cancelled and it is sold now "
+      + "with a limit order a little below the market, repriced until it fills, exactly like clearing one "
+      + "ticket by hand. For a paper one, it is simply marked closed and written to your trade log.\n\n"
+      + "This cannot be undone.")) return;
+  const b = $("dashclearall"); b.disabled = true;
+  fetch("/api/ticket", {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({action:"clear_all"})})
+    .then(() => { tick(); if(typeof aiFetch === "function") aiFetch(); })
+    .catch(()=>{})
+    .finally(() => { b.disabled = false; });
 };
 
 $("tskip").onclick = () => {
@@ -7879,6 +8001,7 @@ function render(s){
   const tstate = (s.tickets||{})[CUR] || null;
   ticketBox(r, tstate);
   liveBox(s);
+  dashBulkBox(s);
   ladder(r, tstate && tstate.ticket);
   riskBox(r, tstate && tstate.ticket, s.session);
   rrBox(r, tstate && tstate.ticket);
