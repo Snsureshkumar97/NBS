@@ -77,10 +77,49 @@ finally:
 check("MIN_REWARD_RISK_T3 was correctly restored after the try/finally", config.MIN_REWARD_RISK_T3 == _saved)
 
 print("6. THE SWEEP ITSELF NAMES TODAY'S ACTUAL BEFORE/AFTER VALUES")
+check("0 (no gate at all - config.py's own convention) is in the sweep", 0 in crs.SWEEP)
 check("1.0 (what crypto had before 30 Sep 2026) is in the sweep", 1.0 in crs.SWEEP)
 check("2.5 (today's deployed value) is in the sweep", 2.5 in crs.SWEEP)
 check("the sweep is sorted ascending, so the printed table reads as a trend, not shuffled",
       list(crs.SWEEP) == sorted(crs.SWEEP))
+
+
+def _blank_results():
+    """Every swept value present with no result in either period - best_by_period() and
+    robust_best() index by SWEEP itself, not by whatever keys a caller happened to fill
+    in, so a synthetic results dict for testing them has to cover every value."""
+    return {v: {"is": None, "oos": None} for v in crs.SWEEP}
+
+
+def _stat(total):
+    return {"n": 1, "total": total, "pf": 1.0, "dd": 0.0}
+
+
+print("7. best_by_period(): THE SWEPT VALUE THAT ACTUALLY WON ONE PERIOD")
+A, B, C = crs.SWEEP[0], crs.SWEEP[2], crs.SWEEP[-1]
+r = _blank_results()
+r[A] = {"is": _stat(50), "oos": _stat(5)}
+r[B] = {"is": _stat(100), "oos": _stat(9)}     # best in-sample
+r[C] = {"is": _stat(30), "oos": _stat(20)}     # best held-out
+check("picks the highest in-sample total among the values that have one", crs.best_by_period(r, "is") == B, (r, B))
+check("picks the highest held-out total independently of in-sample", crs.best_by_period(r, "oos") == C, (r, C))
+check("a period with nothing comparable at all returns None, not a crash", crs.best_by_period(_blank_results(), "is") is None)
+
+print("8. robust_best(): GOOD IN BOTH PERIODS BEATS SPIKING IN ONE")
+r = _blank_results()
+r[A] = {"is": _stat(100), "oos": _stat(10)}    # tops in-sample, worst held-out - a spike
+r[B] = {"is": _stat(90), "oos": _stat(50)}     # the balanced middle candidate
+r[C] = {"is": _stat(80), "oos": _stat(90)}     # tops held-out, worst in-sample - the mirror spike
+check("the balanced middle value wins, not either value that only excels in ONE period",
+      crs.robust_best(r) == B, (crs.robust_best(r), B))
+
+print("9. robust_best(): A VALUE MISSING A WHOLE PERIOD IS EXCLUDED, NOT PICKED BY DEFAULT")
+r = _blank_results()
+r[A] = {"is": _stat(1_000_000), "oos": None}   # huge in-sample number, but nothing held-out to confirm it
+r[B] = {"is": _stat(50), "oos": _stat(50)}     # the only value with both periods present
+check("A's huge in-sample number does not win - it has no held-out result to be judged on at all",
+      crs.robust_best(r) == B, crs.robust_best(r))
+check("robust_best() on a completely empty results dict is None, not a crash", crs.robust_best(_blank_results()) is None)
 
 print("CRYPTO REWARD RISK STUDY TEST PASSED" if not fails else f"CRYPTO REWARD RISK STUDY TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

@@ -110,13 +110,41 @@ def line(name, r):
     return f" {name:38s} {f(r['is'])}  | {f(r['oos'])}"
 
 
-SWEEP = (1.0, 1.5, 2.0, 2.5, 3.0)     # 1.0 is what crypto had until 30 Sep 2026; 2.5 is
-                                       # today's deployed value. The others are here only
-                                       # to show whether 2.5 sits on a smooth trend or is
-                                       # a spike at one lucky number - the same discipline
-                                       # every other threshold this project has adopted was
-                                       # held to (e.g. the stalled-trend ATR sweep, the
-                                       # time-breakeven wait_bars sweep).
+SWEEP = (0, 0.5, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5, 4.0)
+# 0 disables the gate outright (config.py's own convention) - the true baseline with no
+# filter at all. 1.0 is what crypto had until 30 Sep 2026; 2.5 is today's deployed value.
+# The rest exist to find the best value for profit, not just confirm 2.5 - the user, 30
+# Sep 2026: "test which risk reward will be better for crypto for better profits."
+
+
+def best_by_period(results, period):
+    """The swept value with the highest total in one period ("is" or "oos"), or None if
+    every value had too few trades in that period to compare."""
+    candidates = [(v, results[v][period]["total"]) for v in SWEEP if results[v][period]]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda vt: vt[1])[0]
+
+
+def robust_best(results):
+    """The swept value that is genuinely good for profit, not just the one that happens to
+    top ONE period - the same 'must hold up in both periods' bar this project applies to
+    every other threshold, applied here to picking the best candidate rather than to a
+    single before/after comparison.
+
+    Ranks every value by total profit within each period separately, then picks whichever
+    value has the best WORST rank across the two - a value has to place well in BOTH to
+    win this, not spike in one while doing badly in the other. Ties broken by the higher
+    combined rank. None if either period has no comparable results at all."""
+    def ranks(period):
+        ordered = sorted((v for v in SWEEP if results[v][period]),
+                         key=lambda v: results[v][period]["total"], reverse=True)
+        return {v: i for i, v in enumerate(ordered)}       # 0 = best in this period
+    r_is, r_oos = ranks("is"), ranks("oos")
+    common = [v for v in SWEEP if v in r_is and v in r_oos]
+    if not common:
+        return None
+    return min(common, key=lambda v: (max(r_is[v], r_oos[v]), r_is[v] + r_oos[v]))
 
 
 def main():
@@ -125,8 +153,8 @@ def main():
     results = {}
     try:
         print("\n" + "=" * 132)
-        print(" CRYPTO REWARD:RISK GATE - swept 1.0 (what crypto had until 30 Sep 2026) to 3.0, "
-              "2.5 is today's deployed value")
+        print(" CRYPTO REWARD:RISK GATE - which value is actually best for profit? 0 = no gate, 1.0 = what crypto")
+        print(" had before 30 Sep 2026, 2.5 = today's deployed value.")
         print(" BTC, index points per contract. Proxy entries (signal_engine's own technical bias) - NOT the")
         print(" AI desk's real LLM decisions, which cost real money to backtest and were declined this session.")
         print(" Exit is bt.run()'s own baked-in T3-or-stop, unchanged across every value swept.")
@@ -136,39 +164,48 @@ def main():
             config.MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": need}
             res = bt.run("BTC", df, gate=reward_gate)
             results[need] = split_stats(res["trades"])
-            label = f"need >= {need:g}" + ("  (before today)" if need == 1.0 else
-                     "  (today's live value)" if need == 2.5 else "")
-            print(line(label, results[need]))
+            tag = "  (no gate)" if need == 0 else "  (before today)" if need == 1.0 else \
+                  "  (today's live value)" if need == 2.5 else ""
+            print(line(f"need >= {need:g}{tag}", results[need]))
 
         print("-" * 132)
-        before_stats, after_stats = results[1.0], results[2.5]
-        bi, bo = before_stats["is"], before_stats["oos"]
-        ai, ao = after_stats["is"], after_stats["oos"]
-        if bi and bo and ai and ao:
-            di = ai["total"] - bi["total"]
-            do = ao["total"] - bo["total"]
-            better = di > 0 and do > 0
-            print(f"\n 2.5 vs 1.0 - {'BETTER' if better else 'NOT BETTER'} in BOTH periods on total points: "
-                  f"in-sample {di:>+10,.0f} pts   held-out {do:>+10,.0f} pts")
-            print(f" Trades taken: {bi['n']} -> {ai['n']} in-sample, {bo['n']} -> {ao['n']} held-out "
-                  f"({100 * (1 - ai['n'] / bi['n']):.0f}% / {100 * (1 - ao['n'] / bo['n']):.0f}% fewer).")
-            dd_i = bi["dd"] - ai["dd"]
-            dd_o = bo["dd"] - ao["dd"]
-            print(f" Worst drawdown: {'shallower' if dd_i > 0 and dd_o > 0 else 'mixed'} in both periods "
-                  f"({bi['dd']:,.0f} -> {ai['dd']:,.0f} in-sample, {bo['dd']:,.0f} -> {ao['dd']:,.0f} held-out).")
+        best_is, best_oos = best_by_period(results, "is"), best_by_period(results, "oos")
+        print(f"\n Best on total points, in-sample alone: need >= {best_is:g} "
+              f"({results[best_is]['is']['total']:>+,.0f} pts)")
+        print(f" Best on total points, held-out alone:  need >= {best_oos:g} "
+              f"({results[best_oos]['oos']['total']:>+,.0f} pts)")
+        if best_is == best_oos:
+            print(f" They AGREE: need >= {best_is:g} is the best single value in both periods.")
         else:
-            print("\n too few trades in one period to compare 2.5 against 1.0")
+            print(" They DISAGREE - whichever tops one period is not the one that tops the other.")
+            print(" Picking by in-sample alone here would be exactly the overfitting trap this project's")
+            print(" own standing practice exists to catch.")
+
+        robust = robust_best(results)
+        if robust is not None:
+            r = results[robust]
+            print(f"\n ROBUST PICK (best worst-of-both-periods rank, ties broken by combined rank): "
+                  f"need >= {robust:g}")
+            print(f"   in-sample {r['is']['total']:>+,.0f} pts, PF {r['is']['pf']:.2f}, DD {r['is']['dd']:,.0f}")
+            print(f"   held-out  {r['oos']['total']:>+,.0f} pts, PF {r['oos']['pf']:.2f}, DD {r['oos']['dd']:,.0f}")
+
+        print("\n Today's deployed value (2.5) against this same sweep:")
+        i25, o25 = results[2.5]["is"], results[2.5]["oos"]
+        print(f"   in-sample rank {sorted(SWEEP, key=lambda v: -(results[v]['is']['total'] if results[v]['is'] else float('-inf'))).index(2.5) + 1} of {len(SWEEP)}"
+              f", held-out rank {sorted(SWEEP, key=lambda v: -(results[v]['oos']['total'] if results[v]['oos'] else float('-inf'))).index(2.5) + 1} of {len(SWEEP)}")
 
         # Monotonic check: does total profit fall smoothly and steadily as the bar rises,
-        # or spike/dip at one value - the thing a single before/after number cannot show.
+        # or spike/dip at particular values - the thing a single best-value number alone
+        # cannot show, and the reason to distrust a peak that sits alone on a jagged curve.
         totals_is = [results[n]["is"]["total"] if results[n]["is"] else None for n in SWEEP]
         totals_oos = [results[n]["oos"]["total"] if results[n]["oos"] else None for n in SWEEP]
         pairs_is = [(a, b) for a, b in zip(totals_is, totals_is[1:]) if a is not None and b is not None]
         pairs_oos = [(a, b) for a, b in zip(totals_oos, totals_oos[1:]) if a is not None and b is not None]
         smooth_is = all(b <= a for a, b in pairs_is) or all(b >= a for a, b in pairs_is)
         smooth_oos = all(b <= a for a, b in pairs_oos) or all(b >= a for a, b in pairs_oos)
-        print(f"\n {'A smooth trend' if smooth_is and smooth_oos else 'NOT a smooth trend'} across the sweep in "
-              f"both periods, not a spike at 2.5 specifically" if pairs_is and pairs_oos else "")
+        if pairs_is and pairs_oos:
+            print(f"\n {'A smooth trend' if smooth_is and smooth_oos else 'NOT a smooth trend'} across the "
+                  f"sweep in both periods - {'trust the peak.' if smooth_is and smooth_oos else 'treat any single peak with real caution.'}")
     finally:
         config.MIN_REWARD_RISK_T3 = _saved
     return results
