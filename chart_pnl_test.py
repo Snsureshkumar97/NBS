@@ -48,7 +48,7 @@ check("reads the open ticket from the live state, like the signal card",
 check("draws the ticket's frozen levels while it is open, the live signal's otherwise",
       "stop: TK.index_stop, entry: TK.entry_spot}" in SRC and ": ((d.levels)||{});" in SRC)
 check("an Entry line among the levels", '[L.entry, "Entry", C.warn]' in SRC)
-check("the entry is inside the price range the chart scales to", "for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry]){" in SRC)
+check("the entry is inside the price range the chart scales to", "for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry,R.up_to,R.down_to]){" in SRC)
 check("the P&L badge only while a ticket is open", "if(TK) pnlBadge(cx, PAD.l + 8, PAD.t + 6, TK);" in SRC)
 
 print("3. THE P&L ITSELF")

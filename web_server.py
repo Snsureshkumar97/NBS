@@ -2633,6 +2633,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             macd_line, macd_signal, macd_hist = clean(macd_line), clean(macd_signal), clean(macd_hist)
         except Exception:
             macd_line = macd_signal = macd_hist = None
+        # Same call the live signal itself makes (signal_engine.py), so the line drawn
+        # here is the one the gate actually saw - not a second, slightly different ADX.
+        try:
+            adx = clean(ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(self._current_market())))
+        except Exception:
+            adx = None
 
         # Epoch seconds, so the browser can format them in the viewer's own
         # locale instead of us shipping pre-formatted strings we would then
@@ -2662,6 +2668,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "rsi": rsi, "rsi_len": config.RSI_LENGTH,
             "macd_line": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
             "macd_fast": config.MACD_FAST, "macd_slow": config.MACD_SLOW, "macd_sig_len": config.MACD_SIGNAL,
+            "adx": adx, "adx_len": config.ADX_LENGTH,
+            # The threshold the live gate actually holds ADX to - drawn as a
+            # reference line so the pane says WHERE weak turns into tradeable,
+            # not just what ADX currently is. config.strictness()["adx"], not
+            # the bare ADX_TREND_THRESHOLD: SIGNAL_STRICTNESS can move it.
+            "adx_gate": config.strictness()["adx"],
             "levels": {
                 "t1": tg[0] if len(tg) > 0 else None,
                 "t2": tg[1] if len(tg) > 1 else None,
@@ -2669,6 +2681,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "stop": pub.get("stop"),
                 "spot": pub.get("spot"),
             },
+            # Both directions' reachable price today (feeds._room()) - "how far
+            # CAN the market plausibly go", independent of whether a signal
+            # actually fired. The user, 30 Sep 2026: "draw the room to run on
+            # the chart."
+            "room": pub.get("room"),
             "action": pub.get("action"),
             "bias": pub.get("bias"),
             "strike": pub.get("strike"),
@@ -2985,7 +3002,7 @@ PAGE = r"""<!doctype html>
   --ink:#e8e8ec; --ink-2:#a2a2ac; --ink-3:#82828e;
   --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --ema-fast:#4d94e8; --ema-slow:#f6a500; --vwap:#b07ad4;
-  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9;
+  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9; --adx:#e6c229;
   --r:3px; --r-sm:3px;
 }
 *{box-sizing:border-box}
@@ -4143,7 +4160,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#2f6fc0;
   --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
   --ema-fast:#387ed1; --ema-slow:#b26a00; --vwap:#8e44ad;
-  --rsi:#0f8a7e; --macd-line:#b0305c; --macd-signal:#5c6f8a;
+  --rsi:#0f8a7e; --macd-line:#b0305c; --macd-signal:#5c6f8a; --adx:#a1840a;
   /* pale notices and badges, the current row of the chain, the switch's track and knob, the veil behind a dialog */
   --note-bg:#fff8e1; --note-bd:#f1dca0; --note-ink:#5f4b00; --note-strong:#8a5a00;
   --warn-bg:#fff4ef; --warn-bd:#ffd0bd; --warn-strong:#c2410c;
@@ -4160,7 +4177,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --up:#4caf50; --down:#e8615c; --warn:#e8a33d; --accent:#4184f3;
   --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#5a92f5;
   --ema-fast:#4184f3; --ema-slow:#e8a33d; --vwap:#c08adf;
-  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9;
+  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9; --adx:#e6c229;
   --note-bg:#2a2410; --note-bd:#4d4318; --note-ink:#e8dca8; --note-strong:#f0c65a;
   --warn-bg:#2f1d17; --warn-bd:#5a3324; --warn-strong:#ff8a65;
   --ok-bg:#1c2e1f; --ok-bd:#2f5233; --hold-bg:#2f2814;
@@ -7427,6 +7444,7 @@ function chartDraw(){
     up: css("--up"), down: css("--down"), warn: css("--warn"),
     accent: css("--accent"), fast: css("--ema-fast"), slow: css("--ema-slow"),
     vwap: css("--vwap"), rsi: css("--rsi"), macdLine: css("--macd-line"), macdSignal: css("--macd-signal"),
+    adx: css("--adx"),
   };
   cx.clearRect(0,0,w,h);
   cx.fillStyle = C.bg; cx.fillRect(0,0,w,h);
@@ -7452,15 +7470,16 @@ function chartDraw(){
   // Each sub-pane gets a modest, roughly fixed height regardless of the
   // canvas's own height (the way Kite/TradingView keep them) - the price
   // pane, the one that matters most, gets whatever is left over.
-  const hasRsi = !!d.rsi, hasMacd = !!(d.macd_line || d.macd_hist);
-  const subCount = (hasRsi?1:0) + (hasMacd?1:0);
+  const hasRsi = !!d.rsi, hasMacd = !!(d.macd_line || d.macd_hist), hasAdx = !!d.adx;
+  const subCount = (hasRsi?1:0) + (hasMacd?1:0) + (hasAdx?1:0);
   const paneGap = 10;
   const subH = subCount ? Math.max(50, Math.min(90, plotH * 0.16)) : 0;
   const priceTop = PAD.t;
   const priceH = Math.max(60, plotH - subCount * (subH + paneGap));
-  let rsiTop = null, macdTop = null, nextTop = priceTop + priceH;
+  let rsiTop = null, macdTop = null, adxTop = null, nextTop = priceTop + priceH;
   if(hasRsi){ nextTop += paneGap; rsiTop = nextTop; nextTop += subH; }
   if(hasMacd){ nextTop += paneGap; macdTop = nextTop; nextTop += subH; }
+  if(hasAdx){ nextTop += paneGap; adxTop = nextTop; nextTop += subH; }
 
   // ---- price range over what is actually on screen -------------------
   let lo = Infinity, hi = -Infinity;
@@ -7481,8 +7500,13 @@ function chartDraw(){
     ? {t1: TK.index_targets[0], t2: TK.index_targets[1], t3: TK.index_targets[2],
        stop: TK.index_stop, entry: TK.entry_spot}
     : ((d.levels)||{});
+  // How far the market can plausibly still move today, either way - live,
+  // never frozen to an open ticket's entry the way T1/T2/T3 are: it is a
+  // reading of TODAY, not a term of the trade. Present even with no signal
+  // at all, so a quiet day still shows what "quiet" means in points.
+  const R = d.room || {};
   const span0 = (hi - lo) || 1;
-  for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry]){
+  for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry,R.up_to,R.down_to]){
     if(v==null) continue;
     if(v > hi && v - hi > span0*0.9) continue;
     if(v < lo && lo - v > span0*0.9) continue;
@@ -7617,6 +7641,25 @@ function chartDraw(){
     line(d.macd_line, C.macdLine, null, macdY);
     line(d.macd_signal, C.macdSignal, [4,3], macdY);
   }
+  if(adxTop != null){
+    paneLabel(adxTop, `ADX ${d.adx_len||14}`);
+    // No fixed scale like RSI's 0-100 - ADX rarely runs much past 40-50 - but
+    // the gate line must always be on screen even on a dead-quiet day when
+    // every reading sits well under it, so the floor is the gate itself.
+    let aMax = Math.max((d.adx_gate||20) * 1.5, 1e-6);
+    for(let i=i0;i<i1;i++){ const v=d.adx[i]; if(v!=null) aMax = Math.max(aMax, v*1.15); }
+    const adxY = v => adxTop + (aMax - v) / aMax * subH;
+    if(d.adx_gate != null){
+      cx.save(); cx.strokeStyle = C.warn; cx.lineWidth = 1; cx.setLineDash([3,3]);
+      const gy = Math.round(adxY(d.adx_gate))+0.5;
+      cx.beginPath(); cx.moveTo(PAD.l, gy); cx.lineTo(w-PAD.r, gy); cx.stroke();
+      cx.restore();
+      cx.fillStyle = C.warn; cx.font = "10px -apple-system,sans-serif";
+      cx.textAlign = "left"; cx.textBaseline = "middle";
+      cx.fillText(`gate ${d.adx_gate}`, w-PAD.r+7, gy);
+    }
+    line(d.adx, C.adx, null, adxY);
+  }
 
   // ---- candles ---------------------------------------------------------
   const body = Math.max(1, Math.min(bw*0.68, 14));
@@ -7645,13 +7688,17 @@ function chartDraw(){
   // Lines at their true prices; the tags on the right are spread at least a
   // tag's height apart, because T1, T2 and T3 are often a few points from
   // each other and their tags used to print one over the next.
+  // Room to run gets its own, finer dotted line - a market reading, not a
+  // trade level, and it needs to read as a different KIND of line at a
+  // glance, not just a different colour.
   const lv = [[L.t1, "T1", C.up], [L.t2, "T2", C.up], [L.t3, "T3", C.up], [L.stop, "SL", C.down],
-              [L.entry, "Entry", C.warn]]
+              [L.entry, "Entry", C.warn], [R.up_to, "Room ↑", C.up, [2,3]],
+              [R.down_to, "Room ↓", C.down, [2,3]]]
     .filter(a => a[0] != null)
-    .map(a => ({v: a[0], label: a[1], colour: a[2], y: Y(a[0])}))
+    .map(a => ({v: a[0], label: a[1], colour: a[2], dash: a[3]||[5,4], y: Y(a[0])}))
     .filter(a => a.y >= priceTop-1 && a.y <= priceTop+priceH+1);
   lv.forEach(a => {
-    cx.save(); cx.strokeStyle = a.colour; cx.lineWidth = 1; cx.setLineDash([5,4]);
+    cx.save(); cx.strokeStyle = a.colour; cx.lineWidth = 1; cx.setLineDash(a.dash);
     cx.beginPath(); cx.moveTo(PAD.l, Math.round(a.y)+0.5);
     cx.lineTo(w-PAD.r, Math.round(a.y)+0.5); cx.stroke(); cx.restore();
     a.ty = a.y;
@@ -7768,6 +7815,8 @@ function chartDraw(){
      ? `<span class="o">MACD ${d.macd_fast||12},${d.macd_slow||26},${d.macd_sig_len||9}`
        + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.macdLine}"></i></span>`
      : "")
+  + (d.adx ? `<span class="o">ADX ${d.adx_len||14}<i class="key" style="display:inline-block;`
+             + `margin-left:5px;background:${C.adx}"></i></span>` : "")
   + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
 }
 
