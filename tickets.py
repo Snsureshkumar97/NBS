@@ -57,6 +57,32 @@ def _cfg(name, fallback):
     return getattr(config, name, fallback)
 
 
+def reward_risk_t3(name, rec):
+    """(ratio, need) for the ticket gate _reward_hold() checks below - room to run (T3)
+    over the stop distance, and the threshold this instrument's market actually
+    requires (config.min_reward_risk_t3(), per-market since 30 Sep 2026). Both None if
+    there is not enough of the recommendation to compute it (no targets yet, or the
+    gate switched off for this market) - the same early-outs _reward_hold() itself
+    takes. Pulled out to module level so the Signal card can show the exact number the
+    gate uses, not a second, possibly-different one - the user, 30 Sep 2026, after
+    raising crypto's own bar: "signal card [says 1x]" - that was reach_to_risk, a
+    different, unchanged gate; this is the one that actually moved, and until this it
+    had nowhere to be seen except inside a LOW REWARD hold message.
+
+    `rr` is left unrounded - _reward_hold()'s own `rr < need` comparison needs the raw
+    value, the same one this returns, so rounding here could move a borderline case
+    across the boundary between the two callers."""
+    need = config.min_reward_risk_t3(name)
+    if not need:
+        return None, None
+    spot, risk = rec.get("spot"), rec.get("risk_points")
+    tg = rec.get("index_targets") or [None, None, None]
+    t3 = tg[2] if len(tg) > 2 else None
+    if spot is None or not risk or t3 is None:
+        return None, None
+    return abs(t3 - spot) / risk, need
+
+
 def _safe_explain(rec):
     try:
         return explain.explain(rec)
@@ -969,16 +995,12 @@ class TicketBook:
                     f"it (-62k per lot over the held-out year, after costs), "
                     f"while Nifty and Sensex made money. Remove it from "
                     f"WATCH_ONLY_INDICES in config.py to trade it again.")
-        need = config.min_reward_risk_t3(name)
-        if not need:
+        rr, need = reward_risk_t3(name, rec)
+        if rr is None:
             return None
-        spot, risk = rec.get("spot"), rec.get("risk_points")
-        tg = rec.get("index_targets") or [None, None, None]
-        t3 = tg[2] if len(tg) > 2 else None
-        if spot is None or not risk or t3 is None:
-            return None
-        rr = abs(t3 - spot) / risk
         if rr < need:
+            spot, risk = rec.get("spot"), rec.get("risk_points")
+            t3 = (rec.get("index_targets") or [None, None, None])[2]
             return ("low_rr", "LOW REWARD",
                     f"The market has about {abs(t3 - spot):,.0f} points of room "
                     f"this way today and the stop is {risk:,.0f} away - "

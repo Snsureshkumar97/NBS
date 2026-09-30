@@ -398,6 +398,7 @@ def _public(rec, name=None):
     meta = config.INSTRUMENTS.get(name or rec.get("index")) or {}
     tech = rec.get("technical") or {}
     trend = rec.get("trend") or {}
+    tg_ratio, tg_need = tickets.reward_risk_t3(name or rec.get("index"), rec)
     return {
         "index": rec.get("index"),
         "bias": rec.get("bias"),
@@ -445,6 +446,14 @@ def _public(rec, name=None):
         "room": _room(rec),
         "opening_range": rec.get("opening_range"),
         "reach_to_risk": rec.get("reach_to_risk"),
+        # A DIFFERENT gate from reach_to_risk above - tickets.py's own ticket gate
+        # (room to run all the way to T3, over the stop), which used to have nowhere
+        # to be seen except inside a LOW REWARD hold message. The user, 30 Sep 2026,
+        # after raising crypto's own bar to 2.0, was reading reach_to_risk on the
+        # Signal card and concluding the gate they had just raised was still "1x" -
+        # it wasn't; that tile was always the other, unchanged gate.
+        "ticket_gate_ratio": tg_ratio,
+        "ticket_gate_need": tg_need,
         "reach_reason": rec.get("reach_reason"),
         "not_worth_it": rec.get("not_worth_it"),
         "adx_blocked": rec.get("adx_blocked"),

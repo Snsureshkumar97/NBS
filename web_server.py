@@ -6430,9 +6430,10 @@ function rrBox(r, tk){
                        + `exchange, SEBI and stamp charges, and GST. Slippage is not included - a wide spread costs more.`);
   else if(CCY === "USD") notes.push("Delta Exchange's trading fees are not included.");
   else notes.push("Charges could not be worked out, so these are before costs.");
-  notes.push(`"× risk" is how far each level is from entry compared with the stop. The Reward : risk tile above is `
-           + `a different number: how far the market has room to run against the stop - the check that decides `
-           + `whether a trade is issued at all - not what the exit pays.`);
+  notes.push(`"× risk" is how far each level is from entry compared with the stop - not what the exit pays. Two `
+           + `different checks decide whether a trade is issued at all: the Reward : risk tile is how far the `
+           + `market has room to run against the stop; the Ticket gate tile is room to run all the way to T3 `
+           + `against the stop, held to a higher bar.`);
 
   el.innerHTML = `<p class="eyebrow" role="heading" aria-level="2">Risk and reward on this ${open ? "ticket" : "trade"}</p>`
     + (sum ? `<div class="rrsum">${sum}</div>` : "")
@@ -8136,7 +8137,15 @@ function render(s){
          r.adx==null?"":(r.adx_ok?"var(--up)":"var(--warn)")) +
     tile("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+":1",
          roomSub(r),
-         r.reach_to_risk==null?"":(r.reach_to_risk>=2?"var(--up)":r.reach_to_risk<0.6?"var(--down)":"var(--warn)"));
+         r.reach_to_risk==null?"":(r.reach_to_risk>=2?"var(--up)":r.reach_to_risk<0.6?"var(--down)":"var(--warn)")) +
+    // A DIFFERENT gate from the tile above (see rrBox's own note on the difference) -
+    // tickets.py's _reward_hold(): room to run all the way to T3, over the stop. Used
+    // to have nowhere to be seen except inside a LOW REWARD hold message - the user,
+    // 30 Sep 2026, after raising crypto's own bar: "signal card [says 1x]" - that was
+    // the OTHER tile; this one is the one that actually moved.
+    tile("Ticket gate", r.ticket_gate_ratio==null?"—":r.ticket_gate_ratio.toFixed(2)+":1",
+         r.ticket_gate_need==null?"":"needs "+r.ticket_gate_need+":1",
+         r.ticket_gate_ratio==null?"":(r.ticket_gate_ratio>=r.ticket_gate_need?"var(--up)":"var(--down)"));
 
   const tstate = (s.tickets||{})[CUR] || null;
   ticketBox(r, tstate);
