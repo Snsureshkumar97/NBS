@@ -32,6 +32,9 @@ def _read_dotenv_file(path: str) -> None:
         pass
 
 
+_home_config_dir_cache = {}     # TRADING_TOOL_HOME override string -> resolved dir
+
+
 def home_config_dir() -> str:
     """A folder that survives every future download of this tool.
 
@@ -44,12 +47,30 @@ def home_config_dir() -> str:
     where you unzip it or which directory you launch from. Same reasoning as
     the trade log, and for the same reason: the things you'd hate to lose must
     not live next to code you replace.
+
+    Memoized per TRADING_TOOL_HOME value once resolved. This is on
+    accounts.py's own hot path (_path(), called from _load() on every single
+    request) and used to redo os.makedirs()+os.chmod() every time even
+    though the directory does not move while that override stays the same -
+    real filesystem syscalls, made worse by running under accounts._lock, the
+    same global lock session_user(), session_market(), get_user() and
+    account_summary() all take on every request. Under enough concurrent
+    traffic (30 Sep 2026: several accounts' crypto feeds ticking at once)
+    that queued 210+ of 226 threads behind it - the same shape of slowdown
+    as the 29 Sep session-lock incident, this time from a syscall under the
+    lock rather than a JSON re-parse. Keyed by the override rather than one
+    unconditional slot so a process that changes TRADING_TOOL_HOME mid-run
+    (market_bot_test.py switches it and switches it back) still gets a
+    correct, freshly-verified answer for each value, not a stale one.
     """
     # On a host like Render the home directory is wiped on every deploy, so
     # accounts and broker tokens have to live on a mounted disk instead.
     # TRADING_TOOL_HOME points at it. Unset — which is every desktop install —
     # behaves exactly as before.
     override = os.environ.get("TRADING_TOOL_HOME", "").strip()
+    cached = _home_config_dir_cache.get(override)
+    if cached is not None:
+        return cached
     if override:
         try:
             os.makedirs(override, exist_ok=True)
@@ -57,6 +78,7 @@ def home_config_dir() -> str:
                 os.chmod(override, 0o700)      # it holds credentials
             except OSError:
                 pass
+            _home_config_dir_cache[override] = override
             return override
         except OSError:
             pass
@@ -67,6 +89,7 @@ def home_config_dir() -> str:
             os.chmod(d, 0o700)      # it holds credentials
         except OSError:
             pass
+        _home_config_dir_cache[override] = d
         return d
     except OSError:
         return os.path.dirname(os.path.abspath(__file__))
