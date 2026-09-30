@@ -969,7 +969,7 @@ class TicketBook:
                     f"it (-62k per lot over the held-out year, after costs), "
                     f"while Nifty and Sensex made money. Remove it from "
                     f"WATCH_ONLY_INDICES in config.py to trade it again.")
-        need = _cfg("MIN_REWARD_RISK_T3", 0)
+        need = config.min_reward_risk_t3(name)
         if not need:
             return None
         spot, risk = rec.get("spot"), rec.get("risk_points")

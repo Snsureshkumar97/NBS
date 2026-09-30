@@ -1239,7 +1239,20 @@ REGIME_OR_REQUIRE_BREAK = False
 #   held-out year   1.05 -> 1.10      179k -> 142k         98k -> 157k
 # Better per trade and shallower in both periods; the in-sample total is lower
 # only because 11% fewer trades are taken. 0 switches it off.
-MIN_REWARD_RISK_T3 = 1.0
+#
+# Per market since 30 Sep 2026, at the user's choice: crypto raised to 2.5
+# (untested at that value - the pro_study figures above are the Indian
+# indices' own history, on the Indian indices' rules; crypto was never swept
+# on this gate). 0 for a market still switches the gate off for it.
+MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.5}
+
+
+def min_reward_risk_t3(index_key=None):
+    """MIN_REWARD_RISK_T3 for this instrument's market. No key means the
+    default market - the desktop app and main.py's single-index runs, which
+    are NSE. Same shape and fallback as adx_dx_smoothing()."""
+    market = (INSTRUMENTS.get(index_key) or {}).get("market") if index_key else None
+    return MIN_REWARD_RISK_T3.get(market or DEFAULT_MARKET, 1.0)
 
 # No entry into an RSI divergence, Indian indices. From skills_study.py variant D,
 # pre-declared 15 Sep 2026 with the skills installed that day: skip a CE when

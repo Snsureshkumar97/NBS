@@ -43,9 +43,11 @@ _saved = config.MIN_REWARD_RISK_T3
 try:
     df = FakeDF([100.0] * 40).df
     r = rec(risk=10.0, targets=(105.0, 108.0, 111.0))   # T3 only 1.1x the stop - passes need=1.0, fails need=2.0
-    config.MIN_REWARD_RISK_T3 = 1.0
-    check("passes reward:risk 1.0 (today's shipped value)", rvs.live_gate("NIFTY", 39, r, df))
-    config.MIN_REWARD_RISK_T3 = 2.0
+    # Per market since 30 Sep 2026 (config.min_reward_risk_t3()) - NIFTY resolves to
+    # nse_index's own entry regardless of what crypto's is set to.
+    config.MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.5}
+    check("passes reward:risk 1.0 (today's shipped value for the Indian indices)", rvs.live_gate("NIFTY", 39, r, df))
+    config.MIN_REWARD_RISK_T3 = {"nse_index": 2.0, "crypto": 2.5}
     check("...and the SAME rec fails once config.py's OWN value is turned up - live_gate reads it fresh, not a snapshot",
           not rvs.live_gate("NIFTY", 39, r, df))
 finally:

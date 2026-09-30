@@ -1309,10 +1309,14 @@ def how_page(user=None, record=None):
     <td>below it the setup is marked <b>not worth it</b> and never becomes a
      ticket</td></tr>
    <tr><td>The ticket gate</td>
-    <td>room to run &divide; stop distance must reach <code>{_cfg("MIN_REWARD_RISK_T3", 1.0)}</code></td>
+    <td>room to run &divide; stop distance must reach
+     <code>{_esc(config.min_reward_risk_t3("NIFTY"))}</code> on the Indian indices,
+     <code>{_esc(config.min_reward_risk_t3("BTC"))}</code> on crypto</td>
     <td>if the market cannot even travel as far as the stop, the trade is not
      worth its risk &mdash; it would have to win well over half the time just
-     to stand still</td></tr>
+     to stand still. Crypto&rsquo;s bar is higher and, unlike the Indian
+     indices&rsquo; 1.0, has not been tested at that value against its own
+     history</td></tr>
   </table>
   <p>ATR length is <code>{_cfg("ATR_LENGTH", 14)}</code>. Reach is estimated
    before anything is issued, which is the point — a gate applied afterwards
