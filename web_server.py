@@ -2633,10 +2633,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
             macd_line, macd_signal, macd_hist = clean(macd_line), clean(macd_signal), clean(macd_hist)
         except Exception:
             macd_line = macd_signal = macd_hist = None
-        # Same call the live signal itself makes (signal_engine.py), so the line drawn
-        # here is the one the gate actually saw - not a second, slightly different ADX.
+        # Same call the live signal itself makes (signal_engine.py) - but not
+        # necessarily the same DATA: feed.candles() can hand back the "deep"
+        # scroll-back window (feeds.py's self.hist), refreshed on its own
+        # slower timer (feeds.HISTORY_TTL, 4 minutes) via a separate REST
+        # pull, while the live signal was judged against the continuously-
+        # updated series. Recomputed on a few-minutes-stale window, the
+        # line's own last point can end a little off the number that
+        # actually decided PASS/WEAK - the user, 30 Sep 2026: "adx gate in
+        # signal card and on chart doesnt match which is correct." The
+        # signal card is: it is what the gate actually used. On the native
+        # 15-minute view (the only one the gate itself ever runs on - a 5m
+        # or 1h chart is legitimately a different reading, same as RSI/MACD/
+        # EMA already are on those), pin the line's last point to the
+        # recommendation's own value so the reading against the gate always
+        # agrees with the card; the shape further back stays the deep
+        # window's, only the one point actually compared to the gate line
+        # is guaranteed correct.
         try:
             adx = clean(ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(self._current_market())))
+            if adx and tf == "15m" and rec is not None and rec.get("adx") is not None:
+                adx[-1] = round(float(rec["adx"]), 2)
         except Exception:
             adx = None
 
