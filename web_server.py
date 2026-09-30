@@ -685,6 +685,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         market = self._current_market()
         feed = feeds.for_user(user, market)
         snap = feed.snapshot()
+        self._attach_strike_day_range(user, market, snap.get("tickets") or {})
         mprov = (config.MARKETS.get(market) or {}).get("market_provider")
         kite = user_kite.summary(user) if _state["mode"] != "free" else {
             "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
@@ -884,6 +885,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "overnight": btst.overnight(now, name, kind, expiry,
                                             g_["theta"] * qty if qty else None, study)}
         return out
+
+    def _attach_strike_day_range(self, user, market, tickets):
+        """Sets strike_day_high/strike_day_low, live, on every open ticket that
+        tracks a premium - the Signal card's "Today's range" cell.
+
+        The user, 29 Sep 2026: "the tool does not show me the given strike
+        high and low ltp of the day when the signal fires" - journal.
+        strike_day_range() only has this after today's close (see its own
+        docstring), so this calls the live equivalent instead. Mutates each
+        ticket dict in place, the same way real_entry.apply() already does a
+        few lines above this in _tickets_with_odds() - the ticket is the one
+        object the page renders from.
+        """
+        for name, blob in (tickets or {}).items():
+            t = (blob or {}).get("ticket") if isinstance(blob, dict) else None
+            if not t or not t.get("open") or t.get("tracked_on") != "premium":
+                continue
+            strike, side = t.get("strike"), t.get("option_type")
+            if not (strike and side):
+                continue
+            high, low = self._strike_day_range_live(user, market, name, strike, side, t.get("expiry"))
+            t["strike_day_high"], t["strike_day_low"] = high, low
 
     def _same_origin(self):
         """True when a state-changing request came from this site.
@@ -2492,6 +2515,49 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # The live quote is never cached: it is what moves between fetches.
         return self._send(json.dumps(dict(payload, live=self._contract_live(user, market, key, strike, side, expiry))),
                           "application/json")
+
+    _STRIKE_LIVE_CACHE = {}
+    _STRIKE_LIVE_CACHE_S = 60      # a day-so-far range does not need to be fresher than this
+
+    def _strike_day_range_live(self, user, market, key, strike, side, expiry):
+        """(day_high, day_low) of ONE option contract's own premium so far TODAY - live, unlike
+        journal.strike_day_range() which reads record_options.py's after-the-close file and is
+        always empty for today (see that function's own docstring). The user, 29 Sep 2026: "the
+        tool does not show me the given strike high and low ltp of the day when the signal
+        fires."
+
+        Reuses the exact candle fetch _option_candles() already makes for the premium chart - the
+        SAME Kite call, not a second one - with its own cache, because this runs on every /api/
+        state poll for an open ticket rather than once when a chart popup is opened: Kite allows
+        3 historical calls a second across the WHOLE server (record_options.py's own comment), so
+        this must never call it uncached. Never raises - a Kite hiccup here must not take the
+        ticket panel down with it, the same discipline news.py applies to headlines."""
+        ck = (key, strike, side, str(expiry))
+        hit = self._STRIKE_LIVE_CACHE.get(ck)
+        if hit and time.time() - hit[0] < self._STRIKE_LIVE_CACHE_S:
+            return hit[1]
+        result = (None, None)
+        try:
+            if config.MARKETS.get(market, {}).get("market_provider") in ("kite", "delta"):
+                feed = feeds.for_user(user, market)
+                provider, _state, _detail = feed._provider()
+                if provider is not None and hasattr(provider, "candles_for_token"):
+                    token = provider.option_token(key, strike, side, expiry)
+                    if token:
+                        df = provider.candles_for_token(
+                            int(token) if str(token).isdigit() else token, interval="minute", days=1)
+                        if df is not None and len(df):
+                            today = now_ist().date()
+                            todays = df[[getattr(ts, "date", lambda: None)() == today for ts in df["ts"]]]
+                            if len(todays):
+                                result = (float(todays["high"].max()), float(todays["low"].min()))
+        except Exception:
+            pass
+        self._STRIKE_LIVE_CACHE[ck] = (time.time(), result)
+        if len(self._STRIKE_LIVE_CACHE) > 64:
+            for k, _v in sorted(self._STRIKE_LIVE_CACHE.items(), key=lambda kv: kv[1][0])[:32]:
+                self._STRIKE_LIVE_CACHE.pop(k, None)
+        return result
 
     def _candles(self, user, key, qs=None):
         """The bars themselves, as JSON, for the interactive chart.
@@ -6690,6 +6756,14 @@ function ticketBox(r, state){
       + cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
                ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—")
       + cell("Now", num(tk.now,dp))
+      // The strike's own high and low so far today, live (the user, 29 Sep 2026: "the tool
+      // does not show me the given strike high and low ltp of the day when the signal
+      // fires") - only for a premium-tracked ticket, where a strike's own range means
+      // something; an index-tracked one has no premium to range.
+      + (tk.tracked_on === "premium"
+         ? cell("Today's range", tk.strike_day_high == null || tk.strike_day_low == null ? "—"
+                : `${num(tk.strike_day_low,2)} – ${num(tk.strike_day_high,2)}`)
+         : "")
       + cell("Index price", num(r.spot,0))
       + cell(`${tk.lots} lot${tk.lots!==1?"s":""}`,
              pnl==null ? "—"
