@@ -453,21 +453,26 @@ REACH_FRACTIONS = [0.4, 0.7, 1.0]
 # False = old behaviour (issue anyway on risk-multiple targets).
 REQUIRE_REACHABILITY = True
 
-# The rupee figures on the ticket are quoted for this many lots. Purely a
-# DISPLAY setting: this tool never places an order, it only tells you what a
-# move is worth, so changing it changes the arithmetic on screen and nothing
-# about the signal, the targets or the stop.
-#
-# Whatever is selected when a ticket is issued is frozen INTO that ticket, so
-# switching to 5 lots at lunchtime cannot retroactively rewrite what the
-# morning's trade made.
 # Which palette the window starts in: "dark" or "light".
 # Both were validated the same way — see theme.py and validate_palette.py.
 # Switch it live with the half-moon icon at the bottom of the left rail.
 THEME = "dark"
 
+# How many lots/contracts the selector offers, and what a fresh ticket
+# defaults to. Drives the rupee figures on the tool's own ticket and, once
+# live orders are switched on for an index, the real Zerodha order quantity -
+# funds_check() (live_orders.py) still refuses any single order the account
+# cannot actually cover, independently of this cap.
+#
+# Whatever is selected when a ticket is issued is frozen INTO that ticket, so
+# changing the selector mid-session cannot retroactively rewrite what an
+# already-open trade is sized at.
+#
+# Raised 5 -> 50 on 1 Oct 2026 at the user's request. Indian indices only:
+# crypto (BTC, GOLD) names its own lot_choices in INSTRUMENTS and never
+# falls through to this cap - see config.lot_choices().
 DEFAULT_LOTS = 1
-MAX_LOTS = 5
+MAX_LOTS = 50
 
 
 

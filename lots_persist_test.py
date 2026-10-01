@@ -57,9 +57,15 @@ check("...and setting the capital later does not lose the lots", book(p).lots ==
 
 print("3. A SAVED SIZE THE MARKET NO LONGER OFFERS IS SNAPPED, NOT TRUSTED")
 p = fresh_path()
+# Genuinely beyond the largest choice, whatever MAX_LOTS currently is - a
+# fixed "9" only read as "beyond the cap" for whatever the cap happened to
+# be the day this was written, and quietly stopped meaning that the day
+# MAX_LOTS was raised past it (5 -> 50, 1 Oct 2026).
+beyond = config.MAX_LOTS + 4
 with open(p + ".settings.json", "w") as fh:
-    json.dump({"capital": None, "risk_pct": 1.0, "lots": 9}, fh)
-check("a size beyond the largest choice becomes the largest", book(p).lots == 5.0)
+    json.dump({"capital": None, "risk_pct": 1.0, "lots": beyond}, fh)
+check("a size beyond the largest choice becomes the largest",
+      book(p).lots == float(config.MAX_LOTS), (beyond, book(p).lots))
 with open(p + ".settings.json", "w") as fh:
     json.dump({"lots": 2.4}, fh)
 check("one between two choices becomes the nearest", book(p).lots == 2.0)

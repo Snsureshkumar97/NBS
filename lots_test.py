@@ -68,11 +68,16 @@ assert cap == "2 LOTS" and pnl == "+4,000", (cap, pnl)
 print("new   :", cap, pnl, "— the next ticket uses the new selection")
 
 # --- the selector is clamped to the configured range --------------------
-for bad, want in (("0", 1), ("9", config.MAX_LOTS), ("x", config.DEFAULT_LOTS), ("", config.DEFAULT_LOTS)):
+# One more than MAX_LOTS, not a fixed "9" - a hard-coded number only reads
+# as "beyond the cap" for whatever the cap happened to be the day this was
+# written (it quietly stopped being beyond it the day MAX_LOTS was raised
+# past it, 1 Oct 2026).
+beyond = str(config.MAX_LOTS + 1)
+for bad, want in (("0", 1), (beyond, config.MAX_LOTS), ("x", config.DEFAULT_LOTS), ("", config.DEFAULT_LOTS)):
     app.lots_var.set(bad)
     got = app._lots()
     assert got == want, f"lots_var={bad!r} -> {got}, expected {want}"
-print("clamp :  0->1, 9->%d, junk->%d" % (config.MAX_LOTS, config.DEFAULT_LOTS))
+print("clamp :  0->1, %s->%d, junk->%d" % (beyond, config.MAX_LOTS, config.DEFAULT_LOTS))
 
 # --- the control is on screen and clickable at every width --------------
 app.lots_var.set("3")
