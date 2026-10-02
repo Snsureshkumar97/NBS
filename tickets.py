@@ -103,6 +103,14 @@ class IndexBook:
         self.last_bias_signature = None
         self.last_ticket_at = None     # datetime, per index
         self.last_close_at = None      # datetime the last ticket here closed
+        # How and in what trend strength the last ticket here closed - read by
+        # the WAIVE_COOLDOWN_ON_TRENDING_TARGET check in _same_direction_hold().
+        # "target" matches trade_log.is_target_close() exactly (a clean full
+        # target reached - not a trailed stop, not a manual clear, not
+        # square-off); anything else is "other". None until a ticket has
+        # actually closed once.
+        self.last_close_reason = None  # "target" | "other" | None
+        self.last_close_adx = None     # float | None - ADX at that close
         self.wait_reason = None        # (code, short, long)
         # A cooldown you chose to skip, pinned to the ticket or exit it was
         # counting from. Pinned rather than a flag so it is one-shot by
@@ -110,6 +118,10 @@ class IndexBook:
         # waiver stops matching without anything having to remember to clear it.
         self.cooldown_waived = None    # {"ref": datetime|None, "gap": datetime|None}
         self.waiver_applied = False    # set while evaluating, when it let one through
+        # Same idea, automatic: set while evaluating when the trend waiver
+        # (not a hand-chosen skip) is what let a same-direction entry through.
+        # Kept separate from waiver_applied so the two can be measured apart.
+        self.trend_waiver_applied = False
         self.live = None               # newest streamed price for this index
 
     # -- the gate that only this index knows about -------------------------
@@ -818,6 +830,7 @@ class TicketBook:
         direction = book.confirm_dir          # this reading's direction - set by update(), just before this ran
         now = time.time()
         book.waiver_applied = False
+        book.trend_waiver_applied = False
 
         def hold(code, short, why):
             book.wait_reason = (code, short, why)
@@ -1070,10 +1083,28 @@ class TicketBook:
         if ref is not None:
             gap = (now_ist() - ref).total_seconds() / 60.0
             waived = book.cooldown_waived or {}
-            if gap < mins and "ref" in waived and waived["ref"] == ref:
+            manual_waiver = (gap < mins and "ref" in waived and waived["ref"] == ref)
+            # WAIVE_COOLDOWN_ON_TRENDING_TARGET, backtested 2 Oct 2026
+            # (conditional_cooldown_study.py) - a robust KEEP, every ADX
+            # threshold swept. The LAST same-direction ticket here closed by
+            # reaching its own target, and the market was still trending (ADX
+            # at/above ADX_TREND_THRESHOLD) at that exact close - re-entering
+            # now is riding a continuation, not chasing a loss, which is the
+            # case this cooldown exists to prevent. A stop-out, a
+            # time/square-off close, or a target hit in an already-fading
+            # market (ADX already under the threshold) earns no waiver here
+            # and falls straight through to the ordinary cooldown below.
+            trend_waiver = (gap < mins and not manual_waiver
+                             and _cfg("WAIVE_COOLDOWN_ON_TRENDING_TARGET", False)
+                             and book.last_close_reason == "target"
+                             and book.last_close_adx is not None
+                             and book.last_close_adx >= _cfg("ADX_TREND_THRESHOLD", 20))
+            if manual_waiver:
                 # Skipped by hand. Only the clock is waived: the room check
                 # below, and every gate after this one, still decide.
                 book.waiver_applied = True
+            elif trend_waiver:
+                book.trend_waiver_applied = True
             elif gap < mins:
                 return ("reentry_cooldown", "COOLDOWN",
                         f"Already ticketed {side} today. A second ticket the same "
@@ -1123,6 +1154,7 @@ class TicketBook:
         Thirteen tickets in twelve seconds against a cap of four, measured.
         """
         book.waiver_applied = False
+        book.trend_waiver_applied = False
         if self.entry_block() is not None:
             return False
         # Re-arm is only ever a second ticket the SAME way, so it answers to
@@ -1211,12 +1243,18 @@ class TicketBook:
             # those entries earn their keep separately from the ones the
             # rules let through on their own.
             "cooldown_skipped": bool(book.waiver_applied),
+            # Issued only because WAIVE_COOLDOWN_ON_TRENDING_TARGET let it
+            # through automatically - a same-direction continuation, not a
+            # hand-chosen skip. Kept separate from cooldown_skipped above so
+            # the two can be measured apart.
+            "cooldown_waived_trend": bool(book.trend_waiver_applied),
             # Set when this strike is not the one at the money because that one
             # was already traded today - so the ticket can say why it is here.
             "strike_swap": rec.get("strike_swap"),
         }
         book.cooldown_waived = None
         book.waiver_applied = False
+        book.trend_waiver_applied = False
         book.last_ticket_at = stamp
         # The previous ticket's streamed price is not this one's.
         book.live = None
@@ -1254,6 +1292,15 @@ class TicketBook:
         self._day_cache = None
         self._booked_cache = None        # a close changes today's booked P&L - the loss limit must see it now
         book.last_close_at = now_ist()
+        # For WAIVE_COOLDOWN_ON_TRENDING_TARGET: how this one closed, and the
+        # trend strength at that moment - read back the NEXT time a
+        # same-direction entry is considered here. rec is whatever the caller
+        # had on hand at close (the live tick's rec for a natural close,
+        # book.last_rec for a manual one) - never re-fetched, so this reflects
+        # exactly what was known at the moment of closing, nothing fresher.
+        book.last_close_reason = ("target" if trade_log.is_target_close(trade["status"])
+                                   else "other")
+        book.last_close_adx = (rec or {}).get("adx")
         row = {
             "index": trade["index"], "strike": trade["strike"],
             "expiry": trade.get("expiry"),

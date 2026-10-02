@@ -165,7 +165,8 @@ check("the ticket's row carries how many agreed, how many were against, and each
 trade_log.log_open(dict(trade, trade_id="NIFTY-2"), {"technical": {}}, now, path=path)
 check("a ticket with no checklist leaves the three columns blank", trade_log._read_rows(path)[1]["checks"] == "" and trade_log._read_rows(path)[1]["checks_agree"] == "")
 old = os.path.join(tempfile.mkdtemp(), "trades.csv")
-older = [f for f in trade_log.FIELDS if f not in ("checks_agree", "checks_against", "checks")]
+older = [f for f in trade_log.FIELDS
+         if f not in ("checks_agree", "checks_against", "checks", "cooldown_waived_trend")]
 with open(old, "w", newline="") as fh:
     wtr = csv.DictWriter(fh, fieldnames=older); wtr.writeheader(); wtr.writerow({"trade_id": "OLD-1", "event": "OPEN", "date": "2026-09-20", "index": "NIFTY"})
 trade_log.log_open(trade, {"checks": c, "technical": {}}, now, path=old)

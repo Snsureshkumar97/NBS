@@ -1170,6 +1170,25 @@ REENTRY_COOLDOWN_MIN = 20
 # bad one. 1.0 means T3 sits at least as far away as the stop does.
 REENTRY_MIN_RR = 1.0
 
+# REENTRY_COOLDOWN_MIN exists to stop chasing straight back into a read that
+# was just wrong - a stop-out. The user, 2 Oct 2026: it earns its keep far
+# less after a clean TARGET hit in a market that is still trending - the
+# signal did not fail, it simply ran out of target. Backtested
+# (conditional_cooldown_study.py): waive REENTRY_COOLDOWN_MIN entirely when
+# the LAST same-direction ticket on this index closed by reaching its target
+# AND ADX was still at/above ADX_TREND_THRESHOLD at that close. A stop-out, a
+# time/square-off close, or a target hit in an already-fading market (ADX
+# already under the threshold) still gets the full cooldown, unchanged -
+# re-entering immediately there would be chasing, exactly what the cooldown
+# exists to prevent. Result, 3yr NIFTY/BANKNIFTY/SENSEX against the properly
+# sequential (one-open-position-per-index) baseline: KEEP, in-sample +38,262,
+# held-out +17,237, held-out drawdown improved (not just no-worse) by 5,631.
+# Robustly so: swept the ADX threshold itself 10/15/20/25/30/35 - KEEP at
+# every single value, both periods, every time. Only the cooldown CLOCK is
+# waived - one-open-position exclusivity, the room check (REENTRY_MIN_RR) and
+# every other gate still apply exactly as today.
+WAIVE_COOLDOWN_ON_TRENDING_TARGET = True
+
 # Opening-range confirmation, Indian indices only. A CE is taken only once price
 # is above the high of 09:15-09:45, a PE only below its low; nothing before the
 # range is complete. Adopted from regime_study.py, whose simpler pricing (a fixed

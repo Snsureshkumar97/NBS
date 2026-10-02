@@ -46,6 +46,11 @@ FIELDS = [
     # were against, and each one as key+symbol (+ agrees, - against, 0 neutral,
     # x no data) - so that whether it means anything can be studied later.
     "checks_agree", "checks_against", "checks",
+    # Added 2 Oct 2026, same reasoning as cooldown_skipped above: a ticket
+    # issued because WAIVE_COOLDOWN_ON_TRENDING_TARGET let a same-direction
+    # continuation through automatically, kept separate from a hand-chosen
+    # skip so the two can be measured apart.
+    "cooldown_waived_trend",
 ]
 
 
@@ -206,6 +211,7 @@ def _base_row(trade, rec, now):
         "adx": tech.get("adx"),
         "strictness": r.get("strictness"),
         "cooldown_skipped": "yes" if trade.get("cooldown_skipped") else "",
+        "cooldown_waived_trend": "yes" if trade.get("cooldown_waived_trend") else "",
         # rsi is rounded here the same way feeds._public() rounds it for the live
         # card (tech only has the raw last_rsi); macd_hist and vwap_gap are
         # already rounded inside compute_technical_signal() and pass straight through.
