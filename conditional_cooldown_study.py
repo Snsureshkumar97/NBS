@@ -195,7 +195,39 @@ def main():
         tag = " (today's entry-gate value)" if thresh == config.ADX_TREND_THRESHOLD else ""
         print(f"   {'KEEP ' if keep else 'drop '} threshold {thresh:>2}{tag:30s} in-sample {di:>+10,.0f}"
               f"   out-of-sample {do:>+10,.0f}   held-out drawdown {dd:>+9,.0f}")
+
+    print("\n" + "=" * 128)
+    print(" MONTH BY MONTH, all three years - same pooled per-lot numbers as above")
+    print("=" * 128)
+    print_monthly(flat_rows, cond_rows)
     return {"flat": flat, "conditional": cond}
+
+
+def print_monthly(flat_rows, cond_rows):
+    """Net P&L and trade count per calendar month, both variants side by
+    side, so a 3-year pooled total can be read month by month instead of
+    only as two lumped in-sample/held-out figures."""
+    def monthly(rows):
+        df = pd.DataFrame(rows)
+        df["month"] = pd.to_datetime(df["when"]).dt.tz_localize(None).dt.to_period("M")
+        return df.groupby("month")["net"].agg(n="count", total="sum")
+
+    f_m, c_m = monthly(flat_rows), monthly(cond_rows)
+    months = sorted(set(f_m.index) | set(c_m.index))
+    print(f" {'month':10s} {'flat 20-min cooldown (today, live until now)':32s}  "
+          f"| {'conditional waiver (now live)':32s}  | difference")
+    print("-" * 128)
+    f_tot = c_tot = 0.0
+    for m in months:
+        fn, ft = (f_m.loc[m, "n"], f_m.loc[m, "total"]) if m in f_m.index else (0, 0.0)
+        cn, ct = (c_m.loc[m, "n"], c_m.loc[m, "total"]) if m in c_m.index else (0, 0.0)
+        f_tot += ft; c_tot += ct
+        marker = " <- held-out" if pd.Timestamp(str(m)) >= SPLIT.tz_localize(None) else ""
+        print(f" {str(m):10s} {fn:>3} trades ₹{ft:>+10,.0f}          | "
+              f"{cn:>3} trades ₹{ct:>+10,.0f}          | {ct - ft:>+10,.0f}{marker}")
+    print("-" * 128)
+    print(f" {'TOTAL':10s} {sum(f_m['n']):>3} trades ₹{f_tot:>+10,.0f}          | "
+          f"{sum(c_m['n']):>3} trades ₹{c_tot:>+10,.0f}          | {c_tot - f_tot:>+10,.0f}")
 
 
 if __name__ == "__main__":
