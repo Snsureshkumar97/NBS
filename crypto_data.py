@@ -141,6 +141,53 @@ def candles(refresh_tail=False):
     return out[~out.index.duplicated()].sort_index()
 
 
+def short_dated_iv(every_days=7, refresh=False):
+    """How short-dated BTC options ACTUALLY trade, against DVOL (a 30-day vol).
+
+    For one hour (12:00-13:00 UTC - Delta's own settlement hour) every
+    `every_days` days, real Deribit option trades from its public history host:
+    near-the-money (strike within 1.5% of the index), expiring 12-36 hours out
+    (the next daily). The median traded IV per sampled hour is kept, with DVOL at
+    that hour beside it. A volatility-SELLING backtest priced at DVOL alone would
+    be wrong by exactly the gap between these two numbers - this measures it."""
+    def build():
+        dv = dvol()["dvol"]
+        stop = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=1)
+        t = pd.Timestamp("2023-09-12 12:00")
+        rows = []
+        url = "https://history.deribit.com/api/v2/public/get_last_trades_by_currency_and_time"
+        while t < stop:
+            q = urllib.parse.urlencode({"currency": "BTC", "kind": "option", "count": 1000,
+                                        "sorting": "asc", "start_timestamp": _ms(t),
+                                        "end_timestamp": _ms(t + pd.Timedelta(hours=1))})
+            try:
+                req = urllib.request.Request(url + "?" + q, headers={"User-Agent": "nbs-crypto-study"})
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    trades = json.load(r)["result"]["trades"]
+            except Exception:
+                trades = []
+            ivs = []
+            for tr in trades:
+                try:
+                    _, exp_s, k_s, _ = tr["instrument_name"].split("-")
+                    exp = pd.Timestamp(exp_s) + pd.Timedelta(hours=8)            # Deribit expires 08:00 UTC
+                    hours = (exp - pd.Timestamp(tr["timestamp"], unit="ms")).total_seconds() / 3600
+                    if 12 <= hours <= 36 and abs(float(k_s) / tr["index_price"] - 1) <= 0.015 and tr.get("iv"):
+                        ivs.append(float(tr["iv"]))
+                except Exception:
+                    continue
+            at = pd.Timestamp(t, tz="UTC").tz_convert(IST)
+            d = dv.asof(at)
+            if len(ivs) >= 3 and d == d:
+                rows.append({"at": at, "short_iv": float(pd.Series(ivs).median()), "dvol": float(d), "n": len(ivs)})
+            t += pd.Timedelta(days=every_days)
+            time.sleep(0.2)
+        out = pd.DataFrame(rows).set_index("at")
+        out["ratio"] = out["short_iv"] / out["dvol"]
+        return out
+    return _cached("BTC_short_iv_samples.csv", build, refresh)
+
+
 if __name__ == "__main__":
     c = candles(refresh_tail=True)
     print(f"candles {len(c):,}  {c.index.min()} -> {c.index.max()}")
