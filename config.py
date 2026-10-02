@@ -1453,6 +1453,18 @@ MACD_MUST_AGREE = True
 # same as PCR already does when the chain is unavailable.
 VOLUME_VOTE_MODE = "off"
 
+# +DI/-DI as a core-signal vote - backtest-only as of 2 Oct 2026, same shape
+# as VOLUME_VOTE_MODE above. The user, quoting an Investopedia guide: ADX is
+# usually paired with +DI/-DI to know which way price is moving. Here ADX has
+# only ever been a trend-STRENGTH gate; direction comes from the Trend/MACD/
+# RSI/VWAP(/PCR) votes. +DI above -DI votes +1, -DI above +DI votes -1 (same
+# length and smoothing as the live ADX, config.ADX_LENGTH, so the two stay
+# tied to one reading).
+#   "off"           - not a vote at all (today, live)
+#   "add"           - joins Trend/MACD/RSI/VWAP as an extra vote
+#   "replace_trend" - takes the EMA-based Trend vote's own slot
+DI_VOTE_MODE = "off"
+
 # ---------------------------------------------------------------------------
 # SPREAD — what it costs just to get in and out
 # ---------------------------------------------------------------------------

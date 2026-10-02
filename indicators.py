@@ -139,6 +139,32 @@ def vwap(df: pd.DataFrame) -> pd.Series:
     return result.ffill().fillna(typical_price)
 
 
+def plus_minus_di(df: pd.DataFrame, length: int = 14):
+    """
+    +DI and -DI — the directional components ADX is built from, returned on
+    their own: +DI above -DI reads as an uptrend, -DI above +DI a downtrend.
+    The usual pairing with ADX (ADX says how STRONG a trend is, these say
+    WHICH WAY). Factored out of adx() unchanged - same Wilder smoothing,
+    same ewm(alpha=1/length) approximation atr() uses - so the two can never
+    drift apart. Returns (plus_di, minus_di), each aligned to df's index.
+    """
+    high, low = df["High"], df["Low"]
+    up_move = high.diff()
+    down_move = -low.diff()
+
+    plus_dm = pd.Series(0.0, index=df.index)
+    minus_dm = pd.Series(0.0, index=df.index)
+    plus_mask = (up_move > down_move) & (up_move > 0)
+    minus_mask = (down_move > up_move) & (down_move > 0)
+    plus_dm[plus_mask] = up_move[plus_mask]
+    minus_dm[minus_mask] = down_move[minus_mask]
+
+    smoothed_tr = true_range(df).ewm(alpha=1 / length, adjust=False).mean().replace(0, np.nan)
+    plus_di = 100 * plus_dm.ewm(alpha=1 / length, adjust=False).mean() / smoothed_tr
+    minus_di = 100 * minus_dm.ewm(alpha=1 / length, adjust=False).mean() / smoothed_tr
+    return plus_di, minus_di
+
+
 def adx(df: pd.DataFrame, length: int = 14, dx_length: int = None) -> pd.Series:
     """
     Average Directional Index — measures TREND STRENGTH (not direction).
@@ -156,20 +182,7 @@ def adx(df: pd.DataFrame, length: int = 14, dx_length: int = None) -> pd.Series:
     config.ADX_DX_SMOOTHING: +DI/-DI still over 14 candles, DX over 3, so the
     gate follows a trend within a few candles instead of three and a half hours.
     """
-    high, low = df["High"], df["Low"]
-    up_move = high.diff()
-    down_move = -low.diff()
-
-    plus_dm = pd.Series(0.0, index=df.index)
-    minus_dm = pd.Series(0.0, index=df.index)
-    plus_mask = (up_move > down_move) & (up_move > 0)
-    minus_mask = (down_move > up_move) & (down_move > 0)
-    plus_dm[plus_mask] = up_move[plus_mask]
-    minus_dm[minus_mask] = down_move[minus_mask]
-
-    smoothed_tr = true_range(df).ewm(alpha=1 / length, adjust=False).mean().replace(0, np.nan)
-    plus_di = 100 * plus_dm.ewm(alpha=1 / length, adjust=False).mean() / smoothed_tr
-    minus_di = 100 * minus_dm.ewm(alpha=1 / length, adjust=False).mean() / smoothed_tr
+    plus_di, minus_di = plus_minus_di(df, length)
 
     di_sum = (plus_di + minus_di).replace(0, np.nan)
     dx = 100 * (plus_di - minus_di).abs() / di_sum

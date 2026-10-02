@@ -214,6 +214,7 @@ def precompute(df, index_key=None):
     _, _, hist = ind.macd(close, config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
     out["macd_hist"] = hist
     out["adx"] = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
+    out["plus_di"], out["minus_di"] = ind.plus_minus_di(df, config.ADX_LENGTH)
     out["vwap"] = ind.vwap(df)
     out["swing_low"] = df["Low"].rolling(config.SWING_LOOKBACK, min_periods=1).min()
     out["swing_high"] = df["High"].rolling(config.SWING_LOOKBACK, min_periods=1).max()
@@ -254,12 +255,14 @@ def tech_at(df, pre, i):
     rsi_s = 1 if (config.RSI_BULL_MIN < r < config.RSI_OVERBOUGHT) else (
         -1 if (config.RSI_OVERSOLD < r < config.RSI_BEAR_MAX) else 0)
     vwap_s = 1 if c > v else (-1 if c < v else 0)
+    pdi, mdi = float(pre["plus_di"].iloc[i]), float(pre["minus_di"].iloc[i])
+    di_s = 1 if pdi > mdi else (-1 if mdi > pdi else 0)       # NaN compares False -> 0, as live
 
     return {
         "last_close": c, "last_rsi": r, "last_atr": float(pre["atr"].iloc[i]),
         "ema_fast": round(ef, 2), "ema_slow": round(es, 2),
         "trend_score": trend, "macd_score": macd_s, "macd_hist": round(h, 2),
-        "rsi_score": rsi_s, "vwap_score": vwap_s,
+        "rsi_score": rsi_s, "vwap_score": vwap_s, "di_score": di_s,
         "adx": round(a, 1), "adx_ok": bool(a >= config.ADX_TREND_THRESHOLD),
         "vwap": round(v, 2), "vwap_gap": round(c - v, 1),
         "last_swing_low": round(float(pre["swing_low"].iloc[i]), 2),
@@ -279,7 +282,7 @@ def verify_precompute(df, pre, samples=25, index_key=None):
     for i in idxs:
         real = se.compute_technical_signal(df.iloc[:i + 1], index_key)
         fast = tech_at(df, pre, i)
-        for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "adx",
+        for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "adx",
                   "last_close", "vwap", "last_swing_low", "last_swing_high"):
             rv, fv = real[k], fast[k]
             if isinstance(rv, float) and abs(rv - fv) > 0.02:

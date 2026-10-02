@@ -43,6 +43,10 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     # _check_price()) — not an entry input, so it carries no vote/score here.
     st_length, st_mult = config.supertrend_params(index_key)
     st_line, _ = ind.supertrend(df, st_length, st_mult)
+    # +DI/-DI direction read (config.DI_VOTE_MODE - only ever a vote when that
+    # is switched on; "off" today). Computed always, like every other score
+    # here, so a caller flipping the mode needs nothing else.
+    plus_di, minus_di = ind.plus_minus_di(df, config.ADX_LENGTH)
 
     last_close = close.iloc[-1]
     last_rsi = rsi.iloc[-1]
@@ -62,6 +66,8 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
         -1 if (config.RSI_OVERSOLD < last_rsi < config.RSI_BEAR_MAX) else 0
     )
     vwap_score = 1 if last_close > last_vwap else (-1 if last_close < last_vwap else 0)
+    last_pdi, last_mdi = plus_di.iloc[-1], minus_di.iloc[-1]
+    di_score = 1 if last_pdi > last_mdi else (-1 if last_mdi > last_pdi else 0)   # NaN compares False -> 0
 
     total = trend_score + macd_score + rsi_score + vwap_score
 
@@ -85,6 +91,11 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
         "macd_hist": round(float(last_macd_hist), 2),
         "rsi_score": rsi_score,
         "vwap_score": vwap_score,
+        # Not part of total_score/max_score - a vote only when config.DI_VOTE_MODE
+        # joins it in (build_recommendation()), exactly like Volume.
+        "di_score": di_score,
+        "plus_di": round(float(last_pdi), 1) if last_pdi == last_pdi else None,
+        "minus_di": round(float(last_mdi), 1) if last_mdi == last_mdi else None,
         "adx": round(float(last_adx), 1),
         "adx_ok": bool(last_adx >= config.ADX_TREND_THRESHOLD),
         # Index-level Supertrend line, for the post-T1 live trail — None
@@ -757,6 +768,18 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         else:
             max_total += 1
         votes["Volume"] = volume["volume_score"]
+
+    # DI_VOTE_MODE (config.py) - backtest-only as of 2 Oct 2026, same shape as
+    # VOLUME_VOTE_MODE above. "off" (default) touches nothing. "replace_trend"
+    # takes the EMA Trend vote's own slot; the separate tech["trend_score"]
+    # itself is untouched.
+    di_mode = getattr(config, "DI_VOTE_MODE", "off")
+    if di_mode in ("add", "replace_trend"):
+        if di_mode == "replace_trend":
+            votes.pop("Trend", None)
+        else:
+            max_total += 1
+        votes["+DI/-DI"] = tech.get("di_score", 0)
 
     # An indicator that ABSTAINS must not raise the bar.
     #
