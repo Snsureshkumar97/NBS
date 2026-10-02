@@ -123,11 +123,32 @@ def years_to(expiry_date, when):
 # ---------------------------------------------------------------- exits
 def simulate(A, i, tr, hold_bars=26, square_off=True,
              be_after_t1=False, half_at_t1=False, time_stop=None, target=None,
-             runner_after_t1=False, trail_r=1.0):
+             runner_after_t1=False, trail_r=1.0,
+             ratchet_to_t1=False, trail_after_t1_supertrend=None):
     """Legs of one trade under an exit policy: [(exit_spot, bar, weight), ...].
 
     Stop is tested before targets inside a bar - the bar does not say which came
     first, and the pessimistic order is the only defensible one.
+
+    ratchet_to_t1: tickets.py's REAL, unconditional, always-on live exit -
+    confirmed 2 Oct 2026 by reading _check_price() directly, not assumed. The
+    moment T1 is touched, the stop moves to T1's OWN PRICE - not to
+    breakeven/entry, which is a DIFFERENT thing (be_after_t1) that has never
+    actually been live on its own. Every "live" row this file has ever
+    reported, for every study, was missing this - a completely flat stop
+    the whole trade. False (the default) changes nothing for any existing
+    caller; this is the first accurate reproduction of today's real exit
+    this file has had.
+
+    trail_after_t1_supertrend: an array aligned with A's own hi/lo/cl - the
+    Supertrend line's value at each bar. Only meaningful together with
+    ratchet_to_t1=True: once T1 ratchets the stop, instead of then sitting
+    flat until `target` closes the trade, the stop keeps trailing this line
+    every single bar afterward (never loosening). The user, 2 Oct 2026,
+    after a real GitHub strategy comparison (nbs-github-strategy-comparison.md)
+    found a continuous Supertrend trail was exactly what gave that strategy
+    its own much lower drawdown, and asked to test the same idea grafted
+    onto this project's own entries. None (the default) changes nothing.
 
     runner_after_t1: the user, 2 Oct 2026 - re-entering a continuing move costs
     the 20-minute REENTRY_COOLDOWN_MIN, which can mean missing the rest of a
@@ -164,6 +185,12 @@ def simulate(A, i, tr, hold_bars=26, square_off=True,
                 legs.append((tr["t1"], j, 0.5)); rem = 0.5
             if be_after_t1 or half_at_t1 or runner_after_t1:
                 stop = tr["entry"]
+            if ratchet_to_t1:
+                stop = tr["t1"]
+        if trail_after_t1_supertrend is not None and t1_done:
+            st = trail_after_t1_supertrend[j]
+            if st == st:        # skip a NaN (warmup) reading - never loosens, never crashes
+                stop = max(stop, st) if ce else min(stop, st)
         if runner_after_t1 and t1_done:
             # The same T1->T2->T3 staircase the live tool's own ratchet already
             # does - this only changes what happens once T3 is reached, where

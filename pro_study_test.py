@@ -164,5 +164,58 @@ legs = ps.simulate(A, -1, trade(), target="t2", runner_after_t1=True)
 check("stopped out before T1 ever showed up - one leg, full size, nothing runner-specific happened",
       legs == [(90.0, 2, 1.0)], legs)
 
+print("16. ratchet_to_t1: THE REAL LIVE RATCHET - STOP MOVES TO T1's OWN PRICE, NOT BREAKEVEN, "
+      "AND STOPS OUT A PULLBACK THE OLD FLAT-STOP BASELINE WOULD HAVE SURVIVED")
+A = arr(hi=[112, 115], lo=[108, 105], cl=[111, 107])
+legs_old = ps.simulate(A, -1, trade(), target="t2")
+check("WITHOUT the flag (every study's 'live' baseline until now): the pullback to 105 is "
+      "well above the ORIGINAL stop (90), so the old baseline just keeps holding",
+      legs_old[-1][1] == 1 and legs_old[-1][0] != 110.0, legs_old)
+legs_new = ps.simulate(A, -1, trade(), target="t2", ratchet_to_t1=True)
+check("WITH the flag: T1 (110) ratchets the stop, and the SAME pullback to 105 (below 110) "
+      "now stops out at 110 - exactly what tickets.py's real _check_price() already does live",
+      legs_new == [(110.0, 1, 1.0)], legs_new)
+
+print("17. trail_after_t1_supertrend: TIGHTENS FURTHER THAN THE FLAT T1 RATCHET ALONE WOULD")
+A = arr(hi=[112, 116, 118], lo=[108, 112, 113], cl=[111, 114, 116])
+st = [105.0, 115.0, 115.0]
+legs_flat = ps.simulate(A, -1, trade(), target="t2", ratchet_to_t1=True)
+check("flat ratchet alone: stop stays at T1 (110) the whole time - bar 2's low (113) never "
+      "reaches it, so the trade is still open at the data's own end",
+      legs_flat[-1][1] == 2 and legs_flat[-1][0] != 110.0, legs_flat)
+legs_trail = ps.simulate(A, -1, trade(), target="t2", ratchet_to_t1=True,
+                          trail_after_t1_supertrend=st)
+check("with the trail: bar 1's Supertrend reading (115) tightens the stop PAST T1 - "
+      "bar 2's low (113) now falls below it, closing the trade earlier and higher (115) "
+      "than the flat ratchet alone ever would have on these same bars",
+      legs_trail == [(115.0, 2, 1.0)], legs_trail)
+
+print("18. trail_after_t1_supertrend: NEVER LOOSENS, EVEN WHEN THE SUPERTREND LINE ITSELF DROPS")
+A = arr(hi=[112, 116, 118], lo=[108, 112, 90], cl=[111, 114, 95])
+st = [105.0, 115.0, 95.0]      # the trail itself drops sharply in bar 2 - must not loosen the stop
+legs = ps.simulate(A, -1, trade(), target="t2", ratchet_to_t1=True, trail_after_t1_supertrend=st)
+check("bar 2's low (90) still stops out at 115 (the BEST level the trail ever reached, from "
+      "bar 1) - a dropping Supertrend reading in the SAME bar as the stop-out never gets the "
+      "chance to loosen it first, matching the pessimistic stop-before-anything-else order",
+      legs == [(115.0, 2, 1.0)], legs)
+
+print("19. trail_after_t1_supertrend WITHOUT ratchet_to_t1: STILL APPLIES ONCE T1 IS TOUCHED - "
+      "THE TWO FLAGS ARE INDEPENDENT, NOT A SINGLE COMBINED SWITCH")
+A = arr(hi=[112, 116, 118], lo=[108, 112, 102], cl=[111, 114, 104])
+st = [105.0, 115.0, 115.0]
+legs = ps.simulate(A, -1, trade(), target="t2", trail_after_t1_supertrend=st)
+check("even with ratchet_to_t1 left False (so T1 itself never sets the stop), the trail still "
+      "picks up from the ORIGINAL stop (90) and tightens to 115 by bar 1 - stopping out at 115 "
+      "when bar 2 pulls back to 102",
+      legs == [(115.0, 2, 1.0)], legs)
+
+print("20. BOTH NEW FLAGS DEFAULT OFF: EVERY EXISTING CALLER'S BEHAVIOUR IS UNCHANGED")
+A = arr(hi=[112, 95], lo=[108, 85], cl=[111, 90])
+legs_default = ps.simulate(A, -1, trade(), target="t2")
+legs_explicit_false = ps.simulate(A, -1, trade(), target="t2",
+                                   ratchet_to_t1=False, trail_after_t1_supertrend=None)
+check("identical whether the new parameters are omitted or explicitly passed as their own defaults",
+      legs_default == legs_explicit_false, (legs_default, legs_explicit_false))
+
 print("PRO STUDY TEST PASSED" if not fails else f"PRO STUDY TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
