@@ -56,6 +56,7 @@ import config
 import feeds
 import kite_auth
 import market_ticker
+import btc_seller
 import real_entry
 import nbs_site
 import trade_log
@@ -587,6 +588,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_admin_users(user)
             if path == "/api/oiclock":
                 return self._api_oiclock(user, qs)
+            if path == "/api/btcseller":
+                return self._api_btcseller(user)
             if path == "/api/markets":
                 # Public on purpose: it is world index levels off a free feed,
                 # not anybody's data, and the strip is drawn before login on
@@ -1968,6 +1971,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "scope": "index constituents (Nifty, Bank Nifty, Sensex)",
             "note": "Volume is against each symbol's own average five-minute "
                     "volume this session."}), "application/json")
+
+    def _api_btcseller(self, user):
+        """The paper BTC option seller's state - read-only, the same for every
+        account (btc_seller.py). Empty-but-valid when it is not running."""
+        book = btc_seller.BOOK
+        body = book.public() if book is not None else {"enabled": False, "paper": True}
+        return self._send(json.dumps(body, default=str), "application/json")
 
     def _api_oiclock(self, user, qs):
         """Open interest added or closed across a window of the session.
@@ -5057,6 +5067,20 @@ button.mgroup:hover{color:var(--ink-2)}
     no contract twice in a day. Once a trade is open its stop only ever moves up, in stages, as it nears its
     target, and the bot is asked to review as soon as it turns - halfway to its stop, ADX below the gate, MACD
     against it, or no progress for 30 minutes. Each decision is billed to your Anthropic key.</div>
+  </div>
+  <!-- The BTC option SELLER - paper only (btc_seller.py). Bitcoin market only; filled by sellerFetch(). -->
+  <div class="card" data-panel="btcseller" id="sellercard" hidden style="margin-top:14px">
+   <div class="thead">
+    <p class="eyebrow" role="heading" aria-level="2">BTC option seller &middot; paper only</p>
+   </div>
+   <div id="sellerbody"><div class="gnote">Loading&hellip;</div></div>
+   <div class="botwatchnote" style="margin-top:14px">A separate strategy from the tickets above, recorded on paper -
+    nothing is ever sent to Delta. At 17:30 IST each day, when Delta's daily options settle, it SELLS the next day's
+    at-the-money call and put, but only when their implied volatility is above how much Bitcoin actually moved over
+    the last 7 days - options are expensive that day. It holds to settlement the next day. Paper fills are at the bids
+    (the spread is paid) with Delta's fees and GST. Backtested over 3 years at Delta's real spreads: profitable in both
+    the test periods, with a worst day of about -$1,700 at 0.25 BTC. A sold option's loss is not capped at the premium
+    - a crash bigger than any in the test could cost far more. Watch this record before any real money.</div>
   </div>
  </section>
 
@@ -8929,7 +8953,7 @@ function showTab(name, push){
   if(name === "chain"){ chainFetch(true); oiFetch(); watchFetch(true); }
   if(name === "watchlist") watchFetch(true);
   if(name === "marketbot") botOnShow();
-  if(name === "aidesk") aiFetch();
+  if(name === "aidesk"){ aiFetch(); sellerFetch(); }
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
   gateTabs();
@@ -9745,6 +9769,59 @@ async function aiFetch(){
   });
 }
 setInterval(() => { if(TAB === "aidesk" && !document.hidden) aiFetch(); }, 5000);
+
+// ---- the BTC option seller (paper only, btc_seller.py) -----------------------
+// One server-wide paper book; shown only on the Bitcoin market. Read-only here.
+function sellerFetch(){
+  const card = $("sellercard");
+  if(!card) return;
+  const crypto = !!(LAST && LAST.market === "crypto");
+  if(!crypto){ card.hidden = true; return; }
+  fetch("/api/btcseller", {credentials: "same-origin"}).then(r => r.ok ? r.json() : null)
+    .then(d => sellerRender(d)).catch(() => {});
+}
+function sellerRender(d){
+  const card = $("sellercard"), body = $("sellerbody");
+  if(!card || !body) return;
+  if(!d || !d.enabled){ card.hidden = true; return; }
+  card.hidden = false;
+  const usd = v => v == null ? "—" : (v < 0 ? "−$" : "$") + num(Math.abs(v), 2);
+  const pct = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
+  const dec = d.last_decision, op = d.open, rec = d.record || {};
+  let h = "";
+  if(dec){
+    const sold = dec.sell;
+    h += `<div class="gnote" style="margin:0 0 8px"><b>Last decision</b> ${esc(dec.date_ist || "")} ${esc((dec.time_ist || "").slice(0, 5))} IST`
+       + (dec.expiry ? ` &middot; ${esc(dec.expiry)} expiry, strike ${num(dec.strike, 0)}` : "")
+       + ` &middot; implied ${pct(dec.iv)} vs realised ${pct(dec.rv7)} &middot; `
+       + `<b style="color:${sold ? "var(--up)" : "var(--ink-3)"}">${sold ? "SOLD" : "skipped"}</b>`
+       + ` &mdash; ${esc(dec.reason || "")}</div>`;
+  } else {
+    h += `<div class="gnote" style="margin:0 0 8px">No decision yet - the first comes at 17:30 IST.</div>`;
+  }
+  if(op){
+    h += `<div class="gnote" style="margin:0 0 8px"><b>Open (paper)</b>: short ${num(op.strike, 0)} call + put, `
+       + `${esc(op.expiry)} expiry, ${op.lots} contracts (${(op.lots * 0.001).toFixed(3)} BTC). `
+       + `Credit ${usd(op.credit)} per BTC at the bids (${usd(op.bid_call)} + ${usd(op.bid_put)}), fees ${usd(op.fees_in)}.`
+       + (op.buyback_now != null ? ` Buying back now: ${usd(op.buyback_now)} per BTC &rarr; <b style="color:${op.unrealised_usd >= 0 ? "var(--up)" : "var(--down)"}">${usd(op.unrealised_usd)}</b> unrealised.` : "")
+       + ` Settles 17:30 IST on ${esc(op.expiry)}.</div>`;
+  }
+  const n = rec.trades || 0;
+  h += `<div class="gnote" style="margin:0 0 8px"><b>Paper record</b>: ${n} settled, ${rec.wins || 0} won, `
+     + `total <b style="color:${(rec.total_usd || 0) >= 0 ? "var(--up)" : "var(--down)"}">${usd(rec.total_usd || 0)}</b>`
+     + ` at ${d.lots} contracts.</div>`;
+  if((rec.last || []).length){
+    h += `<div class="watchwrap"><table class="watch"><tr><th>Sold</th><th>Strike</th><th>Credit/BTC</th>`
+       + `<th>Settled at</th><th>Result</th></tr>`
+       + rec.last.map(t => `<tr><td>${esc((t.opened_ist || "").slice(0, 16))}</td><td>${num(+t.strike, 0)}</td>`
+         + `<td>${usd(+t.credit)}</td><td>${num(+t.settle_spot, 0)}${(+t.late_min > 10) ? " (late)" : ""}</td>`
+         + `<td style="color:${+t.pnl_usd >= 0 ? "var(--up)" : "var(--down)"}">${usd(+t.pnl_usd)}</td></tr>`).join("")
+       + `</table></div>`;
+  }
+  if(d.error) h += `<div class="gnote" style="color:var(--warn)">Last check failed: ${esc(d.error)} - it retries every minute.</div>`;
+  body.innerHTML = h;
+}
+setInterval(() => { if(TAB === "aidesk" && !document.hidden) sellerFetch(); }, 30000);
 
 // ============================================================ Market Bot
 // A chat backed by Claude, given a fresh snapshot of the selected market on
@@ -11414,6 +11491,9 @@ def main():
 
     # Kept warm in the background so no page load ever waits on Yahoo.
     market_ticker.start_background(_stop_ticker)
+    # The BTC option seller - PAPER ONLY (btc_seller.py): one server-wide book that
+    # records what the backtested short-straddle rule would do. Places nothing.
+    btc_seller.start_background(_stop_ticker)
 
     srv = Server((args.host, args.port), Handler)
     where = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '') else args.host}:{args.port}"

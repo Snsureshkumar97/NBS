@@ -1486,6 +1486,14 @@ DI_VOTE_MODE = "off"
 #                 market only
 VOTE_OVERRIDES = {"nse_index": {}, "crypto": {}}
 
+# The BTC option SELLER (btc_seller.py) - PAPER ONLY: it records what it would do
+# and cannot place an order. The user, 2 Oct 2026: "yes build it in paper mode",
+# after crypto_vol_selling_study.py: sell the next-day at-the-money straddle at
+# 17:30 IST only when its implied vol is above BTC's last-7-day realised vol, hold
+# to settlement. One server-wide book, the same for every viewer.
+BTC_SELLER_PAPER = True
+BTC_SELLER_LOTS = 250        # paper size, Delta contracts of 0.001 BTC (250 = 0.25 BTC)
+
 # ---------------------------------------------------------------------------
 # SPREAD — what it costs just to get in and out
 # ---------------------------------------------------------------------------
