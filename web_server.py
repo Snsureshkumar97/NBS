@@ -2657,6 +2657,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception:
             adx = None
 
+        # Not an entry input - config.TRAIL_AFTER_T1_SUPERTREND's live trail
+        # (tickets.py's _check_price()) reads the real index KEY's own params
+        # (key, not self._current_market() like adx above - Bank Nifty's own
+        # multiplier override would otherwise be silently missed, since
+        # INSTRUMENTS has no "nse_index" entry to look it up under). Same pin-
+        # to-the-card fix as ADX's own: the native 15m view's last point
+        # matches whatever actually drove the most recent live trail check.
+        st_len, st_mult = config.supertrend_params(key)
+        try:
+            st_line, _ = ind.supertrend(df, st_len, st_mult)
+            supertrend = clean(st_line)
+            if supertrend and tf == "15m" and rec is not None and rec.get("supertrend") is not None:
+                supertrend[-1] = round(float(rec["supertrend"]), 2)
+        except Exception:
+            supertrend = None
+
         # Epoch seconds, so the browser can format them in the viewer's own
         # locale instead of us shipping pre-formatted strings we would then
         # have to keep consistent with the axis.
@@ -2686,6 +2702,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "macd_line": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
             "macd_fast": config.MACD_FAST, "macd_slow": config.MACD_SLOW, "macd_sig_len": config.MACD_SIGNAL,
             "adx": adx, "adx_len": config.ADX_LENGTH,
+            "supertrend": supertrend, "supertrend_len": st_len, "supertrend_mult": st_mult,
             # The threshold the live gate actually holds ADX to - drawn as a
             # reference line so the pane says WHERE weak turns into tradeable,
             # not just what ADX currently is. config.strictness()["adx"], not
@@ -3020,6 +3037,7 @@ PAGE = r"""<!doctype html>
   --up:#4caf50; --down:#ff5722; --warn:#f6a500; --accent:#4d94e8;
   --ema-fast:#4d94e8; --ema-slow:#f6a500; --vwap:#b07ad4;
   --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9; --adx:#e6c229;
+  --supertrend:#3ddc84;
   --r:3px; --r-sm:3px;
 }
 *{box-sizing:border-box}
@@ -4178,6 +4196,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --glow-up:transparent; --glow-down:transparent; --glow-warn:transparent;
   --ema-fast:#387ed1; --ema-slow:#b26a00; --vwap:#8e44ad;
   --rsi:#0f8a7e; --macd-line:#b0305c; --macd-signal:#5c6f8a; --adx:#a1840a;
+  --supertrend:#1f8f5a;
   /* pale notices and badges, the current row of the chain, the switch's track and knob, the veil behind a dialog */
   --note-bg:#fff8e1; --note-bd:#f1dca0; --note-ink:#5f4b00; --note-strong:#8a5a00;
   --warn-bg:#fff4ef; --warn-bd:#ffd0bd; --warn-strong:#c2410c;
@@ -4195,6 +4214,7 @@ button.mgroup:hover{color:var(--ink-2)}
   --brand:#ff5722; --accent-strong:#2f6fc0; --accent-text:#5a92f5;
   --ema-fast:#4184f3; --ema-slow:#e8a33d; --vwap:#c08adf;
   --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9; --adx:#e6c229;
+  --supertrend:#3ddc84;
   --note-bg:#2a2410; --note-bd:#4d4318; --note-ink:#e8dca8; --note-strong:#f0c65a;
   --warn-bg:#2f1d17; --warn-bd:#5a3324; --warn-strong:#ff8a65;
   --ok-bg:#1c2e1f; --ok-bd:#2f5233; --hold-bg:#2f2814;
@@ -7462,7 +7482,7 @@ function chartDraw(){
     up: css("--up"), down: css("--down"), warn: css("--warn"),
     accent: css("--accent"), fast: css("--ema-fast"), slow: css("--ema-slow"),
     vwap: css("--vwap"), rsi: css("--rsi"), macdLine: css("--macd-line"), macdSignal: css("--macd-signal"),
-    adx: css("--adx"),
+    adx: css("--adx"), supertrend: css("--supertrend"),
   };
   cx.clearRect(0,0,w,h);
   cx.fillStyle = C.bg; cx.fillRect(0,0,w,h);
@@ -7502,7 +7522,7 @@ function chartDraw(){
   // ---- price range over what is actually on screen -------------------
   let lo = Infinity, hi = -Infinity;
   for(const b of view){ if(b[3] < lo) lo = b[3]; if(b[2] > hi) hi = b[2]; }
-  const overlays = [d.ema_fast, d.ema_slow, d.vwap];
+  const overlays = [d.ema_fast, d.ema_slow, d.vwap, d.supertrend];
   for(const arr of overlays){
     if(!arr) continue;
     for(let i=i0;i<i1;i++){ const v=arr[i];
@@ -7604,6 +7624,10 @@ function chartDraw(){
   line(d.vwap, C.vwap, [4,3]);
   line(d.ema_slow, C.slow);
   line(d.ema_fast, C.fast);
+  // Not an entry input - config.TRAIL_AFTER_T1_SUPERTREND only ever reads
+  // its CURRENT value, same as every other overlay here; drawing the whole
+  // line is just the chart's usual way of showing where that came from.
+  line(d.supertrend, C.supertrend);
 
   // ---- RSI / MACD sub-panes --------------------------------------------
   // Each pane starts with a divider and a small label, then its own
@@ -7835,6 +7859,8 @@ function chartDraw(){
      : "")
   + (d.adx ? `<span class="o">ADX ${d.adx_len||14}<i class="key" style="display:inline-block;`
              + `margin-left:5px;background:${C.adx}"></i></span>` : "")
+  + (d.supertrend ? `<span class="o">Supertrend ${d.supertrend_len||10},${d.supertrend_mult||2.5}`
+             + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.supertrend}"></i></span>` : "")
   + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
 }
 
@@ -8145,7 +8171,14 @@ function render(s){
     // the OTHER tile; this one is the one that actually moved.
     tile("Ticket gate", r.ticket_gate_ratio==null?"—":r.ticket_gate_ratio.toFixed(2)+":1",
          r.ticket_gate_need==null?"":"needs "+r.ticket_gate_need+":1",
-         r.ticket_gate_ratio==null?"":(r.ticket_gate_ratio>=r.ticket_gate_need?"var(--up)":"var(--down)"));
+         r.ticket_gate_ratio==null?"":(r.ticket_gate_ratio>=r.ticket_gate_need?"var(--up)":"var(--down)")) +
+    // Not an entry input - carries no vote, same as the chart's own line (see
+    // supertrendLine()). Shown because it quietly drives a real ticket's stop
+    // once T1 is touched (config.TRAIL_AFTER_T1_SUPERTREND, tickets.py's
+    // _check_price()) - the user, 2 Oct 2026: "where can i see the supertrend".
+    tile("Supertrend", r.supertrend==null?"—":num(r.supertrend),
+         r.supertrend==null?"":"stop follows this once T1 is touched",
+         r.supertrend==null?"":(r.spot>r.supertrend?"var(--up)":"var(--down)"));
 
   const tstate = (s.tickets||{})[CUR] || null;
   ticketBox(r, tstate);

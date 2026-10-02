@@ -470,6 +470,10 @@ def _public(rec, name=None):
         "votes": rec.get("votes") or {},
         "agree": rec.get("agree"), "dissent": rec.get("dissent"),
         "adx": tech.get("adx"), "adx_ok": tech.get("adx_ok"),
+        # Not an entry input - drives tickets.py's post-T1 trail only (config.
+        # TRAIL_AFTER_T1_SUPERTREND). The page never had anywhere to show it;
+        # the user, 2 Oct 2026: "where can i see the supertrend".
+        "supertrend": tech.get("supertrend"),
         "rsi": round(tech["last_rsi"], 1) if tech.get("last_rsi") is not None else None,
         "macd_hist": tech.get("macd_hist"),
         "macd_score": tech.get("macd_score"),
