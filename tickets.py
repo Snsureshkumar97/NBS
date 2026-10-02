@@ -785,6 +785,33 @@ class TicketBook:
                         ratcheted = True
                 trade["time_breakeven_done"] = True
 
+        # SUPERTREND TRAIL AFTER T1 (config.TRAIL_AFTER_T1_SUPERTREND, True by
+        # default) — tested via supertrend_trail_study.py, 2 Oct 2026: KEEP
+        # against the REAL live exit (T1-ratchet included), both periods.
+        # Once T1 has been touched, the stop keeps following the index's own
+        # Supertrend line instead of sitting flat at T1 for the rest of the
+        # trade — only ever tightening further, same as every ratchet above.
+        # rec["supertrend"] is in INDEX points; on a premium-tracked ticket
+        # it is converted the same way build_recommendation() converts
+        # premium targets/stop at entry — a straight delta move off the
+        # trade's own frozen entry anchor (entry_spot/entry_ltp), since
+        # Supertrend is computed on the index, not the option. Skipped
+        # outright on a missing/NaN reading (indicator still warming up)
+        # rather than guessing a level.
+        st = rec.get("supertrend") if rec else None
+        if (_cfg("TRAIL_AFTER_T1_SUPERTREND", True) and trade["hit"]["T1"]
+                and not trade["sl_hit"] and st is not None):
+            if trade["use_premium"]:
+                sign = 1 if opt == "CE" else -1
+                st_level = trade["entry_ltp"] + sign * config.APPROX_ATM_DELTA * (st - trade["entry_spot"])
+            else:
+                st_level = st
+            current = trade[sl_field]
+            tightened = max(current, st_level) if opt == "CE" else min(current, st_level)
+            if tightened != current:
+                trade[sl_field] = tightened
+                ratcheted = True
+
         if trade["hit"][exit_key]:
             trade["status"] = f"CLOSED — {exit_key} hit (full target reached)"
         elif trade["sl_hit"]:

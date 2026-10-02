@@ -153,6 +153,8 @@ INSTRUMENTS = {
         "strike_step": 100,
         "lot_size": 30,                  # verify current lot size on Zerodha before trading
         "has_free_option_chain": True,
+        "supertrend_mult": 3.0,          # wider band — matches supertrend_trail_study.py / the
+                                          # GitHub strategy comparison's own verified Bank Nifty config
     },
     "SENSEX": {
         "yahoo_ticker": "^BSESN",
@@ -722,6 +724,21 @@ def max_spread_pct(index_key=None):
     return float(v) if v is not None else float(globals().get("MAX_SPREAD_PCT", 0) or 0)
 
 
+def supertrend_params(index_key=None):
+    """(length, multiplier) for the post-T1 Supertrend trail — see
+    TRAIL_AFTER_T1_SUPERTREND below and supertrend_trail_study.py (2 Oct 2026,
+    KEEP). NIFTY and SENSEX share the default (10, 2.5); Bank Nifty's own
+    override is wider (3.0), both verified against the GitHub strategy
+    comparison's published config — same per-instrument-override pattern as
+    max_spread_pct() above, since all three NSE indices share one "market"
+    and a per-market dict (like ADX_DX_SMOOTHING) couldn't tell them apart."""
+    inst = INSTRUMENTS.get(index_key) or {}
+    length = inst.get("supertrend_length")
+    mult = inst.get("supertrend_mult")
+    return (int(length) if length is not None else int(globals().get("SUPERTREND_LENGTH", 10) or 10),
+            float(mult) if mult is not None else float(globals().get("SUPERTREND_MULT", 2.5) or 2.5))
+
+
 def active_instruments():
     """Every instrument the server should actually run, grouped market first.
 
@@ -993,6 +1010,13 @@ def strictness() -> dict:
 # be fetched (e.g. Sensex in free mode). ATM options have delta ~0.5.
 APPROX_ATM_DELTA = 0.5
 
+# Default (length, multiplier) for the post-T1 Supertrend trail — NIFTY and
+# SENSEX use these; Bank Nifty's own override lives on its INSTRUMENTS entry.
+# Read via supertrend_params(index_key), never directly. See
+# TRAIL_AFTER_T1_SUPERTREND below.
+SUPERTREND_LENGTH = 10
+SUPERTREND_MULT = 2.5
+
 # 3-tier PREMIUM targets, as a % gain from the live entry LTP (when
 # available). This mirrors how many option buyers actually manage a
 # position: scale out partial quantity at each tier rather than betting the
@@ -1188,6 +1212,23 @@ REENTRY_MIN_RR = 1.0
 # waived - one-open-position exclusivity, the room check (REENTRY_MIN_RR) and
 # every other gate still apply exactly as today.
 WAIVE_COOLDOWN_ON_TRENDING_TARGET = True
+
+# Once T1 ratchets the stop to its own level (tickets.py's _check_price(),
+# unconditional, always on), this keeps trailing it further: the stop
+# continuously follows the Supertrend line computed on the index itself
+# (supertrend_params(index_key) — per-instrument length/multiplier), never
+# loosening, instead of sitting flat at T1 for the rest of the trade. On a
+# premium-tracked ticket the Supertrend's index level is converted the same
+# way build_recommendation() converts premium targets/stop at entry — a
+# straight delta move off the trade's own entry anchor (entry_spot,
+# entry_ltp) — since Supertrend itself is computed on the index, not the
+# option. Backtested against the REAL live exit (supertrend_trail_study.py,
+# 2 Oct 2026): KEEP, both periods — in-sample +7,621, held-out +2,426, held-
+# out drawdown improved a further 2,426. Modest but real and consistent in
+# direction both sides; the correction that study ALSO surfaced (the old
+# backtest baseline never modelled the T1-ratchet at all) is separate and
+# far larger — see supertrend_trail_study.py's own "VERDICT 1".
+TRAIL_AFTER_T1_SUPERTREND = True
 
 # Opening-range confirmation, Indian indices only. A CE is taken only once price
 # is above the high of 09:15-09:45, a PE only below its low; nothing before the

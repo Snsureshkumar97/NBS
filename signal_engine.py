@@ -39,6 +39,10 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     macd_line, macd_signal, macd_hist = ind.macd(close, config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
     adx = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
     vwap = ind.vwap(df)
+    # Post-T1 trail only (TRAIL_AFTER_T1_SUPERTREND, tickets.py's
+    # _check_price()) — not an entry input, so it carries no vote/score here.
+    st_length, st_mult = config.supertrend_params(index_key)
+    st_line, _ = ind.supertrend(df, st_length, st_mult)
 
     last_close = close.iloc[-1]
     last_rsi = rsi.iloc[-1]
@@ -46,6 +50,7 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     last_macd_hist = macd_hist.iloc[-1]
     last_adx = adx.iloc[-1]
     last_vwap = vwap.iloc[-1]
+    last_st = st_line.iloc[-1]
     trend_up = last_close > ema_slow.iloc[-1] and ema_fast.iloc[-1] > ema_slow.iloc[-1]
     trend_down = last_close < ema_slow.iloc[-1] and ema_fast.iloc[-1] < ema_slow.iloc[-1]
 
@@ -82,6 +87,9 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
         "vwap_score": vwap_score,
         "adx": round(float(last_adx), 1),
         "adx_ok": bool(last_adx >= config.ADX_TREND_THRESHOLD),
+        # Index-level Supertrend line, for the post-T1 live trail — None
+        # during warmup (indicator not formed yet) rather than a misleading 0.
+        "supertrend": round(float(last_st), 2) if last_st == last_st else None,
         "vwap": round(float(last_vwap), 2),
         "vwap_gap": round(float(last_close - last_vwap), 1),   # + = above VWAP
         "last_swing_low": round(last_swing_low, 2),
@@ -1088,6 +1096,7 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         "raw_bias": raw_bias,                       # what the score alone said, before the ADX gate
         "adx_blocked": adx_blocked,                  # True if a real signal was vetoed for weak trend strength
         "macd_blocked": macd_blocked,                # True if momentum vetoed an otherwise-qualifying signal
+        "supertrend": tech.get("supertrend"),        # index-level Supertrend line — tickets.py's post-T1 trail
         "target_basis": target_basis,               # "market_reach" | "risk_multiple" | "not_reachable"
         "reach_points": reach_used,                  # realistic travel distance in this direction
         "reach_reason": reach_reason,                # which limit was the binding one
