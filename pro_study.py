@@ -121,11 +121,28 @@ def years_to(expiry_date, when):
 
 # ---------------------------------------------------------------- exits
 def simulate(A, i, tr, hold_bars=26, square_off=True,
-             be_after_t1=False, half_at_t1=False, time_stop=None, target=None):
+             be_after_t1=False, half_at_t1=False, time_stop=None, target=None,
+             runner_after_t1=False, trail_r=1.0):
     """Legs of one trade under an exit policy: [(exit_spot, bar, weight), ...].
 
     Stop is tested before targets inside a bar - the bar does not say which came
-    first, and the pessimistic order is the only defensible one."""
+    first, and the pessimistic order is the only defensible one.
+
+    runner_after_t1: the user, 2 Oct 2026 - re-entering a continuing move costs
+    the 20-minute REENTRY_COOLDOWN_MIN, which can mean missing the rest of a
+    genuine trend. Standard practice for that (confirmed against outside
+    sources, not just this project's own instinct - see
+    nbs-partial-exit-runner-study.md) is a partial exit plus a trailing runner:
+    half the position books at T1 exactly like half_at_t1 (and the stop moves to
+    breakeven exactly the same way), but the OTHER half is not capped at
+    `target` at all. It keeps ratcheting through T2 and T3 the same staircase
+    the live tool already uses (tickets.py's _check_price), and once T3 is
+    reached, instead of exiting there it starts trailing `trail_r` x the
+    original risk (R) behind the best price seen - so a move that keeps
+    extending past T3 keeps being captured in the SAME trade, instead of
+    needing a fresh re-entry (and the cooldown that comes with one) to keep
+    riding it. Before T1, or with this off, behaviour is identical to every
+    existing caller - see the hand-traced tests in pro_study_test.py."""
     if target is None:
         target = str(getattr(config, "EXIT_AT_TARGET", "T3") or "T3").lower()
         if target not in ("t1", "t2", "t3"):
@@ -133,19 +150,38 @@ def simulate(A, i, tr, hold_bars=26, square_off=True,
     hi, lo, cl, end = A["hi"], A["lo"], A["cl"], A["end"]
     ce = tr["side"] == "CE"
     stop, legs, rem, t1_done = tr["stop"], [], 1.0, False
+    risk0 = abs(tr["entry"] - tr["stop"])
+    t2_done = t3_done = False
+    best = tr["entry"]     # the best price seen so far - only used once trailing starts
     n = len(cl)
     for j in range(i + 1, min(i + 1 + hold_bars, n)):
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
             legs.append((stop, j, rem)); return legs
         if not t1_done and ((hi[j] >= tr["t1"]) if ce else (lo[j] <= tr["t1"])):
             t1_done = True
-            if half_at_t1:
+            if half_at_t1 or runner_after_t1:
                 legs.append((tr["t1"], j, 0.5)); rem = 0.5
-            if be_after_t1 or half_at_t1:
+            if be_after_t1 or half_at_t1 or runner_after_t1:
                 stop = tr["entry"]
-        tgt = tr.get(target) if hasattr(tr, "get") else tr[target]
-        if tgt is not None and ((hi[j] >= tgt) if ce else (lo[j] <= tgt)):
-            legs.append((tgt, j, rem)); return legs
+        if runner_after_t1 and t1_done:
+            # The same T1->T2->T3 staircase the live tool's own ratchet already
+            # does - this only changes what happens once T3 is reached, where
+            # the ordinary policy below would have closed the position outright.
+            if not t2_done and tr.get("t2") is not None and ((hi[j] >= tr["t2"]) if ce else (lo[j] <= tr["t2"])):
+                t2_done = True
+                stop = tr["t1"]
+            if not t3_done and tr.get("t3") is not None and ((hi[j] >= tr["t3"]) if ce else (lo[j] <= tr["t3"])):
+                t3_done = True
+                stop = max(stop, tr["t2"]) if ce and tr.get("t2") is not None else \
+                       min(stop, tr["t2"]) if tr.get("t2") is not None else stop
+            best = max(best, hi[j]) if ce else min(best, lo[j])
+            if t3_done:
+                trail = best - trail_r * risk0 if ce else best + trail_r * risk0
+                stop = max(stop, trail) if ce else min(stop, trail)
+        else:
+            tgt = tr.get(target) if hasattr(tr, "get") else tr[target]
+            if tgt is not None and ((hi[j] >= tgt) if ce else (lo[j] <= tgt)):
+                legs.append((tgt, j, rem)); return legs
         if time_stop and not t1_done and (j - i) >= time_stop:
             legs.append((cl[j], j, rem)); return legs
         if square_off and end[j]:
@@ -382,6 +418,17 @@ def main():
         "breakeven after T1": {"be_after_t1": True},
         "half at T1, BE rest": {"half_at_t1": True},
         "time stop 2h": {"time_stop": 8},
+        # The user, 2 Oct 2026: the 20-minute REENTRY_COOLDOWN_MIN after a
+        # ticket closes can mean missing the rest of a genuine continuing
+        # move, since a fresh re-entry is needed to keep riding it. Standard
+        # practice (confirmed against outside sources - see simulate()'s own
+        # docstring) is a partial exit at T1 plus a trailing runner for the
+        # rest, instead of capping it at T3: the SAME trade keeps capturing an
+        # extension past T3 that today's live rules close out of entirely.
+        # trail_r swept, not pre-picked - not trusting one guessed number.
+        "partial exit + trailing runner (0.75R trail)": {"runner_after_t1": True, "trail_r": 0.75},
+        "partial exit + trailing runner (1.0R trail)": {"runner_after_t1": True, "trail_r": 1.0},
+        "partial exit + trailing runner (1.5R trail)": {"runner_after_t1": True, "trail_r": 1.5},
     }
 
     # Sanity: the default exit policy must reproduce the backtest's own exits.
