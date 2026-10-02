@@ -197,17 +197,27 @@ def main():
               f"   out-of-sample {do:>+10,.0f}   held-out drawdown {dd:>+9,.0f}")
 
     print("\n" + "=" * 128)
-    print(" MONTH BY MONTH, all three years - same pooled per-lot numbers as above")
+    print(" MONTH BY MONTH, all three years - pooled (same numbers as above)")
     print("=" * 128)
     print_monthly(flat_rows, cond_rows)
+
+    for k in INDICES:
+        print(f"\n{'=' * 128}\n MONTH BY MONTH — {k} ONLY\n{'=' * 128}")
+        print_monthly(flat_rows, cond_rows, index_filter=k)
     return {"flat": flat, "conditional": cond}
 
 
-def print_monthly(flat_rows, cond_rows):
+def print_monthly(flat_rows, cond_rows, index_filter=None):
     """Net P&L and trade count per calendar month, both variants side by
     side, so a 3-year pooled total can be read month by month instead of
-    only as two lumped in-sample/held-out figures."""
+    only as two lumped in-sample/held-out figures. index_filter restricts
+    to one index's own rows (each row already carries "index" - ps.price()'s
+    own field - rather than re-deriving it some other way)."""
     def monthly(rows):
+        if index_filter:
+            rows = [r for r in rows if r["index"] == index_filter]
+        if not rows:
+            return pd.DataFrame(columns=["n", "total"])
         df = pd.DataFrame(rows)
         df["month"] = pd.to_datetime(df["when"]).dt.tz_localize(None).dt.to_period("M")
         return df.groupby("month")["net"].agg(n="count", total="sum")
