@@ -292,8 +292,15 @@ def verify_precompute(df, pre, samples=25, index_key=None):
 # ===========================================================================
 # THE WALK
 # ===========================================================================
-def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=None):
+def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=None,
+        volume_by_date=None):
     """hold_bars and square_off default to the instrument's own market.
+
+    volume_by_date: optional {date: int} map of a volume_score (-1/0/+1),
+    already look-ahead-safe (the caller's own job - see
+    volume_vote_study.py), fed to build_recommendation() as its `volume`
+    argument per config.VOLUME_VOTE_MODE. None (the default) behaves exactly
+    as before this parameter existed - every other caller is unaffected.
 
     26 bars is one Indian session and squaring off at the close is what you do
     to avoid holding an index option overnight. Neither means anything on a
@@ -342,7 +349,11 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=Non
             index_key=index_key,
             # the day's high and low as they stood at this candle's close
             day_extremes=(float(pre["day_high"].iloc[i]), float(pre["day_low"].iloc[i])))
-        rec = se.build_recommendation(index_key, tech, no_chain, step, reach=reach)
+        vol = None
+        if volume_by_date is not None:
+            vs = volume_by_date.get(stamp.date())
+            vol = {"available": True, "volume_score": vs} if vs is not None else {"available": False}
+        rec = se.build_recommendation(index_key, tech, no_chain, step, reach=reach, volume=vol)
 
         if rec["bias"] == "NEUTRAL":
             if rec.get("not_worth_it"):

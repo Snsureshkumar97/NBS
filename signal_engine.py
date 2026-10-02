@@ -726,7 +726,7 @@ def _next_free_strike(oi: dict, strike, option_type: str, taken: set):
 
 
 def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
-                          reach: dict = None, avoid_strikes=None) -> dict:
+                          reach: dict = None, avoid_strikes=None, volume: dict = None) -> dict:
     total = tech["total_score"] + oi["oi_score"]
     max_total = tech["max_score"] + (1 if oi["available"] else 0)
 
@@ -738,6 +738,17 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     }
     if oi["available"]:
         votes["PCR"] = oi["oi_score"]
+
+    # VOLUME_VOTE_MODE (config.py) - backtest-only as of 2 Oct 2026. "off"
+    # (default) touches nothing below; `total`/`max_total` stay tech-only,
+    # matching every caller that has never passed `volume` at all.
+    vol_mode = getattr(config, "VOLUME_VOTE_MODE", "off")
+    if volume and volume.get("available") and vol_mode in ("add", "replace_macd"):
+        if vol_mode == "replace_macd":
+            votes.pop("MACD", None)
+        else:
+            max_total += 1
+        votes["Volume"] = volume["volume_score"]
 
     # An indicator that ABSTAINS must not raise the bar.
     #

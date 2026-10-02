@@ -1388,6 +1388,31 @@ WATCH_ONLY_INDICES = ()
 MACD_MUST_AGREE = True
 
 # ---------------------------------------------------------------------------
+# VOLUME VOTE — backtest-only as of 2 Oct 2026, not yet live
+# ---------------------------------------------------------------------------
+# The user, 2 Oct 2026: "add volume and backtest... remove macd and add volume
+# and backtest... check which one gives better results." The index itself has
+# no volume (NIFTY/Bank Nifty are values, not traded instruments - the cached
+# history's own Volume column is 0 for every row); the near-month FUTURE's
+# volume is the real thing, fetched from NSE's own public archives
+# (nse_futures_volume.py) since Zerodha's historical API cannot reach an
+# expired contract's token at all.
+#
+# "off" (default): today's behaviour, exactly - build_recommendation() never
+#     looks at this.
+# "add": a volume oscillator (EMA5 vs EMA20 of the front-month future's daily
+#     volume, from nse_futures_volume.py - same formula gann_volume_study.py
+#     already used) joins Trend/MACD/RSI/VWAP(/PCR) as a FIFTH vote.
+# "replace_macd": volume takes MACD's VOTE slot instead of adding a fifth.
+#     The SEPARATE MACD_MUST_AGREE momentum veto just above is UNCHANGED
+#     either way - that was independently validated on its own seventeen-way
+#     study and this request was about the vote, not that veto.
+# SENSEX has no comparably available futures volume source (BSE, not NSE -
+# real searching turned up nothing usable) and abstains under either mode,
+# same as PCR already does when the chain is unavailable.
+VOLUME_VOTE_MODE = "off"
+
+# ---------------------------------------------------------------------------
 # SPREAD — what it costs just to get in and out
 # ---------------------------------------------------------------------------
 # A market order buys at the offer and sells at the bid, so a round trip
