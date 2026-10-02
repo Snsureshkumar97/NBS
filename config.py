@@ -764,6 +764,14 @@ def market_for(index_key=None):
     return MARKETS.get(meta.get("market", DEFAULT_MARKET), MARKETS[DEFAULT_MARKET])
 
 
+def vote_overrides(index_key=None):
+    """This instrument's market's changes to the core entry vote - VOTE_OVERRIDES
+    below. {} (every market today) means build_recommendation() runs exactly as it
+    always has."""
+    market = (INSTRUMENTS.get(index_key) or {}).get("market") if index_key else None
+    return dict(globals().get("VOTE_OVERRIDES", {}).get(market or DEFAULT_MARKET) or {})
+
+
 def in_closing_auction(now, index_key=None):
     """True when the index has stopped updating but options still trade.
 
@@ -1464,6 +1472,19 @@ VOLUME_VOTE_MODE = "off"
 #   "add"           - joins Trend/MACD/RSI/VWAP as an extra vote
 #   "replace_trend" - takes the EMA-based Trend vote's own slot
 DI_VOTE_MODE = "off"
+
+# Per-market changes to WHICH votes decide an entry, and how many must agree.
+# The user, 2 Oct 2026: "just try to improve btc with delta exchange with what
+# votes we have to enter the trades change that" - crypto_vote_study.py tests
+# the candidates against BTC's own history, priced as the options it buys.
+# An empty dict is today's rules for that market, unchanged. Keys:
+#   "add"         extra votes: "Supertrend" (price above/below its line),
+#                 "Volume" (a 15-minute candle on >= 1.5x the last 20 candles'
+#                 volume votes its own direction, else abstains), "+DI/-DI"
+#   "drop"        votes to remove: "Trend", "MACD", "RSI", "VWAP"
+#   "min_agree", "max_dissent", "adx"   override config.strictness() for this
+#                 market only
+VOTE_OVERRIDES = {"nse_index": {}, "crypto": {}}
 
 # ---------------------------------------------------------------------------
 # SPREAD — what it costs just to get in and out

@@ -215,6 +215,11 @@ def precompute(df, index_key=None):
     out["macd_hist"] = hist
     out["adx"] = ind.adx(df, config.ADX_LENGTH, config.adx_dx_smoothing(index_key))
     out["plus_di"], out["minus_di"] = ind.plus_minus_di(df, config.ADX_LENGTH)
+    # The two extra reads config.VOTE_OVERRIDES can add (signal_engine.compute_
+    # technical_signal() makes them the same way): the Supertrend line, and the
+    # previous 20 candles' average volume.
+    out["st_line"] = ind.supertrend(df, *config.supertrend_params(index_key))[0]
+    out["vol_avg20"] = df["Volume"].rolling(20).mean().shift(1) if "Volume" in df else np.nan
     out["vwap"] = ind.vwap(df)
     out["swing_low"] = df["Low"].rolling(config.SWING_LOOKBACK, min_periods=1).min()
     out["swing_high"] = df["High"].rolling(config.SWING_LOOKBACK, min_periods=1).max()
@@ -257,12 +262,21 @@ def tech_at(df, pre, i):
     vwap_s = 1 if c > v else (-1 if c < v else 0)
     pdi, mdi = float(pre["plus_di"].iloc[i]), float(pre["minus_di"].iloc[i])
     di_s = 1 if pdi > mdi else (-1 if mdi > pdi else 0)       # NaN compares False -> 0, as live
+    st = float(pre["st_line"].iloc[i])
+    st_s = 1 if c > st else (-1 if c < st else 0)
+    vol_s = 0
+    if "Volume" in df and i >= 21:
+        va = float(pre["vol_avg20"].iloc[i])
+        if va > 0 and float(df["Volume"].iloc[i]) >= 1.5 * va:
+            o = float(df["Open"].iloc[i])
+            vol_s = 1 if c > o else (-1 if c < o else 0)
 
     return {
         "last_close": c, "last_rsi": r, "last_atr": float(pre["atr"].iloc[i]),
         "ema_fast": round(ef, 2), "ema_slow": round(es, 2),
         "trend_score": trend, "macd_score": macd_s, "macd_hist": round(h, 2),
         "rsi_score": rsi_s, "vwap_score": vwap_s, "di_score": di_s,
+        "st_score": st_s, "vol_score": vol_s,
         "adx": round(a, 1), "adx_ok": bool(a >= config.ADX_TREND_THRESHOLD),
         "vwap": round(v, 2), "vwap_gap": round(c - v, 1),
         "last_swing_low": round(float(pre["swing_low"].iloc[i]), 2),
@@ -282,7 +296,7 @@ def verify_precompute(df, pre, samples=25, index_key=None):
     for i in idxs:
         real = se.compute_technical_signal(df.iloc[:i + 1], index_key)
         fast = tech_at(df, pre, i)
-        for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "adx",
+        for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "st_score", "vol_score", "adx",
                   "last_close", "vwap", "last_swing_low", "last_swing_high"):
             rv, fv = real[k], fast[k]
             if isinstance(rv, float) and abs(rv - fv) > 0.02:

@@ -68,6 +68,19 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     vwap_score = 1 if last_close > last_vwap else (-1 if last_close < last_vwap else 0)
     last_pdi, last_mdi = plus_di.iloc[-1], minus_di.iloc[-1]
     di_score = 1 if last_pdi > last_mdi else (-1 if last_mdi > last_pdi else 0)   # NaN compares False -> 0
+    # Two more direction reads, votes only where config.VOTE_OVERRIDES adds them for
+    # a market ("off" everywhere today). Supertrend: which side of its line price
+    # is on. Volume: a candle on at least 1.5x the previous 20 candles' average
+    # volume votes its own direction; ordinary volume abstains. An index with no
+    # volume of its own (all zero) always abstains.
+    st_score = 1 if last_close > last_st else (-1 if last_close < last_st else 0)
+    vol_score = 0
+    if "Volume" in df and len(df) > 21:
+        v_now = float(df["Volume"].iloc[-1])
+        v_avg = float(df["Volume"].iloc[-21:-1].mean())
+        if v_avg > 0 and v_now >= 1.5 * v_avg:
+            o = float(df["Open"].iloc[-1])
+            vol_score = 1 if last_close > o else (-1 if last_close < o else 0)
 
     total = trend_score + macd_score + rsi_score + vwap_score
 
@@ -94,6 +107,8 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
         # Not part of total_score/max_score - a vote only when config.DI_VOTE_MODE
         # joins it in (build_recommendation()), exactly like Volume.
         "di_score": di_score,
+        "st_score": st_score,
+        "vol_score": vol_score,
         "plus_di": round(float(last_pdi), 1) if last_pdi == last_pdi else None,
         "minus_di": round(float(last_mdi), 1) if last_mdi == last_mdi else None,
         "adx": round(float(last_adx), 1),
@@ -781,6 +796,19 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
             max_total += 1
         votes["+DI/-DI"] = tech.get("di_score", 0)
 
+    # VOTE_OVERRIDES (config.py) - this instrument's market's own vote set. {} for
+    # every market today, so nothing below changes unless one is set. "drop" removes
+    # a vote outright (the same as it never having voted); "add" brings in one of the
+    # extra reads compute_technical_signal() always makes.
+    vo = config.vote_overrides(index_key)
+    for name in vo.get("drop", ()):
+        votes.pop(name, None)
+    for name in vo.get("add", ()):
+        key = {"Supertrend": "st_score", "Volume": "vol_score", "+DI/-DI": "di_score"}.get(name)
+        if key and name not in votes:
+            votes[name] = tech.get(key, 0)
+            max_total += 1
+
     # An indicator that ABSTAINS must not raise the bar.
     #
     # This used to be a real bug: the threshold was derived from how many
@@ -798,9 +826,9 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     abstained = [k for k, v in votes.items() if v == 0]
 
     strict = config.strictness()
-    adx_needed = strict["adx"]
-    min_agree = strict["min_agree"]
-    max_dissent = strict["max_dissent"]
+    adx_needed = vo.get("adx", strict["adx"])
+    min_agree = vo.get("min_agree", strict["min_agree"])
+    max_dissent = vo.get("max_dissent", strict["max_dissent"])
 
     # Decide by COUNTING agreement, not by a score threshold — see the note
     # in config.py on why a threshold silently demanded unanimity.
