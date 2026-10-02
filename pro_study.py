@@ -58,6 +58,7 @@ import math
 import numpy as np
 import pandas as pd
 
+import indicators as ind
 import screener
 
 import backtest_intraday as bt
@@ -258,11 +259,27 @@ def extra_features(df, vix):
     cci = (tp - tp.rolling(20).mean()) / (0.015 * mad.replace(0, np.nan))
     wr = -100.0 * (hh - cl) / (hh - ll).replace(0, np.nan)
     sar = screener._psar(hi, lo, 0.02, 0.2)
+    # 1-hour higher-timeframe trend (signal_engine.compute_market_trend()'s
+    # htf_direction) - shown on screen today, never once checked before a
+    # trade fires. Resampled ONCE here (not per-bar, the O(n^2) way calling
+    # compute_market_trend() fresh at every bar would). Shifted one full hour
+    # slot before mapping back onto the 15-minute bars: a bar inside hour H
+    # must only ever see the LAST FULLY COMPLETED hour (H-1's own close/EMA),
+    # never H's own still-forming one - more conservative than
+    # compute_market_trend()'s own live read (which does peek at the
+    # partially-formed current hour), but a backtest cannot be allowed the
+    # lookahead the live convention quietly permits itself.
+    htf = cl.resample("1h").last().dropna()
+    ema_f, ema_s = ind.ema(htf, config.EMA_FAST), ind.ema(htf, config.EMA_SLOW)
+    htf_dir = pd.Series(0, index=htf.index)        # 0 FLAT, 1 UP, -1 DOWN
+    htf_dir[(htf > ema_s) & (ema_f > ema_s)] = 1
+    htf_dir[(htf < ema_s) & (ema_f < ema_s)] = -1
+    htf_dir_known = htf_dir.shift(1).reindex(df.index, method="ffill")
     return {"gap": day.map(gap).to_numpy(), "vix": day.map(vprev).to_numpy(),
             "rv": day.map(rv).to_numpy(), "cl": cl.to_numpy(),
             "bb_up": (mid + 2 * sdv).to_numpy(), "bb_lo": (mid - 2 * sdv).to_numpy(),
             "stoch": stoch.to_numpy(), "cci": cci.to_numpy(), "wr": wr.to_numpy(),
-            "sar": sar.to_numpy()}
+            "sar": sar.to_numpy(), "htf_dir": htf_dir_known.to_numpy()}
 
 
 # ---------------------------------------------------------------- scoring
@@ -397,6 +414,22 @@ def main():
                 X[k]["sar"][i] == X[k]["sar"][i] and (
                     (_side(r) == "CE" and X[k]["cl"][i] <= X[k]["sar"][i]) or
                     (_side(r) == "PE" and X[k]["cl"][i] >= X[k]["sar"][i])))),
+        # PRE-DECLARED 2 Oct 2026, before any result: the user noticed
+        # signal_engine.compute_market_trend()'s htf_direction (the 1-hour
+        # EMA trend) is computed and shown on screen but never once checked
+        # before a trade fires - structurally different from every other
+        # filter tried here (all derived from the same 15-minute series this
+        # project has already exhausted), since this asks whether the bigger
+        # picture agrees, not whether yet another same-timeframe oscillator
+        # does. Requires a STRICT match - the 1-hour trend must say UP for a
+        # CE / DOWN for a PE; FLAT (including "not enough 1h history yet")
+        # blocks it the same as outright disagreement would, since "require
+        # agreement" cannot mean "or shrug". Kept only if better in BOTH
+        # periods, the same bar as everything else in this file.
+        "live + 1h trend agrees": lambda k: (lambda i, r, k=k:
+            entry_variants["R:R 1 + Bank Nifty watch-only"](k)(i, r) and (
+                (_side(r) == "CE" and X[k]["htf_dir"][i] == 1) or
+                (_side(r) == "PE" and X[k]["htf_dir"][i] == -1))),
         # LIVE FROM 15 Sep 2026, the user's choices after seeing each cost: wait
         # for the opening range with no break (REGIME_OR_REQUIRE_BREAK False),
         # T3 at least 1x the stop, and Bank Nifty traded. History to 11 Sep 2026:
@@ -509,6 +542,7 @@ def main():
                  "R:R 1 + Bank Nifty watch-only",
                  "live + Bollinger, don't chase", "live + Stochastic, not exhausted",
                  "live + CCI beyond 100", "live + Williams %R, not exhausted", "live + SAR agrees",
+                 "live + 1h trend agrees",
                  "LIVE 15 Sep: range wait + R:R 1, all three"):
         r, _ = evaluate(name, {}); out[name] = r; print(line(name, r))
     for name, kw in list(exit_variants.items())[1:]:
