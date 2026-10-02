@@ -48,7 +48,7 @@ import real_entry
 import explain
 import signal_engine
 import trade_log
-from main import is_market_open, is_nse_holiday, now_ist
+from main import is_market_open, nse_holiday_name, now_ist
 
 TARGET_KEYS = ("T1", "T2", "T3")
 
@@ -481,8 +481,13 @@ class TicketBook:
             # wait that had been switched off the day before (17 Sep 2026).
             m = config.market_for(ref)
             o, c = m.get("open"), m.get("close")
-            trading_day = not ((not m.get("weekends") and now.weekday() >= 5)
-                               or (m.get("holidays") and is_nse_holiday(now.date())))
+            # A specific name, not just "shut" - the user, 2 Oct 2026, on Gandhi
+            # Jayanti: "the tool should give a message... why the market closed
+            # today". A weekend needs no explanation; a holiday on an otherwise
+            # ordinary weekday does, and NSE's own name for it was sitting right
+            # there in main.py, previously only as a comment nothing could read.
+            holiday = nse_holiday_name(now.date()) if m.get("holidays") else None
+            trading_day = not ((not m.get("weekends") and now.weekday() >= 5) or holiday)
             if trading_day and o and (now.hour, now.minute) < tuple(o):
                 return ("closed", "BEFORE THE OPEN",
                         f"The market opens at {o[0]:02d}:{o[1]:02d}. The signal is already "
@@ -490,6 +495,12 @@ class TicketBook:
                         "issued from the open.")
             hours = (f"{o[0]:02d}:{o[1]:02d} to {c[0]:02d}:{c[1]:02d}" if o and c
                      else "market hours")
+            if holiday:
+                return ("closed", "MARKET CLOSED",
+                        f"Today is {holiday}, an NSE trading holiday - the exchange "
+                        "is shut for the day. The analysis keeps running so you can "
+                        f"see where things ended, but tickets are only issued from "
+                        f"{hours} on a trading day.")
             return ("closed", "MARKET CLOSED",
                     "The session is over. The analysis keeps running so you can see "
                     f"where things ended, but tickets are only issued from {hours}.")
@@ -812,22 +823,28 @@ class TicketBook:
             book.wait_reason = (code, short, why)
             return []
 
-        if direction is None:
-            return hold("neutral", "NO SIGNAL",
-                        "The indicators do not agree on a direction yet.")
-
         # --- 0. the session and the daily brake ---------------------------
-        # First, so the badge names the real reason. It used to sit after the
-        # confirmation, and because a block restarts the confirmation, every
-        # other reading during the closing auction, after the bell and on a
-        # holiday read CONFIRMING instead of what was actually holding it.
-        # The restart itself is unchanged: when a block lifts, the direction
-        # still has to hold its full 120 seconds, never riding a stale streak.
+        # First of all - even before asking whether the indicators agree on
+        # a direction. This used to sit after that question, and after the
+        # confirmation gate below it, so a holiday/closed-session reason
+        # could be masked by "the indicators do not agree on a direction
+        # yet" whenever the signal happened to be sitting at NEUTRAL when
+        # the session ended - which is exactly when the feed goes quiet and
+        # nothing moves it off NEUTRAL again until trading resumes. Whether
+        # the market is open at all is a more fundamental fact than what the
+        # indicators say, and must never depend on which direction the
+        # signal happened to be reading by chance. The user, 2 Oct 2026, on
+        # an actual NSE holiday: "the tool should give a message... why the
+        # market closed today."
         block = self.entry_block()
         if block is not None:
             book.confirm_since = now
             book.confirm_streak = 1
             return hold(*block)
+
+        if direction is None:
+            return hold("neutral", "NO SIGNAL",
+                        "The indicators do not agree on a direction yet.")
 
         # --- 1. the direction has to hold, measured in seconds -------------
         need_s = _cfg("SIGNAL_CONFIRM_SECONDS", 0)

@@ -69,25 +69,31 @@ def now_ist() -> dt.datetime:
 # think a holiday is a normal trading day again. Muhurat Trading (a special
 # one-hour Diwali session, Nov 08 2026) is deliberately NOT listed as a
 # holiday since the exchange is technically open that evening.
+#
+# Each date maps to NSE's own published name for it (date -> name, not a
+# bare set), so the TOOL can say why the market is shut, not just that it
+# is — the user, 2 Oct 2026, on a Gandhi Jayanti holiday: "the tool should
+# give a message... why the market closed today". Before this the name
+# existed only as a comment here, invisible to anything the server runs.
 # ---------------------------------------------------------------------------
 NSE_HOLIDAYS_BY_YEAR = {
     2026: {
-        dt.date(2026, 1, 15),   # Maharashtra Municipal Corporation Election
-        dt.date(2026, 1, 26),   # Republic Day
-        dt.date(2026, 3, 3),    # Holi
-        dt.date(2026, 3, 26),   # Ram Navami
-        dt.date(2026, 3, 31),   # Mahavir Jayanti
-        dt.date(2026, 4, 3),    # Good Friday
-        dt.date(2026, 4, 14),   # Dr. Ambedkar Jayanti
-        dt.date(2026, 5, 1),    # Maharashtra Day
-        dt.date(2026, 5, 28),   # Bakri Id (Eid ul-Adha)
-        dt.date(2026, 6, 26),   # Muharram
-        dt.date(2026, 9, 14),   # Ganesh Chaturthi
-        dt.date(2026, 10, 2),   # Gandhi Jayanti
-        dt.date(2026, 10, 20),  # Dussehra
-        dt.date(2026, 11, 10),  # Diwali Balipratipada
-        dt.date(2026, 11, 24),  # Guru Nanak Jayanti
-        dt.date(2026, 12, 25),  # Christmas
+        dt.date(2026, 1, 15): "Maharashtra Municipal Corporation Election",
+        dt.date(2026, 1, 26): "Republic Day",
+        dt.date(2026, 3, 3): "Holi",
+        dt.date(2026, 3, 26): "Ram Navami",
+        dt.date(2026, 3, 31): "Mahavir Jayanti",
+        dt.date(2026, 4, 3): "Good Friday",
+        dt.date(2026, 4, 14): "Dr. Ambedkar Jayanti",
+        dt.date(2026, 5, 1): "Maharashtra Day",
+        dt.date(2026, 5, 28): "Bakri Id (Eid ul-Adha)",
+        dt.date(2026, 6, 26): "Muharram",
+        dt.date(2026, 9, 14): "Ganesh Chaturthi",
+        dt.date(2026, 10, 2): "Gandhi Jayanti",
+        dt.date(2026, 10, 20): "Dussehra",
+        dt.date(2026, 11, 10): "Diwali Balipratipada",
+        dt.date(2026, 11, 24): "Guru Nanak Jayanti",
+        dt.date(2026, 12, 25): "Christmas",
     },
 }
 
@@ -98,7 +104,14 @@ def is_nse_holiday(d: dt.date) -> bool:
     calendar degrades to the old weekend-only behavior rather than
     guessing — check the comment above NSE_HOLIDAYS_BY_YEAR if this list
     needs a new year added."""
-    return d in NSE_HOLIDAYS_BY_YEAR.get(d.year, set())
+    return d in NSE_HOLIDAYS_BY_YEAR.get(d.year, {})
+
+
+def nse_holiday_name(d: dt.date) -> str:
+    """NSE's own published reason `d` is a trading holiday, or None if it is
+    not one (or the year is not in NSE_HOLIDAYS_BY_YEAR at all - the same
+    "degrade quietly, never guess" rule is_nse_holiday() follows)."""
+    return NSE_HOLIDAYS_BY_YEAR.get(d.year, {}).get(d)
 
 
 DISCLAIMER = """

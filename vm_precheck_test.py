@@ -63,7 +63,14 @@ def write_sidecar(d, suffix, positions):
 
 
 def op(tid, event, index="NIFTY", strike="23000", option_type="CE",
-       date="2026-10-01", time_ist="10:00:00"):
+       date=None, time_ist="10:00:00"):
+    # The default is TODAY, computed fresh - a hard-coded date only reads as
+    # "today" for however long it takes the calendar to move past it, and
+    # section 5 below (which checks for the literal word "today") silently
+    # broke the day after this file was first written for exactly that
+    # reason - the same staleness this whole feature exists to catch live.
+    if date is None:
+        date = vp.now_ist().strftime("%Y-%m-%d")
     return {"trade_id": tid, "event": event, "date": date, "time_ist": time_ist,
             "index": index, "strike": strike, "option_type": option_type}
 
