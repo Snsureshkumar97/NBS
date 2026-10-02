@@ -110,7 +110,7 @@ def main():
     print(hdr); print("-" * 110)
     print(line("baseline (R:R 1 + BN watch-only, no htf filter)", baseline))
     out1 = {}
-    for fast, slow in ((5, 15), (10, 20), (12, 26), (20, 50), (50, 100)):
+    for fast, slow in ((5, 15), (9, 20), (10, 20), (12, 26), (20, 50), (50, 100)):
         htf = {k: htf_dir_for(hists[k]["Close"], fast, slow) for k in INDICES}
         gate = {k: (lambda i, r, k=k, htf=htf: baseline_gate[k](i, r) and (
             (ps._side(r) == "CE" and htf[k][i] == 1) or
