@@ -222,6 +222,12 @@ INSTRUMENTS = {
     #     contracts_per_lot carries that for the page; lot_size is the money
     #     multiplier per lot, as everywhere else.
     "GOLD": {
+        # Its own ADX entry gate, 25 (the user, 3 Oct 2026: "gold do it 25") - BTC and the
+        # Indian indices stay at 20. exness_adx_study.py on Exness gold: 25 was the best
+        # in-sample with the 2h breakeven in place; without it (live for crypto since 3 Oct)
+        # 20 did better held-out (+151,687 vs +91,793 per lot) - both profitable in both
+        # periods. Read through config.vote_overrides().
+        "vote_overrides": {"adx": 25},
         # SWITCHED OFF on 22 Sep 2026 at the user's request ("remove gold, I am
         # losing on that market"). Everything else here is kept exactly as it was
         # so that turning it back on is this one line - `enabled` is read by
@@ -765,11 +771,13 @@ def market_for(index_key=None):
 
 
 def vote_overrides(index_key=None):
-    """This instrument's market's changes to the core entry vote - VOTE_OVERRIDES
-    below. {} (every market today) means build_recommendation() runs exactly as it
-    always has."""
-    market = (INSTRUMENTS.get(index_key) or {}).get("market") if index_key else None
-    return dict(globals().get("VOTE_OVERRIDES", {}).get(market or DEFAULT_MARKET) or {})
+    """This instrument's changes to the core entry vote: its market's VOTE_OVERRIDES
+    (below), then the instrument's own "vote_overrides" on top (gold's ADX 25 - its own
+    INSTRUMENTS entry). {} means build_recommendation() runs exactly as it always has."""
+    meta = (INSTRUMENTS.get(index_key) or {}) if index_key else {}
+    out = dict(globals().get("VOTE_OVERRIDES", {}).get(meta.get("market") or DEFAULT_MARKET) or {})
+    out.update(meta.get("vote_overrides") or {})
+    return out
 
 
 def in_closing_auction(now, index_key=None):

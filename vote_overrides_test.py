@@ -55,6 +55,20 @@ check("a returned override is a copy - editing it cannot change the setting",
       (lambda d: (d.update({"x": 1}), config.vote_overrides("BTC") == {"drop": ["VWAP"]})[1])(config.vote_overrides("BTC")))
 config.VOTE_OVERRIDES["crypto"] = {}
 
+print("1b. AN INSTRUMENT'S OWN OVERRIDE - GOLD'S ADX 25 (3 Oct 2026), ON TOP OF ITS MARKET'S")
+check("GOLD carries its own ADX 25", config.vote_overrides("GOLD") == {"adx": 25}, config.vote_overrides("GOLD"))
+check("BTC, in the same crypto market, does NOT - still empty", config.vote_overrides("BTC") == {})
+check("the Indian indices do not either", all(config.vote_overrides(k) == {} for k in ("NIFTY", "BANKNIFTY", "SENSEX")))
+config.VOTE_OVERRIDES["crypto"] = {"drop": ["VWAP"], "adx": 30}
+check("an instrument's own value wins over its market's, and the market's other keys still apply",
+      config.vote_overrides("GOLD") == {"drop": ["VWAP"], "adx": 25} and config.vote_overrides("BTC") == {"drop": ["VWAP"], "adx": 30},
+      config.vote_overrides("GOLD"))
+config.VOTE_OVERRIDES["crypto"] = {}
+rg = rec("GOLD", tech(adx=22, close=3800.0))
+rb = rec("BTC", tech(adx=22))
+check("ADX 22: GOLD is blocked by its own 25 gate, BTC at the same 22 is not (its gate is still 20)",
+      rg["adx_blocked"] and not rb["adx_blocked"], (rg["adx_blocked"], rb["adx_blocked"]))
+
 print("2. EMPTY OVERRIDES CHANGE NOTHING")
 t = tech(trend=1, macd=1, rsi=-1, vwap=-1, st=1, vol=1, di=1)
 r = rec("BTC", t)
