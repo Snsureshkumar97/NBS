@@ -5637,8 +5637,8 @@ function markets(s){
     let col="var(--ink-3)", label="waiting", px="—", cls="flat";
     if(r){
       px = r.spot!=null ? num(r.spot,0) : "—";
-      if(r.bias==="BULLISH"){col="var(--up)";label="Buy CE";cls="up";}
-      else if(r.bias==="BEARISH"){col="var(--down)";label="Buy PE";cls="down";}
+      if(r.bias==="BULLISH"){col="var(--up)";label=r.cfd?"Buy":"Buy CE";cls="up";}
+      else if(r.bias==="BEARISH"){col="var(--down)";label=r.cfd?"Sell":"Buy PE";cls="down";}
       else if(r.not_worth_it){col="var(--warn)";label="No room";cls="warn";}
       else if(r.adx_blocked){col="var(--ink-3)";label="Trend too weak";}
       else if(r.macd_blocked){col="var(--ink-3)";label="Momentum against";}
@@ -5829,7 +5829,7 @@ function ladder(r, tk){
       tln.textContent = tod.t1 == null
         ? (tod.minutes === 0
              ? "Chances appear while the market is open - with no time left to the bell there is nothing to compute."
-             : tod.iv == null ? "No option chain right now, so the chances cannot be worked out." : "")
+             : tod.iv == null ? (tk.cfd ? "" : "No option chain right now, so the chances cannot be worked out.") : "")
         : `Chance of the index reaching each of this ticket's levels ${tod.horizon || "before the close"}, `
           + `from where it is now, with implied volatility at ${tod.iv}%. A level already reached reads 100%. `
           + `They do not add up to 100: a trade can touch a target, turn round and still hit the stop. `
@@ -5926,7 +5926,7 @@ function ladder(r, tk){
       ? (o.minutes === 0
            ? "Chances appear while the market is open - with no time left to the bell there is nothing to compute."
            : o.iv == null
-               ? "No option chain right now, so the chances cannot be worked out."
+               ? (r.cfd ? "" : "No option chain right now, so the chances cannot be worked out.")
                : noLevels
                    ? "No active signal, so there are no levels to price. The chain is fine - implied volatility is reading "
                      + o.iv + "%."
@@ -8387,13 +8387,16 @@ function render(s){
   const bull=r.bias==="BULLISH", bear=r.bias==="BEARISH";
   // The signal card glows in the signal's colour, and so does the 3D scene.
   { const sc = $("sigcard"); if(sc){ sc.dataset.bias = bull ? "up" : bear ? "down" : ""; sc.dataset.state = ""; } }
-  $("bias").textContent = bull?"Buy CE":bear?"Buy PE":"No trade";
+  // Exness is the instrument itself, bought or sold - never an option side.
+  $("bias").textContent = r.cfd ? (bull?"Buy":bear?"Sell":"No trade") : (bull?"Buy CE":bear?"Buy PE":"No trade");
   $("bias").style.color = bull?"var(--up)":bear?"var(--down)":"var(--ink-3)";
   if(r.confidence && r.confidence!=="N/A"){
     $("conftag").style.display="inline-flex";
     $("conftag").className="tag "+(bull?"up":bear?"down":"flat");
-    $("conftag").textContent=(bull||bear? (s.cfd ? (r.option_type==="CE"?"Buy":"Sell")
-                                                  : r.strike+" "+(r.option_type==="CE"?"Call":"Put"))+" · ":"")+r.confidence+" confidence";
+    $("conftag").textContent = r.rule
+      ? `${r.rule.label} · every vote agrees`
+      : (bull||bear? (s.cfd ? (r.option_type==="CE"?"Buy":"Sell")
+                            : r.strike+" "+(r.option_type==="CE"?"Call":"Put"))+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";
 
   // The contract this signal names, on the button that opens its own chart.
@@ -8429,19 +8432,31 @@ function render(s){
   }
 
   $("reason").innerHTML = (bull||bear)
-    ? `Risking <b>${num(r.risk_points,0)}</b> points to a stop at <b>${num(r.stop,0)}</b>.`
+    ? `Risking <b>${num(r.risk_points, r.cfd ? 2 : 0)}</b> points to a stop at <b>${num(r.stop, r.cfd ? 2 : 0)}</b>.`
     : ((r.blockers&&r.blockers.length) ? esc(r.blockers.join("  ")) : esc(r.action||""));
 
   const tr=r.trend||{}, dc=tr.day_change, dp=tr.day_change_pct;
+  // Exness quotes two prices - Sell (bid, what its chart draws) and Buy (ask); the tool works on the
+  // middle of them. All three are shown, so the number matches what is on the Exness screen.
+  const exPrice = r.cfd
+    ? tile("Mid price", num(r.spot, 2), (r.cfd_bid != null && r.cfd_ask != null)
+           ? `Exness Sell ${num(r.cfd_bid, 2)} · Buy ${num(r.cfd_ask, 2)}` : CUR)
+    : null;
+  const ruleTiles = !!r.rule;
   $("tiles").innerHTML =
-    tile("Index price", num(r.spot), CUR) +
+    (exPrice || tile("Index price", num(r.spot), CUR)) +
     tile("Day move", (dc==null?"—":(dc>0?"+":"")+num(dc,0)), dp==null?"":(dp>0?"+":"")+dp+"% since open",
          dc>0?"var(--up)":dc<0?"var(--down)":"") +
-    tile("Trend strength", r.adx==null?"—":r.adx, r.adx==null?"":(r.adx_ok?"above the 20 gate":"below the 20 gate"),
-         r.adx==null?"":(r.adx_ok?"var(--up)":"var(--warn)")) +
-    tile("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+":1",
+    tile("Trend strength", r.adx==null?"—":r.adx, r.adx==null?"":ruleTiles?"not a gate in this rule"
+         :(r.adx_ok?"above the 20 gate":"below the 20 gate"),
+         r.adx==null||ruleTiles?"":(r.adx_ok?"var(--up)":"var(--warn)")) +
+    (ruleTiles
+      ? tile("Reward : risk", r.rule.target_r + ":1", "target over stop, fixed by the rule")
+      : tile("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+":1",
          roomSub(r),
-         r.reach_to_risk==null?"":(r.reach_to_risk>=2?"var(--up)":r.reach_to_risk<0.6?"var(--down)":"var(--warn)")) +
+         r.reach_to_risk==null?"":(r.reach_to_risk>=2?"var(--up)":r.reach_to_risk<0.6?"var(--down)":"var(--warn)"))) +
+    // The rule uses neither of the next two: no reward:risk gate, no Supertrend stop.
+    (ruleTiles ? "" : 
     // A DIFFERENT gate from the tile above (see rrBox's own note on the difference) -
     // tickets.py's _reward_hold(): room to run all the way to T3, over the stop. Used
     // to have nowhere to be seen except inside a LOW REWARD hold message - the user,
@@ -8456,7 +8471,7 @@ function render(s){
     // _check_price()) - the user, 2 Oct 2026: "where can i see the supertrend".
     tile("Supertrend", r.supertrend==null?"—":num(r.supertrend),
          r.supertrend==null?"":"stop follows this once T1 is touched",
-         r.supertrend==null?"":(r.spot>r.supertrend?"var(--up)":"var(--down)"));
+         r.supertrend==null?"":(r.spot>r.supertrend?"var(--up)":"var(--down)")));
 
   const tstate = (s.tickets||{})[CUR] || null;
   ticketBox(r, tstate);
@@ -9384,7 +9399,7 @@ function kiteDash(s){
     const tk = (((s.tickets || {})[k]) || {}).ticket, open = !!(tk && (tk.status === "OPEN" || tk.open));
     const conf = r.confidence && r.confidence !== "N/A" ? ` <small>${esc(r.confidence)}</small>` : "";
     return `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r">${num(r.spot)}</td>`
-      + `<td style="color:${bull ? "var(--up)" : bear ? "var(--down)" : "var(--ink-3)"}">${bull ? "Buy CE" : bear ? "Buy PE" : "No trade"}${conf}</td>`
+      + `<td style="color:${bull ? "var(--up)" : bear ? "var(--down)" : "var(--ink-3)"}">${r.cfd ? (bull ? "Buy" : bear ? "Sell" : "No trade") : (bull ? "Buy CE" : bear ? "Buy PE" : "No trade")}${conf}</td>`
       + `<td>${open ? esc(`${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) : "—"}</td>`
       + `<td class="r" style="color:${open ? col(tk.pnl) : "var(--ink-3)"}">${open ? money(tk.pnl || 0) : "—"}</td></tr>`;
   }).join("");

@@ -415,7 +415,8 @@ def _public(rec, name=None):
         out.update(cfd=True, strike=None, strike_swap=None, strike_taken=None, ltp=None, spread=None,
                    contracts_per_lot=None, premium_targets=[None, None, None], premium_stop=None,
                    premium_source=None, atm_strike=None, expiry=None, expiry_today=False,
-                   cfd_spread=rec.get("cfd_spread"), quote_age_s=rec.get("quote_age_s"))
+                   cfd_spread=rec.get("cfd_spread"), quote_age_s=rec.get("quote_age_s"),
+                   cfd_bid=rec.get("cfd_bid"), cfd_ask=rec.get("cfd_ask"))
     return out
 
 
@@ -1848,6 +1849,9 @@ class Feed:
         ds, sym = self.dstream, config.crypto_index(name)
         q = ds.quote(sym) if ds is not None and hasattr(ds, "quote") else None
         rec["cfd_spread"] = (q or {}).get("spread")
+        # Exness's own two prices - what its terminal shows (its chart draws the Sell / bid side);
+        # every level here is worked on the middle of them.
+        rec["cfd_bid"], rec["cfd_ask"] = (q or {}).get("bid"), (q or {}).get("ask")
         rec["quote_age_s"] = ds.price_age(sym) if ds is not None and hasattr(ds, "price_age") else None
         return rec
 
