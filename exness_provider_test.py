@@ -167,10 +167,78 @@ check("index_price by the instrument KEY gives the latest mid (83,955)", st.inde
 bar = st.forming_bar("BTC")
 check("the forming bar: open 84,005, high 84,105, low 83,955, close 83,955",
       bar and bar["open"] == 84005.0 and bar["high"] == 84105.0 and bar["low"] == 83955.0 and bar["close"] == 83955.0, bar)
+check("...in the keys feeds._df_with_live_bar actually reads (o/h/l/c, like DeltaStreamer)",
+      bar and (bar["o"], bar["h"], bar["l"], bar["c"]) == (84005.0, 84105.0, 83955.0, 83955.0) and bar["start"] % 900 == 0)
 check("quote() exposes the live spread (10)", st.quote("BTC")["spread"] == 10.0)
 check("option marks/books are None", st.mark_usd("C-BTC-1") is None and st.book("C-BTC-1") is None)
 os.environ.pop("METAAPI_TOKEN")
 check("not configured -> start() is False with the reason", ep.ExnessStreamer(shared=pol).start() is False)
+os.environ["METAAPI_TOKEN"] = SECRET
+
+print("8. CANDLE TOP-UPS - ONE SMALL REQUEST AFTER THE FIRST LOAD, OTHER TIMEFRAMES, BAD ONES REFUSED")
+c8 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/candles", candles)])
+p8 = ep.ExnessMetaApiProvider(session=c8)
+p8.get_ohlc("BTC", "15m", lookback_days=12)
+first = [c for c in c8.calls if "/candles" in c[0]]
+key = ("BTCUSDm", "15m")
+fetched_at, frame, held = p8._candles[key]
+p8._candles[key] = (fetched_at - 60, frame, held)                  # the cache window has passed
+df8 = p8.get_ohlc("BTC", "15m", lookback_days=12)
+top = [c for c in c8.calls if "/candles" in c[0]][len(first):]
+check("after the cache window: ONE request for the bars since the last (limit 5, not 1,000)",
+      len(top) == 1 and top[0][1]["limit"] == 5, [c[1].get("limit") for c in top])
+check("...and the history is still 12 days, unique, in order",
+      df8.index.is_unique and df8.index.is_monotonic_increasing and len(df8) >= 12 * 96 - 2, len(df8))
+p8.get_ohlc("BTC", "15m", lookback_days=5)
+check("a SHORTER ask is served from the same history - no request",
+      len([c for c in c8.calls if "/candles" in c[0]]) == len(first) + 1)
+p8.get_ohlc("BTC", "5m", lookback_days=1)
+last = [c for c in c8.calls if "/candles" in c[0]][-1]
+check("5m asks MetaApi's own 5m timeframe", last[0].endswith("/timeframes/5m/candles"), last[0])
+p8.get_ohlc("BTC", "1d", lookback_days=3)
+check("1d too", [c for c in c8.calls if "/candles" in c[0]][-1][0].endswith("/timeframes/1d/candles"))
+n_before = len([c for c in c8.calls if "/candles" in c[0]])
+p8.get_ohlc("BTC", "1d", lookback_days=250)
+lim = [c for c in c8.calls if "/candles" in c[0]][n_before][1]["limit"]          # this load's FIRST request
+check("a year of daily candles asks for the 252 it needs, not 1,000 (1,000 timed out at MetaApi)", lim == 252, lim)
+try:
+    p8.get_ohlc("BTC", "7m"); bad = None
+except ValueError as exc:
+    bad = str(exc)
+check("an interval MetaApi does not have is refused, not guessed", bad and "unknown interval" in bad, bad)
+
+print("9. THE ACCOUNT SWITCHED OFF (504) - A PLAIN MESSAGE")
+s9 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSD"])), ("current-price", lambda u, q: Resp(504, {}))])
+try:
+    ep.ExnessMetaApiProvider(session=s9).quote("BTC"); m9 = None
+except RuntimeError as exc:
+    m9 = str(exc)
+check("504 says the account is not connected and to check it is Deployed", m9 and "not connected to the broker" in m9
+      and "Deployed" in m9 and SECRET not in m9, m9)
+
+print("10. A CLOSED MARKET (GOLD AT THE WEEKEND) - NO FLAT BARS, AND ITS AGE IS KNOWN")
+friday = "2026-10-03T02:15:00.000Z"
+s10 = Session([("current-price", lambda u, q: Resp(200, {"symbol": "XAUUSDm", "bid": 4140.3, "ask": 4140.56, "time": friday})),
+               ("/symbols", lambda u, q: Resp(200, ["XAUUSDm"]))])
+pol10 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=s10))
+pol10.keys.add("GOLD")
+sat = pd.Timestamp("2026-10-03T15:30:00Z").timestamp()           # Saturday afternoon, 13h15 after the last tick
+pol10.poll_once(now=sat)
+st10 = ep.ExnessStreamer(shared=pol10)
+check("the last price is still readable (4,140.43)", round(st10.index_price("GOLD"), 2) == 4140.43)
+check("but NO forming bar is built from it", st10.forming_bar("GOLD") is None)
+age = pol10.price_age("GOLD", now=sat)
+check("price_age = 13h15 = 47,700 s, over CFD_STALE_QUOTE_S", age == 47700.0 and age > ep.STALE_QUOTE_S, age)
+check("the streamer exposes the same age", st10.price_age("GOLD") is not None and st10.price_age("GOLD") >= 47700.0)
+live = Session([("current-price", lambda u, q: Resp(200, {"symbol": "XAUUSDm", "bid": 4140.3, "ask": 4140.56,
+                                                            "time": pd.Timestamp(sat - 2, unit="s", tz="UTC").isoformat()})),
+                ("/symbols", lambda u, q: Resp(200, ["XAUUSDm"]))])
+pol11 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=live))
+pol11.keys.add("GOLD")
+pol11.poll_once(now=sat)
+check("a 2-second-old tick IS live: a bar is built, age 2 s",
+      ep.ExnessStreamer(shared=pol11).forming_bar("GOLD") is not None and pol11.price_age("GOLD", now=sat) == 2.0)
+check("ONE shared provider for the whole server", ep.shared() is ep.shared())
 
 print()
 if fails:

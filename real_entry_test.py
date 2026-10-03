@@ -7,6 +7,7 @@ own price kept as `entry_signal`) and its result re-worked from it; the ticket i
 are not touched. Fakes only - no broker, no account.
 """
 import datetime as dt, json, os, shutil, subprocess, sys, tempfile, threading, types
+os.environ["NBS_CRYPTO_VENUE"] = "delta"   # checks the Delta venue - the rollback path (config.CRYPTO_VENUE; Exness is exness_switch_test.py)
 
 os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()
 HERE = os.path.dirname(os.path.abspath(__file__))

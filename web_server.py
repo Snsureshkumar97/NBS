@@ -729,6 +729,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # 20 Sep 2026). Each market names its own venue in "broker".
             "needs_connect": (not kite["connected"]) and mprov == "kite",
             "broker": self._broker(user, market),
+            # Where this market's prices come from ("kite" / "delta" / "exness"), and whether
+            # its instruments are CFDs - Exness has no options, so the page drops the
+            # option-only tabs and labels a ticket BUY / SELL instead of a strike.
+            "venue": mprov,
+            "cfd": any(config.is_cfd(k) for k in config.instruments_in(market)),
             "indices": snap["indices"],
             "why": snap["why"],
             "tickets": snap.get("tickets") or {},
@@ -2799,6 +2804,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         account is connected to it - for the header chip and the notices.
         Zerodha on the Indian indices; Delta Exchange India on Bitcoin, where
         prices need no key and the keys are only for live orders."""
+        if (config.MARKETS.get(market) or {}).get("market_provider") == "exness":
+            # Exness, through MetaApi, on the server's own demo account (METAAPI_* in .env):
+            # nothing for a user to connect, no orders, no funds shown - prices only.
+            import exness_provider
+            on = exness_provider.configured()
+            return {"name": "Exness (demo)", "connect_url": None, "connected": on,
+                    "state": "ok" if on else "missing",
+                    "detail": "" if on else "Exness is not connected on the server yet.",
+                    "needed_for": "prices - every Bitcoin and gold ticket is paper", "funds": None}
         if (config.MARKETS.get(market) or {}).get("market_provider") == "kite":
             info = (user_kite.summary(user) if (user and _state["mode"] != "free")
                     else {"state": "ok", "detail": "", "connected": True})
@@ -5826,6 +5840,10 @@ function ladder(r, tk){
   } else if(havePrem){
     note = `The suggested strike is trading at <b>${num(r.ltp,2)}</b>. `
          + "Switch to option premium to see these levels as prices.";
+  } else if(r.cfd && (r.targets||[]).some(v=>v!=null)){
+    note = `On Exness ${esc(r.index || "")} is bought or sold itself - no options - so these are the `
+         + "price levels a ticket is tracked on. Its cost is the spread"
+         + (r.cfd_spread != null ? ` (${num(r.cfd_spread, 2)} now)` : "") + ", counted in the result.";
   } else if((r.targets||[]).some(v=>v!=null)){
     note = "No live option chain for this strike right now, so only the index "
          + "levels are available.";
@@ -6801,12 +6819,13 @@ function ticketBox(r, state){
   if(open){
     c.style.display = "";
     const ex = expiryText(tk.expiry);
-    c.innerHTML = `<b>${esc(tk.index)} ${esc(String(tk.strike))} ${esc(tk.option_type)}</b>`
+    c.innerHTML = `<b>${esc(contractName(tk.index, String(tk.strike), tk.option_type, tk.cfd))}</b>`
                 + (ex ? ` · expiry <b>${esc(ex)}</b>` : "")
-                + ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`
-                + ` <button class="lbtn ocbtn" type="button" data-k="${esc(String(tk.index))}"`
-                + ` data-strike="${esc(String(tk.strike))}" data-side="${esc(String(tk.option_type))}"`
-                + ` data-expiry="${esc(String(tk.expiry || ""))}" onclick="ocOpenFrom(this)">View chart</button>`;
+                + (tk.cfd ? ` · tracked on the live price · spread paid ${tk.entry_spread != null ? esc(num(tk.entry_spread, 2)) : "—"}`
+                   : ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`
+                     + ` <button class="lbtn ocbtn" type="button" data-k="${esc(String(tk.index))}"`
+                     + ` data-strike="${esc(String(tk.strike))}" data-side="${esc(String(tk.option_type))}"`
+                     + ` data-expiry="${esc(String(tk.expiry || ""))}" onclick="ocOpenFrom(this)">View chart</button>`);
     $("tissued").style.display = "";
     $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`
       + entryNote(tk, tk.tracked_on === "premium" ? 2 : 0)
@@ -7485,7 +7504,7 @@ function pnlBadge(g, x, y, t){
   const cs = getComputedStyle(document.documentElement);
   const bg = p.sign > 0 ? cs.getPropertyValue("--up").trim()
            : p.sign < 0 ? cs.getPropertyValue("--down").trim() : "#1b1e26";
-  const text = `${t.index} ${t.strike} ${t.option_type} · P&L ${p.text}`;
+  const text = `${contractName(t.index, t.strike, t.option_type, t.cfd)} · P&L ${p.text}`;
   g.save();
   g.font = "600 12px -apple-system,sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
   const tw = g.measureText(text).width + 18;
@@ -8032,6 +8051,16 @@ function checksRows(c){
   return h + `<div class="gnote" style="margin-top:8px">${esc(c.note || "")}</div>`;
 }
 
+// Exness (Bitcoin and gold since 3 Oct 2026) has no options: no chain and no Greeks to show.
+function venueTabs(s){
+  const noOpt = !!(s && s.cfd);
+  document.querySelectorAll('.tab[data-tab="chain"], .tab[data-tab="greeks"]').forEach(b => { b.hidden = noOpt; });
+  if(noOpt && (TAB === "chain" || TAB === "greeks")) showTab("signal");
+}
+// An Exness ticket is the instrument itself, bought or sold short: "BTC BUY", not a strike and a side.
+function contractName(index, strike, side, cfd){
+  return cfd ? `${index} ${side === "PE" ? "SELL" : "BUY"}` : `${index} ${strike} ${side}`;
+}
 function render(s){
   if(!s) return;
   // Reset ONLY when CUR isn't a real index. Resetting because an index hasn't
@@ -8041,6 +8070,7 @@ function render(s){
   markets(s);
   if(typeof botWatchTick === "function") botWatchTick(s.bot_watch);
   greet(s);
+  venueTabs(s);
 
   // The closing auction is its own state, not a shade of "open". Saying
   // "Market open" over an index that has held one value since 15:15 is the
@@ -8110,7 +8140,7 @@ function render(s){
   // what is available for a premium (the user asked to see it, 20 Sep 2026).
   const fundsText = br.funds && br.funds.available != null ? ` · ${fundsLabel(br.funds)} available` : "";
   $("kite").textContent = br.connected ? br.name + fundsText : "Connect " + br.name;
-  $("kite").href = br.connect_url || "/connect";
+  $("kite").href = br.connect_url === null ? "#" : (br.connect_url || "/connect");
   $("kite").style.color = needs ? "#b07d15" : "";
   // The chip was never shown at all (display:none with nothing to reveal it),
   // so on the Bitcoin market there was no way to reach the Delta page - the
@@ -8139,7 +8169,8 @@ function render(s){
   if(r.confidence && r.confidence!=="N/A"){
     $("conftag").style.display="inline-flex";
     $("conftag").className="tag "+(bull?"up":bear?"down":"flat");
-    $("conftag").textContent=(bull||bear? r.strike+" "+(r.option_type==="CE"?"Call":"Put")+" · ":"")+r.confidence+" confidence";
+    $("conftag").textContent=(bull||bear? (s.cfd ? (r.option_type==="CE"?"Buy":"Sell")
+                                                  : r.strike+" "+(r.option_type==="CE"?"Call":"Put"))+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";
 
   // The contract this signal names, on the button that opens its own chart.
@@ -8429,6 +8460,13 @@ function greet(s){
   const k = s.kite || {};
   // Crypto needs no broker and trades none of the three indices, so the
   // Zerodha line and the index names would both be describing the wrong screen.
+  if(s.market === "crypto" && s.venue === "exness"){
+    const gold = (s.order || []).includes("GOLD");
+    $("said").textContent = (gold ? "Bitcoin and gold" : "Bitcoin")
+                          + " from Exness (demo account), bought or sold in dollars - paper tickets, around the clock.";
+    const bs = $("brandsub"); if(bs) bs.textContent = (gold ? "BTC · Gold" : "BTC") + " · Exness · 24/7";
+    return;
+  }
   if(s.market === "crypto"){
     const gold = (s.order || []).includes("GOLD");        // gold is switched off; this reads what the market really lists
     $("said").textContent = (gold ? "Bitcoin and gold options" : "Bitcoin options")
@@ -9081,6 +9119,8 @@ function kiteSide(s){
   let f = "";
   if(br.connected && br.funds && br.funds.available != null)
     f = `<div class="knum">${esc(fundsLabel(br.funds))}</div><div class="kmuted">available on ${esc(br.name)}</div>`;
+  else if(br.name && br.connect_url === null)
+    f = `<div class="kmuted">${esc(br.name)} &middot; ${esc(br.needed_for || "prices only")}</div>`;
   else if(br.name)
     f = `<div class="kmuted">${esc(br.name)} is not connected.</div><a class="klink" href="${esc(br.connect_url || "/connect")}">Connect ${esc(br.name)}</a>`;
   if(s.market_label) f += `<div><button class="klink" type="button" data-kact="switchmarket">Switch market</button></div>`;
@@ -9410,11 +9450,11 @@ function aiTicketCard(k, t){
   return `<div class="card herocard" data-bias="${ce ? "up" : "down"}" style="margin-top:12px">`
     + `<div class="thead"><p class="eyebrow">AI ticket &middot; ${esc(k)}</p><span class="badge open">OPEN</span>`
     + `<span class="tag flat" style="margin-left:auto">Paper</span></div>`
-    + `<div class="hero"><div class="v" style="color:${ce ? "var(--up)" : "var(--down)"}">${ce ? "Buy CE" : "Buy PE"}</div>`
-    + `<span class="tag flat">${esc(t.strike)} ${ce ? "Call" : "Put"} &middot; AI desk</span></div>`
-    + `<div class="contract"><b>${esc(k)} ${esc(t.strike)} ${esc(t.option_type)}</b>`
+    + `<div class="hero"><div class="v" style="color:${ce ? "var(--up)" : "var(--down)"}">${t.cfd ? (ce ? "Buy" : "Sell") : (ce ? "Buy CE" : "Buy PE")}</div>`
+    + `<span class="tag flat">${t.cfd ? "Exness" : esc(t.strike) + " " + (ce ? "Call" : "Put")} &middot; AI desk</span></div>`
+    + `<div class="contract"><b>${esc(contractName(k, t.strike, t.option_type, t.cfd))}</b>`
     + (ex ? ` &middot; expiry <b>${esc(ex)}</b>` : "")
-    + ` &middot; tracked on ${t.tracked_on === "index" ? "the index" : "live premium"}</div>`
+    + ` &middot; tracked on ${t.cfd ? "the live price" : t.tracked_on === "index" ? "the index" : "live premium"}</div>`
     + `<div class="issued">Issued ${esc(t.entry_time)} IST &middot; levels frozen at entry${esc(entryNote(t, dp))}</div>`
     + `<div class="tstats">`
     + cell("Reward : risk", rr) + cell(entryLabel(t), num(t.entry, dp))
@@ -9666,7 +9706,7 @@ function aiRender(d){
   $("aiclosed").innerHTML = last.length
     ? `<thead><tr><th>Closed</th><th>Contract</th><th>Lots</th><th>Entry</th><th>Cost</th><th>Exit</th><th>P&amp;L</th><th>Why it closed</th></tr></thead><tbody>`
       + last.map(x => `<tr><td>${esc(x.date)} ${esc((x.time_ist || "").slice(0, 5))}</td>`
-        + `<td>${esc(x.index)} ${esc(x.strike)} ${esc(x.option_type)}</td><td>${esc(x.lots || "")}</td><td>${esc(x.entry)}</td>`
+        + `<td>${esc(contractName(x.index, x.strike, x.option_type, x.tracked_on === "cfd"))}</td><td>${esc(x.lots || "")}</td><td>${esc(x.entry)}</td>`
         + `<td>${x.cost == null ? "—" : esc(num(x.cost, 0))}</td><td>${esc(x.exit)}</td>`
         + `<td>${esc(x.pnl === "" || x.pnl == null ? "—" : money(parseFloat(x.pnl)))}</td>`
         + `<td style="text-align:left;white-space:normal">${esc(x.status)}</td></tr>`).join("") + `</tbody>`

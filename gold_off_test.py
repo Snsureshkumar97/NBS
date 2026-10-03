@@ -4,6 +4,7 @@ losing on that market"). The instrument's definition is kept so that turning it
 back on is one line, but while it is off nothing in the tool may list it, run it,
 ask the AI about it or describe it. Fakes only."""
 import os
+os.environ["NBS_CRYPTO_VENUE"] = "delta"   # checks the Delta venue - the rollback path (config.CRYPTO_VENUE; Exness is exness_switch_test.py)
 import re
 import sys
 import tempfile

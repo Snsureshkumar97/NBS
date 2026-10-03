@@ -58,12 +58,29 @@ import ticket_watch
 import tickets
 import trade_log
 import user_kite
+import exness_provider
 from delta_provider import DeltaDataProvider, DeltaStreamer
 from data_providers import (KITE_ENGINE_RESTART, DeribitDataProvider,
                             DeribitStreamer, FreeDataProvider,
                             KiteDataProvider, KiteStreamer,
                             kite_reactor_problem)
 from main import drop_preopen, fetch_recommendation, is_market_open, now_ist
+
+CRYPTO_PROVIDERS = ("delta", "deribit", "exness")
+
+
+def _crypto_provider(mp):
+    """The data provider for a crypto market_provider. Exness's is ONE shared
+    instance (one MetaApi account behind every user); Delta and Deribit are per feed."""
+    if mp == "exness":
+        return exness_provider.shared()
+    return DeltaDataProvider() if mp == "delta" else DeribitDataProvider()
+
+
+def _crypto_streamer(mp):
+    if mp == "exness":
+        return exness_provider.ExnessStreamer()
+    return DeltaStreamer() if mp == "delta" else DeribitStreamer()
 
 # A feed with nobody watching it is switched off after this long. Generous
 # enough to survive a user reading the explanation for a few minutes without
@@ -387,6 +404,19 @@ def _room(rec):
 
 
 def _public(rec, name=None):
+    """_public_base(), and on a CFD (Exness - no options) every option field emptied:
+    no strike, premium, expiry or option spread - the page shows the price levels a
+    buy or a sell is tracked on, with Exness's own live spread."""
+    out = _public_base(rec, name)
+    if out is not None and config.is_cfd(name or rec.get("index")):
+        out.update(cfd=True, strike=None, strike_swap=None, strike_taken=None, ltp=None, spread=None,
+                   contracts_per_lot=None, premium_targets=[None, None, None], premium_stop=None,
+                   premium_source=None, atm_strike=None, expiry=None, expiry_today=False,
+                   cfd_spread=rec.get("cfd_spread"), quote_age_s=rec.get("quote_age_s"))
+    return out
+
+
+def _public_base(rec, name=None):
     """The parts of a recommendation a browser needs.
 
     Deliberately explicit — returning the whole dict would ship the candle
@@ -917,9 +947,9 @@ class Feed:
         that was never going to exist.
         """
         mp = config.market_for(name)["market_provider"]
-        if mp in ("delta", "deribit"):
+        if mp in CRYPTO_PROVIDERS:
             if self._crypto is None:
-                self._crypto = DeltaDataProvider() if mp == "delta" else DeribitDataProvider()
+                self._crypto = _crypto_provider(mp)
             return self._crypto
         return kite_provider
 
@@ -939,8 +969,7 @@ class Feed:
             # call" and analysed nothing: it was waiting on a credential it
             # never uses, for a venue that needs no credential at all.
             if self._crypto is None:
-                mp = config.MARKETS[self.market]["market_provider"]
-                self._crypto = DeltaDataProvider() if mp == "delta" else DeribitDataProvider()
+                self._crypto = _crypto_provider(config.MARKETS[self.market]["market_provider"])
             return self._crypto, "ok", ""
         state, detail = user_kite.status(self.email)
         if state != "ok":
@@ -993,6 +1022,7 @@ class Feed:
                         # page never shows a reading the tickets have not
                         # seen yet.
                         rec["checks"] = self._signal_checks(name, rec)
+                        self._cfd_stamp(name, rec)
                         try:
                             evs = self.tickets.update(name, rec)
                         except Exception:
@@ -1185,7 +1215,7 @@ class Feed:
         if self.dstream is not None:
             return
         mp = config.MARKETS[self.market]["market_provider"]
-        st = DeltaStreamer() if mp == "delta" else DeribitStreamer()
+        st = _crypto_streamer(mp)
         if not st.start():
             self.stream_error = f"{mp} socket: {st.last_error}"
             return
@@ -1271,6 +1301,19 @@ class Feed:
         if st is None:
             return
         for name in self.instruments():
+            if config.is_cfd(name):
+                # Exness: no contract to stream - the ticket IS the instrument, so its
+                # price is the instrument's own, checked on every poll like a premium.
+                px = st.index_price(config.crypto_index(name))
+                if px is None:
+                    continue
+                self.tickets.live_price(name, px)
+                for ev in self.tickets.tick_price(name, px):
+                    ev["at"] = now_ist().strftime("%H:%M:%S")
+                    with self.lock:
+                        self.events.insert(0, ev)
+                        del self.events[30:]
+                continue
             self._crypto_ticket(name)
             inst = self.opt_tokens.get(name)
             if not inst:
@@ -1771,12 +1814,27 @@ class Feed:
             self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
             return None
 
+    def _cfd_stamp(self, name, rec):
+        """On a CFD (Exness), stamp the reading with the live spread - the cost a ticket
+        freezes at entry - and how long since the instrument last really ticked
+        (tickets._closed_hold: no new ticket on a closed market's last price)."""
+        if rec is None or not config.is_cfd(name):
+            return rec
+        ds, sym = self.dstream, config.crypto_index(name)
+        q = ds.quote(sym) if ds is not None and hasattr(ds, "quote") else None
+        rec["cfd_spread"] = (q or {}).get("spread")
+        rec["quote_age_s"] = ds.price_age(sym) if ds is not None and hasattr(ds, "price_age") else None
+        return rec
+
     def _avoid_strikes(self, name):
         """{(strike, "CE"/"PE")} already traded today on this instrument, by the
         rule tickets or by the AI desk - what the next reading must not name
         again (signal_engine._next_free_strike). Read off each book's own log,
         so it survives a restart. Never raises: a failure here is a reading that
-        may name the same strike, which the ticket engine's own guard still stops."""
+        may name the same strike, which the ticket engine's own guard still stops.
+        Empty on a CFD (Exness), which has no strikes to avoid."""
+        if config.is_cfd(name):
+            return set()
         out = set()
         try:
             books = [self.tickets, getattr(getattr(self, "ai", None), "book", None)]
@@ -1947,6 +2005,7 @@ class Feed:
                 continue
 
             rec["checks"] = self._signal_checks(name, rec)
+            self._cfd_stamp(name, rec)
             try:
                 evs = self.tickets.update(name, rec)
             except Exception as exc:

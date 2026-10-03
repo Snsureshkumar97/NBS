@@ -664,6 +664,56 @@ MARKETS = {
 DEFAULT_MARKET = "nse_index"
 
 
+# ---------------------------------------------------------------------------
+# WHERE BITCOIN AND GOLD COME FROM - "exness" since 3 Oct 2026, "delta" before.
+# ---------------------------------------------------------------------------
+# The user, 3 Oct 2026: "i want exness ... bitcoin and gold from exness and all the
+# data should be from exness not delta exchange if something is not available remove
+# it". Exness is reached through MetaApi (exness_provider.py; METAAPI_TOKEN,
+# METAAPI_ACCOUNT_ID and METAAPI_REGION in the server's .env) on a DEMO account, and
+# it is a CFD broker: BTCUSD and XAUUSD themselves, bought or sold, with NO options -
+# so no option chain, Greeks, contract charts, option seller, Delta order flow or
+# Delta orders. A ticket on a CFD follows the instrument's own price (index targets,
+# index stop - the engine's no-chain path, the one exness_adx_study.py backtested) and
+# its P&L is dollars: the move x lot_size x lots, less the spread paid (tickets.py).
+# Paper only: nothing here can place an Exness order.
+#
+# Exness's own units: one BTCUSD lot is 1 BTC, one XAUUSD lot is 100 troy ounces, the
+# smallest order 0.01 lot. Gold comes back on with it (it was switched off on 22 Sep
+# 2026 while it traded as XAUT options on Delta) at its own ADX gate of 25.
+#
+# Rolling back is this one word: "delta" restores every Delta setting above untouched -
+# here, or NBS_CRYPTO_VENUE=delta in the environment (which is also how the Delta tests
+# keep checking the Delta path).
+CRYPTO_VENUE = (os.environ.get("NBS_CRYPTO_VENUE") or "exness").strip().lower()
+
+_EXNESS_INSTRUMENTS = {
+    "BTC": {"provider": "exness", "exness_symbol": "BTCUSD", "cfd": True,
+            "lot_size": 1.0, "qty_step": 0.01, "lot_choices": [0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1],
+            "taker_flow": False, "contracts_per_lot": None, "max_spread_pct": None},
+    "GOLD": {"enabled": True, "provider": "exness", "exness_symbol": "XAUUSD", "cfd": True,
+             "lot_size": 100.0, "qty_step": 0.01,
+             "taker_flow": False, "contracts_per_lot": None, "max_spread_pct": None},
+}
+
+if CRYPTO_VENUE == "exness":
+    for _k, _over in _EXNESS_INSTRUMENTS.items():
+        INSTRUMENTS[_k].update(_over)
+    MARKETS["crypto"].update(market_provider="exness", label="Exness: Bitcoin + gold, 24/7")
+
+
+# A CFD whose last real tick is older than this is a closed market (tickets._closed_hold):
+# gold stops from Friday night to Sunday night and pauses daily. Ten minutes - longer than
+# any quiet spell in an open market, far shorter than any closure.
+CFD_STALE_QUOTE_S = 600
+
+
+def is_cfd(index_key):
+    """True for an instrument traded as a CFD (Exness): no options, the ticket is the
+    instrument itself, bought (CE) or sold (PE)."""
+    return bool((INSTRUMENTS.get(index_key) or {}).get("cfd"))
+
+
 # Crypto is off unless asked for. It is a different venue, a different
 # currency and a different session, and an operator who wants three Indian
 # indices should not silently acquire two more instruments and a dependency on
@@ -704,8 +754,11 @@ def lot_choices(market=None):
 
 def crypto_index(name):
     """The streamed index symbol of a crypto instrument on its provider:
-    Delta's ".DEXBTUSD" or Deribit's "btc_usd"."""
+    Delta's ".DEXBTUSD", Deribit's "btc_usd", or - on Exness, whose streamer is
+    keyed by the tool's own instrument key - "BTC" / "GOLD" itself."""
     m = INSTRUMENTS.get(name) or {}
+    if m.get("provider") == "exness":
+        return name
     return m.get("delta_index") if m.get("provider") == "delta" else m.get("deribit_index")
 
 
@@ -1528,7 +1581,10 @@ VOTE_OVERRIDES = {"nse_index": {}, "crypto": {}}
 # after crypto_vol_selling_study.py: sell the next-day at-the-money straddle at
 # 17:30 IST only when its implied vol is above BTC's last-7-day realised vol, hold
 # to settlement. One server-wide book, the same for every viewer.
-BTC_SELLER_PAPER = True
+# It sells Delta's options, which Exness does not have: off whenever Bitcoin comes from
+# Exness (CRYPTO_VENUE above) - its card disappears with it ("if something is not
+# available remove it", the user, 3 Oct 2026). Its records stay on disk untouched.
+BTC_SELLER_PAPER = CRYPTO_VENUE == "delta"
 BTC_SELLER_LOTS = 250        # paper size, Delta contracts of 0.001 BTC (250 = 0.25 BTC)
 
 # ---------------------------------------------------------------------------

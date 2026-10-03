@@ -68,6 +68,8 @@ rg = rec("GOLD", tech(adx=22, close=3800.0))
 rb = rec("BTC", tech(adx=22))
 check("ADX 22: GOLD is blocked by its own 25 gate, BTC at the same 22 is not (its gate is still 20)",
       rg["adx_blocked"] and not rb["adx_blocked"], (rg["adx_blocked"], rb["adx_blocked"]))
+check("...and its wait message names ITS gate - 'ADX=22 < 25', not the global 20 it is above",
+      "ADX=22 < 25" in rg["action"] and "< 20" not in rg["action"], rg["action"])
 
 print("2. EMPTY OVERRIDES CHANGE NOTHING")
 t = tech(trend=1, macd=1, rsi=-1, vwap=-1, st=1, vol=1, di=1)

@@ -59,6 +59,8 @@ NO_ENTRY_AFTER = (15, 10)
 MAX_DECISIONS_PER_DAY = {"nse_index": 90, "crypto": 100}
 STRIKE_STEPS = 6
 MIN_REWARD_RISK = 1.0
+# Exness CFDs (no options): the widest stop the desk may set, in % of the price.
+CFD_MAX_STOP_PCT = 5.0
 # A profit-protection rule used to live here: close the trade once it had given
 # back too much of its best gain (a percentage-of-peak check, on every tick).
 # Retired on 22 Sep 2026 when the staircase trailing stop (see tickets.py,
@@ -578,6 +580,13 @@ class AIDesk:
         gate = self.book.entry_block()
         if gate:
             return gate[1]
+        if config.is_cfd(name):
+            # A closed Exness market (gold at the weekend): not worth a model call.
+            with self.feed.lock:
+                rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec") or {"index": name}
+            held = self.book._closed_hold(rec)
+            if held:
+                return held[1]
         now = self.now()
         if not config.market_for(name).get("always_open") and (now.hour, now.minute) >= NO_ENTRY_AFTER:
             return f"No AI entries after {NO_ENTRY_AFTER[0]}:{NO_ENTRY_AFTER[1]:02d}."
@@ -674,7 +683,23 @@ class AIDesk:
                                        "reversal can only cost back to the last point crossed, never all the "
                                        "way to your original stop"),
                 "your_recent_decisions_on_this_index": [r for r in self.recent if r.get("index") == name][:4],
-                "your_track_record": self.track_record(name)}
+                "your_track_record": self.track_record(name),
+                **(self._cfd_info(name) if config.is_cfd(name) else {})}
+
+    def _cfd_info(self, name):
+        """What is different about proposing on Exness (no options) - in <desk> beside every ask."""
+        meta = config.INSTRUMENTS.get(name) or {}
+        with self.feed.lock:
+            rec = ((self.feed.state.get("indices") or {}).get(name) or {}).get("rec") or {}
+        unit = "1 BTC" if name == "BTC" else f"{meta.get('lot_size', 100):g} troy ounces"
+        return {"venue": "Exness (CFD, demo account) - NO options",
+                "how_to_propose": ("option_type CE = BUY the instrument, PE = SELL it short. Send no strike. "
+                                   "target and stop are PRICE levels of the instrument (not premiums): for a buy the "
+                                   "stop below and the target above the live price, for a sell the reverse. The entry "
+                                   "is the live price when the ticket opens."),
+                "one_lot_is": unit, "live_spread": rec.get("cfd_spread"),
+                "max_stop_distance_pct": CFD_MAX_STOP_PCT,
+                "costs": "the bid-ask spread, once in and out (counted in the result); overnight swap is not counted"}
 
     # ------------------------------------------------------------ its own record
     @staticmethod
@@ -796,7 +821,9 @@ class AIDesk:
             o = opens.get(r.get("trade_id")) or {}
             last.append({
                 "date": r.get("date"), "entered": (o.get("time_ist") or "")[:5], "closed": (r.get("time_ist") or "")[:5],
-                "contract": f"{r.get('strike')} {r.get('option_type')}", "entry": r.get("entry"), "exit": r.get("exit"),
+                "contract": (("BUY" if r.get("option_type") == "CE" else "SELL") if r.get("tracked_on") == "cfd"
+                             else f"{r.get('strike')} {r.get('option_type')}"),
+                "entry": r.get("entry"), "exit": r.get("exit"),
                 "pnl": float(r["pnl"]), "how_it_ended": self._exit_kind(r.get("status"), trade_log._f(r.get("pnl"))),
                 "at_entry": {k: o.get(k) or None for k in ("adx", "rsi", "macd_hist", "vwap_gap")},
                 **dict(zip(("your_reason_then", "your_confidence_then_pct"),
@@ -896,6 +923,8 @@ class AIDesk:
         side = str(d.get("option_type") or "").upper()
         if side not in ("CE", "PE"):
             return False, "option_type must be CE or PE", None
+        if config.is_cfd(name):
+            return self._validate_cfd(name, rec, d, side)
         try:
             strike, target, stop = float(d.get("strike")), float(d.get("target")), float(d.get("stop"))
         except (TypeError, ValueError):
@@ -938,6 +967,46 @@ class AIDesk:
         return True, "", {"side": side, "strike": strike, "target": round(target, 2), "stop": round(stop, 2),
                           "ltp": ltp, "expiry": expiry, "contract": contract, "rr": round(rr, 2)}
 
+    def _validate_cfd(self, name, rec, d, side):
+        """A CFD proposal (Exness BTCUSD / XAUUSD - no options): CE buys the instrument,
+        PE sells it short; target and stop are PRICE levels. The entry is the live
+        price, never the bot's number, and the same limits apply: the stop on the
+        losing side and no further than CFD_MAX_STOP_PCT away, the target on the
+        winning side, reward to risk at least MIN_REWARD_RISK, the stop wider than the
+        spread, and no entry on a closed market's last price."""
+        try:
+            target, stop = float(d.get("target")), float(d.get("stop"))
+        except (TypeError, ValueError):
+            return False, "target and stop must both be price levels (numbers)", None
+        held = self.book._closed_hold(rec)
+        if held is not None:
+            return False, held[2], None
+        ds = getattr(self.feed, "dstream", None)
+        px = ds.index_price(config.crypto_index(name)) if ds is not None else None
+        px = px if px is not None else rec.get("spot")
+        if not px:
+            return False, "no live price", None
+        sign = 1 if side == "CE" else -1
+        risk, reward = sign * (px - stop), sign * (target - px)
+        word = "below" if side == "CE" else "above"
+        if risk <= 0:
+            return False, f"the stop {stop:g} must be {word} the live price {px:g} for a {'buy' if side == 'CE' else 'sell'}", None
+        if reward <= 0:
+            return False, (f"the target {target:g} must be {'above' if side == 'CE' else 'below'} "
+                           f"the live price {px:g}"), None
+        if risk > px * CFD_MAX_STOP_PCT / 100:
+            return False, f"the stop is {risk / px * 100:.1f}% away - more than {CFD_MAX_STOP_PCT:g}%", None
+        spread = rec.get("cfd_spread") or 0.0
+        if spread and risk < 2 * spread:
+            return False, f"the stop is only {risk:g} away - under twice the {spread:g} spread", None
+        rr = reward / risk
+        if rr < MIN_REWARD_RISK:
+            return False, f"reward to risk is {rr:.2f}, under {MIN_REWARD_RISK:g}", None
+        at = now_ist().strftime("%H%M%S")
+        return True, "", {"side": side, "strike": None, "target": round(target, 2), "stop": round(stop, 2),
+                          "ltp": px, "expiry": "", "contract": f"{name}|cfd|{side}|{at}", "rr": round(rr, 2),
+                          "cfd": True}
+
     def _open(self, name, rec, plan, reason, confidence=None, bull_case=None, bear_case=None):
         self._sync_rules()
         r = dict(rec)
@@ -951,11 +1020,18 @@ class AIDesk:
         # Sep 2026, extending the same staircase rule tickets already have.
         ltp, target = plan["ltp"], plan["target"]
         ladder = [round(ltp + frac * (target - ltp), 2) for frac in (0.5, 0.8, 1.0)]
+        if plan.get("cfd"):
+            # Exness: the ladder and the stop are PRICE levels of the instrument itself.
+            r.update(spot=ltp, suggested_strike=None, premium_source="none", live_ltp=None,
+                     premium_targets=[None, None, None], premium_stop_loss=None,
+                     index_targets=ladder, index_stop_loss=plan["stop"])
+        else:
+            r.update(suggested_strike=int(plan["strike"]) if float(plan["strike"]).is_integer() else plan["strike"],
+                     premium_source="live", live_ltp=plan["ltp"],
+                     premium_targets=ladder, premium_stop_loss=plan["stop"],
+                     index_targets=[], index_stop_loss=None)
         r.update(option_type=plan["side"], bias="BULLISH" if plan["side"] == "CE" else "BEARISH",
-                 suggested_strike=int(plan["strike"]) if float(plan["strike"]).is_integer() else plan["strike"],
-                 premium_source="live", live_ltp=plan["ltp"],
-                 premium_targets=ladder, premium_stop_loss=plan["stop"],
-                 index_targets=[], index_stop_loss=None, strictness="ai",
+                 strictness="ai",
                  # The rule reading's own strike swap is about ITS strike; the desk names its own.
                  strike_swap=None, strike_taken=False,
                  # The log's signal columns describe THIS trade, not the rule
@@ -1022,6 +1098,9 @@ class AIDesk:
 
     def _stream_price(self, name, trade):
         import feeds
+        if config.is_cfd(name):
+            ds = self.feed.dstream
+            return ds.index_price(config.crypto_index(name)) if ds is not None else None
         tid = trade.get("trade_id")
         handle = self._tok.get(tid)
         if handle is None:
@@ -1081,8 +1160,11 @@ class AIDesk:
                         "losses": sum(1 for p in pnl if p <= 0), "net": round(sum(pnl), 2),
                         "today": {"closed": len(tp), "net": round(sum(tp), 2)},
                         "last": [dict({k: r.get(k) for k in ("date", "time_ist", "index", "strike", "option_type",
-                                                             "entry", "exit", "pnl", "status", "lots", "lot_size")},
-                                      cost=self._cost(r.get("entry"), r.get("lot_size"), r.get("lots")))
+                                                             "entry", "exit", "pnl", "status", "lots", "lot_size",
+                                                             "tracked_on")},
+                                      # a CFD's notional is not a cost - its cost is the spread, inside pnl
+                                      cost=(None if r.get("tracked_on") == "cfd"
+                                            else self._cost(r.get("entry"), r.get("lot_size"), r.get("lots"))))
                                  for r in sel[-8:][::-1]]}
 
             opened = {}

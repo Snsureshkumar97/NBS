@@ -57,6 +57,23 @@ def _cfg(name, fallback):
     return getattr(config, name, fallback)
 
 
+def cfd_pnl(trade, price):
+    """Dollars on a CFD ticket (Exness BTCUSD / XAUUSD): the move in the trade's favour,
+    less the spread it pays, times lot_size (1 BTC; 100 oz of gold) x lots.
+
+    The spread is the whole cost on an Exness Standard account - buy at the ask, sell
+    at the bid - and is charged once in full: the spread quoted when the ticket opened
+    (half of it paid going in, half coming out at much the same spread). Levels are
+    checked on the mid, as everywhere else here. Overnight swap is NOT included.
+    None when a figure is missing."""
+    entry = trade.get("entry_spot")
+    if price is None or entry is None or not trade.get("lot_size"):
+        return None
+    sign = 1 if trade.get("option_type") == "CE" else -1
+    units = float(trade["lot_size"]) * float(trade.get("lots", 1) or 1)
+    return round((sign * (float(price) - float(entry)) - float(trade.get("entry_spread") or 0.0)) * units, 2)
+
+
 def reward_risk_t3(name, rec):
     """(ratio, need) for the ticket gate _reward_hold() checks below - room to run (T3)
     over the stop distance, and the threshold this instrument's market actually
@@ -211,9 +228,20 @@ class TicketBook:
             # the selector said. Snapped to what the market offers now.
             if s.get("lots") not in (None, ""):
                 choices = config.lot_choices(self.market)
-                self.lots = min(choices, key=lambda c: abs(c - float(s["lots"])))
+                saved = self._from_contracts(float(s["lots"]), choices)
+                self.lots = min(choices, key=lambda c: abs(c - saved))
         except Exception:
             pass
+
+    def _from_contracts(self, lots, choices):
+        """A size in Delta contracts (10-500, one contract 0.001 BTC) read into an Exness
+        market, where a lot is 1 BTC: 250 contracts is 0.25 - not the nearest Exness
+        choice to 250, which would be a whole coin. A saved setting from before the
+        switch, or a page still showing Delta's sizes, both come through here."""
+        if lots > max(choices) and any(v.get("cfd") and v.get("market") == self.market
+                                       for v in config.INSTRUMENTS.values()):
+            return lots * 0.001
+        return lots
 
     def _save_settings(self):
         p = self._settings_path()
@@ -371,7 +399,7 @@ class TicketBook:
                 choices = config.lot_choices(self.market)
                 # Snap to the nearest size the market offers, so a stale page
                 # asking for "3" on crypto or "0.3" on Nifty still gets a real one.
-                self.lots = min(choices, key=lambda c: abs(c - float(lots)))
+                self.lots = min(choices, key=lambda c: abs(c - self._from_contracts(float(lots), choices)))
                 self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
@@ -444,6 +472,8 @@ class TicketBook:
         itself is chosen when the reading is built (signal_engine._next_free_strike);
         this is the invariant behind it, so no reading, stale or otherwise, and no
         auto re-arm can put a second ticket on a strike already used."""
+        if config.is_cfd(rec.get("index")):
+            return None                  # a CFD has no strikes: the instrument itself is the trade
         if rec.get("strike_taken"):
             return ("strike_taken", "NO FREE STRIKE",
                     "Every strike near the money has already been traded today, so a new "
@@ -883,6 +913,11 @@ class TicketBook:
             book.confirm_since = now
             book.confirm_streak = 1
             return hold(*block)
+        # 0b. a CFD (Exness) whose price has stopped is a closed market, whatever
+        # the 24/7 crypto session says - gold from Friday night to Sunday night.
+        block = self._closed_hold(rec)
+        if block is not None:
+            return hold(*block)
 
         if direction is None:
             return hold("neutral", "NO SIGNAL",
@@ -1068,6 +1103,29 @@ class TicketBook:
                     f"least {need:g}x the distance to the stop.")
         return None
 
+    def _closed_hold(self, rec):
+        """Held when a CFD (Exness) has no live price, or its last real tick is older than
+        config.CFD_STALE_QUOTE_S: that is a closed market - gold stops from Friday night to
+        Sunday night and pauses daily - and its last price must not open a ticket, though
+        the crypto session itself never closes. Not a CFD: never holds."""
+        name = (rec or {}).get("index")
+        if not config.is_cfd(name):
+            return None
+        age = rec.get("quote_age_s")
+        if age is None:
+            return ("closed", "NO LIVE PRICE",
+                    f"No live {name} price from Exness yet, so no ticket can open. It waits "
+                    "for the first quote.")
+        limit = float(_cfg("CFD_STALE_QUOTE_S", 600))
+        if age > limit:
+            mins = int(age // 60)
+            return ("closed", "MARKET CLOSED",
+                    f"Exness has not quoted {name} for {mins} minute{'s' if mins != 1 else ''}, so "
+                    "its market is closed right now (gold stops from Friday night to Sunday night "
+                    "and pauses briefly each day). No ticket opens on the last price; it waits for "
+                    "trading to resume.")
+        return None
+
     def _spread_hold(self, rec):
         """Held when the contract's bid-ask spread is wider than
         MAX_SPREAD_PCT of its mid. Unknown spreads never block."""
@@ -1200,7 +1258,8 @@ class TicketBook:
         # The trade-quality gates too. Re-arm skipped them, so a Bank Nifty
         # ticket could re-open while the index was watch-only, and a 0.6:1
         # trade could re-open straight after a stop on a 1:1 one.
-        if (self._regime_hold(rec) is not None
+        if (self._closed_hold(rec) is not None
+                or self._regime_hold(rec) is not None
                 or self._reward_hold(book.name, rec) is not None
                 or self._spread_hold(rec) is not None
                 or self._strike_taken(book, rec) is not None):
@@ -1225,7 +1284,8 @@ class TicketBook:
                 rec = signal_engine.rebase_premium(rec, self.fresh_price(rec["index"], rec))
             except Exception:
                 pass
-        use_premium = (rec.get("premium_source") == "live"
+        cfd = config.is_cfd(rec["index"])
+        use_premium = (not cfd and rec.get("premium_source") == "live"
                        and rec.get("live_ltp") is not None)
         meta = config.INSTRUMENTS.get(rec["index"], {})
         stamp = now_ist()
@@ -1254,6 +1314,10 @@ class TicketBook:
             "use_premium": use_premium,
             "lot_size": meta.get("lot_size"),
             "lots": self.lots,          # frozen on purpose
+            # A CFD (Exness): the ticket is the instrument itself, and the spread
+            # paid to get in and out is its cost - frozen with the entry.
+            "cfd": cfd,
+            "entry_spread": rec.get("cfd_spread") if cfd else None,
             "exit_at": (_cfg("EXIT_AT_TARGET", "T3")
                         if _cfg("EXIT_AT_TARGET", "T3") in TARGET_KEYS else "T3"),
             "index_targets": rec["index_targets"],
@@ -1308,7 +1372,11 @@ class TicketBook:
         """Log a ticket that has stopped being OPEN, and bank its P&L."""
         entry = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
         realized = None
-        if (trade["use_premium"] and trade["lot_size"]
+        if trade.get("cfd"):
+            realized = cfd_pnl(trade, price)
+            if realized is not None:
+                self.session_net += realized
+        elif (trade["use_premium"] and trade["lot_size"]
                 and price is not None and entry is not None):
             realized = round((price - entry) * trade["lot_size"]
                              * trade.get("lots", 1), 2)
@@ -1504,7 +1572,9 @@ class TicketBook:
             self._price_for(trade, rec) if rec is not None else None)
         entry = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
         pnl = None
-        if (trade["use_premium"] and trade["lot_size"]
+        if trade.get("cfd"):
+            pnl = cfd_pnl(trade, price)
+        elif (trade["use_premium"] and trade["lot_size"]
                 and price is not None and entry is not None):
             pnl = round((price - entry) * trade["lot_size"] * trade.get("lots", 1), 2)
         return {
@@ -1516,6 +1586,9 @@ class TicketBook:
             "entry_time": trade["entry_time"],
             "entry": entry, "now": price, "pnl": pnl,
             "tracked_on": "premium" if trade["use_premium"] else "index",
+            # A CFD ticket (Exness): BUY (CE) or SELL (PE) the instrument itself - no
+            # strike, no expiry - and the spread it paid, frozen at entry.
+            "cfd": bool(trade.get("cfd")), "entry_spread": trade.get("entry_spread"),
             "lots": trade.get("lots", 1), "lot_size": trade.get("lot_size"),
             "targets": (trade["premium_targets"] if trade["use_premium"]
                         else trade["index_targets"]),

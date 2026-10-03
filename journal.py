@@ -326,6 +326,12 @@ def _ticket_lines(path, source):
         lots, lot_size = _f(r.get("lots")) or 1.0, _f(r.get("lot_size")) or 1.0
         charges = estimate_charges(r.get("index"), entry, exit_price, lots * lot_size)
         strike = _f(r.get("strike"))
+        # An Exness CFD row: a buy (CE) or a short sale (PE) of the instrument itself -
+        # no strike, its cost is the spread already inside pnl, and its notional is not
+        # money "at risk" the way an option's premium is.
+        cfd = r.get("tracked_on") == "cfd"
+        if cfd:
+            strike, charges = None, 0.0
         day_high = day_low = None
         if r.get("tracked_on") == "premium":
             day_high, day_low = strike_day_range(r.get("index"), strike, r.get("option_type"), r.get("date"))
@@ -333,12 +339,13 @@ def _ticket_lines(path, source):
             "id": r.get("trade_id") or "", "source": source, "date": r.get("date") or "",
             "time": (r.get("time_ist") or "")[:5] or None,
             "entry_time": opened_at.get(r.get("trade_id")), "instrument": r.get("index"),
-            "side": r.get("option_type"), "dir": "buy", "strike": strike,
+            "side": ("BUY" if r.get("option_type") == "CE" else "SELL") if cfd else r.get("option_type"),
+            "dir": "sell" if cfd and r.get("option_type") == "PE" else "buy", "strike": strike,
             "lots": lots, "lot_size": lot_size, "entry": entry, "exit": exit_price,
             # What the premium cost to buy - the money that was actually at risk.
-            "cost": round(entry * lots * lot_size, 2) if entry is not None else None,
+            "cost": round(entry * lots * lot_size, 2) if entry is not None and not cfd else None,
             "gross": round(pnl, 2), "charges": charges,
-            "charges_estimated": charges is not None,
+            "charges_estimated": charges is not None and not cfd,
             "net": None if charges is None else round(pnl - charges, 2),
             "status": _status_text(r.get("status"), pnl), "notes": "",
             # A live order: the venue that filled it (its entry, exit and result above are the real ones), else None

@@ -9,6 +9,7 @@ real order that day was exactly one lot. Fakes only - a temporary log folder.
 """
 import json
 import os
+os.environ["NBS_CRYPTO_VENUE"] = "delta"   # checks the Delta venue - the rollback path (config.CRYPTO_VENUE; Exness is exness_switch_test.py)
 import sys
 import tempfile
 

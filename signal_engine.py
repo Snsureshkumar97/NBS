@@ -918,7 +918,7 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     elif adx_blocked:
         bias = "NEUTRAL"
         action = (f"NO CLEAR TRADE - WAIT (indicators agree on {raw_bias.lower()}, but ADX="
-                  f"{tech.get('adx')} < {config.ADX_TREND_THRESHOLD} — trend too weak, high chop risk)")
+                  f"{tech.get('adx')} < {adx_needed:g} — trend too weak, high chop risk)")
     elif raw_bias == "BULLISH":
         bias = "BULLISH"
         action = "BUY CE (Call)"

@@ -709,6 +709,36 @@ if not (config.INSTRUMENTS.get("GOLD") or {}).get("enabled", True):
     SYSTEM = _without_gold(SYSTEM)
     DESK_SYSTEM = _without_gold(DESK_SYSTEM)
 
+# Since 3 Oct 2026 Bitcoin and gold come from Exness (config.CRYPTO_VENUE): CFDs, no options.
+# The Delta passage is swapped for one that says so, in both prompts - same mechanism as the
+# gold cut above. _DELTA_PASSAGE must match both prompts; exness_switch_test.py checks it does.
+_DELTA_PASSAGE = re.compile(r"on Delta Exchange India, options on Bitcoin and (?:on tokenised )?gold "
+                            r"\((?:in )?dollars, around the clock\)\. Gold \(GOLD\) is .*?"
+                            r"no real order is ever sent for gold\.\s*", re.S)
+EXNESS_PASSAGE = (
+    "through Exness (a CFD broker, on a demo account), Bitcoin (BTC, Exness's BTCUSD) and gold (GOLD, "
+    "XAUUSD) themselves, in dollars, around the clock - gold stops from Friday night to Sunday night and "
+    "pauses briefly each day. THERE ARE NO OPTIONS ON BITCOIN OR GOLD HERE: no option chain, no strikes, "
+    "no premium, no expiry, no Greeks, no open interest and no taker flow. A Bitcoin or gold ticket BUYS "
+    "the instrument itself (option_type CE) or SELLS it short (option_type PE) at its live price; its "
+    "target and stop are PRICE levels of BTCUSD or XAUUSD, never premiums, and it names no strike. Its "
+    "cost is Exness's bid-ask spread (about $10-17 on Bitcoin, about $0.26 an ounce on gold), paid on the "
+    "way in and out and counted in the result; an overnight swap is not counted. One lot is 1 BTC, or 100 "
+    "ounces of gold. Bitcoin and gold tickets are always paper: no order is ever sent to Exness. ")
+
+
+def _for_exness(text):
+    text = _DELTA_PASSAGE.sub(EXNESS_PASSAGE, text)
+    text = text.replace("taker_flow (Bitcoin only, always in the snapshot)",
+                        "taker_flow (Bitcoin only, and only while Bitcoin traded on Delta - on Exness there "
+                        "is no trade tape, so it is absent and the rest of this paragraph does not apply)")
+    return text.replace("on Bitcoin the perpetual's)", "on Bitcoin and gold, Exness's tick count)")
+
+
+if getattr(config, "CRYPTO_VENUE", "delta") == "exness":
+    SYSTEM = _for_exness(SYSTEM)
+    DESK_SYSTEM = _for_exness(DESK_SYSTEM)
+
 DECISION_TOOLS = {
     "entry": {"name": "submit_decision",
               "description": "Hand in the entry decision for this index: enter (with the contract, target and stop) "
@@ -716,9 +746,13 @@ DECISION_TOOLS = {
               "input_schema": {"type": "object", "properties": {
                   "action": {"type": "string", "enum": ["enter", "wait"]},
                   "option_type": {"type": "string", "enum": ["CE", "PE"], "description": "Needed to enter."},
-                  "strike": {"type": "number", "description": "A strike from the live chain. Needed to enter."},
-                  "target": {"type": "number", "description": "Take-profit premium. Needed to enter."},
-                  "stop": {"type": "number", "description": "Stop-loss premium. Needed to enter."},
+                  "strike": {"type": "number", "description": "A strike from the live chain. Needed to enter an "
+                                                               "option; leave it out on Bitcoin and gold (Exness, "
+                                                               "no options)."},
+                  "target": {"type": "number", "description": "Take-profit premium on an option; on Bitcoin and "
+                                                               "gold (Exness) the take-profit PRICE. Needed to enter."},
+                  "stop": {"type": "number", "description": "Stop-loss premium on an option; on Bitcoin and gold "
+                                                             "(Exness) the stop-loss PRICE. Needed to enter."},
                   "target_confidence": {"type": "integer", "minimum": 1, "maximum": 99,
                                         "description": "Needed to enter: your chance in percent that this trade "
                                                        "reaches its target before its stop or the session's close."},

@@ -42,6 +42,8 @@ EXCLUDED_ROUTES = {
     "/api/marketbot": "the bot's own status",
     "/api/option_tick/": "one contract's live quote, once a second - the same figures are in get_option_chart's live block",
     "/api/admin/users": "operator screen: other users' accounts",
+    "/api/btcseller": ("the paper option seller's own book (btc_seller.py) - one server-wide experiment, "
+                       "not market data, and off whenever Bitcoin comes from Exness, which has no options"),
 }
 PRIVATE_KEYS = {"user", "account", "email", "kite", "kite_user_id", "user_id", "kite_token",
                 "token", "access_token", "password", "session"}

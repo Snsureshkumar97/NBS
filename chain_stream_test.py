@@ -5,6 +5,7 @@ the chain endpoint laying streamed values over the snapshot. Fakes only."""
 import datetime as dt
 import json
 import os
+os.environ["NBS_CRYPTO_VENUE"] = "delta"   # checks the Delta venue - the rollback path (config.CRYPTO_VENUE; Exness is exness_switch_test.py)
 import sys
 import tempfile
 import time
@@ -373,3 +374,6 @@ check("the page marks a live PCR", "pcr_live" in open(os.path.join(os.path.dirna
       "web_server.py")).read() and '" · live"' in page)
 
 print("CHAIN STREAM TEST PASSED" if not fails else f"CHAIN STREAM TEST FAILED: {fails}")
+# It used to end here, so a failure still exited 0 and a test-suite run counted it as passed
+# (found 3 Oct 2026 while checking the Exness switch).
+sys.exit(1 if fails else 0)

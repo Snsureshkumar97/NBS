@@ -55,6 +55,13 @@ POLL_S = 2.0
 CANDLE_CACHE_S = 30.0
 SUFFIXES = ("", "m", "c", "r")
 IST = "Asia/Kolkata"
+# The tool's interval names -> MetaApi's timeframes (MetaApi documents 1m..1mn).
+TIMEFRAMES = {"1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m", "1h": "1h", "4h": "4h", "1d": "1d"}
+BAR_S = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
+# A quote whose last tick is older than this is a CLOSED market, not a quiet one: gold
+# stops from Friday night to Sunday night and pauses daily; Bitcoin trades around the
+# clock but Exness can halt it for maintenance. No new ticket opens on such a price.
+STALE_QUOTE_S = float(getattr(config, "CFD_STALE_QUOTE_S", 600))
 
 
 def creds():
@@ -78,14 +85,18 @@ class ExnessMetaApiProvider:
     questions it asks Delta and get honest empty answers."""
     QUOTES_IN_COIN = False
 
-    def __init__(self, session=None, timeout=15):
+    def __init__(self, session=None, timeout=30):
         self.session = session or requests.Session()
         self.timeout = timeout
         self._symbols = None
         self._resolved = {}
-        self._candles = {}                     # (symbol, days) -> (fetched_at, frame)
+        self._candles = {}                     # (symbol, timeframe) -> (fetched_at, UTC frame, days held)
         self._backoff_until = 0.0
         self._lock = threading.Lock()
+        # One lock per (symbol, timeframe): a slow first load of a year of daily candles
+        # (~8 s from MetaApi, measured 3 Oct 2026) must not hold up the 15-minute candles
+        # the signal is computed on.
+        self._fetch_locks = {}
 
     # ------------------------------------------------------------ plumbing
     def _get(self, base, path, **params):
@@ -114,6 +125,11 @@ class ExnessMetaApiProvider:
         if r.status_code == 404:
             raise RuntimeError("MetaApi: account not found / not deployed yet, or the symbol is not "
                                "on this account (404).")
+        if r.status_code == 504:
+            # MetaApi's own TimeoutError: "not connected to broker yet" (seen 3 Oct 2026 while the
+            # account was still UNDEPLOYED) - an account to switch on, not a request to retry hard.
+            raise RuntimeError("MetaApi: the Exness account is not connected to the broker right now (504) "
+                               "- check it is Deployed and Connected at app.metaapi.cloud.")
         r.raise_for_status()
         return r.json()
 
@@ -153,52 +169,89 @@ class ExnessMetaApiProvider:
         q = self._get(CLIENT, "/users/current/accounts/{account}/symbols/" + sym + "/current-price",
                       keepSubscription="true")
         bid, ask = float(q["bid"]), float(q["ask"])
+        try:
+            tick_at = pd.Timestamp(q["time"]).timestamp() if q.get("time") else None
+        except (TypeError, ValueError):
+            tick_at = None
         return {"symbol": sym, "bid": bid, "ask": ask, "mid": (bid + ask) / 2, "spread": ask - bid,
-                "time": q.get("time")}
+                "time": q.get("time"), "tick_at": tick_at}
 
     def spot(self, index_key):
         return self.quote(index_key)["mid"]
 
-    def get_ohlc(self, index_key, interval="15m", lookback_days=None):
-        """15-minute candles, newest last, IST index - paged backwards 1,000 at a
-        time from now, cached CANDLE_CACHE_S per symbol and length."""
-        if interval != "15m":
-            raise ValueError("Exness candles are wired for 15m only")
-        days = lookback_days or 5
-        sym = self.broker_symbol(index_key)
-        key = (sym, days)
-        with self._lock:
-            hit = self._candles.get(key)
-            if hit and time.time() - hit[0] < CANDLE_CACHE_S:
-                return hit[1].copy()
-        want_from = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)
-        start = pd.Timestamp.now(tz="UTC")
-        rows = []
-        for _ in range(40):
-            page = self._get(MARKET_DATA, "/users/current/accounts/{account}/historical-market-data/symbols/"
-                             + sym + "/timeframes/15m/candles",
-                             startTime=start.strftime("%Y-%m-%dT%H:%M:%S.000Z"), limit=1000) or []
-            if not page:
-                break
-            rows += page
-            oldest = min(pd.Timestamp(c["time"]) for c in page)
-            if oldest <= want_from or len(page) < 1000:
-                break
-            start = oldest - pd.Timedelta(milliseconds=1)
-        if not rows:
-            raise RuntimeError(f"MetaApi returned no candles for {sym}")
+    @staticmethod
+    def _frame(rows):
+        """MetaApi candle dicts -> the feed's columns, UTC index, oldest first, one row per time."""
         seen = {pd.Timestamp(c["time"]): c for c in rows}
-        ts = sorted(t for t in seen if t >= want_from)
+        ts = sorted(seen)
         df = pd.DataFrame({"Open": [float(seen[t]["open"]) for t in ts],
                            "High": [float(seen[t]["high"]) for t in ts],
                            "Low": [float(seen[t]["low"]) for t in ts],
                            "Close": [float(seen[t]["close"]) for t in ts],
                            "Volume": [float(seen[t].get("tickVolume") or 0.0) for t in ts]},
-                          index=pd.DatetimeIndex(ts).tz_convert(IST))
+                          index=pd.DatetimeIndex(ts).tz_convert("UTC"))
         df.index.name = "Date"
+        return df
+
+    def _page(self, sym, tf, start, limit):
+        return self._get(MARKET_DATA, "/users/current/accounts/{account}/historical-market-data/symbols/"
+                         + sym + "/timeframes/" + tf + "/candles",
+                         startTime=start.strftime("%Y-%m-%dT%H:%M:%S.000Z"), limit=int(limit)) or []
+
+    def get_ohlc(self, index_key, interval="15m", lookback_days=None):
+        """Candles, newest last, IST index.
+
+        ONE history per symbol and timeframe, shared by every caller (every user's
+        feed asks for the same two symbols): filled the first time by paging
+        backwards 1,000 at a time, then kept current by fetching only the bars since
+        the last one - so the live loop's every-pass ask costs one small request, at
+        most once per CANDLE_CACHE_S, instead of re-reading weeks of candles."""
+        tf = TIMEFRAMES.get(interval)
+        if tf is None:
+            raise ValueError(f"unknown interval {interval!r}; expected one of {sorted(TIMEFRAMES)}")
+        days = lookback_days or 5
+        sym = self.broker_symbol(index_key)
+        key = (sym, tf)
+        bar = pd.Timedelta(seconds=BAR_S[interval])
         with self._lock:
-            self._candles[key] = (time.time(), df)
-        return df.copy()
+            fetch_lock = self._fetch_locks.setdefault(key, threading.Lock())
+        with fetch_lock:
+            now = pd.Timestamp.now(tz="UTC")
+            want_from = now - pd.Timedelta(days=days)
+            hit = self._candles.get(key)
+            covers = hit is not None and len(hit[1]) and hit[1].index.min() <= want_from + bar
+            if covers and time.time() - hit[0] < CANDLE_CACHE_S:
+                df = hit[1]
+            elif covers:
+                # Topping up: the bars since the newest one held (the newest is
+                # refetched too - it was still forming when it was read).
+                missing = int((now - hit[1].index.max()) / bar) + 2
+                fresh = self._frame(self._page(sym, tf, now, min(1000, max(5, missing))) or [])
+                df = pd.concat([hit[1][~hit[1].index.isin(fresh.index)], fresh]).sort_index()
+                df = df[df.index >= now - pd.Timedelta(days=max(days, hit[2]))]
+                self._candles[key] = (time.time(), df, max(days, hit[2]))
+            else:
+                # Only as many bars as the lookback needs - 1,000 daily bars when 250 are
+                # wanted took MetaApi past the timeout (3 Oct 2026); 255 take ~8 s.
+                start, rows = now, []
+                need = int(pd.Timedelta(days=days) / bar) + 2
+                for _ in range(40):
+                    lim = min(1000, max(5, need - len(rows)))
+                    page = self._page(sym, tf, start, lim)
+                    if not page:
+                        break
+                    rows += page
+                    oldest = min(pd.Timestamp(c["time"]) for c in page)
+                    if oldest <= want_from or len(page) < lim:
+                        break
+                    start = oldest - pd.Timedelta(milliseconds=1)
+                if not rows:
+                    raise RuntimeError(f"MetaApi returned no candles for {sym}")
+                df = self._frame(rows)
+                self._candles[key] = (time.time(), df, days)
+        out = df[df.index >= want_from].copy()
+        out.index = out.index.tz_convert(IST)
+        return out
 
     # ------------------------------------------------------------ no options at Exness
     def get_option_chain(self, index_key, expiry=None):
@@ -220,12 +273,26 @@ class ExnessMetaApiProvider:
         raise ValueError("Exness has no option contracts")
 
 
+_SHARED = None
+_SHARED_LOCK = threading.Lock()
+
+
+def shared():
+    """The ONE provider every feed uses: one symbol list, one candle history per
+    symbol and timeframe, one 429 back-off - one MetaApi account behind them all."""
+    global _SHARED
+    with _SHARED_LOCK:
+        if _SHARED is None:
+            _SHARED = ExnessMetaApiProvider()
+        return _SHARED
+
+
 # ---------------------------------------------------------------- the shared live poller
 class _Poller:
     """ONE thread for the whole server: both symbols every POLL_S seconds."""
 
     def __init__(self, provider=None, poll_s=POLL_S):
-        self.provider = provider or ExnessMetaApiProvider()
+        self.provider = provider or shared()
         self.poll_s = poll_s
         self.keys = set()
         self.quotes = {}                        # broker symbol -> {bid, ask, mid, spread, at}
@@ -250,19 +317,36 @@ class _Poller:
                 self.last_error = str(exc)[:200]
                 continue
             t = now or time.time()
+            # The last tick's own time: a closed market (gold at the weekend) keeps answering
+            # with Friday's quote, and that must neither look live nor build flat bars.
+            tick_at = q.get("tick_at") or t
+            fresh = t - tick_at <= STALE_QUOTE_S
             with self.lock:
-                self.quotes[q["symbol"]] = dict(q, at=t)
-                start = int(t // 900) * 900
-                b = self.bars.get(q["symbol"])
-                if b is None or b["start"] != start:
-                    self.bars[q["symbol"]] = {"start": start, "open": q["mid"], "high": q["mid"],
-                                              "low": q["mid"], "close": q["mid"]}
+                self.quotes[q["symbol"]] = dict(q, at=t, tick_at=tick_at)
+                if fresh:
+                    start = int(t // 900) * 900
+                    b = self.bars.get(q["symbol"])
+                    if b is None or b["start"] != start:
+                        self.bars[q["symbol"]] = {"start": start, "open": q["mid"], "high": q["mid"],
+                                                  "low": q["mid"], "close": q["mid"]}
+                    else:
+                        b["high"] = max(b["high"], q["mid"])
+                        b["low"] = min(b["low"], q["mid"])
+                        b["close"] = q["mid"]
                 else:
-                    b["high"] = max(b["high"], q["mid"])
-                    b["low"] = min(b["low"], q["mid"])
-                    b["close"] = q["mid"]
+                    self.bars.pop(q["symbol"], None)
             self.last_tick_at = t
             self.last_error = None
+
+    def price_age(self, index_key, now=None):
+        """Seconds since this instrument's last real tick, or None before the first quote."""
+        try:
+            sym = self.provider.broker_symbol(index_key)
+        except Exception:
+            return None
+        with self.lock:
+            q = self.quotes.get(sym)
+        return None if not q else max(0.0, (now or time.time()) - q["tick_at"])
 
     def _run(self):
         while True:
@@ -350,9 +434,18 @@ class ExnessStreamer:
         return None
 
     def forming_bar(self, index_symbol):
+        """The bar being built, in the feed's own keys (start, o, h, l, c - what
+        DeltaStreamer and KiteStreamer hand feeds._df_with_live_bar)."""
         with self._p.lock:
             b = self._p.bars.get(self._sym(index_symbol))
-            return dict(b) if b else None
+            b = dict(b) if b else None
+        if not b:
+            return None
+        return dict(b, o=b["open"], h=b["high"], l=b["low"], c=b["close"])
+
+    def price_age(self, index_symbol):
+        """Seconds since the instrument's last real tick (STALE_QUOTE_S and over: closed)."""
+        return self._p.price_age(index_symbol)
 
     def age_seconds(self):
         t = self._p.last_tick_at

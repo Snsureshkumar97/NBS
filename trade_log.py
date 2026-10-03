@@ -201,7 +201,9 @@ def _base_row(trade, rec, now):
         # is unreadable a week later — one lot on a good move, or five on a
         # mediocre one?
         "lots": trade.get("lots", 1),
-        "tracked_on": "premium" if trade["use_premium"] else "index",
+        # "cfd": an Exness ticket - the instrument itself, bought (CE) or sold (PE). Marked
+        # on the row, so the journal tells it apart from the Delta option trades before it.
+        "tracked_on": "premium" if trade["use_premium"] else ("cfd" if trade.get("cfd") else "index"),
         "entry_spot": trade.get("entry_spot"),
         "risk_points": r.get("risk_points"),
         "reach_points": r.get("reach_points"),

@@ -6,6 +6,7 @@ It must never gate an entry. Fakes only - nothing trades, nothing reaches a venu
 import csv
 import json
 import os
+os.environ["NBS_CRYPTO_VENUE"] = "delta"   # checks the Delta venue - the rollback path (config.CRYPTO_VENUE; Exness is exness_switch_test.py)
 import shutil
 import subprocess
 import sys
