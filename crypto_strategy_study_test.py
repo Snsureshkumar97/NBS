@@ -115,6 +115,25 @@ check("T1 touched and the SAME bar closes back under it: price passed back throu
       "T1 (102) on that bar - not at the 101.5 close",
       cs.walk_live(hi, lo, cl, 0, "CE", 100, 95, 102, 104) == (102, 1, "stop"))
 
+print("5b. A GAP: FILLED AT THE REOPEN, NOT AT A PRICE THAT NEVER TRADED")
+hi, lo, cl = bars([(100, 100, 100), (101, 99.5, 100.5), (97, 93, 94)])
+op = np.array([100.0, 100.0, 96.0])
+check("a call whose bar OPENS above its 95 stop (at 96) and then trades down through it fills at the stop, 95",
+      cs.walk_live(hi, lo, cl, 0, "CE", 100, 95, 102, 104, op=op) == (95, 2, "stop"))
+op = np.array([100.0, 100.0, 94.0])
+check("...but reopening at 94, BELOW the 95 stop already in place, fills at 94 - not 95",
+      cs.walk_live(hi, lo, cl, 0, "CE", 100, 95, 102, 104, op=op) == (94.0, 2, "stop"))
+check("...and without opens (the old behaviour) it would have claimed 95",
+      cs.walk_live(hi, lo, cl, 0, "CE", 100, 95, 102, 104) == (95, 2, "stop"))
+hi, lo, cl = bars([(100, 100, 100), (101, 99.5, 100.5), (107, 105.5, 106)])
+op = np.array([100.0, 100.0, 105.5])
+check("a call the market reopens ABOVE its 104 target fills at the better open (105.5)",
+      cs.walk_live(hi, lo, cl, 0, "CE", 100, 95, 102, 104, op=op) == (105.5, 2, "target"))
+hi, lo, cl = bars([(100, 100, 100), (101, 99.5, 100.5), (106, 103, 104)])
+op = np.array([100.0, 100.0, 104.5])
+check("put mirror: a stop at 104 the market reopens ABOVE (104.5) fills at 104.5",
+      cs.walk_live(hi, lo, cl, 0, "PE", 100, 104, 98, 96, op=op) == (104.5, 2, "stop"))
+
 print("6. SEQUENCING - ONE POSITION AT A TIME")
 r = lambda w, x, s="CE": {"when": T(w), "exit_time": T(x), "side": s}
 kept = cs.sequential([r("2026-10-01 10:00", "2026-10-01 11:00"), r("2026-10-01 10:30", "2026-10-01 12:00"),

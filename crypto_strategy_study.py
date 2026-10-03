@@ -152,23 +152,33 @@ def price_perp(side, S0, S1, fee=FEE_PERP):
 
 # ---------------------------------------------------------------- exits (index points)
 def walk_live(hi, lo, cl, i, side, entry, stop, t1, target, st_line=None, be_bars=8,
-              max_bars=96, opp=None):
+              max_bars=96, opp=None, op=None):
     """Today's live BTC exit, bar by bar from i+1. Stop first inside a bar (the
     pessimistic order every study here uses), then T1 (moves the stop to T1 for
     the bars after), then the target closes it, then the stop updates that take
     effect from the next bar (breakeven after be_bars without T1, the Supertrend
     trail after T1), then a close on the clear opposite side. Returns
-    (exit_price, exit_bar, closed_via)."""
+    (exit_price, exit_bar, closed_via).
+
+    op (the bars' opens), when given, makes the fills honest across a GAP - a
+    market that reopens beyond a stop that was already in place (gold's daily
+    and weekend breaks, a data hole) fills at the reopening price, not at a stop
+    price that never traded; a target the market reopens beyond fills at that
+    better open the same way."""
     ce = side == "CE"
     n = len(cl)
     t1_done, be_done = False, False
     for j in range(i + 1, min(i + 1 + max_bars, n)):
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
+            if op is not None and ((op[j] < stop) if ce else (op[j] > stop)):
+                return op[j], j, "stop"           # opened beyond the stop: filled at the open
             return stop, j, "stop"
         if not t1_done and t1 is not None and ((hi[j] >= t1) if ce else (lo[j] <= t1)):
             t1_done = True
             stop = max(stop, t1) if ce else min(stop, t1)
         if target is not None and ((hi[j] >= target) if ce else (lo[j] <= target)):
+            if op is not None and ((op[j] > target) if ce else (op[j] < target)):
+                return op[j], j, "target"         # opened beyond the target: filled at the open
             return target, j, "target"
         set_by_price = stop                  # the stop as price itself has set it this bar (T1)
         if be_bars and not t1_done and not be_done and j - i >= be_bars:
@@ -296,15 +306,16 @@ def live_entries(df, need_rr, tag):
 
 def run_live(df, iv, entries, opp, st_line, adx, trail=True, reversal=True, be_bars=8, exit_key="t2"):
     """The live engine walked in INDEX points - what a perpetual position on the
-    same signals would do."""
+    same signals would do. Fills honour gaps (walk_live's `op`)."""
     hi, lo, cl = df["High"].to_numpy(), df["Low"].to_numpy(), df["Close"].to_numpy()
+    op = df["Open"].to_numpy() if "Open" in df else None
     pos = {t: n for n, t in enumerate(df.index)}
     out = []
     for tr in entries:
         i = pos[tr["when"]]
         px, j, via = walk_live(hi, lo, cl, i, tr["side"], tr["entry"], tr["stop"], tr.get("t1"),
                                tr.get(exit_key), st_line=st_line if trail else None, be_bars=be_bars,
-                               max_bars=96, opp=opp if reversal else None)
+                               max_bars=96, opp=opp if reversal else None, op=op)
         out.append({"when": df.index[i] + BAR, "exit_time": df.index[j] + BAR, "side": tr["side"],
                     "entry": tr["entry"], "exit": px, "i": i, "j": j,
                     "closed_via": "target" if via == "target" else ("stop" if via == "stop" else "other"),
