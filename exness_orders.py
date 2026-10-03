@@ -29,7 +29,6 @@ POSITION_CLOSE_ID, symbol, volume, stopLoss, takeProfit, positionId, comment, cl
 """
 import copy
 import datetime as dt
-import hashlib
 import json
 import math
 import os
@@ -85,7 +84,13 @@ class Client:
             return None
         if r.status_code >= 400:
             try:
-                msg = (r.json() or {}).get("message") or ""
+                body_ = r.json() or {}
+                msg = body_.get("message") or ""
+                # MetaApi names the field it refused (details: [{parameter, message}]) - say which.
+                det = "; ".join(f"{d.get('parameter')}: {d.get('message')}" for d in (body_.get("details") or [])
+                                if isinstance(d, dict))
+                if det:
+                    msg = f"{msg} - {det}"
             except ValueError:
                 msg = ""
             raise ExnessOrderError(f"MetaApi HTTP {r.status_code}{': ' + msg[:160] if msg else ''}"
@@ -302,8 +307,11 @@ class Executor:
             if need > free:
                 raise ExnessOrderError(f"Not enough free margin: {vol:g} lot needs about ${need:,.2f} at 1:{lev:g}, "
                                        f"the account has ${free:,.2f} free.")
+            # No clientId: MetaApi only accepts one shaped "<strategy>_<position>_<order>" (a plain
+            # "TP..." tag was refused as "Validation failed" on the first real order, 4 Oct 2026),
+            # and nothing here needs it - the position id MetaApi returns identifies the trade.
             body = {"actionType": "ORDER_TYPE_BUY" if side > 0 else "ORDER_TYPE_SELL", "symbol": sym, "volume": vol,
-                    "comment": "TradePicker", "clientId": "TP" + hashlib.sha1(tid.encode()).hexdigest()[:10]}
+                    "comment": "TradePicker"}
             if sl is not None:
                 body["stopLoss"] = round(float(sl), digits)
             if tp is not None:

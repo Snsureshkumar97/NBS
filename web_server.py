@@ -5701,6 +5701,14 @@ let LOTS_HOLD = 0;
 // than inside the no-ticket branch, because ladder() returns early once a
 // ticket is open - which is exactly when you are most likely to be reading it.
 function unitLabel(r){
+  if(r && r.cfd){
+    // Exness: a lot is 1 BTC, or 100 oz of gold; 0.01 the smallest.
+    const ll = $("lotslabel"); if(ll) ll.textContent = "Lots";
+    const w = $("lotswrap");
+    if(w) w.title = r.index === "GOLD" ? "Exness lots: 1 lot = 100 oz of gold, 0.01 lot = 1 oz"
+                                       : `Exness lots: 1 lot = 1 ${String(r.index || CUR || "")}, 0.01 the smallest`;
+    return;
+  }
   // Gold's lot is 100 contracts of 0.001 XAUT (contracts_per_lot), so it reads
   // "Lots" like the Indian indices, not "Contracts" like Bitcoin.
   const cpl = r.contracts_per_lot || 1;
@@ -5720,9 +5728,14 @@ function ladder(r, tk){
   // be showing numbers that trade is not being measured against.
   if(tk && tk.open){
     const prem = tk.tracked_on === "premium";
+    const cfd = !!tk.cfd;
     const base = tk.entry, tg = tk.targets || [null,null,null];
-    const dp = prem ? 2 : 0;
-    const per = (prem && tk.lot_size) ? tk.lot_size * (tk.lots||1) : 0;
+    const dp = (prem || cfd) ? 2 : 0;
+    // Exness: what each level is worth in dollars at this ticket's lots - the move the
+    // trade's way (a SELL gains as price falls) less the spread it paid.
+    const per = ((prem || cfd) && tk.lot_size) ? tk.lot_size * (tk.lots||1) : 0;
+    const sgn = (cfd && tk.option_type === "PE") ? -1 : 1;
+    const cost = cfd ? (tk.entry_spread || 0) * per : 0;
     $("lswitch").style.display = "none";
     // The stop shown is already wherever it has trailed to - tickets.py
     // updates tk.stop in place as each rung before the exit is crossed (22
@@ -5752,8 +5765,8 @@ function ladder(r, tk){
       }
       let rs = "";
       if(per && v!=null && base!=null){
-        const amt=(v-base)*per;
-        rs = money(amt);
+        const amt = sgn * (v - base) * per - cost;
+        rs = cfd ? money2(amt) : money(amt);
       }
       return `<div class="rung${done?" done":""}"><div class="k">${esc(label)}${
           done?` <span class="tick">✓ ${esc(when||"")}</span>`:""}</div>
@@ -5807,10 +5820,11 @@ function ladder(r, tk){
   $("lswitch").style.display = (r.targets||[]).some(v => v != null) ? "flex" : "none";
 
   const prem = mode === "premium";
+  const cfd = !!r.cfd;
   const tg   = (prem ? r.premium_targets : r.targets) || [null,null,null];
   const stop = prem ? r.premium_stop : r.stop;
   const base = prem ? r.ltp : r.spot;
-  const dp   = prem ? 2 : 0;      // premiums are paise; index points are not
+  const dp   = (prem || cfd) ? 2 : 0;      // premiums are paise, Exness prices cents; index points are not
 
   const exitAt = (r.exit_at || "T2").toUpperCase();
   const lbl = k => k === exitAt ? k + " · exit"
@@ -5822,15 +5836,19 @@ function ladder(r, tk){
   // What each level is worth in rupees, at the lot size Zerodha uses for this
   // index and the number of lots chosen above. Shown only on the premium
   // ladder, because a rupee figure against an index point is meaningless.
-  const per = (prem && r.lot_size) ? r.lot_size * LOTS : 0;
-  $("lotswrap").style.display = per ? "flex" : "none";
+  // On Exness the price IS the trade, so the dollars show there too: lot_size (1 BTC / 100 oz)
+  // x the lots chosen, the move the trade's way (a SELL gains as price falls), less the spread.
+  const per = ((prem || cfd) && r.lot_size) ? r.lot_size * LOTS : 0;
+  const sgn = (cfd && r.option_type === "PE") ? -1 : 1;
+  const cost = cfd ? (r.cfd_spread || 0) * per : 0;
+  $("lotswrap").style.display = (per || cfd) ? "flex" : "none";
 
   $("ladder").innerHTML = rungs.map(([k,v,c])=>{
     const pct=v==null?0:Math.min(100,Math.abs(v-(base||0))/spread*100);
     let rs = "";
     if(per && v!=null && base!=null){
-      const amt = (v - base) * per;
-      rs = money(amt);
+      const amt = sgn * (v - base) * per - cost;
+      rs = cfd ? money2(amt) : money(amt);
     }
     // The chance of TOUCHING this level before the bell, from live implied
     // volatility and the minutes actually left. Not exclusive: a trade can
@@ -8781,6 +8799,11 @@ function money(v, signed){
   const n = Math.abs(Math.round(v)).toLocaleString(ccyLocale());
   const sign = signed === false ? "" : (v >= 0 ? "+" : "\u2212");
   return sign + ccySym() + n;
+}
+// Dollars to the cent - an Exness ticket at 0.01 lot moves a few dollars, which whole-dollar
+// rounding would flatten to "+$3".
+function money2(v){
+  return (v >= 0 ? "+" : "\u2212") + "$" + num(Math.abs(v), 2);
 }
 // Written on every poll, so it only touches the DOM when something actually
 // changed - otherwise this is four needless mutations a second.

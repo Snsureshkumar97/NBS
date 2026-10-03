@@ -84,6 +84,11 @@ class FakeMetaApi:
                 return Resp(200, {"bid": 84000.0, "ask": 84010.0} if sym.startswith("BTC")
                             else {"bid": 4140.30, "ask": 4140.56})
             if method == "POST" and url.endswith("/trade"):
+                cid = (json or {}).get("clientId")
+                if cid is not None and not __import__("re").match(r"^[^_]+_[^_]+_[^_]+$", str(cid)):
+                    return Resp(400, {"error": "ValidationError", "message": "Validation failed (abc)",
+                                      "details": [{"parameter": "clientId", "message": "Invalid value. Value must "
+                                                   "match required pattern."}]})
                 self.trades.append((acc, json))
                 at = json.get("actionType")
                 if at in ("ORDER_TYPE_BUY", "ORDER_TYPE_SELL"):
@@ -190,8 +195,8 @@ t = fake.trades[-1][1]
 check("BUY 0.25 BTCUSDm (the account's own symbol name), stop 83700 and target T2 = 84600 attached",
       t["actionType"] == "ORDER_TYPE_BUY" and t["symbol"] == "BTCUSDm" and t["volume"] == 0.25
       and t["stopLoss"] == 83700.0 and t["takeProfit"] == 84600.0, t)
-check("tagged as the tool's own (comment + short clientId)", t["comment"] == "TradePicker" and t["clientId"].startswith("TP")
-      and len(t["clientId"]) <= 12)
+check("marked as the tool's own by its comment, and NO clientId (MetaApi refuses one not shaped strategy_position_order)",
+      t["comment"] == "TradePicker" and "clientId" not in t)
 check("sent to the DEMO account", fake.trades[-1][0] == DEMO)
 pos = ex.positions[trade["trade_id"]]
 check("held: Exness's own fill 84010 (the ask), the position id, the margin it needed",
