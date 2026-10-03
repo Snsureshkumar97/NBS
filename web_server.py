@@ -3616,7 +3616,17 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   font-variant-numeric:tabular-nums}
 .rung .od{width:52px;text-align:right;font-size:12px;opacity:.9;
   font-variant-numeric:tabular-nums}
-@media(max-width:560px){.rung .rs{display:none}}
+/* On a phone the money is what matters (the user, 4 Oct 2026: "i dont see how much i get for targets and
+   how much i loose for stop loss") - it used to be the column dropped here. The progress bar goes instead,
+   and the label takes what room is left: level, chance and money all fit a 375px screen. */
+@media(max-width:560px){
+  .rung{gap:8px}
+  .rung .bar{display:none}
+  .rung .k{flex:1;width:auto;min-width:0}
+  .rung .n{width:auto;min-width:74px;font-size:14px}
+  .rung .od{width:36px}
+  .rung .rs{width:auto;min-width:70px;font-weight:650}
+}
 
 /* ---------- chart ---------- */
 .chartwrap{background:var(--bg);border:1px solid var(--bd);
@@ -5721,8 +5731,39 @@ function unitLabel(r){
                          : ("one contract is one " + String(CUR||"").toUpperCase());
 }
 
+// The lots selector's choices and value - filled on EVERY render, signal or not, ticket or
+// not (on Exness the selector shows all the time, 4 Oct 2026: "i dont see lots").
+function lotsSync(){
+  // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
+  // list, so raising the cap in config raises it here too.
+  // Choices come from the server: whole lots for index options; for BTC a
+  // count of Delta Exchange contracts of 0.001 BTC each.
+  const sess = (LAST && LAST.session) || {};
+  const choices = sess.lot_choices || [1,2,3,4,5];
+  const sel = $("lots");
+  // The server's figure is the one a ticket is issued with, so it is the one
+  // shown - on every reading, not just the first. This used to sync once per
+  // page load, so a restart that reset the server to 1 lot left a page still
+  // showing 3 (23 Sep 2026: every ticket and real order went out at 1 lot
+  // under a selector that said otherwise). Only a change made here a moment
+  // ago is held against it (LOTS_HOLD), so a poll already in flight cannot
+  // flip the selector back.
+  if(sess.lots != null && (!LOTS_SYNCED || Date.now() >= LOTS_HOLD)){ LOTS = sess.lots; LOTS_SYNCED = true; }
+  const sig = choices.join(",");
+  if(sel.dataset.sig !== sig){
+    sel.innerHTML = "";
+    choices.forEach(v => sel.add(new Option(String(v), String(v))));
+    sel.dataset.sig = sig;
+  }
+  if(!choices.includes(LOTS)){
+    LOTS = choices.reduce((a,b) => Math.abs(b-LOTS) < Math.abs(a-LOTS) ? b : a, choices[0]);
+  }
+  sel.value = String(LOTS);
+}
+
 function ladder(r, tk){
   unitLabel(r);
+  lotsSync();
   // A ticket outranks the live reading. Once one is issued its levels are
   // frozen, and showing the recalculated ones beside an open position would
   // be showing numbers that trade is not being measured against.
@@ -5736,7 +5777,13 @@ function ladder(r, tk){
     const per = ((prem || cfd) && tk.lot_size) ? tk.lot_size * (tk.lots||1) : 0;
     const sgn = (cfd && tk.option_type === "PE") ? -1 : 1;
     const cost = cfd ? (tk.entry_spread || 0) * per : 0;
-    $("lswitch").style.display = "none";
+    // On Exness the lots stay in reach with a ticket open (for the NEXT ticket - this one's
+    // lots are frozen); the index / premium buttons mean nothing there.
+    $("lswitch").style.display = cfd ? "flex" : "none";
+    if(cfd){
+      $("lb-index").style.display = "none"; $("lb-premium").style.display = "none";
+      $("lotswrap").style.display = "flex";
+    }
     // The stop shown is already wherever it has trailed to - tickets.py
     // updates tk.stop in place as each rung before the exit is crossed (22
     // Sep 2026) - so only a label naming which rung it last climbed through
@@ -5817,7 +5864,11 @@ function ladder(r, tk){
   if(!havePrem && mode === "premium") mode = "index";
   $("lb-index").classList.toggle("on", mode === "index");
   pb.classList.toggle("on", mode === "premium");
-  $("lswitch").style.display = (r.targets||[]).some(v => v != null) ? "flex" : "none";
+  // Exness: the lots always show (with or without a signal) and the index / premium switch
+  // does not - there is no option premium to switch to.
+  $("lswitch").style.display = ((r.targets||[]).some(v => v != null) || r.cfd) ? "flex" : "none";
+  $("lb-index").style.display = r.cfd ? "none" : "";
+  pb.style.display = r.cfd ? "none" : "";
 
   const prem = mode === "premium";
   const cfd = !!r.cfd;
@@ -5899,31 +5950,6 @@ function ladder(r, tk){
     if(ladderNote) ladderNote.textContent = "";
   }
 
-  // Lot choices come from the server's own MAX_LOTS rather than a hard-coded
-  // list, so raising the cap in config raises it here too.
-  // Choices come from the server: whole lots for index options; for BTC a
-  // count of Delta Exchange contracts of 0.001 BTC each.
-  const sess = (LAST && LAST.session) || {};
-  const choices = sess.lot_choices || [1,2,3,4,5];
-  const sel = $("lots");
-  // The server's figure is the one a ticket is issued with, so it is the one
-  // shown - on every reading, not just the first. This used to sync once per
-  // page load, so a restart that reset the server to 1 lot left a page still
-  // showing 3 (23 Sep 2026: every ticket and real order went out at 1 lot
-  // under a selector that said otherwise). Only a change made here a moment
-  // ago is held against it (LOTS_HOLD), so a poll already in flight cannot
-  // flip the selector back.
-  if(sess.lots != null && (!LOTS_SYNCED || Date.now() >= LOTS_HOLD)){ LOTS = sess.lots; LOTS_SYNCED = true; }
-  const sig = choices.join(",");
-  if(sel.dataset.sig !== sig){
-    sel.innerHTML = "";
-    choices.forEach(v => sel.add(new Option(String(v), String(v))));
-    sel.dataset.sig = sig;
-  }
-  if(!choices.includes(LOTS)){
-    LOTS = choices.reduce((a,b) => Math.abs(b-LOTS) < Math.abs(a-LOTS) ? b : a, choices[0]);
-  }
-  sel.value = String(LOTS);
 
   // The note carries the caveat rather than a tooltip, because the premium
   // numbers are a delta approximation and saying so quietly would be worse
