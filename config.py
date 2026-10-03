@@ -1002,6 +1002,27 @@ EARLY_EXIT_ON_REVERSAL = True
 # Switched on 29 Sep 2026 at the user's choice.
 TIME_BREAKEVEN_MINUTES = 120        # 0 disables
 
+# Per market since 3 Oct 2026: OFF for crypto (BTC and gold) - the user, "remove the 2h breakeven
+# for btc and gold" - after exness_adx_study.py found it the biggest single drag on both on Exness's
+# own prices (BTC at ADX 20: -1,346 in-sample / +31,921 held-out per BTC with it, +35,693 / +55,651
+# without; gold: +28,981 / +129,367 per lot with it, about +75k / +152k without), and crypto_
+# strategy_study.py found removing it helped every BTC vehicle on Delta too. The Indian indices keep
+# TIME_BREAKEVEN_MINUTES, untouched. Worth knowing: the 29 Sep study behind the Indian setting filled a
+# breakeven stop at entry even on bars trading wholly below it (nbs-btc-strategy-study), so its NSE
+# benefit may be overstated - not re-tested, not changed. A market missing here uses the global.
+TIME_BREAKEVEN_BY_MARKET = {"crypto": 0}
+
+
+def time_breakeven_minutes(index_key=None):
+    """The breakeven wait for this instrument's market: its own value in
+    TIME_BREAKEVEN_BY_MARKET (crypto: 0 = off), else TIME_BREAKEVEN_MINUTES. Read at
+    call time, so a test or setting that changes the global still moves every market
+    without its own value."""
+    market = (INSTRUMENTS.get(index_key) or {}).get("market") if index_key else None
+    by = globals().get("TIME_BREAKEVEN_BY_MARKET") or {}
+    m = market or DEFAULT_MARKET
+    return by[m] if m in by else globals().get("TIME_BREAKEVEN_MINUTES", 0)
+
 _STRICTNESS = {
     "strict":   {"min_agree": 3, "max_dissent": 1, "adx": 20, "min_rr": 0.6},
     "balanced": {"min_agree": 3, "max_dissent": 2, "adx": 18, "min_rr": 0.45},

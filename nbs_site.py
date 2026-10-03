@@ -940,7 +940,7 @@ def _time_breakeven_text():
         return ""
     hours = minutes / 60.0
     when = f"{hours:g} hours" if hours != 1 else "an hour"
-    return (f" If T1 is not reached within {when} of entry the stop tightens to "
+    return (f" On the Indian indices, if T1 is not reached within {when} of entry the stop tightens to "
             "breakeven and never loosens again &mdash; it does not close the "
             "ticket by itself, only gives less back if a stalled trade turns "
             "&mdash; in use from 29 Sep 2026, see "

@@ -771,7 +771,9 @@ class TicketBook:
         # itself; target, the real stop and square-off are all unaffected. A T1 touch already
         # ratchets the stop to T1 above, more favourable than breakeven, so this only ever
         # matters — and only ever tightens further — while T1 is still untouched.
-        wait_min = _cfg("TIME_BREAKEVEN_MINUTES", 0)
+        # Per market (config.time_breakeven_minutes): off for crypto since 3 Oct 2026, the
+        # Indian indices unchanged.
+        wait_min = config.time_breakeven_minutes(trade.get("index") or book.name)
         if (wait_min and not trade["sl_hit"] and not trade["hit"]["T1"]
                 and not trade["time_breakeven_done"]):
             elapsed_min = (now_ist() - trade["entry_ts"]).total_seconds() / 60.0

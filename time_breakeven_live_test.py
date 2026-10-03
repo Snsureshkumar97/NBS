@@ -123,6 +123,34 @@ check("stop is still the original - the flag being 0 turns the whole mechanic of
 
 config.TIME_BREAKEVEN_MINUTES = was_minutes
 
+print("7. PER MARKET (3 Oct 2026): OFF FOR CRYPTO - BTC AND GOLD - THE INDIAN INDICES UNCHANGED")
+check("the accessor: 120 for every Indian index, 0 (off) for BTC and gold",
+      all(config.time_breakeven_minutes(k) == was_minutes for k in ("NIFTY", "BANKNIFTY", "SENSEX"))
+      and config.time_breakeven_minutes("BTC") == 0 and config.time_breakeven_minutes("GOLD") == 0)
+was_crypto = config.ENABLE_CRYPTO
+config.ENABLE_CRYPTO = True               # the server's own setting (an env var, off on a dev machine)
+cb = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(tempfile.mkdtemp(), "c.csv"))
+config.ENABLE_CRYPTO = was_crypto
+bt_ = mk()
+bt_.update({"index": "BTC", "trade_id": "BTC-tbtest"})
+cb.books["BTC"].trade = bt_
+advance(was_minutes + 30)                  # well past the Indian wait, T1 never touched
+cb.tick_price("BTC", 95.0)
+check("a BTC ticket 2.5h in with T1 untouched keeps its ORIGINAL stop (70) - no breakeven on crypto",
+      cb.books["BTC"].trade["premium_sl"] == 70.0 and not cb.books["BTC"].trade["time_breakeven_done"],
+      cb.books["BTC"].trade["premium_sl"])
+nb = book()
+nb.books["NIFTY"].trade = mk()
+advance(was_minutes + 30)
+nb.tick_price("NIFTY", 95.0)
+check("...while a NIFTY ticket in the same position still tightens to breakeven (90) as before",
+      nb.books["NIFTY"].trade["premium_sl"] == 90.0, nb.books["NIFTY"].trade["premium_sl"])
+was_by = dict(config.TIME_BREAKEVEN_BY_MARKET)
+config.TIME_BREAKEVEN_BY_MARKET = {}
+check("a market with no value of its own falls back to the global (crypto would get 120 again)",
+      config.time_breakeven_minutes("BTC") == was_minutes)
+config.TIME_BREAKEVEN_BY_MARKET = was_by
+
 print()
 if fails:
     print(f"TIME BREAKEVEN LIVE TEST FAILED - {len(fails)}: " + "; ".join(fails))
