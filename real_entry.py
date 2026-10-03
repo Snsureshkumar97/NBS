@@ -15,7 +15,11 @@ that decides or records a trade reads a different number.
 
 def apply(executor, t):
     """Overlay the executor's fill onto a public open ticket `t` (a dict, changed in place). True when it did."""
-    if executor is None or not t or not t.get("open") or t.get("tracked_on") != "premium" or not t.get("trade_id"):
+    if executor is None or not t or not t.get("open") or not t.get("trade_id"):
+        return False
+    if t.get("cfd"):
+        return _apply_cfd(executor, t)
+    if t.get("tracked_on") != "premium":
         return False
     try:
         got = executor.real_entry(t["trade_id"])
@@ -31,4 +35,21 @@ def apply(executor, t):
     t["entry_venue"] = venue
     if t.get("pnl") is not None and t.get("lot_size"):
         t["pnl"] = round(t["pnl"] - (fill - signal) * t["lot_size"] * t.get("lots", 1), 2)
+    return True
+
+
+def _apply_cfd(executor, t):
+    """An Exness ticket with a real position: Exness's own fill as the entry, and Exness's own
+    running profit (which already holds the spread and any swap) as the result."""
+    try:
+        got = executor.real_entry(t["trade_id"])
+        pnl = executor.real_pnl(t["trade_id"]) if hasattr(executor, "real_pnl") else None
+    except Exception:
+        return False
+    if not got or t.get("entry") is None:
+        return False
+    fill, venue = got
+    t["entry_signal"], t["entry"], t["entry_real"], t["entry_venue"] = t["entry"], fill, True, venue
+    if pnl is not None:
+        t["pnl"] = round(pnl, 2)
     return True

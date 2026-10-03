@@ -490,8 +490,8 @@ def _public_base(rec, name=None):
         "macd_blocked": rec.get("macd_blocked"),
         # Which rung actually ends the trade. The ticket freezes this at entry;
         # before a ticket exists the page still needs it to label the ladder.
-        "exit_at": (lambda v: v if v in ("T1", "T2", "T3") else "T3")(
-            str(getattr(config, "EXIT_AT_TARGET", "T3") or "T3").upper()),
+        "exit_at": ("T3" if rec.get("target_basis") == "plain_r" else (lambda v: v if v in ("T1", "T2", "T3") else "T3")(
+            str(getattr(config, "EXIT_AT_TARGET", "T3") or "T3").upper())),
         "odds": _ladder_odds(rec, tech),
         # What the trade costs to do, so the page can show the reward and the
         # risk after charges rather than before them.
@@ -570,6 +570,13 @@ class Feed:
             self.live = delta_orders.for_account(email, self.tickets.path,
                                                  close_ticket=self.tickets.close_ticket,
                                                  mark=self._crypto_mark)
+            self.tickets.listeners.append(self.live.on_ticket_event)
+        elif self.tickets.path and config.MARKETS[self.market]["market_provider"] == "exness":
+            # Bitcoin and gold on the user's OWN Exness account (exness_orders.py): off until switched
+            # on per instrument, with a demo or a real account chosen; stop-loss and take-profit rest
+            # at Exness itself.
+            import exness_orders
+            self.live = exness_orders.for_account(email, self.tickets.path, close_ticket=self.tickets.close_ticket)
             self.tickets.listeners.append(self.live.on_ticket_event)
         self.tickets.fill_source = self.live
         self.tickets.fresh_price = self._fresh_premium

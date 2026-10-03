@@ -1072,6 +1072,20 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     # ---- Real option premium (LTP) for the suggested strike, if we have chain data ----
     live_ltp = _find_strike_ltp(oi, suggested_strike, option_type) if option_type else None
 
+    # ---- A CFD's own exit plan (config.cfd_exit_plan; cfd_tick_study.py, 3 Oct 2026) ----
+    # One target at plain_r x the stop distance (T1 and T2 shown on the way at a third and two
+    # thirds of it - waypoints only, they move nothing). Every gate above decided on the market-
+    # reach ladder, and the ticket gate keeps reading it (gate_targets), so the same signals
+    # qualify as were tested.
+    gate_targets = None
+    plan = config.cfd_exit_plan(index_key)
+    if plan and plan.get("plain_r") and option_type and index_targets[0] is not None and risk_points:
+        gate_targets = list(index_targets)
+        sign = 1 if option_type == "CE" else -1
+        r_mult = float(plan["plain_r"])
+        index_targets = [round(spot + sign * risk_points * r_mult * f / 3, 2) for f in (1, 2, 3)]
+        target_basis = "plain_r"
+
     premium_targets = [None, None, None]
     premium_sl = None
     premium_source = None
@@ -1136,6 +1150,7 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         "strike_taken": strike_taken,                 # True when no strike near the money is free to trade today
         "option_type": option_type,
         "index_targets": index_targets,          # [T1, T2, T3]
+        "gate_targets": gate_targets,            # the market-reach ladder the gates read, when a CFD exit plan replaced it
         "index_stop_loss": index_sl,
         "live_ltp": live_ltp,                     # real premium, if chain data was available
         "spread": _find_strike_quote(oi, suggested_strike, option_type),  # bid/ask/pct of mid

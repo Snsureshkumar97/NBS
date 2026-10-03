@@ -210,5 +210,23 @@ write_trades(d, [op("O-1", "OPEN", index="BTC"), op("O-2", "OPEN", index="BTC")]
 paper = vp.open_paper_trades(d, blocked_ids={"O-1"})
 check("O-1 is withheld (already counted as real elsewhere), O-2 still reported", {p[0] for p in paper} == {"O-2"}, paper)
 
+print("16. EXNESS (3 Oct 2026): AN OPEN POSITION BLOCKS; AN ORDER THAT NEVER WENT THROUGH DOES NOT")
+fresh_home()
+d = account("exness_acct")
+write_sidecar(d, ".exness_live.json", {"BTC-9": {"state": "open", "index": "BTC"}})
+ok, lines = vp.check()
+check("an open Exness position blocks, named by its file and trade id", ok is False
+      and any("trades.csv.exness_live.json" in l and "BTC-9" in l for l in lines), lines)
+for state in ("attention", "some-new-state"):
+    fresh_home()
+    write_sidecar(account("x"), ".exness_live.json", {"G-1": {"state": state}})
+    check(f"Exness state={state!r} blocks (fail-safe)", vp.check()[0] is False)
+fresh_home()
+write_sidecar(account("y"), ".exness_live.json", {"G-2": {"state": "failed"}, "G-3": {"state": "closed"}})
+check("Exness 'failed' (never placed) and 'closed' do not block", vp.check()[0] is True)
+fresh_home()
+write_sidecar(account("z"), ".delta.json", {"D-1": {"state": "failed"}})
+check("...while Delta's 'failed' still blocks, exactly as before", vp.check()[0] is False)
+
 print("VM PRECHECK TEST PASSED" if not fails else f"VM PRECHECK TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

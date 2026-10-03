@@ -93,7 +93,9 @@ def reward_risk_t3(name, rec):
     if not need:
         return None, None
     spot, risk = rec.get("spot"), rec.get("risk_points")
-    tg = rec.get("index_targets") or [None, None, None]
+    # A CFD exit plan replaces the shown targets; the gate keeps the market-reach ladder it was
+    # tested on (signal_engine's gate_targets).
+    tg = rec.get("gate_targets") or rec.get("index_targets") or [None, None, None]
     t3 = tg[2] if len(tg) > 2 else None
     if spot is None or not risk or t3 is None:
         return None, None
@@ -788,7 +790,7 @@ class TicketBook:
                 trade["hit"][key] = True
                 trade["hit_time"][key] = now_ist().strftime("%H:%M:%S")
                 events.append({"kind": "target", "index": book.name, "target": key, "price": price, "level": tv})
-                if tv is not None and i < exit_i and not trade["sl_hit"]:
+                if tv is not None and i < exit_i and not trade["sl_hit"] and not trade.get("plain_exit"):
                     trade[sl_field] = tv
                     ratcheted = True
 
@@ -832,7 +834,7 @@ class TicketBook:
         # rather than guessing a level.
         st = rec.get("supertrend") if rec else None
         if (_cfg("TRAIL_AFTER_T1_SUPERTREND", True) and trade["hit"]["T1"]
-                and not trade["sl_hit"] and st is not None):
+                and not trade["sl_hit"] and st is not None and not trade.get("plain_exit")):
             if trade["use_premium"]:
                 sign = 1 if opt == "CE" else -1
                 st_level = trade["entry_ltp"] + sign * config.APPROX_ATM_DELTA * (st - trade["entry_spot"])
@@ -869,6 +871,14 @@ class TicketBook:
                 trade["status"] = "CLOSED — signal reversed and held"
                 book.confirm_since = time.time()
                 book.confirm_streak = 1
+
+        # A CFD (Exness) is held 24 hours at most - the limit every Exness study walked with (96
+        # fifteen-minute bars) - closed at the market after that. Options had their own expiry to
+        # end them; a CFD has none, and every night held costs a buy its overnight swap.
+        if trade["status"] == "OPEN" and trade.get("cfd"):
+            limit = _cfg("CFD_MAX_HOLD_MINUTES", 0)
+            if limit and (now_ist() - trade["entry_ts"]).total_seconds() / 60.0 >= limit:
+                trade["status"] = f"CLOSED — time limit ({limit / 60:g} hours) reached"
 
         if trade["status"] != "OPEN":
             events.append(self._close(book, trade, price, rec))
@@ -1318,8 +1328,10 @@ class TicketBook:
             # paid to get in and out is its cost - frozen with the entry.
             "cfd": cfd,
             "entry_spread": rec.get("cfd_spread") if cfd else None,
-            "exit_at": (_cfg("EXIT_AT_TARGET", "T3")
-                        if _cfg("EXIT_AT_TARGET", "T3") in TARGET_KEYS else "T3"),
+            # A CFD exit plan (config.cfd_exit_plan): ONE target, nothing moves the stop on the way.
+            "plain_exit": rec.get("target_basis") == "plain_r",
+            "exit_at": ("T3" if rec.get("target_basis") == "plain_r"
+                        else _cfg("EXIT_AT_TARGET", "T3") if _cfg("EXIT_AT_TARGET", "T3") in TARGET_KEYS else "T3"),
             "index_targets": rec["index_targets"],
             "index_sl": rec["index_stop_loss"],
             "premium_targets": rec["premium_targets"],
@@ -1461,14 +1473,18 @@ class TicketBook:
             book.trade = None
             return None
 
-    def close_ticket(self, name, status, price=None):
+    def close_ticket(self, name, status, price=None, trade_id=None):
         """Close an open ticket for a stated reason - the live-order intraday
         close at 15:20, an AI exit - logged at the price
         that caused it when there is one, else the ticket's own streamed price,
-        else the chain's (which can be a REST pass old)."""
+        else the chain's (which can be a REST pass old). With trade_id, only that
+        ticket: a broker closing an older position (Exness's own stop, after a
+        restart) must never close a newer ticket on the same instrument."""
         with self.lock:
             book = self.books.get(name)
             if not book or book.trade is None or book.trade["status"] != "OPEN":
+                return None
+            if trade_id is not None and book.trade.get("trade_id") != trade_id:
                 return None
             px = price if price is not None else book.live
             if px is None:

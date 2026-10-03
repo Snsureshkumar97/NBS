@@ -248,6 +248,90 @@ check("DESK_SYSTEM: taker flow marked absent on Exness", "no trade tape" in mark
 check("the entry tool says target/stop are PRICES on Exness",
       "the take-profit PRICE" in market_bot.DECISION_TOOLS["entry"]["input_schema"]["properties"]["target"]["description"])
 
+print("12. A CFD EXIT PLAN - ONE TARGET AT 3R, NOTHING MOVES THE STOP; AND THE 24-HOUR LIMIT")
+import signal_engine as se
+OI = se.compute_option_chain_signal(None)
+
+
+def tech(close, adx=30):
+    return {"last_close": close, "last_rsi": 55.0, "last_atr": 300.0, "trend_score": 1, "macd_score": 1,
+            "macd_hist": 5.0, "rsi_score": 1, "vwap_score": 1, "di_score": 0, "st_score": 0, "vol_score": 0,
+            "adx": adx, "adx_ok": True, "vwap": close - 50, "vwap_gap": 50.0, "last_swing_low": close - 800,
+            "last_swing_high": close + 800, "total_score": 4, "max_score": 4}
+
+
+REACH = {"available": True, "reach_up": 1500.0, "reach_down": 1500.0, "cap_up": "the day's range",
+         "cap_down": "the day's range"}
+_shipped = dict(config.CFD_EXIT_PLAN)
+config.CFD_EXIT_PLAN = {}
+base = se.build_recommendation("BTC", tech(84000.0), OI, 400, reach=REACH)
+config.CFD_EXIT_PLAN = _shipped
+check("without a plan: the market-reach ladder (0.4/0.7/1.0 of 1,500)", base["target_basis"] == "market_reach"
+      and base["index_targets"] == [84600.0, 85050.0, 85500.0] and base["gate_targets"] is None, base["index_targets"])
+check("SHIPPED: plain 5R for both BTC and GOLD (cfd_tick_study.py, 3 Oct 2026)",
+      config.CFD_EXIT_PLAN == {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}, config.CFD_EXIT_PLAN)
+was_plan = dict(config.CFD_EXIT_PLAN)
+config.CFD_EXIT_PLAN = {}
+base = se.build_recommendation("BTC", tech(84000.0), OI, 400, reach=REACH)
+config.CFD_EXIT_PLAN = {"BTC": {"plain_r": 3.0}}
+pr = se.build_recommendation("BTC", tech(84000.0), OI, 400, reach=REACH)
+R = pr["risk_points"]
+check(f"with plain_r 3: T1/T2/T3 = 1R/2R/3R from 84,000 (R = {R:g})",
+      pr["target_basis"] == "plain_r" and pr["index_targets"] == [round(84000 + R, 2), round(84000 + 2 * R, 2),
+                                                                  round(84000 + 3 * R, 2)], pr["index_targets"])
+check("...the stop is the same one", pr["index_stop_loss"] == base["index_stop_loss"])
+check("the ticket gate still reads the market-reach ladder it was tested on",
+      pr["gate_targets"] == base["index_targets"] and tickets.reward_risk_t3("BTC", pr) == tickets.reward_risk_t3("BTC", base))
+config.CFD_EXIT_PLAN = {"BTC": {"plain_r": 3.0}}
+check("a plan is per instrument - set for BTC only, gold keeps the ladder", config.cfd_exit_plan("GOLD") is None)
+check("an Indian index never takes a CFD plan", config.cfd_exit_plan("NIFTY") is None)
+pub = feeds._public(dict(pr, technical={}, trend={}), "BTC")
+check("the Signal card names T3 as the exit for a plain plan", pub["exit_at"] == "T3")
+bk5 = crypto_book()
+b5 = bk5.books["BTC"]
+bk5.lots = 0.1
+bk5._open(b5, dict(pr, cfd_spread=10.0, quote_age_s=1.0))
+t5 = b5.trade
+check("the ticket: plain_exit, exit at T3", t5["plain_exit"] is True and t5["exit_at"] == "T3")
+stop0 = t5["index_sl"]
+bk5.tick_price("BTC", 84000 + R + 1)
+bk5.tick_price("BTC", 84000 + 2 * R + 1)
+check("T1 and T2 reached: marked, but the stop has NOT moved", t5["hit"]["T1"] and t5["hit"]["T2"]
+      and t5["index_sl"] == stop0 and t5["status"] == "OPEN", t5["index_sl"])
+ev = bk5.tick_price("BTC", 84000 + 3 * R + 1)
+check("T3 reached: closed as the full target", any(e.get("kind") == "closed" for e in ev) and "T3 hit" in t5["status"],
+      t5["status"])
+bk6 = crypto_book()
+bk6._open(bk6.books["BTC"], dict(base, cfd_spread=10.0, quote_age_s=1.0))
+t6 = bk6.books["BTC"].trade
+check("without a plan the engine's own ladder is unchanged: not plain, exit at T2", t6["plain_exit"] is False
+      and t6["exit_at"] == config.EXIT_AT_TARGET)
+_now["t"] = _now["t"] + dt.timedelta(minutes=config.CFD_MAX_HOLD_MINUTES - 1)
+bk6.tick_price("BTC", 84000.0)
+check("23h59m in: still open", t6["status"] == "OPEN")
+_now["t"] = _now["t"] + dt.timedelta(minutes=2)
+ev = bk6.tick_price("BTC", 84010.0)
+check("24 hours: closed at the market as a time limit", t6["status"].startswith("CLOSED — time limit (24 hours)")
+      and any(e.get("kind") == "closed" for e in ev), t6["status"])
+nb6 = tickets.TicketBook(market="nse_index")
+nt = {"index": "NIFTY", "option_type": "CE", "strike": 25000, "entry_time": "10:00:00", "entry_spot": 25000.0,
+      "entry_ts": _now["t"] - dt.timedelta(days=2), "entry_ltp": 100.0, "use_premium": True, "lot_size": 65, "lots": 1,
+      "exit_at": "T2", "index_targets": [], "index_sl": None, "premium_targets": [120.0, 140.0, 160.0],
+      "premium_sl": 80.0, "hit": {"T1": False, "T2": False, "T3": False}, "hit_time": {"T1": None, "T2": None, "T3": None},
+      "sl_hit": False, "sl_hit_time": None, "time_breakeven_done": True, "status": "OPEN", "trade_id": "N-1"}
+nb6.books["NIFTY"].trade = nt
+nb6.tick_price("NIFTY", 100.0)
+check("an Indian option ticket has no such limit (2 days old, still open)", nt["status"] == "OPEN", nt["status"])
+config.CFD_EXIT_PLAN = was_plan
+bk7 = crypto_book()
+bk7._open(bk7.books["BTC"], dict(base, cfd_spread=10.0, quote_age_s=1.0))
+newer = bk7.books["BTC"].trade["trade_id"]
+check("a broker close naming an OLDER ticket leaves the newer one open",
+      bk7.close_ticket("BTC", "CLOSED — stop-loss hit (filled at Exness)", 83000.0, trade_id="BTC-older") is None
+      and bk7.books["BTC"].trade is not None)
+check("...the same close naming THIS ticket closes it", bk7.close_ticket("BTC", "CLOSED — stop-loss hit (filled at Exness)",
+      83000.0, trade_id=newer) is not None and bk7.books["BTC"].trade is None)
+
 print()
 if fails:
     print(f"EXNESS SWITCH TEST FAILED - {len(fails)}: " + "; ".join(fails))

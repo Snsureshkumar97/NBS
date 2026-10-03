@@ -708,6 +708,35 @@ if CRYPTO_VENUE == "exness":
 CFD_STALE_QUOTE_S = 600
 
 
+# A CFD's own exit plan (cfd_tick_study.py - the exits judged on Exness's REAL ticks, 3 Oct 2026).
+# Not listed = the engine's own ladder (T1 moves the stop up, the Supertrend trail, the exit at
+# EXIT_AT_TARGET). {"plain_r": 3.0} = ONE target at 3 x the stop distance and nothing in between:
+# no T1 step and no trail - the stop stays where it was set until the target or the stop (or the
+# reversal exit) ends the trade. The entry gates still read the market-reach ladder, so exactly
+# the signals the study tested qualify.
+#
+# 5R for both, 3 Oct 2026 - the user: "use the best strategy that works in exness". On 3 years of
+# Exness's REAL ticks, after the spread and the overnight swap ($ per lot; in-sample / held-out):
+#   GOLD  today's ladder   +20,906 / -28,813     plain 5R  +56,790 / +63,541 (PF 1.13 / 1.09)
+#         every plain target 2.5R-6R was profitable in both periods; 5R the peak (6R falls away).
+#   BTC   today's ladder   -59,118 /  +5,623     plain 5R  -20,876 / +10,687
+#         better than today in BOTH periods, but still a LOSS in-sample: no exit tested makes the
+#         Bitcoin signals profitable on Exness. Same plan as gold so the two read alike.
+# Closer targets win more often (T1 0.3R / T2 0.6R: 76%) and LOSE more: the small wins do not pay
+# for the losses and the spread. The candle backtests said otherwise only because they let T1 and
+# the T2 exit both happen inside one 15-minute bar (cfd_tick_check.py).
+CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
+
+# The longest a CFD ticket is held, in minutes - 24 hours, the limit every Exness study walked with
+# (96 fifteen-minute bars); closed at the market then (tickets._check_price). 0 = no limit.
+CFD_MAX_HOLD_MINUTES = 24 * 60
+
+
+def cfd_exit_plan(index_key):
+    """This CFD's exit plan, or None for the engine's own ladder (and for anything not a CFD)."""
+    return (globals().get("CFD_EXIT_PLAN") or {}).get(index_key) if is_cfd(index_key) else None
+
+
 def is_cfd(index_key):
     """True for an instrument traded as a CFD (Exness): no options, the ticket is the
     instrument itself, bought (CE) or sold (PE)."""

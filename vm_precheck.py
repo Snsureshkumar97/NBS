@@ -52,7 +52,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import trade_log
 
 SAFE_STATE = "closed"
-SIDECAR_SUFFIXES = (".live.json", ".delta.json")      # Kite/NSE, Delta/crypto
+SIDECAR_SUFFIXES = (".live.json", ".delta.json", ".exness_live.json")   # Kite/NSE, Delta, Exness (3 Oct 2026)
+# An Exness order that never went through is recorded "failed" - there is no position behind it.
+SAFE_STATES = {".exness_live.json": {"closed", "failed"}}
 
 
 def now_ist():
@@ -90,9 +92,10 @@ def real_positions(account_dir):
             # Unreadable, not absent - fail toward blocking, not toward ignoring it.
             out.append((fname, "<unreadable sidecar file>", "unknown"))
             continue
+        safe = SAFE_STATES.get(suffix, {SAFE_STATE})
         for trade_id, pos in positions.items():
             state = (pos or {}).get("state") if isinstance(pos, dict) else None
-            if state != SAFE_STATE:
+            if state not in safe:
                 out.append((fname, trade_id, state))
     return out
 

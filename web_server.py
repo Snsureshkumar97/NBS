@@ -381,6 +381,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._do_connect(form)
             if path == "/connect-delta":
                 return self._do_connect_delta(form)
+            if path == "/connect-exness":
+                return self._do_connect_exness(form)
             if path == "/api/ticket":
                 return self._do_ticket(form)
             if path == "/api/admin":
@@ -535,6 +537,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._connect(user)
             if path == "/connect-delta":
                 return self._connect_delta(user)
+            if path == "/connect-exness":
+                return self._connect_exness(user)
 
             # ---- the tool itself ------------------------------------------
             if path == "/app":
@@ -1568,15 +1572,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if market == "nse_index" and _state["mode"] == "free":
             return reply(False, "Live orders need Zerodha mode, not the free data mode.", 400)
         index = (form.get("index") or "").strip().upper()
+        exness = (config.MARKETS.get(market) or {}).get("market_provider") == "exness"
         if market == "nse_index":
             import live_orders
             allowed = live_orders.INDICES
+        elif exness:
+            import exness_orders
+            allowed = exness_orders.INDICES
         else:
             import delta_orders
             allowed = delta_orders.INDICES
         if index != "ALL" and index not in allowed:
-            return reply(False, "Live orders are only for Nifty, Bank Nifty and Sensex on Zerodha, and Bitcoin "
-                                "on Delta Exchange India.", 400)
+            return reply(False, ("Live orders on Exness are for Bitcoin and gold." if exness else
+                                 "Live orders are only for Nifty, Bank Nifty and Sensex on Zerodha, and Bitcoin "
+                                 "on Delta Exchange India."), 400)
         ex = getattr(feeds.for_user(user, market), "live", None)
         if ex is None:
             return reply(False, "Live orders are not available for this account.", 400)
@@ -1584,7 +1593,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         source = (form.get("source") or "rule").strip().lower()
         if source not in ("rule", "ai"):
             return reply(False, "Unknown kind of ticket.", 400)
-        if on:
+        account_id = None
+        if on and exness:
+            # Which of the user's own Exness accounts takes the orders - asked every time it is
+            # switched on. A REAL account needs its own explicit confirmation.
+            import user_exness
+            account_id = (form.get("account") or "").strip()
+            acct = user_exness.account(user, account_id) if account_id else None
+            if not user_exness.stored(user):
+                return reply(False, "Connect your Exness account first (the Exness page) - orders go through "
+                                    "your own account.", 400, connect_url="/connect-exness")
+            if acct is None:
+                return reply(False, "Choose which of your Exness accounts takes the orders - demo or real.", 400)
+            if acct.get("kind") != "demo" and (form.get("confirm_real") or "") != "1":
+                return reply(False, "Confirm that real money is used on your REAL Exness account.", 400)
+        if on and not exness:
             if market == "nse_index" and not user_kite.token_for(user):
                 return reply(False, "Connect Zerodha for today first - orders go through your own login.", 400)
             if market == "crypto":
@@ -1601,7 +1624,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for idx in allowed:
                 for src in ("rule", "ai"):
                     try:
-                        ex.set_enabled(idx, on, src)
+                        if exness:
+                            ex.set_enabled(idx, on, src, account_id=account_id)
+                        else:
+                            ex.set_enabled(idx, on, src)
                     except (ValueError, OSError) as exc:
                         failed.append(f"{idx} ({src}): {exc or 'could not save'}")
             if failed:
@@ -1609,7 +1635,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return reply(True, f"Live orders for every index and every kind of ticket on this market "
                               f"are {'ON' if on else 'OFF'}.", live=ex.public())
         try:
-            ex.set_enabled(index, on, source)
+            if exness:
+                ex.set_enabled(index, on, source, account_id=account_id)
+            else:
+                ex.set_enabled(index, on, source)
         except (ValueError, OSError) as exc:
             return reply(False, str(exc) or "Could not save that setting.", 500)
         what = f"AI trades on {index}" if source == "ai" else index
@@ -2773,6 +2802,41 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._redirect(url)
 
     # ------------------------------------------------------------- delta exchange
+    # ------------------------------------------------------------- exness (the user's own MetaApi)
+    def _connect_exness(self, user, error=None, notice=None):
+        import user_exness
+        info = user_exness.summary(user)
+        shared = user_exness.server_account() if accounts.is_admin(user) else None
+        return self._send(nbs_site.exness_connect_page(user, info, error=error, notice=notice, shared=shared))
+
+    def _do_connect_exness(self, form):
+        """Keep or drop this account's MetaApi token and Exness account IDs. Checked against
+        MetaApi before they are kept; the token never appears in a page or a log after that."""
+        import user_exness
+        user = self._current_user()
+        if not user:
+            return self._redirect("/login")
+        if not self._same_origin():
+            return self._connect_exness(user, error="Refused: that request did not come from this site.")
+        action = form.get("action")
+        if action == "disconnect":
+            ex = getattr(feeds.for_user(user, "crypto", start=False), "live", None)
+            if ex is not None and any(p.get("state") == "open" for p in (ex.public().get("positions") or [])):
+                return self._connect_exness(user, error="A live Exness position is still open - close it first.")
+            if ex is not None and hasattr(ex, "set_enabled"):
+                for k in ("BTC", "GOLD"):
+                    for src in ("rule", "ai"):
+                        try:
+                            ex.set_enabled(k, False, src)
+                        except Exception:
+                            pass
+            user_exness.disconnect(user)
+            return self._connect_exness(user, notice="Exness removed from this account; live orders are off.")
+        if action != "save":
+            return self._connect_exness(user)
+        ok, msg = user_exness.connect(user, form.get("metaapi_token"), form.get("account_ids"))
+        return self._connect_exness(user, notice=msg if ok else None, error=None if ok else msg)
+
     def _connect_delta(self, user, error=None, notice=None):
         import user_delta
         info = user_delta.summary(user)
@@ -2805,14 +2869,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
         Zerodha on the Indian indices; Delta Exchange India on Bitcoin, where
         prices need no key and the keys are only for live orders."""
         if (config.MARKETS.get(market) or {}).get("market_provider") == "exness":
-            # Exness, through MetaApi, on the server's own demo account (METAAPI_* in .env):
-            # nothing for a user to connect, no orders, no funds shown - prices only.
-            import exness_provider
-            on = exness_provider.configured()
-            return {"name": "Exness (demo)", "connect_url": None, "connected": on,
-                    "state": "ok" if on else "missing",
-                    "detail": "" if on else "Exness is not connected on the server yet.",
-                    "needed_for": "prices - every Bitcoin and gold ticket is paper", "funds": None}
+            # Prices come from the server's own shared demo (METAAPI_* in .env) for everyone. Each
+            # user connects THEIR OWN Exness accounts (user_exness.py) for balances and live orders;
+            # the shared demo's balance is shown to the admin only (the user's choice, 3 Oct 2026).
+            import user_exness
+            accts = user_exness.balances(user) if user else []
+            if user and accounts.is_admin(user):
+                shared = user_exness.server_account()
+                if shared and not any(a.get("id") == shared.get("id") for a in accts):
+                    accts = accts + [shared]
+            first = next((a for a in accts if a.get("ok") and a.get("kind") == "real"), None) or \
+                next((a for a in accts if a.get("ok")), None)
+            funds = None
+            if first is not None:
+                funds = {"asset": first.get("currency") or "USD", "available": first.get("freeMargin"),
+                         "balance": first.get("balance"), "kind": first.get("kind")}
+            return {"name": "Exness", "connect_url": "/connect-exness", "connected": bool(accts),
+                    "state": "ok" if accts else "missing",
+                    "detail": "" if accts else "Connect your Exness account to see its balance and trade it live.",
+                    "needed_for": "balances and live orders - prices need nothing", "funds": funds,
+                    "accounts": [{k: a.get(k) for k in ("id", "kind", "server", "currency", "balance", "equity",
+                                                        "freeMargin", "margin", "leverage", "investor", "ok",
+                                                        "detail", "shared")} for a in accts]}
         if (config.MARKETS.get(market) or {}).get("market_provider") == "kite":
             info = (user_kite.summary(user) if (user and _state["mode"] != "free")
                     else {"state": "ok", "detail": "", "connected": True})
@@ -3456,6 +3534,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .tclear{margin-left:auto}
 .tskip{color:var(--warn);border-color:rgba(242,163,61,.45)}
 .tlive{margin-left:8px}
+.xpick{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.xpick-box{background:var(--surface);color:var(--ink);border:1px solid var(--bd);padding:18px;border-radius:12px;
+  max-width:460px;width:100%;display:flex;flex-direction:column;gap:8px;box-sizing:border-box}
+.xpick-box h3{margin:0;font-size:16px}.xpick-box p{margin:0 0 4px;font-size:14px;color:var(--ink-2)}
+.xpick-a{text-align:left;padding:10px 12px;white-space:normal}
 #tlive.on,#ailive.on{background:#7a1f2e;border-color:#b83a4f;color:#fff}
 #ailive{margin-left:8px}
 .ailivestat{font-size:12px;color:var(--ink-2);margin-top:8px;padding:6px 10px;border-radius:8px;
@@ -4301,6 +4384,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] :is(.lbtn.on,.lbtn.tf.on,.aipicker .lbtn.on,.acct i,.bmsg.user,.skip,.looksw button.on){
   background:var(--accent-strong);border-color:var(--accent-strong);color:#fff;background-image:none}
 :root[data-look="kite"] :is(#tlive.on,#ailive.on,#dashlive.on){background:#c62828;border-color:#c62828;color:#fff}
+:root[data-look="kite"] .xpick{background:rgba(0,0,0,.4)}       /* the Exness account chooser's scrim: dark in both schemes */
 :root[data-look="kite"] .lbtn.ao.on{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
 :root[data-look="kite"] .lbtn.dashclearall{border-color:var(--down);color:var(--down)}
 /* warnings and notices: Kite's pale tints with dark type, not the dark theme's glowing ones */
@@ -6606,6 +6690,84 @@ function dashBulkBox(s){
   lv.dataset.on = allOn ? "1" : "0";
 }
 
+// Exness (Bitcoin and gold since 3 Oct 2026): live orders go to ONE of the user's own Exness
+// accounts, chosen every time they are switched on - DEMO or REAL (the user's ask, 3 Oct 2026).
+// What the tick-by-tick test says, shown before anything is switched on (cfd_tick_study.py).
+const EXNESS_EDGE_NOTE = "Tested on 3 years of Exness's real tick history, after the spread and the overnight "
+  + "swap: GOLD made money in both test periods with these exits; BITCOIN did not - it lost money in the "
+  + "first two years. A backtest is not a promise either way.";
+function exnessAccounts(){
+  return (((LAST && LAST.broker) || {}).accounts || []).filter(a => !a.shared);
+}
+function exnessPick(title){
+  return new Promise(resolve => {
+    const accts = exnessAccounts();
+    if(!accts.length){
+      if(confirm("Connect your Exness account first - live orders go through your own account.\n\n"
+                 + "Open the Exness page now?")) location.href = "/connect-exness";
+      return resolve(null);
+    }
+    const wrap = document.createElement("div");
+    wrap.className = "xpick";
+    wrap.setAttribute("role", "dialog");
+    wrap.innerHTML = `<div class="xpick-box"><h3>${esc(title)}</h3><p>Which Exness account takes the orders?</p>`
+      + accts.map((a, n) => `<button type="button" class="lbtn xpick-a" data-n="${n}"${a.investor || !a.ok ? " disabled" : ""}>`
+          + `<b>${esc((a.kind || "?").toUpperCase())}</b> · ${esc(a.server || "")} · `
+          + (a.ok ? `balance $${num(a.balance || 0, 2)} · free margin $${num(a.freeMargin || 0, 2)}` : esc(a.detail || "not reachable"))
+          + (a.investor ? " · read-only password, cannot trade" : "") + `</button>`).join("")
+      + `<button type="button" class="lbtn xpick-c">Cancel</button></div>`;
+    document.body.appendChild(wrap);
+    const done = v => { wrap.remove(); resolve(v); };
+    wrap.querySelector(".xpick-c").onclick = () => done(null);
+    wrap.addEventListener("click", e => { if(e.target === wrap) done(null); });
+    wrap.querySelectorAll(".xpick-a").forEach(b => b.onclick = () => done(accts[+b.dataset.n]));
+  });
+}
+async function exnessLive(index, source, btn, enabledNow){
+  const on = !enabledNow;
+  const body = {index, on: on ? "1" : "0", source};
+  const what = index === "ALL" ? "Bitcoin and gold, every kind of ticket"
+             : source === "ai" ? `the AI desk's ${index} trades` : index;
+  if(on){
+    const a = await exnessPick(`Live orders on Exness - ${what}`);
+    if(!a) return;
+    const real = a.kind !== "demo";
+    if(!confirm(`Place ${real ? "REAL-MONEY" : "DEMO"} orders on your Exness ${(a.kind || "").toUpperCase()} account `
+        + `(${a.server || ""}) for ${what}?\n\n`
+        + "Every ticket is bought or sold at Exness at its own lots (1 lot = 1 BTC, or 100 oz of gold), with the "
+        + "ticket's stop-loss and target set AT EXNESS - they hold even if this server is down. The stop moves at "
+        + "Exness as the ticket's stop trails, and the position closes when the ticket closes.\n\n"
+        + EXNESS_EDGE_NOTE + "\n\n"
+        + (real ? "This is real money. Past results do not predict future ones. This is your decision."
+                : "A demo account trades virtual money."))) return;
+    if(real && !confirm("Second check: REAL money on your Exness account. Continue?")) return;
+    body.account = a.id;
+    if(real) body.confirm_real = "1";
+  } else if(!confirm(`Stop placing live Exness orders for ${what}?\n\nA position already open keeps its stop `
+      + "and target at Exness and is still closed with its ticket.")) return;
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch("/api/live", {method: "POST", cache: "no-store",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams(body)});
+    const j = await r.json();
+    if(!j.ok){ alert(j.message || "That could not be changed."); if(j.connect_url) location.href = j.connect_url; }
+    else if(LAST && j.live){ LAST.live = j.live; render(LAST); }
+    if(source === "ai" && typeof aiFetch === "function") aiFetch();
+  }catch(e){ alert("Could not reach this tool's own server."); }
+  finally{ if(btn) btn.disabled = false; }
+}
+function exnessStateText(p){
+  const k = (p.kind || "").toUpperCase(), what = `${p.side || ""} ${p.qty || ""} ${p.symbol || ""}`;
+  return ({
+    open: `Live (${k}): ${what} at ${p.avg_price != null ? p.avg_price : "?"} · stop ${p.sl != null ? p.sl : "—"} `
+          + `and target ${p.tp != null ? p.tp : "—"} held at Exness` + (p.profit != null ? ` · Exness P&L ${money(p.profit)}` : ""),
+    closed: `Live (${k}): ${what} closed` + (p.exit_price ? ` at ${p.exit_price}` : "")
+            + (p.gross_pnl != null ? ` · ${money(p.gross_pnl)}` : ""),
+    attention: `Live (${k}): ${p.symbol || "the position"} MAY STILL BE OPEN - check Exness now`,
+    failed: `Live (${k}): not placed` + (p.error ? ` - ${p.error}` : ""),
+  })[p.state] || "";
+}
+
 function liveBox(s){
   const L = s && s.live, b = $("tlive"), st = $("tlivestat");
   if(!b || !st) return;
@@ -6621,7 +6783,7 @@ function liveBox(s){
   const p = (L.positions || []).find(x => x.index === CUR);
   const note = (L.notes || []).find(n => n.index === CUR);
   const lines = [];
-  if(p) lines.push(liveStateText(p, (L.venue || "").indexOf("Delta") === 0));
+  if(p) lines.push(L.venue === "Exness" ? exnessStateText(p) : liveStateText(p, (L.venue || "").indexOf("Delta") === 0));
   if(note) lines.push(`${note.at} · ${note.text}`);
   st.textContent = lines.filter(Boolean).join("  —  ");
   st.style.display = st.textContent ? "" : "none";
@@ -6631,6 +6793,7 @@ function liveBox(s){
 $("tlive").onclick = async () => {
   const L = LAST && LAST.live, b = $("tlive");
   if(!L || !CUR) return;
+  if(LAST.venue === "exness") return exnessLive(CUR, "rule", b, !!(L.enabled || {})[CUR]);
   const on = !L.enabled[CUR];
   const btc = CUR === "BTC";
   if(on && btc && !confirm(`Place REAL orders on Bitcoin at Delta Exchange India?\n\n`
@@ -6681,6 +6844,7 @@ $("dashlive").onclick = async () => {
   if(!L) return;
   const idxs = Object.keys(L.enabled || {});
   if(!idxs.length) return;
+  if(LAST.venue === "exness") return exnessLive("ALL", "rule", lv, lv.dataset.on === "1");
   const on = lv.dataset.on !== "1";
   const btc = idxs.includes("BTC");
   const names = idxs.join(", ");
@@ -6840,8 +7004,14 @@ function ticketBox(r, state){
   const st = $("tstats");
   if(open){
     st.style.display = "";
-    const dp = tk.tracked_on === "premium" ? 2 : 0;
+    const cfd = !!tk.cfd;
+    const dp = (cfd || tk.tracked_on === "premium") ? 2 : 0;
     const pnl = tk.pnl;
+    // An Exness ticket is the instrument itself: what it is worth, the margin it ties up at the
+    // account's leverage, and the spread it paid - the figures a real CFD trade shows.
+    const units = (tk.lot_size || 1) * (tk.lots || 1);
+    const unitTxt = tk.index === "GOLD" ? `${num(units, 2)} oz` : `${num(units, 2)} ${tk.index || ""}`;
+    const lev = cfd ? (((LAST && LAST.broker && LAST.broker.accounts) || []).find(a => a.ok && a.leverage) || {}).leverage : null;
     const pc = pnl == null ? "var(--ink-3)" : pnl > 0 ? "var(--up)"
              : pnl < 0 ? "var(--down)" : "var(--ink-2)";
     const cell = (l,v,col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
@@ -6851,8 +7021,12 @@ function ticketBox(r, state){
       + cell(entryLabel(tk), num(tk.entry,dp))
       // What the premium cost to buy - entry x lot size x lots - the money at
       // risk in full; asked for on 20 Sep 2026, for both markets.
-      + cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
-               ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—")
+      + (cfd
+         ? cell("Value", tk.entry != null ? "$" + num(tk.entry * units, 2) : "—")
+           + cell(lev ? `Margin (1:${lev})` : "Margin", (lev && tk.entry != null) ? "$" + num(tk.entry * units / lev, 2) : "—")
+           + cell("Spread paid", tk.entry_spread != null ? "$" + num(tk.entry_spread * units, 2) : "—")
+         : cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
+               ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—"))
       + cell("Now", num(tk.now,dp))
       // The strike's own high and low so far today, live (the user, 29 Sep 2026: "the tool
       // does not show me the given strike high and low ltp of the day when the signal
@@ -6862,8 +7036,8 @@ function ticketBox(r, state){
          ? cell("Today's range", tk.strike_day_high == null || tk.strike_day_low == null ? "—"
                 : `${num(tk.strike_day_low,2)} – ${num(tk.strike_day_high,2)}`)
          : "")
-      + cell("Index price", num(r.spot,0))
-      + cell(`${tk.lots} lot${tk.lots!==1?"s":""}`,
+      + (cfd ? cell("Price", num(r.spot, 2)) : cell("Index price", num(r.spot,0)))
+      + cell(cfd ? `${tk.lots} lot = ${unitTxt}${tk.entry_real ? " · Exness" : ""}` : `${tk.lots} lot${tk.lots!==1?"s":""}`,
              pnl==null ? "—"
                : money(pnl),
              pc);
@@ -8138,7 +8312,9 @@ function render(s){
   // Delta Exchange on Bitcoin - never Zerodha over a crypto page.
   // With the venue connected, the chip carries the account's own money too:
   // what is available for a premium (the user asked to see it, 20 Sep 2026).
-  const fundsText = br.funds && br.funds.available != null ? ` · ${fundsLabel(br.funds)} available` : "";
+  const fundsText = br.funds && br.funds.kind && br.funds.balance != null
+    ? ` · ${String(br.funds.kind).toUpperCase()} $${num(br.funds.balance, 2)}`
+    : br.funds && br.funds.available != null ? ` · ${fundsLabel(br.funds)} available` : "";
   $("kite").textContent = br.connected ? br.name + fundsText : "Connect " + br.name;
   $("kite").href = br.connect_url === null ? "#" : (br.connect_url || "/connect");
   $("kite").style.color = needs ? "#b07d15" : "";
@@ -8463,7 +8639,8 @@ function greet(s){
   if(s.market === "crypto" && s.venue === "exness"){
     const gold = (s.order || []).includes("GOLD");
     $("said").textContent = (gold ? "Bitcoin and gold" : "Bitcoin")
-                          + " from Exness (demo account), bought or sold in dollars - paper tickets, around the clock.";
+                          + " from Exness, bought or sold in dollars around the clock - paper tickets unless you "
+                          + "switch live orders on for your own Exness account.";
     const bs = $("brandsub"); if(bs) bs.textContent = (gold ? "BTC · Gold" : "BTC") + " · Exness · 24/7";
     return;
   }
@@ -9117,7 +9294,13 @@ function kiteSide(s){
           + `<div class="kmuted">real fills &middot; ${liveNote(lv)}</div>` : "")
     + `<div class="kmuted">${ses.issued == null ? 0 : ses.issued} tickets &middot; ${ses.wins || 0} ran to target &middot; ${ses.stops || 0} stopped out</div>`, "kb-today");
   let f = "";
-  if(br.connected && br.funds && br.funds.available != null)
+  if(br.accounts && br.accounts.length)
+    f = br.accounts.map(a => `<div class="knum" style="font-size:15px">${esc((a.kind || "?").toUpperCase())}`
+        + `${a.shared ? " (shared feed)" : ""} · $${a.ok ? num(a.balance || 0, 2) : "—"}</div>`
+        + `<div class="kmuted">${esc(a.server || "")}${a.ok ? ` · equity $${num(a.equity || 0, 2)} · free margin $${num(a.freeMargin || 0, 2)}`
+        + (a.leverage ? ` · 1:${a.leverage}` : "") : " · " + esc(a.detail || "not reachable")}${a.investor ? " · read-only" : ""}</div>`).join("")
+        + `<a class="klink" href="/connect-exness">Exness accounts</a>`;
+  else if(br.connected && br.funds && br.funds.available != null)
     f = `<div class="knum">${esc(fundsLabel(br.funds))}</div><div class="kmuted">available on ${esc(br.name)}</div>`;
   else if(br.name && br.connect_url === null)
     f = `<div class="kmuted">${esc(br.name)} &middot; ${esc(br.needed_for || "prices only")}</div>`;
@@ -9688,7 +9871,7 @@ function aiRender(d){
   })();
   const lp = lpos[0];
   const lines = [];
-  if(lp) lines.push(liveStateText(lp, (d.live_venue || "").indexOf("Delta") === 0));
+  if(lp) lines.push(d.live_venue === "Exness" ? exnessStateText(lp) : liveStateText(lp, (d.live_venue || "").indexOf("Delta") === 0));
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
   const brk = (LAST && LAST.broker) || {};
   if(brk.connected && brk.funds && brk.funds.available != null)
@@ -9755,6 +9938,7 @@ async function aiFetch(){
   if(lv) lv.addEventListener("click", async () => {
     const k = aiIndex(AI.data);
     if(!k) return;
+    if(LAST && LAST.venue === "exness") return exnessLive(k, "ai", lv, !!((AI.data && AI.data.live_ai) || {})[k]);
     const on = !((AI.data && AI.data.live_ai) || {})[k];
     const btc = k === "BTC";
     if(on && btc && !confirm(`Place REAL Delta Exchange orders for the AI desk's Bitcoin trades?\n\n`

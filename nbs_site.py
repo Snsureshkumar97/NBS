@@ -2911,6 +2911,92 @@ def delta_connect_page(user, state, detail, user_id="", since="", error=None, no
     return shell("Delta Exchange connection", body, user=user, active="", noindex=True)
 
 
+def exness_connect_page(user, info, error=None, notice=None, shared=None):
+    """The user's own Exness accounts, through their own MetaApi (user_exness.py): balances,
+    demo or real, and the form that adds them. `shared` is the server's price-feed demo
+    account - passed for the admin only."""
+    accts = list(info.get("accounts") or [])
+    good = bool(accts)
+    pill = (f'<span class="state {"on" if good else "off"}"><span class="d"></span>'
+            f'{"Connected" if good else "Not connected"}</span>')
+
+    def money(v, cur="USD"):
+        return "—" if v is None else f'{"$" if cur == "USD" else cur + " "}{float(v):,.2f}'
+
+    def row(a, title=None):
+        kind = (a.get("kind") or "?").upper()
+        tag = (f'<b style="color:{"#c62828" if kind == "REAL" else "var(--ink-2)"}">{_esc(kind)}</b>'
+               + (" &middot; read-only" if a.get("investor") else ""))
+        if not a.get("ok", True):
+            body = f'<span style="color:#c62828">{_esc(a.get("detail") or "not reachable")}</span>'
+        else:
+            cur = a.get("currency") or "USD"
+            body = (f'balance {money(a.get("balance"), cur)} &middot; equity {money(a.get("equity"), cur)} &middot; '
+                    f'free margin {money(a.get("freeMargin"), cur)}'
+                    + (f' &middot; 1:{int(a["leverage"])}' if a.get("leverage") else ""))
+        return (f'<div class="row"><b>{title or tag} &middot; {_esc(a.get("server") or "")}</b>'
+                f'<span>{body}</span></div>')
+
+    rows = ""
+    if accts or shared:
+        rows = ('<div class="rows">' + "".join(row(a) for a in accts)
+                + (row(shared, "Shared price feed (DEMO, only you see this)") if shared else "")
+                + (f'<div class="row"><b>Added</b><span>{_esc(info.get("since"))}</span></div>' if info.get("since") else "")
+                + "</div>")
+    field = ('style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bd);'
+             'border-radius:8px;margin:6px 0 12px;font:inherit;background:var(--sunken);color:var(--ink)"')
+    form = (f'<form method="post" action="/connect-exness" autocomplete="off">'
+            f'<label style="font-size:13px;font-weight:700">MetaApi token<input name="metaapi_token" '
+            f'type="password" autocomplete="new-password" spellcheck="false" required {field}></label>'
+            f'<label style="font-size:13px;font-weight:700">MetaApi account ID(s) - one per line, up to 3 '
+            f'(for example your demo and your real account)<textarea name="account_ids" rows="3" '
+            f'spellcheck="false" required {field}></textarea></label>'
+            f'<button class="btn wide" name="action" value="save">'
+            f'{"Replace the connection" if good else "Connect"}</button></form>')
+    if good:
+        form += ('<form method="post" action="/connect-exness" style="text-align:center;margin-top:14px">'
+                 '<button class="link" name="action" value="disconnect">Remove Exness from this account'
+                 '</button></form>')
+    body = f"""<div class="wrap"><div class="mid">
+ <div class="panel">
+  <h1>Your Exness accounts</h1>
+  <p class="sub">{pill}</p>
+  {f'<div class="err">{_esc(error)}</div>' if error else ''}
+  {f'<div class="ok">{_esc(notice)}</div>' if notice else ''}
+  <p style="font-size:14.5px;color:var(--ink-2);margin:0">Bitcoin and gold prices come from the tool itself -
+   nothing here is needed to see the market or run paper tickets. Connect your own Exness account to see its
+   balance and, if you switch it on, to place live orders on it - on a DEMO or a REAL account, you choose each
+   time.</p>
+  {rows}
+  {form}
+ </div>
+
+ <div class="panel" style="margin-top:16px;box-shadow:none">
+  <h1 style="font-size:16px">How to connect - step by step</h1>
+  <ol style="font-size:14px;color:var(--ink-2);margin:10px 0 0;padding-left:20px;line-height:1.55">
+   <li>Open an MT5 account at <b>exness.com</b> (Personal Area &rarr; Open account) - a Demo account to start, a
+    Real one later if you choose. Note its login number, trading password and server
+    (like <i>Exness-MT5Trial11</i> or <i>Exness-MT5Real8</i>).</li>
+   <li>Sign up at <b>app.metaapi.cloud</b> (MetaApi bills you for each connected account, about $9 a month).
+    MT Accounts &rarr; Add account: MT5, your Exness login and server, and the password - the
+    <b>trading</b> password if you want live orders, the <b>investor</b> (read-only) password if you only want
+    the balance here. Deploy it and wait until it says <b>Connected</b>.</li>
+   <li>Copy the account's <b>ID</b> from its card in MT Accounts, and a <b>token</b> from API Access.</li>
+   <li>Paste both above. They are checked against MetaApi before they are kept.</li>
+   <li>Then, on the Bitcoin page, <b>Live orders</b> asks which account - demo or real - takes the orders.</li>
+  </ol>
+  <p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">Your Exness password goes to MetaApi, never to
+   this server. The MetaApi token is stored only in this server's user file, readable by the server alone,
+   never shown again, and removed with the button above or with your account.</p>
+  <p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">Exness is on the Reserve Bank of India's Alert
+   List of unauthorised forex trading platforms. If you are in India, check the rules that apply to you before
+   funding a real account.</p>
+ </div>
+ <div class="alt" style="margin-top:20px"><a href="/app">Back to the tool</a></div>
+</div></div>"""
+    return shell("Exness connection", body, user=user, active="", noindex=True)
+
+
 def result_page(title, message, ok=True, user=None, back="/connect",
                 back_label="Back to the connect page"):
     """A plain outcome screen — used when Zerodha sends the browser back."""
