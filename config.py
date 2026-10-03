@@ -1323,7 +1323,15 @@ REGIME_OR_REQUIRE_BREAK = False
 # smooth trend, so no single point in it should be trusted blindly. The user
 # then chose 2.0 - a middle value the sweep did not single out either, but
 # their own call to make. 0 for a market still switches the gate off for it.
-MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.0}
+#
+# Back to 1.0 for crypto on 3 Oct 2026, at the user's request ("change risk
+# reward back to 1.25 ... or back to 1:1") - 1.0 being crypto's own value
+# before 30 Sep, and the one this sweep found most robust. The options-priced
+# rerun (crypto_strategy_study.py) found 1.0 and 2.0 about the same on BTC -
+# both lose after costs, neither consistently ahead - so this is not a fix for
+# BTC's losses, only the user's preferred setting. The Indian indices are
+# untouched at 1.0.
+MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 1.0}
 
 
 def min_reward_risk_t3(index_key=None):

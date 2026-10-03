@@ -82,8 +82,9 @@ check("1.0 (what crypto had before 30 Sep 2026) is in the sweep", 1.0 in crs.SWE
 check("DEPLOYED reads config.min_reward_risk_t3('BTC') live, not a number hard-coded into this file - "
       "the whole reason for it, after the deployed value moved twice in one day",
       crs.DEPLOYED == config.min_reward_risk_t3("BTC"), crs.DEPLOYED)
-check("today's actual deployed value (2.0) is in the sweep, so main() can rank it against every alternative",
-      crs.DEPLOYED in crs.SWEEP and crs.DEPLOYED == 2.0, crs.DEPLOYED)
+check("today's actual deployed value (whatever config.py ships - 1.0 since 3 Oct 2026) is in the sweep, "
+      "so main() can rank it against every alternative",
+      crs.DEPLOYED in crs.SWEEP and crs.DEPLOYED == config.MIN_REWARD_RISK_T3["crypto"], crs.DEPLOYED)
 check("the sweep is sorted ascending, so the printed table reads as a trend, not shuffled",
       list(crs.SWEEP) == sorted(crs.SWEEP))
 

@@ -41,11 +41,18 @@ print("1. THE LOOKUP ITSELF")
 for k in ("NIFTY", "BANKNIFTY", "SENSEX"):
     check(f"{k} (Indian index) is unchanged at 1.0", config.min_reward_risk_t3(k) == 1.0, config.min_reward_risk_t3(k))
 for k in ("BTC", "GOLD"):
-    check(f"{k} (crypto market) is 2.0, the user's value", config.min_reward_risk_t3(k) == 2.0, config.min_reward_risk_t3(k))
+    check(f"{k} (crypto market) is 1.0, the user's value since 3 Oct 2026", config.min_reward_risk_t3(k) == 1.0, config.min_reward_risk_t3(k))
 check("no instrument named means the default market (NSE) - the desktop app and main.py's single-index runs",
       config.min_reward_risk_t3() == 1.0, config.min_reward_risk_t3())
 check("an unknown instrument falls back to the default market's value, not a crash",
       config.min_reward_risk_t3("NOT_A_REAL_INSTRUMENT") == 1.0)
+
+# Sections 2-4 test the PER-MARKET MECHANISM, so they need the two markets to differ.
+# Since 3 Oct 2026 both ship at 1.0 (the user's "back to 1:1"), so crypto is given
+# 2.0 here - its own previous value - for these sections only; section 5 checks the
+# values actually shipped.
+_shipped = dict(config.MIN_REWARD_RISK_T3)
+config.MIN_REWARD_RISK_T3 = {"nse_index": 1.0, "crypto": 2.0}
 
 print("2. THE LIVE GATE ITSELF - THE SAME rec, ONLY THE INSTRUMENT DIFFERS")
 book = object.__new__(tickets.TicketBook)
@@ -113,9 +120,11 @@ check("crypto's own, different figure is on the page too", "2.0</code> on crypto
 check("no stray dict repr leaked onto the page (the bug this would have been if _cfg() had kept reading it as a flat value)",
       "nse_index" not in html and "{'nse_index'" not in html and "MIN_REWARD_RISK_T3" not in html)
 
-print("5. TODAY'S SPLIT VALUES, EXPLICITLY - CATCHES A SILENT REVERT TO ONE SHARED NUMBER")
+config.MIN_REWARD_RISK_T3 = _shipped
+
+print("5. TODAY'S SHIPPED VALUES, EXPLICITLY")
 check("nse_index is exactly 1.0", config.MIN_REWARD_RISK_T3["nse_index"] == 1.0)
-check("crypto is exactly 2.0, the value asked for", config.MIN_REWARD_RISK_T3["crypto"] == 2.0)
+check("crypto is exactly 1.0, the value asked for on 3 Oct 2026 ('back to 1:1')", config.MIN_REWARD_RISK_T3["crypto"] == 1.0)
 
 print("6. THE SIGNAL CARD: A VISIBLE 'TICKET GATE' TILE, NEXT TO 'REWARD : RISK', NOT INSTEAD OF IT")
 SRC = open("web_server.py").read()
