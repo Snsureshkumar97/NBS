@@ -409,6 +409,9 @@ def _public(rec, name=None):
     buy or a sell is tracked on, with Exness's own live spread."""
     out = _public_base(rec, name)
     if out is not None and config.is_cfd(name or rec.get("index")):
+        out["rule"] = rec.get("rule")             # an Exness entry rule's own votes (cfd_rules.py), or None
+        if rec.get("target_basis") == "rule":
+            out["exit_at"] = "T3"
         out.update(cfd=True, strike=None, strike_swap=None, strike_taken=None, ltp=None, spread=None,
                    contracts_per_lot=None, premium_targets=[None, None, None], premium_stop=None,
                    premium_source=None, atm_strike=None, expiry=None, expiry_today=False,
@@ -1030,6 +1033,7 @@ class Feed:
                         # seen yet.
                         rec["checks"] = self._signal_checks(name, rec)
                         self._cfd_stamp(name, rec)
+                        self._cfd_rule(name, rec)
                         try:
                             evs = self.tickets.update(name, rec)
                         except Exception:
@@ -1821,6 +1825,20 @@ class Feed:
             self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
             return None
 
+    def _cfd_rule(self, name, rec):
+        """An Exness instrument with an entry rule (config.CFD_RULES): its reading on the last CLOSED
+        15-minute candle replaces the engine's call (cfd_rules.py). Never raises - a failure is a
+        reading that waits, with the reason."""
+        if rec is None or not config.cfd_rule(name):
+            return rec
+        import cfd_rules
+        try:
+            df = self._provider_for(name, None).get_ohlc(name, "15m", lookback_days=cfd_rules.HISTORY_DAYS)
+            ev = cfd_rules.evaluate(name, df)
+        except Exception as exc:
+            ev = {"ready": False, "why": f"no candles for the rule: {type(exc).__name__}"}
+        return cfd_rules.apply(rec, ev, name)
+
     def _cfd_stamp(self, name, rec):
         """On a CFD (Exness), stamp the reading with the live spread - the cost a ticket
         freezes at entry - and how long since the instrument last really ticked
@@ -2013,6 +2031,7 @@ class Feed:
 
             rec["checks"] = self._signal_checks(name, rec)
             self._cfd_stamp(name, rec)
+            self._cfd_rule(name, rec)
             try:
                 evs = self.tickets.update(name, rec)
             except Exception as exc:

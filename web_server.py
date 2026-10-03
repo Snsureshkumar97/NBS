@@ -7325,7 +7325,10 @@ function gauges(r, why){
       <div class="gv" style="color:${colour}">${esc(reading)||"—"}</div>
     </div>`;
   }).join("");
-  $("gnote").textContent = "A dash is an input that abstained — it is ignored, not counted as neutral.";
+  $("gnote").textContent = r.rule
+    ? `${r.rule.label}: a trade only when every vote agrees and every filter says yes - decided once, on each `
+      + `15-minute close. Stop ${r.rule.stop_atr} x ATR, one target at ${r.rule.target_r} x the stop distance.`
+    : "A dash is an input that abstained — it is ignored, not counted as neutral.";
 }
 
 // =====================================================================

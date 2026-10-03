@@ -258,6 +258,64 @@ def _levels(rec):
 
 
 # ---------------------------------------------------------------------------
+# The Exness entry rules' votes and filters (cfd_rules.py), in words: (buy, sell, none).
+_RULE_TEXT = {
+    "candle": ("The last 15-minute candle closed above its open (green).",
+               "The last 15-minute candle closed below its open (red).", "The last candle closed flat."),
+    "ha": ("The Heikin-Ashi candle is green - the smoothed trend of the candles points up.",
+           "The Heikin-Ashi candle is red - the smoothed trend of the candles points down.", "Heikin-Ashi is flat."),
+    "d1_trend": ("Price is above yesterday's close.", "Price is below yesterday's close.", "Price is at yesterday's close."),
+    "h1_trend": ("The hourly trend points up (EMA 20 above EMA 50 on the hour).",
+                 "The hourly trend points down (EMA 20 below EMA 50 on the hour).", "The hourly trend is flat."),
+    "roc12": ("Price is higher than 3 hours ago.", "Price is lower than 3 hours ago.", "Price is where it was 3 hours ago."),
+}
+_FILTER_TEXT = {
+    "vol_rising": ("Volume is rising - the last 5 candles busier than the last 20.",
+                   "Volume is not rising - the last 5 candles no busier than the last 20."),
+    "adx_rising": ("ADX is rising - the trend is getting stronger.", "ADX is not rising."),
+}
+
+
+def _rule_explain(rec):
+    """The Signal card's breakdown for an Exness entry rule: its own votes and filters, the
+    decision, and the levels - nothing of the engine it replaces."""
+    info = rec["rule"]
+    votes = []
+    for v in info.get("votes") or []:
+        d = v.get("vote")
+        t = _RULE_TEXT.get(v.get("key"), ("buy", "sell", "none"))
+        votes.append({"name": v.get("name"), "vote": d,
+                      "reading": "buy" if d == 1 else "sell" if d == -1 else "—",
+                      "text": t[0] if d == 1 else t[1] if d == -1 else t[2]})
+    for f in info.get("filters") or []:
+        ok = f.get("ok")
+        t = _FILTER_TEXT.get(f.get("key"), ("yes", "no"))
+        votes.append({"name": f.get("name"), "vote": None if ok is None else (1 if ok else -1),
+                      "reading": "—" if ok is None else ("yes" if ok else "no"),
+                      "text": "" if ok is None else (t[0] if ok else t[1])})
+    side = info.get("side") if info.get("ready") else 0
+    tail = (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
+            "distance; nothing moves the stop on the way, out after 24 hours.")
+    if not info.get("ready"):
+        verdict = "Waiting - " + (info.get("why") or "no reading yet") + "."
+        headline = "No trade - waiting for the rule's reading"
+    elif side:
+        word = "BUY" if side > 0 else "SELL"
+        verdict = f"Every vote and filter agrees on the last 15-minute close: {word}." + tail
+        headline = f"{word} - {info.get('label')}"
+    else:
+        verdict = ("Not every vote and filter agrees on the last 15-minute close, so no trade. The rule decides "
+                   "again at the next close.")
+        headline = "No trade - the rule's votes do not all agree"
+    levels = []
+    tg, sl = rec.get("index_targets") or [None, None, None], rec.get("index_stop_loss")
+    if side and sl is not None and tg[2] is not None:
+        levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; it stays there.",
+                  f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the stop distance, the trade's only exit "
+                  f"target (T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
+    return {"votes": votes, "gate": None, "verdict": verdict, "levels": levels, "headline": headline}
+
+
 def explain(rec):
     """Full breakdown of one recommendation.
 
@@ -268,6 +326,8 @@ def explain(rec):
         return {"votes": [], "gate": {"ok": None, "text": ""},
                 "verdict": "No data yet.", "levels": [], "headline": "Waiting for data"}
 
+    if rec.get("rule") is not None:
+        return _rule_explain(rec)
     tech = rec.get("technical", {}) or {}
     oi = rec.get("option_chain", {}) or {}
     votes = [_trend_reason(tech), _macd_reason(tech), _rsi_reason(tech),

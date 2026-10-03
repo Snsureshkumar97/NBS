@@ -727,6 +727,27 @@ CFD_STALE_QUOTE_S = 600
 # the T2 exit both happen inside one 15-minute bar (cfd_tick_check.py).
 CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
 
+# The ENTRY RULE per Exness instrument (cfd_rules.py; cfd_vote_search.py, 4 Oct 2026 - the user chose
+# the "accuracy-first" rule for both). When set, it replaces the engine's own call AND exit for that
+# instrument: decided once on each closed 15-minute candle, one target at target_r x the stop,
+# the stop at stop_atr x ATR(14), nothing moved on the way. Real-tick results, after spread and swap:
+#   BTC   in-sample 59% won +77,886 / held-out 59% won +18,644 (per BTC)
+#   GOLD  in-sample 62% won +108,722 / held-out 59% won +47,774 (per lot) - LESS held-out profit than
+#         the 5R exit it replaces (+79,344): the user chose the higher win rate knowing it.
+# Not listed = the engine and CFD_EXIT_PLAN, as before.
+CFD_RULES = {
+    "BTC": {"label": "Candle + Heikin-Ashi rule", "votes": ["candle", "ha"], "filters": ["vol_rising"],
+            "stop_atr": 3.0, "target_r": 0.75},
+    "GOLD": {"label": "Trend + momentum rule", "votes": ["d1_trend", "h1_trend", "roc12"],
+             "filters": ["adx_rising", "vol_rising"], "stop_atr": 3.0, "target_r": 0.75},
+}
+
+
+def cfd_rule(index_key):
+    """This CFD's entry rule (CFD_RULES), or None - never for anything not a CFD."""
+    return (globals().get("CFD_RULES") or {}).get(index_key) if is_cfd(index_key) else None
+
+
 # The longest a CFD ticket is held, in minutes - 24 hours, the limit every Exness study walked with
 # (96 fifteen-minute bars); closed at the market then (tickets._check_price). 0 = no limit.
 CFD_MAX_HOLD_MINUTES = 24 * 60

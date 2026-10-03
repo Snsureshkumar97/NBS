@@ -861,7 +861,7 @@ class TicketBook:
         # the next ticket, either direction, has to earn its own confirmation from scratch: without
         # that, this reversal's own just-satisfied clock would satisfy the entry gate again on the
         # very next reading, reopening the churn CLOSE_ON_SIGNAL_FLIP existed to describe.
-        if trade["status"] == "OPEN" and _cfg("EARLY_EXIT_ON_REVERSAL", False):
+        if trade["status"] == "OPEN" and _cfg("EARLY_EXIT_ON_REVERSAL", False) and not trade.get("rule_strategy"):
             rd = book.confirm_dir
             need_s = _cfg("SIGNAL_CONFIRM_SECONDS", 0)
             need_ticks = _cfg("SIGNAL_CONFIRM_TICKS", 1)
@@ -893,9 +893,54 @@ class TicketBook:
         return events
 
     # -------------------------------------------------------------- issuing
+    def _consider_rule(self, book, rec):
+        """An Exness entry rule's reading (cfd_rules.py, config.CFD_RULES) - issued exactly as it
+        was tested (cfd_vote_search.py), with none of the engine's own entry gates in between:
+        the session and the daily brake, a closed market, one position at a time, ONE decision
+        per closed 15-minute candle taken in the first cfd_rules.RULE_ENTRY_WINDOW_S after it,
+        and REENTRY_COOLDOWN_MIN after an exit."""
+        def hold(code, short, why):
+            book.wait_reason = (code, short, why)
+            return []
+        block = self.entry_block()
+        if block is not None:
+            return hold(*block)
+        block = self._closed_hold(rec)
+        if block is not None:
+            return hold(*block)
+        if book.trade is not None and book.trade["status"] == "OPEN":
+            return hold("position_open", "POSITION OPEN",
+                        "A ticket is already running on this instrument. It ends at its target, its stop or "
+                        "24 hours.")
+        info = rec.get("rule") or {}
+        if not info.get("ready"):
+            return hold("neutral", "NO SIGNAL", info.get("why") or "The rule has no reading yet.")
+        if not info.get("side"):
+            return hold("neutral", "NO SIGNAL", "The rule's votes and filters do not all agree on the last "
+                        "15-minute close. It decides again at the next close.")
+        if getattr(book, "last_rule_bar", None) == info.get("bar_close"):
+            return hold("neutral", "NEXT CLOSE", "This 15-minute close has already been decided. The next "
+                        "decision is at the next close.")
+        if not info.get("fresh"):
+            return hold("neutral", "NEXT CLOSE", "The rule agreed on the last 15-minute close, but a decision is "
+                        "only taken in the first two minutes after a close - as it was tested. The next one is at "
+                        "the next close.")
+        cd = _cfg("REENTRY_COOLDOWN_MIN", 0)
+        if cd and book.last_close_at is not None and (now_ist() - book.last_close_at).total_seconds() < cd * 60:
+            left = int(cd - (now_ist() - book.last_close_at).total_seconds() / 60) + 1
+            return hold("reentry_cooldown", "COOLDOWN", f"{cd} minutes after the last exit before a new ticket - "
+                        f"about {left} more minute{'s' if left != 1 else ''}.")
+        book.last_rule_bar = info.get("bar_close")
+        book.last_bias_signature = (rec["bias"], rec["option_type"])
+        book.wait_reason = None
+        self._open(book, rec)
+        return [{"kind": "opened", "index": book.name, "rearmed": False, "trade": self._public_trade(book.trade)}]
+
     def _consider(self, book, rec):
         """Whether to issue a ticket. The five gates, in the order the desktop
         applies them, with the same badge words."""
+        if rec.get("rule") is not None:
+            return self._consider_rule(book, rec)
         direction = book.confirm_dir          # this reading's direction - set by update(), just before this ran
         now = time.time()
         book.waiver_applied = False
@@ -1252,6 +1297,8 @@ class TicketBook:
         """
         book.waiver_applied = False
         book.trend_waiver_applied = False
+        if rec.get("rule") is not None:
+            return False                 # an entry rule decides only at a 15-minute close (_consider_rule)
         if self.entry_block() is not None:
             return False
         # Re-arm is only ever a second ticket the SAME way, so it answers to
@@ -1328,9 +1375,11 @@ class TicketBook:
             # paid to get in and out is its cost - frozen with the entry.
             "cfd": cfd,
             "entry_spread": rec.get("cfd_spread") if cfd else None,
-            # A CFD exit plan (config.cfd_exit_plan): ONE target, nothing moves the stop on the way.
-            "plain_exit": rec.get("target_basis") == "plain_r",
-            "exit_at": ("T3" if rec.get("target_basis") == "plain_r"
+            # A CFD exit plan (config.cfd_exit_plan) or an entry rule (config.CFD_RULES): ONE target,
+            # nothing moves the stop on the way; a rule's ticket has no reversal exit either.
+            "plain_exit": rec.get("target_basis") in ("plain_r", "rule"),
+            "rule_strategy": rec.get("target_basis") == "rule",
+            "exit_at": ("T3" if rec.get("target_basis") in ("plain_r", "rule")
                         else _cfg("EXIT_AT_TARGET", "T3") if _cfg("EXIT_AT_TARGET", "T3") in TARGET_KEYS else "T3"),
             "index_targets": rec["index_targets"],
             "index_sl": rec["index_stop_loss"],
