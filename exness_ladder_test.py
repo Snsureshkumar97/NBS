@@ -106,6 +106,14 @@ TEST = r'''
                       lot_size: 65, lots: 1, targets: [120, 140, 160], stop: 80, exit_at: "T3", hit: {}, hit_time: {},
                       entry_time: "10:00:00", reward_risk: null}, wait: null});
   out.nifty_rr = rrCell();
+  // The forward test's note under the rule's votes (the user, 4 Oct 2026: "run the forward test on demo with RSI-2")
+  const ftRule = {label: "RSI-2 bounce", stop_atr: 3, target_r: 1,
+                  forward_test: {since: "2026-10-04", trades_a_month: 30, win: "53-55%", per_trade: 55, luck_pct: 4.6}};
+  const why = {votes: [{name: "RSI-2 extreme", vote: 1, reading: "buy"}, {name: "Stochastic", vote: 1, reading: "buy"}]};
+  gauges({index: "BTC", rule: ftRule}, why);
+  out.ft_note = document.getElementById("gnote").textContent;
+  gauges({index: "GOLD", rule: {label: "Trend + momentum rule", stop_atr: 3, target_r: 0.75, forward_test: null}}, why);
+  out.gold_note = document.getElementById("gnote").textContent;
   console.log(JSON.stringify(out));
 })();
 '''
@@ -149,6 +157,15 @@ check("a rule's ticket shows its own 0.75 : 1 with the reading quiet", out.get("
 check("...never the engine's room-to-run, even if a reading still carried one", out.get("rule_rr_engine_left") == "0.75 : 1",
       out.get("rule_rr_engine_left"))
 check("an Indian ticket still shows the live signal's, as before", out.get("nifty_rr") == "1.44 : 1", out.get("nifty_rr"))
+print("3c. THE RSI-2 FORWARD TEST IS SAID PLAINLY ON THE CARD")
+note = out.get("ft_note") or ""
+check("the note says FORWARD TEST on the demo account since 2026-10-04 - not proven",
+      "FORWARD TEST on the demo account since 2026-10-04 - not proven" in note, note[:160])
+check("...with what the 3-year test expects, to hold the real results against",
+      "about 30 trades a month, 53-55% won, about +$55 a trade per BTC" in note and "did as well 4.6% of the time" in note
+      and "cannot prove it either way" in note, note)
+check("a rule that is not on trial (gold) has no such note", "FORWARD TEST" not in (out.get("gold_note") or "")
+      and (out.get("gold_note") or "").startswith("Trend + momentum rule:"), out.get("gold_note"))
 print("4. ON A PHONE THE MONEY SHOWS (the user, 4 Oct 2026: \"i dont see how much i get for targets\")")
 css = web_server.PAGE
 phone = css[css.index("@media(max-width:560px){\n  .rung{gap:8px}"):]

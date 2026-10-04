@@ -735,9 +735,24 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
 #   GOLD  in-sample 62% won +108,722 / held-out 59% won +47,774 (per lot) - LESS held-out profit than
 #         the 5R exit it replaces (+79,344): the user chose the higher win rate knowing it.
 # Not listed = the engine and CFD_EXIT_PLAN, as before.
+#
+# BTC REPLACED 4 Oct 2026 - a FORWARD TEST on the demo account (the user: "run the forward test on demo
+# with RSI-2"). The candle rule above failed a coin-flip check: the same bars with the direction by coin
+# flip did as well in the held-out year 1 time in 5, and over EVERY one of its signals it lost -$25 per
+# BTC in-sample. cfd_strict_search.py (chosen on every signal, 10 finalists fixed before the held-out
+# year, against 2,000 coin flips): NOTHING passed; the closest family was RSI-2, and this is its #1,
+# ranked before the held-out year was looked at - RSI(2) at an extreme WITH the 200-candle trend (buy a
+# sharp dip above the SMA200, sell a sharp spike below it), the stochastic agreeing; stop 3 x ATR,
+# target 1 x the stop. Real ticks, spread, swap, one at a time (per BTC):
+#   in-sample 656 trades, 55% won, +33,017 (+$50 a trade);  held-out 384 trades, 53% won, +22,498
+#   (+$59 a trade) - coin flips did as well 4.6% of the time: NOT PROVEN. ~30 trades a month at ~$900
+#   per trade either way, so a few months of results cannot prove it either (~1,000 trades would);
+#   what they can show is whether the real fills match the test and whether it is plainly failing.
 CFD_RULES = {
-    "BTC": {"label": "Candle + Heikin-Ashi rule", "votes": ["candle", "ha"], "filters": ["vol_rising"],
-            "stop_atr": 3.0, "target_r": 0.75},
+    "BTC": {"label": "RSI-2 bounce", "votes": ["rsi2", "stoch50"], "filters": [],
+            "stop_atr": 3.0, "target_r": 1.0,
+            "forward_test": {"since": "2026-10-04", "trades_a_month": 30, "win": "53-55%", "per_trade": 55,
+                             "luck_pct": 4.6}},
     "GOLD": {"label": "Trend + momentum rule", "votes": ["d1_trend", "h1_trend", "roc12"],
              "filters": ["adx_rising", "vol_rising"], "stop_atr": 3.0, "target_r": 0.75},
 }

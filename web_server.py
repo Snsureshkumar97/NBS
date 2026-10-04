@@ -7327,9 +7327,15 @@ function gauges(r, why){
       <div class="gv" style="color:${colour}">${esc(reading)||"—"}</div>
     </div>`;
   }).join("");
+  const ft = r.rule && r.rule.forward_test;
   $("gnote").textContent = r.rule
     ? `${r.rule.label}: a trade only when every vote agrees and every filter says yes - decided once, on each `
       + `15-minute close. Stop ${r.rule.stop_atr} x ATR, one target at ${r.rule.target_r} x the stop distance.`
+      // On trial (the user, 4 Oct 2026: "run the forward test on demo with RSI-2"): said plainly, with
+      // what the 3-year test expects, so the real results can be held against it.
+      + (ft ? ` FORWARD TEST on the demo account since ${ft.since} - not proven. In the 3-year test: about `
+              + `${ft.trades_a_month} trades a month, ${ft.win} won, about +$${ft.per_trade} a trade per BTC, and coin `
+              + `flips did as well ${ft.luck_pct}% of the time. A few months of results cannot prove it either way.` : "")
     : "A dash is an input that abstained — it is ignored, not counted as neutral.";
 }
 
@@ -8396,7 +8402,7 @@ function render(s){
     $("conftag").style.display="inline-flex";
     $("conftag").className="tag "+(bull?"up":bear?"down":"flat");
     $("conftag").textContent = r.rule
-      ? `${r.rule.label} · every vote agrees`
+      ? `${r.rule.label} · every vote agrees${r.rule.forward_test ? " · forward test" : ""}`
       : (bull||bear? (s.cfd ? (r.option_type==="CE"?"Buy":"Sell")
                             : r.strike+" "+(r.option_type==="CE"?"Call":"Put"))+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";

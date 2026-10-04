@@ -83,31 +83,37 @@ check("candles fetched before the last one closed (no newer candle yet): it WAIT
       stale["ready"] is False and "waiting" in stale["why"], stale)
 check("fewer than 250 closed candles: not ready", cfd_rules.evaluate("BTC", df.iloc[:100], now=idx[99] + pd.Timedelta(minutes=1))["ready"] is False)
 
-print("3. A READING BECOMES THE TESTED TICKET: STOP 3 x ATR, ONE TARGET 0.75 x THE STOP")
-ev3 = {"ready": True, "votes": {"candle": -1, "ha": -1}, "filters": {"vol_rising": True}, "side": -1, "atr": 100.0,
+print("3. A READING BECOMES THE TESTED TICKET: STOP 3 x ATR, ONE TARGET target_r x THE STOP")
+ev3 = {"ready": True, "votes": {"rsi2": -1, "stoch50": -1}, "filters": {}, "side": -1, "atr": 100.0,
        "close": 84000.0, "bar_close": "x", "fresh": True}
 rec = cfd_rules.apply({"index": "BTC", "spot": 84000.0}, ev3, "BTC")
-check("SELL: stop 84,000 + 3 x 100 = 84,300; target 84,000 - 0.75 x 300 = 83,775 (T1/T2 waypoints on the way)",
-      rec["option_type"] == "PE" and rec["index_stop_loss"] == 84300.0 and rec["index_targets"] == [83925.0, 83850.0, 83775.0]
+check("SELL: stop 84,000 + 3 x 100 = 84,300; target 84,000 - 1 x 300 = 83,700 (T1/T2 waypoints on the way)",
+      rec["option_type"] == "PE" and rec["index_stop_loss"] == 84300.0 and rec["index_targets"] == [83900.0, 83800.0, 83700.0]
       and rec["risk_points"] == 300.0 and rec["target_basis"] == "rule", (rec["index_stop_loss"], rec["index_targets"]))
-check("the Signal card gets the votes and filters by name", [v["name"] for v in rec["rule"]["votes"]] == ["Candle colour", "Heikin-Ashi"]
-      and rec["rule"]["filters"][0]["name"] == "Volume rising" and rec["rule"]["filters"][0]["ok"] is True)
-rec0 = cfd_rules.apply({"index": "BTC", "spot": 84000.0}, dict(ev3, side=0, votes={"candle": 1, "ha": -1}), "BTC")
+check("the Signal card gets the votes by name (no filters in this rule)",
+      [v["name"] for v in rec["rule"]["votes"]] == ["RSI-2 extreme", "Stochastic"]
+      and [v["vote"] for v in rec["rule"]["votes"]] == [-1, -1] and rec["rule"]["filters"] == [])
+check("...and that it is a FORWARD TEST, with what the 3-year test expects",
+      (rec["rule"].get("forward_test") or {}).get("since") == "2026-10-04"
+      and (rec["rule"].get("forward_test") or {}).get("luck_pct") == 4.6, rec["rule"].get("forward_test"))
+rec0 = cfd_rules.apply({"index": "BTC", "spot": 84000.0}, dict(ev3, side=0, votes={"rsi2": 0, "stoch50": -1}), "BTC")
 check("votes split -> no trade, no levels", rec0["bias"] == "NEUTRAL" and rec0["index_targets"] == [None] * 3
       and rec0["index_stop_loss"] is None)
 # The engine's room-to-run reward:risk came along on the reading and went into the trade log as
 # this rule's (17.51 on the first live rule trade, 4 Oct 2026, for a 0.75 trade).
 eng = {"index": "BTC", "spot": 84000.0, "reach_to_risk": 17.51, "reach_points": 2883.31}
 r_side = cfd_rules.apply(dict(eng), ev3, "BTC")
-check("the rule's reward:risk is its own - 0.75, target over stop - not the engine's room-to-run 17.51",
-      r_side["reach_to_risk"] == 0.75 and r_side["reach_points"] is None, (r_side["reach_to_risk"], r_side["reach_points"]))
-r_none = cfd_rules.apply(dict(eng), dict(ev3, side=0, votes={"candle": 1, "ha": -1}), "BTC")
+check("the rule's reward:risk is its own - 1.0, target over stop - not the engine's room-to-run 17.51",
+      r_side["reach_to_risk"] == 1.0 and r_side["reach_points"] is None, (r_side["reach_to_risk"], r_side["reach_points"]))
+r_none = cfd_rules.apply(dict(eng), dict(ev3, side=0, votes={"rsi2": 0, "stoch50": -1}), "BTC")
 check("...and no trade: no reward:risk at all", r_none["reach_to_risk"] is None and r_none["reach_points"] is None)
-check("the chosen rules are the ones the user picked (accuracy-first, both markets)",
-      config.CFD_RULES["BTC"]["votes"] == ["candle", "ha"] and config.CFD_RULES["BTC"]["filters"] == ["vol_rising"]
-      and config.CFD_RULES["GOLD"]["votes"] == ["d1_trend", "h1_trend", "roc12"]
+check("BTC: the RSI-2 forward test (cfd_strict_search.py's #1, ranked before the held-out year) - stop 3 ATR, target 1R",
+      config.CFD_RULES["BTC"]["votes"] == ["rsi2", "stoch50"] and config.CFD_RULES["BTC"]["filters"] == []
+      and config.CFD_RULES["BTC"]["stop_atr"] == 3.0 and config.CFD_RULES["BTC"]["target_r"] == 1.0)
+check("GOLD: unchanged (the user's accuracy-first pick)", config.CFD_RULES["GOLD"]["votes"] == ["d1_trend", "h1_trend", "roc12"]
       and config.CFD_RULES["GOLD"]["filters"] == ["adx_rising", "vol_rising"]
-      and all(p["stop_atr"] == 3.0 and p["target_r"] == 0.75 for p in config.CFD_RULES.values()))
+      and config.CFD_RULES["GOLD"]["stop_atr"] == 3.0 and config.CFD_RULES["GOLD"]["target_r"] == 0.75
+      and "forward_test" not in config.CFD_RULES["GOLD"])
 
 print("4. THE TICKET ENGINE TRADES A RULE EXACTLY AS TESTED")
 import datetime as dt
@@ -119,26 +125,26 @@ d = tempfile.mkdtemp()
 bk = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d, "t.csv"))
 bk.lots = 0.1
 def reading(side=1, fresh=True, bar="2026-10-05T04:30:00+00:00", spot=84000.0):
-    ev = {"ready": True, "votes": {"candle": side, "ha": side}, "filters": {"vol_rising": True}, "side": side,
+    ev = {"ready": True, "votes": {"rsi2": side, "stoch50": side}, "filters": {}, "side": side,
           "atr": 100.0, "close": spot, "bar_close": bar, "fresh": fresh}
     r = cfd_rules.apply({"index": "BTC", "spot": spot, "cfd_spread": 10.0, "quote_age_s": 1.0,
                          "reach_to_risk": 17.51, "reach_points": 2883.31}, ev, "BTC")      # the engine's, as live
     return r
 evs = bk.update("BTC", reading())
 t = bk.books["BTC"].trade
-check("a fresh BUY reading opens a ticket: stop 83,700, target 84,225, one target (plain), exit at T3, rule-marked",
-      any(e["kind"] == "opened" for e in evs) and t["index_sl"] == 83700.0 and t["index_targets"][2] == 84225.0
+check("a fresh BUY reading opens a ticket: stop 83,700, target 84,300, one target (plain), exit at T3, rule-marked",
+      any(e["kind"] == "opened" for e in evs) and t["index_sl"] == 83700.0 and t["index_targets"][2] == 84300.0
       and t["plain_exit"] and t["exit_at"] == "T3" and t["rule_strategy"] and t["cfd"], (t and (t["index_sl"], t["index_targets"])))
 import trade_log
 orow = [r for r in trade_log._read_rows(bk.path) if r["event"] == "OPEN"][-1]
-check("the journal's OPEN row: reward_risk 0.75 (target over stop), no engine room-to-run",
-      orow["reward_risk"] == "0.75" and orow["reach_points"] == "", (orow["reward_risk"], orow["reach_points"]))
+check("the journal's OPEN row: reward_risk 1.0 (target over stop), no engine room-to-run",
+      orow["reward_risk"] == "1.0" and orow["reach_points"] == "", (orow["reward_risk"], orow["reach_points"]))
 q = bk.update("BTC", cfd_rules.apply({"index": "BTC", "spot": 84000.0, "quote_age_s": 1.0, "reach_to_risk": 17.51},
-                                     {"ready": True, "votes": {"candle": 1, "ha": -1}, "filters": {"vol_rising": True},
+                                     {"ready": True, "votes": {"rsi2": 0, "stoch50": 1}, "filters": {},
                                       "side": 0, "atr": 100.0, "bar_close": "x", "fresh": True}, "BTC"))
 pt = bk.public("BTC")["ticket"]
-check("the open ticket's panel keeps the rule's 0.75 after the reading goes quiet", t["reward_risk"] == 0.75
-      and pt["reward_risk"] == 0.75, pt.get("reward_risk"))
+check("the open ticket's panel keeps the rule's 1.0 after the reading goes quiet", t["reward_risk"] == 1.0
+      and pt["reward_risk"] == 1.0, pt.get("reward_risk"))
 bk2 = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d, "t2.csv"))
 bk2._open(bk2.books["BTC"], dict(reading(), target_basis="plain_r"))
 check("a ticket that is not a rule's freezes none (its panel reads the live signal, as before)",
@@ -150,9 +156,9 @@ bk.books["BTC"].confirm_dir, bk.books["BTC"].confirm_streak, bk.books["BTC"].con
 bk.tick_price("BTC", 84050.0)
 check("no reversal exit on a rule's ticket (the test had none), with the reversal exit armed", t["status"] == "OPEN", t["status"])
 tickets.config.EARLY_EXIT_ON_REVERSAL, tickets.config.SIGNAL_CONFIRM_SECONDS = was, was_s
-bk.tick_price("BTC", 84160.0)                       # past T1 84,075 and T2 84,150, short of the target 84,225
+bk.tick_price("BTC", 84250.0)                       # past T1 84,100 and T2 84,200, short of the target 84,300
 check("T1/T2 reached: marked, the stop has NOT moved", t["hit"]["T1"] and t["hit"]["T2"] and t["index_sl"] == 83700.0)
-evs = bk.tick_price("BTC", 84230.0)
+evs = bk.tick_price("BTC", 84310.0)
 check("the target: closed as a full target", "T3 hit" in t["status"], t["status"])
 was_cd = tickets.config.REENTRY_COOLDOWN_MIN
 tickets.config.REENTRY_COOLDOWN_MIN = 0                    # so only the one-decision-per-close guard can stop it
@@ -180,28 +186,29 @@ check("a close older than the 2-minute window: waits for the next close", bk.boo
       bk.books["BTC"].wait_reason)
 evs = bk.update("BTC", reading(side=-1, bar="2026-10-05T05:15:00+00:00"))
 t2 = bk.books["BTC"].trade
-check("a fresh SELL on a new close opens: stop 84,300, target 83,775", t2["status"] == "OPEN" and t2["option_type"] == "PE"
-      and t2["index_sl"] == 84300.0 and t2["index_targets"][2] == 83775.0)
+check("a fresh SELL on a new close opens: stop 84,300, target 83,700", t2["status"] == "OPEN" and t2["option_type"] == "PE"
+      and t2["index_sl"] == 84300.0 and t2["index_targets"][2] == 83700.0)
 evs = bk.update("BTC", reading(side=1, bar="2026-10-05T05:30:00+00:00"))
 check("a position open: the next BUY close changes nothing", bk.books["BTC"].trade is t2 and t2["status"] == "OPEN"
       and bk.books["BTC"].wait_reason[1] == "POSITION OPEN")
 bk.update("BTC", cfd_rules.apply({"index": "BTC", "spot": 84000.0, "quote_age_s": 1.0},
-                                 {"ready": True, "votes": {"candle": 1, "ha": -1}, "filters": {"vol_rising": True},
+                                 {"ready": True, "votes": {"rsi2": 0, "stoch50": 1}, "filters": {},
                                   "side": 0, "atr": 100.0, "bar_close": "x", "fresh": True}, "BTC"))
 check("votes split: no trade (and the open one is left to its own exit)", bk.books["BTC"].trade is t2)
 
 print("5. THE SIGNAL CARD - THE RULE'S OWN VOTES, IN WORDS")
 import explain
 w = explain.explain(reading())
-check("rows are the rule's votes and filter, no ADX gate", [v["name"] for v in w["votes"]] == ["Candle colour", "Heikin-Ashi",
-      "Volume rising"] and w["gate"] is None and w["votes"][0]["text"].startswith("The last 15-minute candle closed above"))
-check("the verdict names the decision and the exit", "BUY" in w["verdict"] and "one target at 0.75" in w["verdict"])
+check("rows are the rule's votes, no ADX gate", [v["name"] for v in w["votes"]] == ["RSI-2 extreme", "Stochastic"]
+      and w["gate"] is None and w["votes"][0]["text"].startswith("RSI-2 is below 10 - a sharp dip")
+      and w["votes"][1]["text"].startswith("The stochastic is above 50"))
+check("the verdict names the decision and the exit", "BUY" in w["verdict"] and "one target at 1 x" in w["verdict"])
 check("the levels say where the stop and the one target are", w["levels"][0].startswith("STOP 83,700")
-      and "TARGET 84,225" in w["levels"][1], w["levels"])
+      and "TARGET 84,300" in w["levels"][1], w["levels"])
 import feeds
 pub = feeds._public(dict(reading(), technical={}, trend={}), "BTC")
-check("the page gets the rule, the levels, exit at T3", pub["rule"]["label"] == "Candle + Heikin-Ashi rule"
-      and pub["exit_at"] == "T3" and pub["stop"] == 83700.0)
+check("the page gets the rule, the levels, exit at T3, and the forward-test note's facts", pub["rule"]["label"] == "RSI-2 bounce"
+      and pub["exit_at"] == "T3" and pub["stop"] == 83700.0 and (pub["rule"].get("forward_test") or {}).get("trades_a_month") == 30)
 nb = tickets.TicketBook(market="nse_index")
 check("an Indian reading has no rule and goes the engine's way", nb.books["NIFTY"] is not None and config.cfd_rule("NIFTY") is None)
 

@@ -268,6 +268,12 @@ _RULE_TEXT = {
     "h1_trend": ("The hourly trend points up (EMA 20 above EMA 50 on the hour).",
                  "The hourly trend points down (EMA 20 below EMA 50 on the hour).", "The hourly trend is flat."),
     "roc12": ("Price is higher than 3 hours ago.", "Price is lower than 3 hours ago.", "Price is where it was 3 hours ago."),
+    "rsi2": ("RSI-2 is below 10 - a sharp dip - while price is above its 200-candle average: buy the dip.",
+             "RSI-2 is above 90 - a sharp spike - while price is below its 200-candle average: sell the spike.",
+             "RSI-2 is not at an extreme on the side of the 200-candle trend - no setup."),
+    "stoch50": ("The stochastic is above 50 - price in the upper half of its last 14 candles.",
+                "The stochastic is below 50 - price in the lower half of its last 14 candles.",
+                "The stochastic is at 50."),
 }
 _FILTER_TEXT = {
     "vol_rising": ("Volume is rising - the last 5 candles busier than the last 20.",

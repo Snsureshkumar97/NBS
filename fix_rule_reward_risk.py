@@ -11,7 +11,8 @@ code would have written them:
   * a trade is a rule trade when its OPEN row says confidence "Rule" and tracked_on "cfd";
   * each of its rows (OPEN and CLOSE) - every row stamps the reading AT THAT MOMENT (see
     market_bot's note on CLOSE rows) - gets reward_risk = the rule's target_r where the row's own
-    reading was the rule saying buy/sell (confidence "Rule"), and nothing where it was quiet;
+    reading was the rule saying buy/sell (confidence "Rule") - worked out from the row's OWN entry,
+    stop and target (never today's config, which can change) - and nothing where it was quiet;
     reach_points (the engine's room to run) is emptied on both.
 Nothing else in a file changes: every other line is kept byte for byte.
 
@@ -29,12 +30,18 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import config
 import trade_log
 
 
-def _target_r(index):
-    return (config.CFD_RULES.get(index) or {}).get("target_r")
+def _own_ratio(entry, stop, t3):
+    """The trade's OWN reward:risk from its frozen levels (target over stop), as the code wrote it
+    (the rule's target_r, 2 decimals) - never today's config: BTC's rule changed from 0.75 to 1.0 on
+    4 Oct 2026 (the RSI-2 forward test), and a re-run must not rewrite the older trades with it."""
+    try:
+        e, s_, t = float(entry), float(stop), float(t3)
+    except ValueError:
+        return None
+    return round(abs(t - e) / abs(e - s_), 2) if e != s_ else None
 
 
 def plan_file(path):
@@ -47,6 +54,7 @@ def plan_file(path):
     try:
         i_id, i_ev, i_ix, i_on, i_conf = (header.index(k) for k in ("trade_id", "event", "index", "tracked_on", "confidence"))
         i_rr, i_reach = header.index("reward_risk"), header.index("reach_points")
+        i_en, i_sl, i_t3 = header.index("entry"), header.index("stop"), header.index("t3")
     except ValueError:
         return []
     parsed = []
@@ -62,7 +70,7 @@ def plan_file(path):
     for n, line, row in parsed:
         if not row or row[i_id] not in rule_ids:
             continue
-        tr = _target_r(row[i_ix])
+        tr = _own_ratio(row[i_en], row[i_sl], row[i_t3])
         if tr is None:
             continue
         new = list(row)

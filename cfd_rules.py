@@ -22,6 +22,10 @@ HOW IT IS TRADED - exactly as tested, nothing the test did not have:
 
 THE VOTES are computed here with the very formulas cfd_vote_search.votes_and_filters() used
 (cfd_rules_test.py checks them bar for bar on the 3-year history).
+
+4 Oct 2026: BTC's rule is now RSI-2 + the stochastic (config.CFD_RULES), on a FORWARD TEST on the
+demo account - the candle rule failed a coin-flip check and cfd_strict_search.py found nothing that
+passes; RSI-2 came closest. Not proven: the card says so.
 """
 import numpy as np
 import pandas as pd
@@ -32,7 +36,8 @@ BAR = pd.Timedelta(minutes=15)
 RULE_ENTRY_WINDOW_S = 120
 HISTORY_DAYS = 30            # enough for EMA200 / the recursive Heikin-Ashi to forget their start
 LABELS = {"candle": "Candle colour", "ha": "Heikin-Ashi", "d1_trend": "Day trend", "h1_trend": "Hour trend",
-          "roc12": "Momentum (3h)", "vol_rising": "Volume rising", "adx_rising": "ADX rising"}
+          "roc12": "Momentum (3h)", "vol_rising": "Volume rising", "adx_rising": "ADX rising",
+          "rsi2": "RSI-2 extreme", "stoch50": "Stochastic"}
 
 
 def _rma(s, n):
@@ -61,6 +66,14 @@ def compute(df):
     out["d1_trend"] = _sgn(c.to_numpy() - pdc)
     out["h1_trend"] = _sgn(c.ewm(span=80, adjust=False).mean() - c.ewm(span=200, adjust=False).mean())
     out["roc12"] = _sgn(c - c.shift(12))
+    # RSI-2 (Connors): a sharp 2-candle dip (RSI2 < 10) while price is above its 200-candle average
+    # is a buy, a sharp spike (> 90) below it a sell; the stochastic: %K(14), smoothed 3, vs 50.
+    d = c.diff()
+    rsi2 = 100 - 100 / (1 + _rma(d.clip(lower=0), 2) / _rma((-d).clip(lower=0), 2).replace(0, np.nan))
+    s200 = c.rolling(200).mean()
+    out["rsi2"] = np.where((rsi2 < 10) & (c > s200), 1, np.where((rsi2 > 90) & (c < s200), -1, 0)).astype(np.int8)
+    k_ = 100 * (c - l.rolling(14).min()) / (h.rolling(14).max() - l.rolling(14).min()).replace(0, np.nan)
+    out["stoch50"] = _sgn(k_.rolling(3).mean() - 50)
     out["vol_rising"] = (v.rolling(5).mean() > v.rolling(20).mean()).to_numpy()
     up_, dn_ = h.diff(), -l.diff()
     tr = pd.concat([h - l, (h - c.shift()).abs(), (l - c.shift()).abs()], axis=1).max(axis=1)
@@ -123,7 +136,8 @@ def apply(rec, ev, index_key):
             "ready": ev.get("ready", False), "why": ev.get("why"),
             "votes": [{"key": k, "name": LABELS.get(k, k), "vote": (ev.get("votes") or {}).get(k)} for k in plan["votes"]],
             "filters": [{"key": k, "name": LABELS.get(k, k), "ok": (ev.get("filters") or {}).get(k)} for k in plan["filters"]],
-            "side": ev.get("side", 0), "bar_close": ev.get("bar_close"), "fresh": ev.get("fresh", False)}
+            "side": ev.get("side", 0), "bar_close": ev.get("bar_close"), "fresh": ev.get("fresh", False),
+            "forward_test": plan.get("forward_test")}       # on trial, not proven - the card says so
     rec["rule"] = info
     # A CFD has no option: nothing of the engine's option fields may be frozen into the ticket.
     rec.update(suggested_strike=None, strike_swap=None, strike_taken=False, premium_targets=[None, None, None],

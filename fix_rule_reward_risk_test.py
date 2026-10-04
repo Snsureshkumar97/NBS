@@ -27,14 +27,17 @@ base = dict(date="2026-10-04", index="BTC", option_type="CE", tracked_on="cfd", 
 rows = [
     # the first live rule trade, as it was logged: the engine's room-to-run on both rows
     dict(base, trade_id="BTC-20261004-034527", event="OPEN", time_ist="03:45:27", confidence="Rule", reward_risk=17.51,
-         reach_points=2883.31, risk_points=254.97, status="OPEN"),
+         reach_points=2883.31, risk_points=254.97, status="OPEN", entry=84732.39, stop=84477.42, t3=84923.62),
     dict(base, trade_id="BTC-20261004-034527", event="CLOSE", time_ist="05:22:29", confidence="N/A", reward_risk=12.0,
-         reach_points=2100.0, pnl=-4.05),
+         reach_points=2100.0, pnl=-4.05, entry=84732.39, stop=84477.42, t3=84923.62),
     # a rule trade that closed while the rule said buy again: its CLOSE row's reading was the rule's
     dict(base, trade_id="BTC-20261004-061500", event="OPEN", time_ist="06:15:01", confidence="Rule", reward_risk=9.1,
-         reach_points=1500.0),
+         reach_points=1500.0, entry=84000.0, stop=83700.0, t3=84225.0),
     dict(base, trade_id="BTC-20261004-061500", event="CLOSE", time_ist="06:45:01", confidence="Rule", reward_risk=8.0,
-         reach_points=1400.0),
+         reach_points=1400.0, entry=84000.0, stop=83700.0, t3=84225.0),
+    # a trade of the RSI-2 rule that came after (target 1 x the stop), written before the fix: its own 1.0
+    dict(base, trade_id="BTC-20261004-120000", event="OPEN", time_ist="12:00:01", confidence="Rule", reward_risk=5.5,
+         reach_points=800.0, entry=84000.0, stop=83700.0, t3=84300.0),
     # an Exness trade from BEFORE the rules (the engine + 5R plan) - its reading WAS the engine's: untouched
     dict(base, trade_id="BTC-20261004-022054", event="OPEN", time_ist="02:20:54", confidence="High", reward_risk=3.2,
          reach_points=900.0, option_type="PE"),
@@ -56,7 +59,7 @@ before_other = open(other, "rb").read()
 
 print("1. WHAT IT WOULD CHANGE - AND NOTHING WRITTEN WITHOUT --apply")
 ch = fx.plan_file(path)
-check("the two rule trades' four rows, nothing else", [c[0] for c in ch] == [1, 2, 3, 4], [c[0] for c in ch])
+check("the three rule trades' five rows, nothing else", [c[0] for c in ch] == [1, 2, 3, 4, 5], [c[0] for c in ch])
 fx.main([root])
 check("a dry run writes nothing", open(path, "rb").read() == before and not glob.glob(path + ".bak-rr-*"))
 check("an Indian log has nothing to change", fx.plan_file(other) == [])
@@ -71,6 +74,9 @@ b = got[("BTC-20261004-034527", "CLOSE")]
 check("...its CLOSE row (the rule quiet at that moment): no reward:risk", b["reward_risk"] == "" and b["reach_points"] == "")
 c = got[("BTC-20261004-061500", "CLOSE")]
 check("a CLOSE row while the rule said buy again: the rule's own 0.75", c["reward_risk"] == "0.75" and c["reach_points"] == "")
+d5 = got[("BTC-20261004-120000", "OPEN")]
+check("each trade gets ITS OWN ratio from its own levels: the 1R RSI-2 trade 1.0, the candle rule's 0.75",
+      d5["reward_risk"] == "1.0" and a["reward_risk"] == "0.75", (d5["reward_risk"], a["reward_risk"]))
 check("the pre-rule Exness trade and the AI trade: untouched",
       got[("BTC-20261004-022054", "OPEN")]["reward_risk"] == "3.2" and got[("BTC-20261004-022054", "CLOSE")]["reward_risk"] == "2.1"
       and got[("GOLD-20261004-070000", "OPEN")]["reward_risk"] == "1.5")
@@ -79,12 +85,18 @@ check("every other column of the fixed rows unchanged", a["risk_points"] == "254
 new = open(path, "rb").read().split(b"\r\n")
 old = before.split(b"\r\n")
 check("every other line byte for byte the same (and the same CRLF endings)", len(new) == len(old)
-      and all(n == o for i, (n, o) in enumerate(zip(new, old)) if i not in (1, 2, 3, 4)))
+      and all(n == o for i, (n, o) in enumerate(zip(new, old)) if i not in (1, 2, 3, 4, 5)))
 check("the Indian log untouched", open(other, "rb").read() == before_other)
 baks = glob.glob(path + ".bak-rr-*")
 check("a backup of the file as it was", len(baks) == 1 and open(baks[0], "rb").read() == before)
 check("the file keeps its private 0600 mode", oct(os.stat(path).st_mode & 0o777) == "0o600", oct(os.stat(path).st_mode & 0o777))
 check("run again: nothing left to correct", fx.plan_file(path) == [])
+import config
+was_rules = config.CFD_RULES
+config.CFD_RULES = dict(was_rules, BTC=dict(was_rules["BTC"], target_r=2.0))
+check("...even after the rule's settings change (they are never read: the rows keep their own ratio)",
+      fx.plan_file(path) == [])
+config.CFD_RULES = was_rules
 
 print("3. A ROW APPENDED BETWEEN READING AND WRITING IS NEVER LOST")
 open(path, "wb").write(before)
