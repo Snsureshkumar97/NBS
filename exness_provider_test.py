@@ -240,6 +240,44 @@ check("a 2-second-old tick IS live: a bar is built, age 2 s",
       ep.ExnessStreamer(shared=pol11).forming_bar("GOLD") is not None and pol11.price_age("GOLD", now=sat) == 2.0)
 check("ONE shared provider for the whole server", ep.shared() is ep.shared())
 
+print("8c. RIGHT AFTER A CLOSE: THE NEW CANDLE IS ASKED FOR EVERY 2 s, NOT EVERY 30 s (the user, 4 Oct 2026: \"every 15")
+print("    minutes the page is reloading for rsi extreme\" - the rule read 'waiting' until the 30-second cache ran out)")
+boundary = pd.Timestamp("2026-10-05 10:45", tz="UTC")
+def lagging(u, q):                       # MetaApi has not published the new candle yet: its newest is the one that closed
+    end = pd.Timestamp(q["startTime"]).floor("15min") - pd.Timedelta(minutes=15)
+    out = []
+    for k in range(int(q["limit"])):
+        t = end - pd.Timedelta(minutes=15 * k)
+        if t < boundary - pd.Timedelta(days=20):
+            break
+        out.append({"time": t.isoformat(), "open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5, "tickVolume": 7})
+    return Resp(200, out)
+c9 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/candles", lagging)])
+p9 = ep.ExnessMetaApiProvider(session=c9)
+_real_now = ep._utcnow
+try:
+    ep._utcnow = lambda: boundary + pd.Timedelta(seconds=40)          # 40 s after the 10:45 close
+    p9.get_ohlc("BTC", "15m", lookback_days=3)
+    n9 = len([c for c in c9.calls if "/candles" in c[0]])
+    k9 = ("BTCUSDm", "15m")
+    t9, f9, h9 = p9._candles[k9]
+    p9._candles[k9] = (t9 - 3, f9, h9)                                # 3 s old: inside the 30-s cache
+    p9.get_ohlc("BTC", "15m", lookback_days=3)
+    check("the new candle is missing and 3 s have passed: asked again at once (not after 30 s)",
+          len([c for c in c9.calls if "/candles" in c[0]]) == n9 + 1)
+    t9, f9, h9 = p9._candles[k9]
+    p9._candles[k9] = (t9 - 1, f9, h9)                                # 1 s old
+    p9.get_ohlc("BTC", "15m", lookback_days=3)
+    check("...but never more than every 2 s", len([c for c in c9.calls if "/candles" in c[0]]) == n9 + 1)
+    ep._utcnow = lambda: boundary + pd.Timedelta(minutes=12, seconds=40)   # 12 min on, still no new candle: closed market
+    t9, f9, h9 = p9._candles[k9]
+    p9._candles[k9] = (t9 - 3, f9, h9)
+    p9.get_ohlc("BTC", "15m", lookback_days=3)
+    check("a market with no new candle for 10+ minutes (gold at the weekend) keeps the normal 30-s cache",
+          len([c for c in c9.calls if "/candles" in c[0]]) == n9 + 1)
+finally:
+    ep._utcnow = _real_now
+
 print("9. THE PRICE IS ASKED EVERY SECOND (the user, 4 Oct 2026: \"yes make it every second\")")
 check("POLL_S is one second", ep.POLL_S == 1.0, ep.POLL_S)
 pl = ep._Poller(provider=object(), poll_s=ep.POLL_S)

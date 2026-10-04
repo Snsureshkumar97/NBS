@@ -87,6 +87,14 @@ check("the reading carries the numbers behind the votes (RSI-2, ADX, above/below
 stale = cfd_rules.evaluate("BTC", df, now=idx[-1] + cfd_rules.BAR + pd.Timedelta(seconds=20))
 check("candles fetched before the last one closed (no newer candle yet): it WAITS rather than read half a candle",
       stale["ready"] is False and "waiting" in stale["why"], stale)
+check("...but the card keeps the last complete reading meanwhile (it blanked every 15 minutes - the user, 4 Oct 2026),"
+      " with no side and never fresh, so nothing is traded on it",
+      stale.get("votes") == ev2.get("votes") and stale.get("values") == ev2.get("values") and stale["side"] == 0
+      and stale["fresh"] is False and stale["ready"] is False, stale)
+w_rec = cfd_rules.apply({"index": "BTC", "spot": 84000.0, "cfd_spread": 1.0}, dict(stale, side=1), "BTC")
+check("...applied: no trade, the reason says waiting, the rows still carry the last reading",
+      w_rec["bias"] == "NEUTRAL" and w_rec["rule"]["side"] == 0 and w_rec["blockers"][0].startswith("Waiting - waiting for")
+      and [v["vote"] for v in w_rec["rule"]["votes"]] == [ev2["votes"]["rsi2"]], w_rec["blockers"])
 check("fewer than 250 closed candles: not ready", cfd_rules.evaluate("BTC", df.iloc[:100], now=idx[99] + pd.Timedelta(minutes=1))["ready"] is False)
 
 print("3. A READING BECOMES THE TESTED TICKET: STOP 3 x ATR, ONE TARGET target_r x THE STOP")

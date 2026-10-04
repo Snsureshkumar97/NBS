@@ -56,6 +56,17 @@ MARKET_DATA = "https://mt-market-data-client-api-v1.{region}.agiliumtrade.ai"
 # (~0.3 s a request), and _run() sleeps only what is left of the second (never under 0.2 s).
 POLL_S = 1.0
 CANDLE_CACHE_S = 30.0
+# Just after a candle closes, the held history still lacks the NEW (forming) candle, and the entry rules read only a
+# candle they know is closed (cfd_rules.evaluate) - so for up to CANDLE_CACHE_S the BTC card read "waiting" every
+# 15 minutes (the user, 4 Oct 2026: "every 15 minutes the page is reloading for rsi extreme"). In the first
+# CANDLE_CLOSE_WINDOW_S of a new candle, ask again every CANDLE_CLOSE_REFETCH_S until it is there; past that window
+# (a closed market - gold at the weekend - has no new candles for days) the normal cache.
+CANDLE_CLOSE_REFETCH_S = 2.0
+CANDLE_CLOSE_WINDOW_S = 600.0
+
+
+def _utcnow():
+    return pd.Timestamp.now(tz="UTC")
 SUFFIXES = ("", "m", "c", "r")
 IST = "Asia/Kolkata"
 # The tool's interval names -> MetaApi's timeframes (MetaApi documents 1m..1mn).
@@ -219,11 +230,16 @@ class ExnessMetaApiProvider:
         with self._lock:
             fetch_lock = self._fetch_locks.setdefault(key, threading.Lock())
         with fetch_lock:
-            now = pd.Timestamp.now(tz="UTC")
+            now = _utcnow()
             want_from = now - pd.Timedelta(days=days)
             hit = self._candles.get(key)
             covers = hit is not None and len(hit[1]) and hit[1].index.min() <= want_from + bar
-            if covers and time.time() - hit[0] < CANDLE_CACHE_S:
+            keep_s = CANDLE_CACHE_S
+            if covers:
+                since_due = (now - (hit[1].index.max() + bar)).total_seconds()     # the new candle is this late
+                if 0 <= since_due < CANDLE_CLOSE_WINDOW_S:
+                    keep_s = CANDLE_CLOSE_REFETCH_S
+            if covers and time.time() - hit[0] < keep_s:
                 df = hit[1]
             elif covers:
                 # Topping up: the bars since the newest one held (the newest is

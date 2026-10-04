@@ -94,6 +94,7 @@ def compute(df):
 
 
 _CACHE = {}                 # (instrument, last closed bar, its close, its volume, bars) -> compute() output
+_LAST_READY = {}            # instrument -> its last complete reading: shown (never traded) while the next candle loads
 
 
 def evaluate(index_key, df, now=None):
@@ -112,7 +113,12 @@ def evaluate(index_key, df, now=None):
     if df is None or not len(df):
         return {"ready": False, "why": "no candles yet"}
     if df.index[-1] + BAR <= now:
-        return {"ready": False, "why": "waiting for the new 15-minute candle's first prices"}
+        # The card keeps the last complete reading - marked waiting, side 0, never fresh, so nothing is traded on it -
+        # instead of blanking every row for the seconds the new candle takes to arrive (it looked like the page
+        # reloading every 15 minutes - the user, 4 Oct 2026).
+        why = "waiting for the new 15-minute candle's first prices"
+        prev = _LAST_READY.get(index_key)
+        return dict(prev, ready=False, why=why, side=0, fresh=False) if prev else {"ready": False, "why": why}
     closed = df.iloc[:-1]
     if len(closed) < 250:
         return {"ready": False, "why": f"only {len(closed)} closed candles - 250 needed"}
@@ -132,9 +138,11 @@ def evaluate(index_key, df, now=None):
     values = {"rsi2": num("rsi2_value"), "adx": num("adx_value"),
               "above200": None if num("above200") is None else bool(num("above200")),
               "sma200": num("sma200"), "close": float(closed["Close"].iloc[-1])}
-    return {"ready": True, "votes": votes, "filters": filters, "side": side, "atr": float(a["atr"]), "values": values,
-            "close": float(closed["Close"].iloc[-1]), "bar_close": bar_close.isoformat(),
-            "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}
+    out = {"ready": True, "votes": votes, "filters": filters, "side": side, "atr": float(a["atr"]), "values": values,
+           "close": float(closed["Close"].iloc[-1]), "bar_close": bar_close.isoformat(),
+           "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}
+    _LAST_READY[index_key] = out
+    return out
 
 
 def apply(rec, ev, index_key):
