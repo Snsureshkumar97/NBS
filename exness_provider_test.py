@@ -240,6 +240,27 @@ check("a 2-second-old tick IS live: a bar is built, age 2 s",
       ep.ExnessStreamer(shared=pol11).forming_bar("GOLD") is not None and pol11.price_age("GOLD", now=sat) == 2.0)
 check("ONE shared provider for the whole server", ep.shared() is ep.shared())
 
+print("9. THE PRICE IS ASKED EVERY SECOND (the user, 4 Oct 2026: \"yes make it every second\")")
+check("POLL_S is one second", ep.POLL_S == 1.0, ep.POLL_S)
+pl = ep._Poller(provider=object(), poll_s=ep.POLL_S)
+pl.poll_once = lambda now=None: None                     # a pass that takes no time at all
+slept = []
+class _Stop(Exception):
+    pass
+def _sleep(sec):
+    slept.append(sec)
+    raise _Stop
+_real_sleep = ep.time.sleep
+ep.time.sleep = _sleep
+try:
+    pl._run()
+except _Stop:
+    pass
+finally:
+    ep.time.sleep = _real_sleep
+check("...a quick pass then sleeps the rest of that second, so the next ask is a second after the last",
+      len(slept) == 1 and 0.9 < slept[0] <= 1.0, slept)
+
 print()
 if fails:
     print(f"EXNESS PROVIDER TEST FAILED - {len(fails)}: " + "; ".join(fails))

@@ -51,7 +51,10 @@ import config
 
 CLIENT = "https://mt-client-api-v1.{region}.agiliumtrade.ai"
 MARKET_DATA = "https://mt-market-data-client-api-v1.{region}.agiliumtrade.ai"
-POLL_S = 2.0
+# Every second (the user, 4 Oct 2026: "yes make it every second"): Exness's BTC quote changed about once a second
+# (19 different quotes in 20 s, measured), so 2 s caught about every other tick. Each pass asks for both symbols
+# (~0.3 s a request), and _run() sleeps only what is left of the second (never under 0.2 s).
+POLL_S = 1.0
 CANDLE_CACHE_S = 30.0
 SUFFIXES = ("", "m", "c", "r")
 IST = "Asia/Kolkata"
