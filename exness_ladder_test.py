@@ -89,6 +89,23 @@ TEST = r'''
   ladder({index: "NIFTY", option_type: "CE", ltp: 100, premium_targets: [120,140,160], premium_stop: 80,
           targets: [25100,25200,25300], stop: 24900, spot: 25000, lot_size: 65, premium_source: "live", exit_at: "T2"}, null);
   out.nifty = rs();
+  // The open ticket's Reward : risk cell. A rule's ticket froze its own (0.75); the reading has
+  // since gone quiet (no reward:risk) - the cell keeps the ticket's. Any other ticket: the live one.
+  const rrCell = () => (document.getElementById("tstats").innerHTML.match(/Reward : risk<\/div><div class="v"[^>]*>([^<]*)</) || [])[1];
+  LAST = {market: "crypto", currency: "USD", session: {lot_choices: [0.01, 0.25], lots: 0.25}, broker: {accounts: []}, tickets: {}};
+  const rtk = {open: true, cfd: true, index: "BTC", option_type: "CE", tracked_on: "index", entry: 84732.39, now: 84740,
+               lot_size: 1, lots: 0.25, entry_spread: 18, reward_risk: 0.75, targets: [84796.13, 84859.88, 84923.62],
+               stop: 84477.42, exit_at: "T3", hit: {}, hit_time: {}, entry_time: "03:45:27"};
+  ticketBox({index: "BTC", cfd: true, bias: "NEUTRAL", spot: 84740, reach_to_risk: null}, {ticket: rtk, wait: null});
+  out.rule_rr = rrCell();
+  ticketBox({index: "BTC", cfd: true, bias: "NEUTRAL", spot: 84740, reach_to_risk: 17.51}, {ticket: rtk, wait: null});
+  out.rule_rr_engine_left = rrCell();
+  LAST = {market: "nse_index", currency: "INR", session: {lot_choices: [1], lots: 1}, broker: {}, tickets: {}};
+  ticketBox({index: "NIFTY", bias: "BULLISH", spot: 25000, reach_to_risk: 1.44},
+            {ticket: {open: true, index: "NIFTY", strike: 25000, option_type: "CE", tracked_on: "premium", entry: 100, now: 110,
+                      lot_size: 65, lots: 1, targets: [120, 140, 160], stop: 80, exit_at: "T3", hit: {}, hit_time: {},
+                      entry_time: "10:00:00", reward_risk: null}, wait: null});
+  out.nifty_rr = rrCell();
   console.log(JSON.stringify(out));
 })();
 '''
@@ -127,6 +144,11 @@ check("NIFTY 1 lot (65): T1 120 vs 100 = +1,300 ... stop -1,300 (whole rupees, a
       [x[-5:] for x in out.get("nifty") or []] == ["1,300", "2,600", "3,900", "1,300"]
       and (out.get("nifty") or [""])[0].startswith("+") and (out.get("nifty") or ["", "", "", ""])[3].startswith("−"),
       out.get("nifty"))
+print("3b. THE OPEN TICKET'S REWARD : RISK (the user, 4 Oct 2026: \"fix the journal reward risk\" - it read 17.51)")
+check("a rule's ticket shows its own 0.75 : 1 with the reading quiet", out.get("rule_rr") == "0.75 : 1", out.get("rule_rr"))
+check("...never the engine's room-to-run, even if a reading still carried one", out.get("rule_rr_engine_left") == "0.75 : 1",
+      out.get("rule_rr_engine_left"))
+check("an Indian ticket still shows the live signal's, as before", out.get("nifty_rr") == "1.44 : 1", out.get("nifty_rr"))
 print("4. ON A PHONE THE MONEY SHOWS (the user, 4 Oct 2026: \"i dont see how much i get for targets\")")
 css = web_server.PAGE
 phone = css[css.index("@media(max-width:560px){\n  .rung{gap:8px}"):]

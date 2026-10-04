@@ -1379,7 +1379,10 @@ class TicketBook:
             # nothing moves the stop on the way; a rule's ticket has no reversal exit either.
             "plain_exit": rec.get("target_basis") in ("plain_r", "rule"),
             "rule_strategy": rec.get("target_basis") == "rule",
-            "exit_at": ("T3" if rec.get("target_basis") in ("plain_r", "rule")
+            # A rule's reward:risk is fixed with its levels (target over stop); frozen so the open
+            # ticket's panel keeps showing it after the rule's reading goes quiet.
+            "reward_risk": rec.get("reach_to_risk") if rec.get("target_basis") == "rule" else None,
+            "exit_at":("T3" if rec.get("target_basis") in ("plain_r", "rule")
                         else _cfg("EXIT_AT_TARGET", "T3") if _cfg("EXIT_AT_TARGET", "T3") in TARGET_KEYS else "T3"),
             "index_targets": rec["index_targets"],
             "index_sl": rec["index_stop_loss"],
@@ -1654,6 +1657,7 @@ class TicketBook:
             # A CFD ticket (Exness): BUY (CE) or SELL (PE) the instrument itself - no
             # strike, no expiry - and the spread it paid, frozen at entry.
             "cfd": bool(trade.get("cfd")), "entry_spread": trade.get("entry_spread"),
+            "reward_risk": trade.get("reward_risk"),      # a rule's fixed one; None = the panel reads the live signal's
             "lots": trade.get("lots", 1), "lot_size": trade.get("lot_size"),
             "targets": (trade["premium_targets"] if trade["use_premium"]
                         else trade["index_targets"]),

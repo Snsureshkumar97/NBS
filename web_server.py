@@ -7060,8 +7060,10 @@ function ticketBox(r, state){
              : pnl < 0 ? "var(--down)" : "var(--ink-2)";
     const cell = (l,v,col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
                + `<div class="v"${col?` style="color:${col}"`:""}>${v}</div></div>`;
+    // A rule's ticket froze its own (target over stop); any other reads the live signal's.
+    const tkRR = tk.reward_risk != null ? tk.reward_risk : r.reach_to_risk;
     st.innerHTML =
-        cell("Reward : risk", r.reach_to_risk==null?"—":r.reach_to_risk+" : 1")
+        cell("Reward : risk", tkRR==null?"—":tkRR+" : 1")
       + cell(entryLabel(tk), num(tk.entry,dp))
       // What the premium cost to buy - entry x lot size x lots - the money at
       // risk in full; asked for on 20 Sep 2026, for both markets.

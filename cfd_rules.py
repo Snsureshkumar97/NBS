@@ -130,16 +130,22 @@ def apply(rec, ev, index_key):
                premium_stop_loss=None, premium_source=None, live_ltp=None)
     side = ev.get("side", 0) if ev.get("ready") else 0
     spot = rec.get("spot")
+    # The engine's room-to-run reward:risk (reach_to_risk / reach_points) is not this rule's: its own
+    # is target over stop, fixed. Left in, the trade log's reward_risk column read the engine's 17.51
+    # for a 0.75 trade (the user, 4 Oct 2026: "fix the journal reward risk") - as ai_desk does for
+    # its own trades, the reading's columns describe THIS trade.
     if side and spot is not None and ev.get("atr", 0) > 0:
         R = plan["stop_atr"] * ev["atr"]
         tgt = plan["target_r"] * R
         rec.update(bias="BULLISH" if side > 0 else "BEARISH", option_type="CE" if side > 0 else "PE",
                    index_stop_loss=round(spot - side * R, 2), risk_points=round(R, 2),
                    index_targets=[round(spot + side * tgt * f / 3, 2) for f in (1, 2, 3)],
+                   reach_to_risk=plan["target_r"], reach_points=None,
                    target_basis="rule", gate_targets=None, confidence="Rule",
                    action=f"{'BUY' if side > 0 else 'SELL'} - {info['label']}: every vote agrees on the 15-minute close")
     else:
         rec.update(bias="NEUTRAL", option_type=None, index_stop_loss=None, risk_points=None,
+                   reach_to_risk=None, reach_points=None,
                    index_targets=[None, None, None], target_basis="rule", confidence="N/A",
                    action=("NO TRADE - WAIT (" + (ev.get("why") or "the rule's votes and filters do not all agree "
                                                   "on the last 15-minute close") + ")"))
