@@ -1,0 +1,9 @@
+BTC (RSI-2 rule) - $ per BTC; T1/T2/T3 = 0.067/0.133/0.2 x the 3-ATR stop
+  exit                              IN-SAMPLE   n   win%      net    PF   maxDD       HELD-OUT   n   win%      net    PF   maxDD   0.25 lot 3y worst drop
+  all at T3 (live)                           975  87.2%   +25,749  1.21   7,358               726  86.9%   +25,228  1.33   6,102      +12,744     1,839
+  a third at T1, T2, T3                      975  87.2%   +14,157  1.18   5,613               726  87.1%   +17,370  1.37   4,489       +7,882     1,403
+
+GOLD (trend + momentum rule) - $ per lot (100 oz); T1/T2/T3 = 0.25/0.5/0.75 x the 3-ATR stop
+  exit                              IN-SAMPLE   n   win%      net    PF   maxDD       HELD-OUT   n   win%      net    PF   maxDD   0.25 lot 3y worst drop
+  all at T3 (live)                          1219  61.8%   +91,500  1.19  13,347               605  58.8%   +41,571  1.05  70,768      +33,268    17,692
+  a third at T1, T2, T3                     1219  62.6%   +45,223  1.14  19,539               605  59.8%   +29,661  1.06  40,794      +18,721    10,198
