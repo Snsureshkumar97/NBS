@@ -1,0 +1,7 @@
+BTC, the live rule unchanged on each candle size; $ per BTC; one at a time; real ticks; $10+ spread; swap.
+  candles   IN-SAMPLE   n   win%       net    PF  maxDD     HELD-OUT   n   win%       net    PF  maxDD   trades/day
+  5m                 1276  85.8%    +4,878  1.04 11,927             1529  83.8%   -10,461  0.92 16,850          2.6
+  15m                 975  87.2%   +25,749  1.21  7,358              726  86.9%   +25,228  1.33  6,102          1.6
+  30m                 609  83.1%   -17,465  0.87 24,307              427  88.8%   +26,614  1.45  6,381          1.0
+  1h                  356  82.6%    -7,718  0.92 18,038              200  83.5%    +1,151  1.02 10,342          0.5
+  4h                   82  80.5%   +10,910  1.39  9,858               57  70.2%    +4,824  1.22  7,656          0.1
