@@ -1,0 +1,12 @@
+PART 1 - SIZE: the same 1701 trades, from a $5,000 account, compounding
+  sizing                      end balance  worst drop  worst month  avg risk/trade  months down
+  fixed 0.25 lot (today)           17,739       19.6%       -11.7%           2.35%     11 of 37
+  risk 1% per trade                 7,312        6.7%        -3.7%           0.92%     13 of 37
+  risk 2% per trade                10,905       14.1%        -7.7%           1.94%     14 of 37
+
+PART 2 - CIRCUIT BREAKERS at 0.25 lot ($ per 0.25 BTC; KEEP = more profit than today in BOTH periods)
+  rule                                 IN-SAMPLE   n  win%     net  maxDD      HELD-OUT   n  win%     net  maxDD
+  today (no breaker)                             975   87%  +6,432  1,839               726   87%  +6,307  1,526
+  stop for the day after 1 loss                  899   88%  +7,919  1,697               642   87%  +5,021  1,664  drop
+  stop for the day after 2 losses                967   87%  +6,129  2,062               718   87%  +6,015  1,562  drop
+  pause 12 h after a loss                        872   88%  +7,052  1,589               638   87%  +4,864  1,563  drop

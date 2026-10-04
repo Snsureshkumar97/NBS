@@ -394,6 +394,59 @@ class Executor:
             pos["state"] = "attention"
             self._note(pos["index"], f"Could not close at Exness - CHECK EXNESS NOW: {exc}", "error")
 
+    # ---------------------------------------------------------------- the forward test's own record, and its guard
+    def forward_record(self, index):
+        """The forward test so far on this instrument: the rule's live positions closed since its start
+        (config forward_test.since_ts), from Exness's own results. None without a guard configured."""
+        plan = config.cfd_rule(index) or {}
+        ft = plan.get("forward_test") or {}
+        g = ft.get("guard")
+        if not g:
+            return None
+        since = dt.datetime.fromisoformat(ft["since_ts"]) if ft.get("since_ts") else None
+
+        def opened(p):
+            try:
+                _, d_, t_ = p["trade_id"].split("-")[:3]
+                return dt.datetime.strptime(d_ + t_, "%Y%m%d%H%M%S").replace(tzinfo=IST)
+            except (KeyError, ValueError):
+                return None
+        rows = sorted((p for p in self.positions.values()
+                       if p.get("index") == index and p.get("source") == "rule" and p.get("state") == "closed"
+                       and p.get("gross_pnl") is not None and p.get("qty")
+                       and opened(p) is not None and (since is None or opened(p) >= since)),
+                      key=lambda p: opened(p))
+        n = len(rows)
+        wins = sum(1 for p in rows if float(p["gross_pnl"]) > 0)
+        pnl = round(sum(float(p["gross_pnl"]) for p in rows), 2)
+        cum, peak, dd = 0.0, 0.0, 0.0
+        for p in rows:                                    # the drawdown per BTC held, so a lot change keeps the scale
+            cum += float(p["gross_pnl"]) / float(p["qty"])
+            peak = max(peak, cum)
+            dd = max(dd, peak - cum)
+        # how likely this few wins (or fewer) is, if the rule really wins expect_win of its trades
+        q = float(g["expect_win"])
+        p_low = sum(math.comb(n, k) * q ** k * (1 - q) ** (n - k) for k in range(wins + 1)) if n else 1.0
+        why = None
+        if n >= int(g["min_trades"]) and p_low < float(g["p_floor"]):
+            why = (f"{wins} of {n} won ({100 * wins / n:.0f}%) - a rule that really wins {100 * q:.0f}% would do "
+                   f"this badly less than {100 * float(g['p_floor']):.0f}% of the time")
+        elif dd > float(g["max_dd_per_btc"]):
+            why = (f"a drawdown of ${dd:,.0f} per BTC - over 1.5 x the 3-year test's worst")
+        return {"since": ft.get("since_ts"), "n": n, "wins": wins, "win_pct": round(100 * wins / n, 1) if n else None,
+                "pnl": pnl, "dd_per_btc": round(dd, 2), "p_low": round(p_low, 4), "tripped": why is not None, "why": why,
+                "min_trades": int(g["min_trades"]), "expect_win": q, "max_dd_per_btc": float(g["max_dd_per_btc"])}
+
+    def _guard(self, index):
+        """Live orders OFF - never on - when the forward test's own record is clearly worse than the test."""
+        rec = self.forward_record(index)
+        if rec and rec["tripped"] and self.enabled.get(index):
+            self.enabled[index] = False
+            self._note(index, f"Live orders switched OFF by the forward-test guard: {rec['why']}. Nothing new is "
+                              "sent until you switch them on again.", "error")
+            self._save()
+        return rec
+
     def _bank(self, c, pos, why):
         """Read Exness's own closing deal: price and profit."""
         pos["state"] = "closed"
@@ -412,6 +465,7 @@ class Executor:
                                  + (f" at {pos.get('exit_price')}" if pos.get("exit_price") else "")
                                  + (f", result ${pos.get('gross_pnl')}" if pos.get("gross_pnl") is not None else "")
                                  + f" ({why}).")
+        self._guard(pos["index"])            # every close: is the forward test still behaving like the test?
 
     # ---------------------------------------------------------------- Exness closed it first
     def poll(self):
@@ -488,4 +542,6 @@ class Executor:
                         label.setdefault(k, {})[src] = {"id": a["id"], "kind": a.get("kind"), "server": a.get("server")}
             return {"enabled": dict(self.enabled), "enabled_ai": dict(self.enabled_ai), "venue": "Exness",
                     "accounts": label, "positions": pos, "notes": self.notes[:8],
-                    "entries_today": self.entries_today if self.day == today else 0, "max_entries": MAX_ENTRIES_PER_DAY}
+                    "entries_today": self.entries_today if self.day == today else 0, "max_entries": MAX_ENTRIES_PER_DAY,
+                    # the forward test's record and its guard, per instrument (None where no guard is set)
+                    "guard": {k: self.forward_record(k) for k in INDICES}}

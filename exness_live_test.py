@@ -2,6 +2,7 @@
 """user_exness.py + exness_orders.py - each user's own Exness accounts (demo / real), their
 balances, and live orders - against a FAKE MetaApi: no network, no token, no order anywhere."""
 import json
+import datetime as dt
 import os
 import sys
 import tempfile
@@ -287,6 +288,48 @@ ex.handle("opened", dict(trade, trade_id="BTC-NOSL", index_sl=None), "rule")
 check("no stop -> nothing sent", len(fake.trades) == n and "BTC-NOSL" not in ex.positions and "stop and target" in ex.notes[0]["text"])
 ex.handle("opened", dict(trade, trade_id="BTC-NOTP", index_targets=[None, None, None]), "rule")
 check("no target -> nothing sent", len(fake.trades) == n and "BTC-NOTP" not in ex.positions)
+
+print("7d. THE FORWARD-TEST GUARD: LIVE ORDERS OFF (NEVER ON) WHEN THE DEMO'S RECORD IS CLEARLY WORSE THAN THE TEST")
+def guard_ex(rows):
+    g = eo.Executor(EMAIL, os.path.join(tempfile.mkdtemp(), "trades.csv"),
+                    client_factory=lambda acct: eo.Client(TOKEN, acct, session=fake), start=False)
+    g.set_enabled("BTC", True, "rule", account_id=DEMO)
+    for n_, (tid, pnl, qty, src) in enumerate(rows):
+        g.positions[tid] = {"trade_id": tid, "index": "BTC", "source": src, "state": "closed", "gross_pnl": pnl, "qty": qty}
+    return g
+def day_rows(results, start=dt.datetime(2026, 10, 5, 9, 0), qty=0.25, src="rule"):
+    return [((start + dt.timedelta(hours=2 * n)).strftime("BTC-%Y%m%d-%H%M%S"), r, qty, src) for n, r in enumerate(results)]
+edge = guard_ex(day_rows([12.0] * 17 + [-70.0] * 8))                     # 25 trades, 68% won
+check("17 of 25 won (68%): an 87% rule still does that 1.1% of the time - not yet proof, left ON",
+      edge._guard("BTC")["tripped"] is False and edge.enabled["BTC"] is True and edge._guard("BTC")["p_low"] > 0.01)
+bad = guard_ex(day_rows([12.0] * 16 + [-70.0] * 9))                      # 25 trades, 64% won
+rec = bad._guard("BTC")
+check("16 of 25 won (64%): an 87% rule does that under 1% of the time -> live orders switched OFF, the page told why",
+      rec["tripped"] and bad.enabled["BTC"] is False and "forward-test guard" in bad.notes[0]["text"]
+      and rec["p_low"] < 0.01 and bad.public()["guard"]["BTC"]["n"] == 25, (rec, bad.notes[:1]))
+good = guard_ex(day_rows([12.0] * 22 + [-70.0] * 3))                     # 25 trades, 88% won
+check("22 of 25 won (88%): left ON", good._guard("BTC")["tripped"] is False and good.enabled["BTC"] is True)
+few = guard_ex(day_rows([12.0] * 3 + [-70.0] * 7))                       # 10 trades, 30% - but too few yet
+check("only 10 trades: not judged on the win rate yet (20 needed)", few._guard("BTC")["tripped"] is False
+      and few.enabled["BTC"] is True)
+deep = guard_ex(day_rows([-1000.0] * 3))                                 # 3 x -$4,000 per BTC = 12,000 > 11,037
+check("a drawdown past 1.5 x the test's worst ($12,000 per BTC): OFF even before 20 trades",
+      deep._guard("BTC")["tripped"] and deep.enabled["BTC"] is False and "drawdown" in deep.notes[0]["text"])
+old = guard_ex(day_rows([-70.0] * 30, start=dt.datetime(2026, 10, 1, 9, 0)) + day_rows([12.0] * 5))
+r_old = old._guard("BTC")
+check("trades from before the forward test's start (the old rules, the 4 Oct bug) are not counted",
+      r_old["n"] == 5 and r_old["tripped"] is False and old.enabled["BTC"] is True, r_old)
+ai = guard_ex(day_rows([-70.0] * 25, src="ai"))
+check("the AI desk's positions are not the rule's record", ai._guard("BTC")["n"] == 0 and ai.enabled["BTC"] is True)
+back = guard_ex(day_rows([12.0] * 25))
+back.set_enabled("BTC", False, "rule")
+back._guard("BTC")
+check("a good record never switches them back ON - that stays the user's decision", back.enabled["BTC"] is False)
+gx = guard_ex(day_rows([12.0] * 16 + [-70.0] * 9))
+gx.positions["BTC-20261006-090000"] = {"trade_id": "BTC-20261006-090000", "index": "BTC", "source": "rule",
+                                       "state": "open", "qty": 0.25, "position_id": "p1", "side": "BUY", "symbol": "BTCUSDm"}
+gx._bank(type("C", (), {"deals": lambda self, pid: []})(), gx.positions["BTC-20261006-090000"], "test")
+check("every close is checked: banking a position runs the guard", gx.enabled["BTC"] is False)
 
 print("8. WHAT THE PAGE IS SENT - NO TOKEN, THE ACCOUNT KIND PER SWITCH")
 pubx = ex.public()

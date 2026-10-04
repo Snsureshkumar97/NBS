@@ -7297,6 +7297,18 @@ function roomRun(r){
   el.innerHTML = `<div class="rr-h">Room to run</div>` + line("up") + line("down");
 }
 
+// The forward test's own record so far (exness_orders.forward_record) and its guard - the user, 4 Oct 2026:
+// "make this tool make profits and less losses": live orders switch OFF by themselves if the record turns
+// clearly worse than the test; they are never switched back ON for you.
+function guardText(k){
+  const g = ((LAST && LAST.live && LAST.live.guard) || {})[k];
+  if(!g) return "";
+  const rec = g.n ? ` So far: ${g.n} trade${g.n === 1 ? "" : "s"}, ${g.win_pct}% won, ${g.pnl >= 0 ? "+" : "-"}$${Math.abs(g.pnl).toFixed(2)}.`
+                  : " So far: no trades yet.";
+  return rec + (g.tripped ? ` The guard switched live orders OFF: ${g.why}.`
+                          : ` Guard: live orders switch OFF by themselves if, after ${g.min_trades}+ trades, the win rate is `
+                            + `far below ${Math.round(g.expect_win * 100)}%, or the drop passes $${Math.round(g.max_dd_per_btc).toLocaleString("en-US")} per BTC.`);
+}
 function gauges(r, why){
   const rows = [];
   (why && why.votes || []).forEach(v => {
@@ -7338,7 +7350,8 @@ function gauges(r, why){
       // what the 3-year test expects, so the real results can be held against it.
       + (ft ? ` FORWARD TEST on the demo account since ${ft.since} - not proven. In the 3-year test: about `
               + `${ft.trades_a_month} trades a month, ${ft.win} won, about +$${ft.per_trade} a trade per BTC, and coin `
-              + `flips did as well ${ft.luck_pct}% of the time. A few months of results cannot prove it either way.` : "")
+              + `flips did as well ${ft.luck_pct}% of the time. A few months of results cannot prove it either way.`
+              + guardText(r.index) : "")
     : "A dash is an input that abstained — it is ignored, not counted as neutral.";
 }
 

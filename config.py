@@ -771,7 +771,16 @@ CFD_RULES = {
     "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],
             "stop_atr": 3.0, "target_r": 0.2, "max_spread_share": 0.2,
             "forward_test": {"since": "2026-10-04", "trades_a_month": 50, "win": "87%", "per_trade": 30,
-                             "luck_pct": 1.0}},
+                             "luck_pct": 1.0,
+                             # The record the guard keeps starts after the 4 Oct empty-ticket fix (c13f93a,
+                             # ~15:56 IST) - the trades before it were other rules or that bug.
+                             "since_ts": "2026-10-04T16:00:00+05:30",
+                             # exness_orders._guard: live orders OFF (never on) when the demo's own record is
+                             # clearly worse than the 3-year test - a win rate a working 87% rule would show
+                             # less than 1% of the time (after 20 trades), or a drawdown 1.5 x the test's
+                             # worst (7,358 per BTC, cfd_risk_overlay_study.py).
+                             "guard": {"expect_win": 0.87, "p_floor": 0.01, "min_trades": 20,
+                                       "max_dd_per_btc": 11037.0}}},
     "GOLD": {"label": "Trend + momentum rule", "votes": ["d1_trend", "h1_trend", "roc12"],
              "filters": ["adx_rising", "vol_rising"], "stop_atr": 3.0, "target_r": 0.75},
 }
