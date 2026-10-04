@@ -279,6 +279,7 @@ _FILTER_TEXT = {
     "vol_rising": ("Volume is rising - the last 5 candles busier than the last 20.",
                    "Volume is not rising - the last 5 candles no busier than the last 20."),
     "adx_rising": ("ADX is rising - the trend is getting stronger.", "ADX is not rising."),
+    "adx25": ("ADX is 25 or more - a strong trend.", "ADX is under 25 - no strong trend."),
 }
 
 

@@ -25,7 +25,8 @@ THE VOTES are computed here with the very formulas cfd_vote_search.votes_and_fil
 
 4 Oct 2026: BTC's rule is now RSI-2 + the stochastic (config.CFD_RULES), on a FORWARD TEST on the
 demo account - the candle rule failed a coin-flip check and cfd_strict_search.py found nothing that
-passes; RSI-2 came closest. Not proven: the card says so.
+passes; RSI-2 came closest. Then, the same day, its 87% version (one close target, cfd_strict_search.py
+--close): RSI-2 with ADX >= 25, target 0.2 x the stop. Not proven: the card says so.
 """
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ RULE_ENTRY_WINDOW_S = 120
 HISTORY_DAYS = 30            # enough for EMA200 / the recursive Heikin-Ashi to forget their start
 LABELS = {"candle": "Candle colour", "ha": "Heikin-Ashi", "d1_trend": "Day trend", "h1_trend": "Hour trend",
           "roc12": "Momentum (3h)", "vol_rising": "Volume rising", "adx_rising": "ADX rising",
-          "rsi2": "RSI-2 extreme", "stoch50": "Stochastic"}
+          "rsi2": "RSI-2 extreme", "stoch50": "Stochastic", "adx25": "ADX 25+"}
 
 
 def _rma(s, n):
@@ -82,6 +83,7 @@ def compute(df):
     ndi = 100 * _rma(dn_.where((dn_ > up_) & (dn_ > 0), 0.0), 14) / atr
     adx = _rma(100 * (pdi - ndi).abs() / (pdi + ndi), 14)
     out["adx_rising"] = (adx > adx.shift(3)).to_numpy()
+    out["adx25"] = (adx >= 25).to_numpy()                                   # a strong trend
     out["atr"] = tr.ewm(alpha=1 / 14, adjust=False).mean().to_numpy()     # cfd_outcomes.atr14
     return out
 

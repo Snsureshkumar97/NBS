@@ -748,11 +748,21 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
 #   (+$59 a trade) - coin flips did as well 4.6% of the time: NOT PROVEN. ~30 trades a month at ~$900
 #   per trade either way, so a few months of results cannot prove it either (~1,000 trades would);
 #   what they can show is whether the real fills match the test and whether it is plainly failing.
+#
+# SWITCHED the same day to the 87% version (the user: "you didnt find anything that can make the win rate
+# above 80% even it can give only one target to exit" -> "yes switch to the 87% version"). Close targets
+# (cfd_outcomes.py --close) through the same strict search, only exits winning 80%+ in-sample: nothing
+# passed; the closest of every search so far is RSI-2 with ADX >= 25 (a strong trend), stop 3 x ATR, ONE
+# target at 0.2 x the stop (per BTC, real ticks, spread, swap, one at a time):
+#   in-sample 1,213 trades, 87% won, +24,271, PF 1.18;  held-out 759 trades, 87% won, +25,122, PF 1.33
+#   coin flips did as well 1.2% of the time (the bar was 0.5%): NOT PROVEN. ~55 trades a month (7 on the
+#   busiest day). Random entries win 80%+ at targets this close too, and LOSE after the spread: a loss
+#   costs ~6 wins and ~86% is needed to break even - the edge is about a point of win rate.
 CFD_RULES = {
-    "BTC": {"label": "RSI-2 bounce", "votes": ["rsi2", "stoch50"], "filters": [],
-            "stop_atr": 3.0, "target_r": 1.0,
-            "forward_test": {"since": "2026-10-04", "trades_a_month": 30, "win": "53-55%", "per_trade": 55,
-                             "luck_pct": 4.6}},
+    "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],
+            "stop_atr": 3.0, "target_r": 0.2,
+            "forward_test": {"since": "2026-10-04", "trades_a_month": 55, "win": "87%", "per_trade": 25,
+                             "luck_pct": 1.2}},
     "GOLD": {"label": "Trend + momentum rule", "votes": ["d1_trend", "h1_trend", "roc12"],
              "filters": ["adx_rising", "vol_rising"], "stop_atr": 3.0, "target_r": 0.75},
 }
