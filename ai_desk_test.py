@@ -828,6 +828,8 @@ const expiryText = () => "";
 const entryLabel = t => t && t.entry_real ? "Entry \u00b7 filled" : "Entry";
 const entryNote = () => "";
 const casesRows = () => "";
+// the page's own contractName lives outside the slice copied below (web_server.py, since 3 Oct 2026)
+const contractName = (index, strike, side, cfd) => cfd ? String(index) : `${index} ${strike} ${side}`;
 const LAST = {};
 """ + SRC[fa:fb] + r'''
 function ticket(exit_at, hit, sl_hit){
