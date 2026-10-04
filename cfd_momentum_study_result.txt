@@ -1,0 +1,18 @@
+BTC on Exness, 15-minute, $ per BTC; in-sample to 15 Aug 2025, held-out after. For scale, the live RSI-2 rule: +25,729 / +25,228 (87% won).
+
+  entry + exit               IN-SAMPLE   n  win%   avgW   avgL      net   PF  hold   HELD-OUT   n  win%   avgW   avgL      net   PF  hold    coin p
+  breakout + trail                  1030   35%   +739   -448   -34,028 0.89  3.8h           626   34%   +749   -455   -28,494 0.85  3.5h   
+  breakout + ema20                  1064   32%   +781   -401   -29,571 0.90  3.2h           644   30%   +805   -402   -23,424 0.87  3.0h   
+  breakout + fade                   1445   34%   +461   -301   -64,919 0.77  1.2h           849   36%   +486   -282    -7,680 0.95  1.2h   
+  breakout + st trail                894   35%   +845   -508   -35,934 0.88  5.0h           531   33%   +958   -487    -8,572 0.95  5.0h   
+  ema momentum + trail              1334   35%   +741   -421   -20,027 0.95  3.8h           758   37%   +723   -414    +3,300 1.02  4.0h   
+  ema momentum + ema20              1419   30%   +762   -334   -13,422 0.96  2.5h           793   33%   +688   -349    -3,000 0.98  3.0h   
+  ema momentum + fade               2240   34%   +419   -247   -44,630 0.88  1.0h          1265   36%   +423   -246    -8,713 0.96  1.2h   
+  ema momentum + st trail           1206   32%   +830   -432   -27,861 0.92  4.2h           668   34%   +869   -426    +8,261 1.04  4.5h   
+  st flip + trail                    540   34%   +782   -453   -16,249 0.90  3.8h           316   35%   +695   -454   -17,045 0.82  3.8h   
+  st flip + ema20                    584   25%   +723   -314   -33,921 0.75  1.9h           327   31%   +619   -329   -12,769 0.83  1.8h   
+  st flip + fade                     635   37%   +266   -178    -9,032 0.87  0.2h           357   36%   +272   -185    -6,589 0.84  0.2h   
+  st flip + st trail                 497   31%   +925   -480   -23,686 0.86  5.2h           295   33%   +812   -498   -19,745 0.80  5.2h   
+
+  profitable in both periods: 0 of 12
+  pass the strict test (coin flips <= 0.0042): 0
