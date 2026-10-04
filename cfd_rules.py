@@ -145,6 +145,18 @@ def apply(rec, ev, index_key):
     rec.update(suggested_strike=None, strike_swap=None, strike_taken=False, premium_targets=[None, None, None],
                premium_stop_loss=None, premium_source=None, live_ltp=None)
     side = ev.get("side", 0) if ev.get("ready") else 0
+    cap = plan.get("max_spread_share")
+    if cap:
+        # The spread vs the target (cfd_rsi2_loss_study.py): with a target this close, a wide spread eats the
+        # win - no trade when the live spread is cap x the target distance or more, or is not known at all.
+        sp, atr_ = rec.get("cfd_spread"), ev.get("atr") or 0
+        tgt_d = plan["target_r"] * plan["stop_atr"] * atr_
+        sp_ok = sp is not None and tgt_d > 0 and round(sp / tgt_d, 9) < cap      # rounded: exactly 20% is "20% or more"
+        info["filters"].append({"key": "spread_ok", "name": "Spread vs target",
+                                "ok": bool(sp_ok) if ev.get("ready") else None,
+                                "spread": sp, "limit": round(cap * tgt_d, 2) if tgt_d > 0 else None})
+        if not sp_ok:
+            side = 0
     spot = rec.get("spot")
     # The engine's room-to-run reward:risk (reach_to_risk / reach_points) is not this rule's: its own
     # is target over stop, fixed. Left in, the trade log's reward_risk column read the engine's 17.51

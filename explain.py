@@ -280,6 +280,8 @@ _FILTER_TEXT = {
                    "Volume is not rising - the last 5 candles no busier than the last 20."),
     "adx_rising": ("ADX is rising - the trend is getting stronger.", "ADX is not rising."),
     "adx25": ("ADX is 25 or more - a strong trend.", "ADX is under 25 - no strong trend."),
+    "spread_ok": ("The spread is under 20% of the target - cheap enough for so close a target.",
+                  "The spread is 20% or more of the target - it would eat the win, so no trade (quiet market)."),
 }
 
 

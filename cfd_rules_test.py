@@ -86,27 +86,42 @@ check("fewer than 250 closed candles: not ready", cfd_rules.evaluate("BTC", df.i
 print("3. A READING BECOMES THE TESTED TICKET: STOP 3 x ATR, ONE TARGET target_r x THE STOP")
 ev3 = {"ready": True, "votes": {"rsi2": -1}, "filters": {"adx25": True}, "side": -1, "atr": 100.0,
        "close": 84000.0, "bar_close": "x", "fresh": True}
-rec = cfd_rules.apply({"index": "BTC", "spot": 84000.0}, ev3, "BTC")
+rec = cfd_rules.apply({"index": "BTC", "spot": 84000.0, "cfd_spread": 5.0}, ev3, "BTC")
 check("SELL: stop 84,000 + 3 x 100 = 84,300; target 84,000 - 0.2 x 300 = 83,940 (T1/T2 waypoints on the way)",
       rec["option_type"] == "PE" and rec["index_stop_loss"] == 84300.0 and rec["index_targets"] == [83980.0, 83960.0, 83940.0]
       and rec["risk_points"] == 300.0 and rec["target_basis"] == "rule", (rec["index_stop_loss"], rec["index_targets"]))
 check("the Signal card gets the vote and the filter by name",
       [v["name"] for v in rec["rule"]["votes"]] == ["RSI-2 extreme"] and [v["vote"] for v in rec["rule"]["votes"]] == [-1]
-      and [(f["name"], f["ok"]) for f in rec["rule"]["filters"]] == [("ADX 25+", True)])
+      and [(f["name"], f["ok"]) for f in rec["rule"]["filters"]] == [("ADX 25+", True), ("Spread vs target", True)])
 check("...and that it is a FORWARD TEST, with what the 3-year test expects",
       (rec["rule"].get("forward_test") or {}).get("since") == "2026-10-04"
-      and (rec["rule"].get("forward_test") or {}).get("luck_pct") == 1.2
+      and (rec["rule"].get("forward_test") or {}).get("luck_pct") == 1.0
       and (rec["rule"].get("forward_test") or {}).get("win") == "87%", rec["rule"].get("forward_test"))
 rec0 = cfd_rules.apply({"index": "BTC", "spot": 84000.0}, dict(ev3, side=0, votes={"rsi2": 0}), "BTC")
 check("votes split -> no trade, no levels", rec0["bias"] == "NEUTRAL" and rec0["index_targets"] == [None] * 3
       and rec0["index_stop_loss"] is None)
 # The engine's room-to-run reward:risk came along on the reading and went into the trade log as
 # this rule's (17.51 on the first live rule trade, 4 Oct 2026, for a 0.75 trade).
-eng = {"index": "BTC", "spot": 84000.0, "reach_to_risk": 17.51, "reach_points": 2883.31}
+eng = {"index": "BTC", "spot": 84000.0, "cfd_spread": 5.0, "reach_to_risk": 17.51, "reach_points": 2883.31}
 r_side = cfd_rules.apply(dict(eng), ev3, "BTC")
 check("the rule's reward:risk is its own - 0.2, target over stop - not the engine's room-to-run 17.51",
       r_side["reach_to_risk"] == 0.2 and r_side["reach_points"] is None, (r_side["reach_to_risk"], r_side["reach_points"]))
 r_none = cfd_rules.apply(dict(eng), dict(ev3, side=0, votes={"rsi2": 0}), "BTC")
+# The spread check (cfd_rsi2_loss_study.py): ATR 100 -> target 0.2 x 300 = 60 away, 20% of it = 12.
+under = cfd_rules.apply({"index": "BTC", "spot": 84000.0, "cfd_spread": 11.99}, ev3, "BTC")
+at_cap = cfd_rules.apply({"index": "BTC", "spot": 84000.0, "cfd_spread": 12.0}, ev3, "BTC")
+unknown = cfd_rules.apply({"index": "BTC", "spot": 84000.0}, ev3, "BTC")
+check("spread 11.99 on a 60-point target (under 20%): the SELL stands", under["option_type"] == "PE"
+      and under["rule"]["filters"][-1]["ok"] is True and under["rule"]["filters"][-1]["limit"] == 12.0)
+check("spread 12 (20% of the target): no trade, and the card's filter row says why", at_cap["bias"] == "NEUTRAL"
+      and at_cap["index_targets"] == [None] * 3 and at_cap["rule"]["filters"][-1]["ok"] is False
+      and at_cap["rule"]["filters"][-1]["spread"] == 12.0)
+check("no spread known: no trade (never on a guess)", unknown["bias"] == "NEUTRAL" and unknown["rule"]["filters"][-1]["ok"] is False)
+g_ev = {"ready": True, "votes": {"d1_trend": 1, "h1_trend": 1, "roc12": 1}, "filters": {"adx_rising": True, "vol_rising": True},
+        "side": 1, "atr": 10.0, "close": 4000.0, "bar_close": "x", "fresh": True}
+g = cfd_rules.apply({"index": "GOLD", "spot": 4000.0, "cfd_spread": 50.0}, g_ev, "GOLD")
+check("gold has no spread check (its rule is unchanged): a wide spread does not stop it", g["option_type"] == "CE"
+      and all(f["key"] != "spread_ok" for f in g["rule"]["filters"]))
 check("...and no trade: no reward:risk at all", r_none["reach_to_risk"] is None and r_none["reach_points"] is None)
 check("BTC: the RSI-2 87% forward test (cfd_strict_search.py --close) - RSI-2 with ADX >= 25, stop 3 ATR, target 0.2R",
       config.CFD_RULES["BTC"]["votes"] == ["rsi2"] and config.CFD_RULES["BTC"]["filters"] == ["adx25"]
@@ -200,7 +215,9 @@ check("votes split: no trade (and the open one is left to its own exit)", bk.boo
 print("5. THE SIGNAL CARD - THE RULE'S OWN VOTES, IN WORDS")
 import explain
 w = explain.explain(reading())
-check("rows are the rule's vote and its ADX filter (no engine gate)", [v["name"] for v in w["votes"]] == ["RSI-2 extreme", "ADX 25+"]
+check("rows are the rule's vote, its ADX filter and the spread check (no engine gate)",
+      [v["name"] for v in w["votes"]] == ["RSI-2 extreme", "ADX 25+", "Spread vs target"]
+      and w["votes"][2]["text"].startswith("The spread is under 20% of the target")
       and w["gate"] is None and w["votes"][0]["text"].startswith("RSI-2 is below 10 - a sharp dip")
       and w["votes"][1]["text"] == "ADX is 25 or more - a strong trend.")
 check("the verdict names the decision and the exit", "BUY" in w["verdict"] and "one target at 0.2 x" in w["verdict"])
@@ -209,7 +226,7 @@ check("the levels say where the stop and the one target are", w["levels"][0].sta
 import feeds
 pub = feeds._public(dict(reading(), technical={}, trend={}), "BTC")
 check("the page gets the rule, the levels, exit at T3, and the forward-test note's facts", pub["rule"]["label"] == "RSI-2 bounce (87%)"
-      and pub["exit_at"] == "T3" and pub["stop"] == 83700.0 and (pub["rule"].get("forward_test") or {}).get("trades_a_month") == 55)
+      and pub["exit_at"] == "T3" and pub["stop"] == 83700.0 and (pub["rule"].get("forward_test") or {}).get("trades_a_month") == 50)
 nb = tickets.TicketBook(market="nse_index")
 check("an Indian reading has no rule and goes the engine's way", nb.books["NIFTY"] is not None and config.cfd_rule("NIFTY") is None)
 

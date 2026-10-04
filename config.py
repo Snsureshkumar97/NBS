@@ -758,11 +758,20 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
 #   coin flips did as well 1.2% of the time (the bar was 0.5%): NOT PROVEN. ~55 trades a month (7 on the
 #   busiest day). Random entries win 80%+ at targets this close too, and LOSE after the spread: a loss
 #   costs ~6 wins and ~86% is needed to break even - the edge is about a point of win rate.
+#
+# AND the spread check (cfd_rsi2_loss_study.py, the user: "look for the why loss and work on that how to reduce
+# that and make profits with the high win rate"): losses do not cluster in any market condition (11-15% lost in
+# every bucket), and cutting them by time, break-even or a tighter stop always cost more winners than it saved.
+# The one change better in BOTH periods: no trade when Exness's spread is 20% or more of the (small) target -
+# quiet moments, where the spread eats the win. Picked on in-sample only (1 of 3 candidates), then: in-sample
+# 994 trades 87% +25,363; held-out 741 trades 87% +25,473; coin flips as good 1.0% (that check's bar 1.7%).
+# Still better in both when every trade is charged the demo account's own $10 spread (the archive has $7 since
+# mid-2026): +25,729 / +25,228 vs +24,096 / +24,546. At $10, it skips while ATR is under ~$83.
 CFD_RULES = {
     "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],
-            "stop_atr": 3.0, "target_r": 0.2,
-            "forward_test": {"since": "2026-10-04", "trades_a_month": 55, "win": "87%", "per_trade": 25,
-                             "luck_pct": 1.2}},
+            "stop_atr": 3.0, "target_r": 0.2, "max_spread_share": 0.2,
+            "forward_test": {"since": "2026-10-04", "trades_a_month": 50, "win": "87%", "per_trade": 30,
+                             "luck_pct": 1.0}},
     "GOLD": {"label": "Trend + momentum rule", "votes": ["d1_trend", "h1_trend", "roc12"],
              "filters": ["adx_rising", "vol_rising"], "stop_atr": 3.0, "target_r": 0.75},
 }
