@@ -3408,6 +3408,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 /* The lots selector. Nothing here places an order, so this only scales the
    rupee column — it is a "what would that be worth to me" dial, not a size. */
 .lots{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
+.lotqty{font-size:12px;color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
   border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
 
@@ -5001,6 +5002,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="lots" id="lotswrap" style="margin-left:auto">
   <label for="lots" id="lotslabel">Lots</label>
   <select id="lots"></select>
+  <span class="lotqty" id="lotqty"></span>
   </div>
   </div>
   <div class="ladder" id="ladder"></div>
@@ -5775,9 +5777,23 @@ function lotsSync(){
   sel.value = String(LOTS);
 }
 
+// The quantity the chosen lots come to, beside the selector (the user, 5 Oct 2026: "can we add the qty also beside the
+// lots"): an Indian index's lots x its lot size (NIFTY 2 lots = 130 qty - what a live Zerodha order buys), or on
+// Exness the BTC / ounces held (0.25 lot = 0.25 BTC; gold 0.25 lot = 25 oz).
+function lotQty(r){
+  const el = $("lotqty");
+  if(!el) return;
+  const ls = r && r.lot_size;
+  if(!ls || LOTS == null){ el.textContent = ""; return; }
+  const q = LOTS * ls;
+  el.textContent = r.cfd ? `= ${Number(q.toFixed(2)).toLocaleString("en-US")} ${r.index === "GOLD" ? "oz" : String(r.index || "")}`
+                         : `= ${Math.round(q).toLocaleString("en-IN")} qty`;
+}
+
 function ladder(r, tk){
   unitLabel(r);
   lotsSync();
+  lotQty(r);
   // A ticket outranks the live reading. Once one is issued its levels are
   // frozen, and showing the recalculated ones beside an open position would
   // be showing numbers that trade is not being measured against.

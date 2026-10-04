@@ -58,13 +58,15 @@ TEST = r'''
   ladder({index: "BTC", cfd: true, option_type: "PE", bias: "BEARISH", spot: 84000, lot_size: 1, cfd_spread: 10,
           targets: [83500, 83000, 82500], stop: 84300, exit_at: "T3", premium_targets: [null,null,null]}, null);
   out.btc_sell = rs();
+  out.qty_btc = document.getElementById("lotqty").textContent;
   out.lots_shown = document.getElementById("lotswrap").style.display;
   out.choices = (document.getElementById("lots").options || []).map(o => o.value);
   out.levels = [...document.getElementById("ladder").innerHTML.matchAll(/class="n"[^>]*>([^<]*)</g)].map(m => m[1]);
-  ladder({index: "GOLD", cfd: true}, {open: true, cfd: true, index: "GOLD", option_type: "CE", tracked_on: "index",
+  ladder({index: "GOLD", cfd: true, lot_size: 100}, {open: true, cfd: true, index: "GOLD", option_type: "CE", tracked_on: "index",
           entry: 4140.44, now: 4141, lot_size: 100, lots: 0.1, entry_spread: 0.26,
           targets: [4150.44, 4160.44, 4170.44], stop: 4134.44, exit_at: "T3", hit: {}, hit_time: {}});
   out.gold_ticket = rs();
+  out.qty_gold = document.getElementById("lotqty").textContent;
   out.ticket_lswitch = document.getElementById("lswitch").style.display;
   out.ticket_lots = document.getElementById("lotswrap").style.display;
   out.ticket_btns = [document.getElementById("lb-index").style.display, document.getElementById("lb-premium").style.display];
@@ -89,6 +91,11 @@ TEST = r'''
   ladder({index: "NIFTY", option_type: "CE", ltp: 100, premium_targets: [120,140,160], premium_stop: 80,
           targets: [25100,25200,25300], stop: 24900, spot: 25000, lot_size: 65, premium_source: "live", exit_at: "T2"}, null);
   out.nifty = rs();
+  out.qty_nifty = document.getElementById("lotqty").textContent;
+  LOTS = 2; LAST.session.lots = 2; LAST.session.lot_choices = [1, 2, 3];
+  ladder({index: "NIFTY", option_type: "CE", ltp: 100, premium_targets: [120,140,160], premium_stop: 80,
+          targets: [25100,25200,25300], stop: 24900, spot: 25000, lot_size: 65, premium_source: "live", exit_at: "T2"}, null);
+  out.qty_nifty2 = document.getElementById("lotqty").textContent;
   // The open ticket's Reward : risk cell. A rule's ticket froze its own (0.75); the reading has
   // since gone quiet (no reward:risk) - the cell keeps the ticket's. Any other ticket: the live one.
   const rrCell = () => (document.getElementById("tstats").innerHTML.match(/Reward : risk<\/div><div class="v"[^>]*>([^<]*)</) || [])[1];
@@ -194,6 +201,11 @@ check("...when it has tripped: Guard OFF, and why", ">OFF<" in (out.get("ft_trip
 check("...no box for a rule not on trial (gold)", out.get("ft_gold_shown") == "none", out.get("ft_gold_shown"))
 check("a rule that is not on trial (gold) has no such note", "FORWARD TEST" not in (out.get("gold_note") or "")
       and (out.get("gold_note") or "").startswith("Trend + momentum rule:"), out.get("gold_note"))
+print("3d. THE QUANTITY BESIDE THE LOTS (the user, 5 Oct 2026: 'can we add the qty also beside the lots')")
+check("NIFTY 1 lot = 65 qty, 2 lots = 130 qty (what a live Zerodha order buys)",
+      out.get("qty_nifty") == "= 65 qty" and out.get("qty_nifty2") == "= 130 qty", (out.get("qty_nifty"), out.get("qty_nifty2")))
+check("Bitcoin 0.25 lot = 0.25 BTC; gold 0.25 lot = 25 oz", out.get("qty_btc") == "= 0.25 BTC" and out.get("qty_gold") == "= 25 oz",
+      (out.get("qty_btc"), out.get("qty_gold")))
 print("4. ON A PHONE THE MONEY SHOWS (the user, 4 Oct 2026: \"i dont see how much i get for targets\")")
 css = web_server.PAGE
 phone = css[css.index("@media(max-width:560px){\n  .rung{gap:8px}"):]
