@@ -9,6 +9,8 @@ target (no trade when the spread is 20%+ of THAT target); $10+ spread in and out
 20 minutes after an exit, 24 hours at most. 0.2 must reproduce the live result (cfd_timeframe_study: 15m).
 
     python3 cfd_target_sweep.py
+    python3 cfd_target_sweep.py --ladder     exits at the card's T1 / T2 / T3 (1/3, 2/3, all of the 0.2 x stop target)
+                                             - the user, 4 Oct 2026: "what will be the result if we make t2 as exit"
 """
 import os
 import sys
@@ -18,6 +20,13 @@ import numpy as np
 import pandas as pd
 
 TARGETS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+LADDER = (0.2 / 3, 0.4 / 3, 0.2)
+
+
+def _label(r):
+    if r in LADDER and TARGETS == LADDER:
+        return {0: "exit at T1", 1: "exit at T2", 2: "T3 (live)"}[LADDER.index(r)]
+    return f"{r:.1f} : 1" + ("  (live)" if r == 0.2 else "")
 STOP_ATR = 3.0
 FLOOR = 10.0
 HOLD_NS = 24 * 3600 * 10 ** 9
@@ -26,7 +35,8 @@ COOLDOWN_NS = 20 * 60 * 10 ** 9
 
 
 def _walk(args):
-    y, m, rows = args
+    y, m, rows, targets = args                    # the targets travel WITH the job: a worker process imports this module
+                                                  # afresh and would otherwise walk the default TARGETS
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import cfd_tick_study as t
     parts = [p for p in (t._month_ticks("BTCUSD", y, m), t._month_ticks("BTCUSD", *((y + 1, 1) if m == 12 else (y, m + 1))))
@@ -35,7 +45,7 @@ def _walk(args):
         return []
     T = np.concatenate([p[0] for p in parts]); M = np.concatenate([p[1] for p in parts])
     S = np.concatenate([p[2] for p in parts])
-    tg = np.array(TARGETS)
+    tg = np.array(targets)
     out = []
     for t0, side, close, R, spc in rows:
         last = np.searchsorted(T, t0) - 1
@@ -78,7 +88,7 @@ def main():
         by_month.setdefault((ts.year, ts.month), []).append(
             (int(close_ns[i]), int(side[i]), float(full["Close"].iloc[i]), float(STOP_ATR * a["atr"][i]),
              float(full["spread_close"].iloc[i])))
-    jobs = [(y, m, by_month.get((y, m), [])) for (y, m) in ed.months_until(cts.LAST)]
+    jobs = [(y, m, by_month.get((y, m), []), TARGETS) for (y, m) in ed.months_until(cts.LAST)]
     cands = []
     with ProcessPoolExecutor(max(1, min(6, (os.cpu_count() or 2) - 1))) as ex:
         for got in ex.map(_walk, jobs):
@@ -106,9 +116,11 @@ def main():
             cells.append(f"{st['n']:>5} {100 * st['win']:>5.1f}% {st['net']:>+9,.0f} {st['pf']:>5.2f} {st['dd']:>6,.0f}")
         eq = np.cumsum([0.25 * v for _, v in taken])
         dd = float(np.max(np.maximum.accumulate(np.concatenate([[0.0], eq]))[1:] - eq)) if len(eq) else 0.0
-        print(f"  {f'{r:.1f} : 1' + ('  (live)' if r == 0.2 else ''):12s} {cells[0]:>44s}   {cells[1]:>44s}   "
+        print(f"  {_label(r):12s} {cells[0]:>44s}   {cells[1]:>44s}   "
               f"{0.25 * tot:>+11,.0f} {dd:>19,.0f}", flush=True)
 
 
 if __name__ == "__main__":
+    if "--ladder" in sys.argv:
+        TARGETS = LADDER
     main()

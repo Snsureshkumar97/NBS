@@ -1,0 +1,10 @@
+BTC, the live rule (RSI-2 + ADX >= 25), stop 3 x ATR, ONE target at r x the stop; $ per BTC; real ticks.
+  reward:risk    IN-SAMPLE   n   win%      net    PF  maxDD      HELD-OUT   n   win%      net    PF  maxDD   0.25 lot 3y  worst drop 0.25 lot
+  exit at T1              174  97.7%    +7,989  1.93  3,261              342  96.5%    +7,183  1.46  4,384        +3,793               1,096
+  exit at T2              687  90.4%    +7,444  1.10  8,774              713  91.4%   +20,206  1.40  4,099        +6,912               2,193
+  T3 (live)               975  87.2%   +25,749  1.21  7,358              726  86.9%   +25,228  1.33  6,102       +12,744               1,839
+GOLD - the live rule, stop 3 x ATR; $ per gold lot (100 oz); real-tick outcomes; $0.26+ spread; swap
+  exit             IN-SAMPLE   n   win%       net    PF   maxDD      HELD-OUT   n   win%       net    PF   maxDD   0.25 lot 3y
+  exit at T1                2111  81.3%    +3,183  1.01  35,339              1018  80.6%   +14,305  1.02  71,463       +4,372
+  exit at T2                1508  68.8%   +28,563  1.06  20,900               754  69.0%   +39,179  1.05  52,299      +16,935
+  T3 (live)                 1219  61.8%   +91,500  1.19  13,347               605  58.8%   +41,571  1.05  70,768      +33,268
