@@ -263,6 +263,21 @@ fake.close_reason = "DEAL_REASON_SL"
 ex.poll()
 check("...and Exness's stop-loss -> 'stop-loss hit (filled at Exness)'", "stop-loss hit" in closed[-1][1])
 
+print("7b. A POSITION STILL OPEN AT EXNESS -> NO SECOND ONE (a restart closes the ticket, not the position)")
+ex.handle("opened", dict(trade, trade_id="BTC-4"), "rule")
+n = len(fake.trades)
+ex.handle("opened", dict(trade, trade_id="BTC-5"), "rule")
+check("BTC-4 still open on the demo account -> the next BTC ticket sends NOTHING, and says why",
+      len(fake.trades) == n and "BTC-5" not in ex.positions and "BTC-4 is still open at Exness" in ex.notes[0]["text"],
+      ex.notes[0]["text"])
+fake.positions.pop(ex.positions["BTC-4"]["position_id"])
+ex.poll()
+ex.handle("opened", dict(trade, trade_id="BTC-6"), "rule")
+check("...once Exness has closed it, the next one goes through", ex.positions["BTC-6"]["state"] == "open"
+      and len(fake.trades) == n + 1)
+fake.positions.pop(ex.positions["BTC-6"]["position_id"])
+ex.poll()
+
 print("8. WHAT THE PAGE IS SENT - NO TOKEN, THE ACCOUNT KIND PER SWITCH")
 pubx = ex.public()
 check("enabled per index, venue Exness, the account kind per switch",

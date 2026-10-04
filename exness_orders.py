@@ -271,6 +271,16 @@ class Executor:
         if acct is None:
             self._note(index, "Live orders are on but no Exness account is chosen - nothing sent.", "error")
             return
+        # One position at a time per instrument and account, whatever the ticket book thinks: a restart
+        # closes the book's ticket ("the tool stopped while this was open") while its position stays open
+        # at Exness under its own stop and target - a new signal must not stack a second one on top
+        # (4 Oct 2026, deploying with a demo BTC position open).
+        held = next((p for p in self.positions.values() if p.get("index") == index and p.get("state") == "open"
+                     and p.get("account") == acct["id"]), None)
+        if held is not None:
+            self._note(index, f"{held.get('trade_id')} is still open at Exness on this account - one position "
+                              "at a time, nothing sent.", "error")
+            return
         if self.day != self._today():
             self.day, self.entries_today = self._today(), 0
         if self.entries_today >= MAX_ENTRIES_PER_DAY:
