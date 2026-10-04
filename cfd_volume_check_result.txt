@@ -1,0 +1,6 @@
+$ per BTC, one at a time             IN-SAMPLE   n   win%      net    PF  maxDD      HELD-OUT   n   win%      net    PF  maxDD   3 yrs at 0.25 lot
+base (live now)                               975  87.2%   +25,729  1.21  7,358              726  86.9%   +25,228  1.33  6,102            +12,739
++ volume rising                               478  88.7%   +17,713  1.32  4,458              306  87.9%   +13,677  1.46  3,919             +7,848
+volume NOT rising (context)                   624  86.5%   +16,889  1.22  5,797              477  85.7%   +11,225  1.21  6,225             +7,028
+
++ volume rising vs the base: in-sample -8,016, held-out -11,551 per BTC; held-out coin flips as good 15.6% -> NOT better in both periods - DROP
