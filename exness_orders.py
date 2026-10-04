@@ -286,12 +286,19 @@ class Executor:
         if self.entries_today >= MAX_ENTRIES_PER_DAY:
             self._note(index, f"{MAX_ENTRIES_PER_DAY} live entries today - the daily maximum; nothing sent.", "error")
             return
-        side = 1 if trade.get("option_type") == "CE" else -1
         targets = trade.get("index_targets") or []
         exit_key = trade.get("exit_at") or "T2"
         k = {"T1": 0, "T2": 1, "T3": 2}.get(exit_key, 1)
         tp = targets[k] if len(targets) > k else None
         sl = trade.get("index_sl")
+        # Never an order without a known direction, a stop and a target, all resting at Exness. "Not CE" used to
+        # mean SELL, so a ticket with no direction and no levels went out as an unprotected SELL (4 Oct 2026, demo).
+        if trade.get("option_type") not in ("CE", "PE") or sl is None or tp is None:
+            self._note(index, f"Live order NOT placed for {tid}: the ticket has no "
+                              f"{'direction' if trade.get('option_type') not in ('CE', 'PE') else 'stop and target'}"
+                              " - never sent without both resting at Exness.", "error")
+            return
+        side = 1 if trade.get("option_type") == "CE" else -1
         pos = {"trade_id": tid, "index": index, "source": source, "account": acct["id"], "kind": acct.get("kind"),
                "side": "BUY" if side > 0 else "SELL", "state": "failed", "day": self._today(),
                "paper_entry": trade.get("entry_spot"), "sl": sl, "tp": tp, "exit_key": exit_key}

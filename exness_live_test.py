@@ -278,6 +278,16 @@ check("...once Exness has closed it, the next one goes through", ex.positions["B
 fake.positions.pop(ex.positions["BTC-6"]["position_id"])
 ex.poll()
 
+print("7c. NEVER AN ORDER WITHOUT A DIRECTION, A STOP AND A TARGET (4 Oct 2026: an empty ticket went out as a SELL)")
+n = len(fake.trades)
+ex.handle("opened", dict(trade, trade_id="BTC-NODIR", option_type=None), "rule")
+check("no direction -> nothing sent (it used to be read as SELL), and a note says why", len(fake.trades) == n
+      and "BTC-NODIR" not in ex.positions and "no direction" in ex.notes[0]["text"], ex.notes[0]["text"])
+ex.handle("opened", dict(trade, trade_id="BTC-NOSL", index_sl=None), "rule")
+check("no stop -> nothing sent", len(fake.trades) == n and "BTC-NOSL" not in ex.positions and "stop and target" in ex.notes[0]["text"])
+ex.handle("opened", dict(trade, trade_id="BTC-NOTP", index_targets=[None, None, None]), "rule")
+check("no target -> nothing sent", len(fake.trades) == n and "BTC-NOTP" not in ex.positions)
+
 print("8. WHAT THE PAGE IS SENT - NO TOKEN, THE ACCOUNT KIND PER SWITCH")
 pubx = ex.public()
 check("enabled per index, venue Exness, the account kind per switch",

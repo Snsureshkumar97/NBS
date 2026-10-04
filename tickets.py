@@ -918,6 +918,14 @@ class TicketBook:
         if not info.get("side"):
             return hold("neutral", "NO SIGNAL", "The rule's votes and filters do not all agree on the last "
                         "15-minute close. It decides again at the next close.")
+        # A ticket is a direction AND a stop AND a target, or it is not issued - whatever the reading's side
+        # says (the 4 Oct 2026 ticket with none of them went to Exness as an unprotected SELL).
+        want = "CE" if info.get("side", 0) > 0 else "PE"
+        tg = rec.get("index_targets") or []
+        if (rec.get("option_type") != want or rec.get("index_stop_loss") is None or len(tg) < 3
+                or any(x is None for x in tg)):
+            return hold("neutral", "NO SIGNAL", "The rule's reading has no complete set of levels (a direction, "
+                        "a stop and a target), so no ticket is issued.")
         if getattr(book, "last_rule_bar", None) == info.get("bar_close"):
             return hold("neutral", "NEXT CLOSE", "This 15-minute close has already been decided. The next "
                         "decision is at the next close.")

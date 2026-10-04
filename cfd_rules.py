@@ -191,6 +191,11 @@ def apply(rec, ev, index_key):
     # (the user's screenshot, 4 Oct 2026). The rule's reason, or nothing.
     rec.update(blockers=[] if rec["bias"] != "NEUTRAL" else why, adx_blocked=False, macd_blocked=False,
                not_worth_it=False)
+    # The reading's side is the FINAL decision. It used to stay the votes' side when the spread check (or a
+    # missing price / ATR) turned the reading into no trade - and the ticket book, which opens on this side,
+    # opened a ticket with no direction, no stop and no target: the executor sent it to Exness as a SELL with
+    # neither (4 Oct 2026, 12:30 IST, demo, while the card said BTC BUY). Never again: no levels, no side.
+    info["side"] = 0 if rec["bias"] == "NEUTRAL" else (1 if rec["option_type"] == "CE" else -1)
     return rec
 
 

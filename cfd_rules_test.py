@@ -275,6 +275,33 @@ check("the page gets the rule, the levels, exit at T3, and the forward-test note
 nb = tickets.TicketBook(market="nse_index")
 check("an Indian reading has no rule and goes the engine's way", nb.books["NIFTY"] is not None and config.cfd_rule("NIFTY") is None)
 
+print("6. NEVER A TICKET WITHOUT A DIRECTION AND ITS LEVELS (4 Oct 2026, 12:30 IST: RSI-2 said buy, the spread check")
+print("   said no - and a ticket with no side, stop or target opened; Exness got an unprotected SELL)")
+_now["t"] = dt.datetime(2026, 10, 6, 12, 30, 5, tzinfo=IST)
+b6 = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d, "t6.csv"))
+b6.lots = 0.25
+ev6 = {"ready": True, "votes": {"rsi2": 1}, "filters": {"adx25": True}, "side": 1, "atr": 30.0,
+       "close": 85015.0, "bar_close": "2026-10-06T07:00:00+00:00", "fresh": True,
+       "values": {"rsi2": 7.0, "adx": 31.0, "above200": True}}
+r6 = cfd_rules.apply({"index": "BTC", "spot": 85015.0, "cfd_spread": 10.0, "quote_age_s": 1.0}, ev6, "BTC")   # target 18: 20% = 3.6 < 10
+check("the votes say BUY, the spread check says no: the reading's own side is 0, with no levels",
+      r6["rule"]["side"] == 0 and r6["bias"] == "NEUTRAL" and r6["option_type"] is None and r6["index_stop_loss"] is None)
+ev_out = b6.update("BTC", r6)
+check("...and the ticket book opens NOTHING (it opened an empty ticket on 4 Oct)", b6.books["BTC"].trade is None
+      and not any(e["kind"] == "opened" for e in ev_out), b6.books["BTC"].wait_reason)
+check("...and nothing reached the journal", not os.path.exists(os.path.join(d, "t6.csv"))
+      or not [r for r in trade_log._read_rows(os.path.join(d, "t6.csv")) if r["event"] == "OPEN"])
+broken = dict(r6, rule=dict(r6["rule"], side=1))                     # a reading that still claims a side
+b6.update("BTC", broken)
+check("the ticket book's own guard: a side but no direction / stop / target -> no ticket, whatever the reading says",
+      b6.books["BTC"].trade is None and "no complete set of levels" in (b6.books["BTC"].wait_reason or ("", "", ""))[2],
+      b6.books["BTC"].wait_reason)
+ok6 = cfd_rules.apply({"index": "BTC", "spot": 85015.0, "cfd_spread": 2.0, "quote_age_s": 1.0}, ev6, "BTC")
+b6.update("BTC", ok6)
+t6 = b6.books["BTC"].trade
+check("the same reading with a spread under the limit: a BUY with its stop and target", t6 is not None
+      and t6["option_type"] == "CE" and t6["index_sl"] is not None and t6["index_targets"][2] is not None)
+
 print()
 if fails:
     print(f"CFD RULES TEST FAILED - {len(fails)}: " + "; ".join(fails))
