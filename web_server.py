@@ -4610,6 +4610,8 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#gmk){order:5}
   :root[data-look="kite"] .kd-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:36px;padding:8px 0 22px;border-bottom:1px solid var(--bd-soft)}
   :root[data-look="kite"] .kd-m{font-size:22px;font-weight:400;line-height:1.3;margin-top:8px}
+  /* a real button, not link text - as a 13px link beside the 44px figures it was easy to miss (4 Oct 2026) */
+  :root[data-look="kite"] .kd-sw{margin-top:12px;font-size:13px;padding:7px 14px;color:var(--accent);border-color:var(--accent);cursor:pointer}
   :root[data-look="kite"] .kd-l{font-size:15px;color:var(--ink-2);margin-bottom:6px}
   :root[data-look="kite"] .kd-n{font-size:44px;font-weight:300;line-height:1.1;letter-spacing:0}
   :root[data-look="kite"] .kd-s{font-size:13px;color:var(--ink-3);margin-top:6px}
@@ -9431,7 +9433,7 @@ function kiteDash(s){
   const market = s.market_label
     ? `<div><div class="kd-l">Market</div><div class="kd-m">${esc(s.market_label)}</div>`
       + (mk.length > 1
-         ? `<button class="klink kd-sw" type="button" data-kact="switchmarket">${other ? "Switch to " + esc(mo[other] || other) : "Switch market"}</button>`
+         ? `<button class="lbtn kd-sw" type="button" data-kact="switchmarket">&#8644; ${other ? "Switch to " + esc(mo[other] || other) : "Switch market"}</button>`
          : `<div class="kd-s">This server runs one market</div>`) + `</div>`
     : "";
   const cfd = order.some(k => ((s.indices || {})[k] || {}).cfd);
