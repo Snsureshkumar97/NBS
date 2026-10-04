@@ -1,0 +1,43 @@
+BTC daily 2014-09-17 -> 2026-10-04; in-sample to 2021-01-01, held-out after. Spread 0.04% a round trip, swap on longs 0.0224% a night (~8%/yr).
+
+  rule                               IN-SAMPLE  trades win%  avgW%  avgL%  total%  CAGR%  maxDD%   HELD-OUT  trades win%  avgW%  avgL%  total%  CAGR%  maxDD%   p (timing)
+  buy & hold (CFD, swap paid)                     1  100% +3671.7   +0.0    +3672  +78.1     85                 1  100%  +80.0   +0.0      +80  +10.8     79   
+  price vs SMA 50 (long/short)                   104   28%  +33.0   -4.3    +2363  +66.4     62               121   20%  +22.7   -3.2     +327  +28.7     62       0.0285
+  price vs SMA 100 (long/short)                   72   21%  +54.4   -5.1    +1115  +48.7     71                77   21%  +25.4   -3.7     +167  +18.6     56       0.0770
+  price vs SMA 200 (long/short)                   24   17% +629.3   -8.0    +2135  +63.8     85                53   17%  +30.7   -5.1       -9   -1.6     87       0.2114
+  SMA 20/100 cross (long/short)                   24   38% +181.3  -16.4    +1125  +48.9     82                25   32%  +38.5  -13.1       +1   +0.1     61       0.2089
+  SMA 50/200 cross (long/short)                   10   30% +673.6  -21.7    +1485  +55.1     82                13   54%  +18.2  -23.4      -42   -9.0     76       0.2739
+  Donchian 20/10 (long/short)                     60   47%  +27.8   -9.2    +1696  +58.3     54                62   40%  +15.8   -8.1      +29   +4.5     58       0.2184
+  Donchian 55/20 (long/short)                     24   46%  +50.0  -10.9    +1068  +47.8     67                31   48%  +17.7   -9.4      +94  +12.2     55       0.1264
+  momentum 30d weekly (long/short)                68   51%  +27.0  -10.9    +1367  +53.3     82                71   37%  +18.6   -7.4      +79  +10.6     66       0.1159
+  momentum 90d weekly (long/short)                34   41%  +93.4  -13.6     +572  +35.4     87                31   32%  +29.6  -11.9      -29   -5.7     72       0.2784
+  price vs SMA 50 (long-only)                     52   33%  +50.7   -3.7    +8191 +101.8     59                61   21%  +29.4   -3.1     +409  +32.7     58       0.0680
+  price vs SMA 100 (long-only)                    36   28%  +75.3   -3.7    +5227  +88.1     62                39   26%  +30.8   -3.6     +296  +27.0     38       0.1004
+  price vs SMA 200 (long-only)                    12   25% +836.1   -5.8    +6557  +94.9     70                27   26%  +26.8   -3.6     +122  +14.9     65       0.2419
+  SMA 20/100 cross (long-only)                    12   42% +318.0  -15.1    +4692  +85.0     68                13   46%  +40.5  -13.0     +141  +16.5     46       0.2099
+  SMA 50/200 cross (long-only)                     5   60% +673.7  -26.2    +4830  +85.8     71                 7   71%  +20.9  -16.0      +69   +9.5     59       0.3443
+  Donchian 20/10 (long-only)                      33   58%  +34.4   -8.4    +3874  +79.5     56                32   41%  +23.2   -7.5     +176  +19.3     50       0.1694
+  Donchian 55/20 (long-only)                      14   71%  +52.4  -11.2    +2565  +68.5     58                18   50%  +21.7   -7.4     +153  +17.5     38       0.1689
+  momentum 30d weekly (long-only)                 34   59%  +43.1  -11.4    +5665  +90.5     73                36   42%  +21.0   -6.5     +230  +23.1     44       0.1424
+  momentum 90d weekly (long-only)                 17   53% +140.1  -13.4    +3334  +75.4     70                16   38%  +36.6   -9.5     +100  +12.8     56       0.2779
+
+  0 of 18 pass (profitable in both periods, held-out beats 99.72% of random-timing runs)
+
+  year by year (% return at 1x, after costs) - buy & hold and the rules profitable in both periods:
+                                        2014    2015    2016    2017    2018    2019    2020    2021    2022    2023    2024    2025    2026
+  buy & hold (CFD, swap paid)            -32     +24    +106   +1250     -76     +77    +271     +47     -67    +136    +104     -14      -9
+  price vs SMA 50 (long/short)            -1     +56     +54    +137     -10     +51    +223    +134     -47    +103     +24      +4     +32
+  price vs SMA 100 (long/short)           +2     -20     +12    +445     -31    +150     +42     +46     +21     +18      +9      +5     +14
+  SMA 20/100 cross (long/short)           +2     -25     +29   +1250     -52    +212     -39     +12     +39     -12      +2     +12     -35
+  Donchian 20/10 (long/short)            -24     +23     +66    +163     +19     +19    +212     +35     -13     +31      +8     -37     +24
+  Donchian 55/20 (long/short)             -1     +32     +43    +225     -39     +81     +75    +106     -12     +11     +21     -12      -8
+  momentum 30d weekly (long/short)        +8     +58     +41    +285     -50      -3    +229    +125      -1     +88     -40      +8     -33
+  price vs SMA 50 (long-only)             -4     +61     +84    +537     -36     +80    +304    +119     -49    +128     +69      +3     +17
+  price vs SMA 100 (long-only)            +0     +16     +55    +784     -45    +129    +166     +67     -20     +71     +57      +2     +11
+  price vs SMA 200 (long-only)            +0     +44    +106   +1250     -59     +52    +166     -25      +0     +83     +71     -21     +21
+  SMA 20/100 cross (long-only)            +0     +13     +66   +1250     -55    +157     +63     +44     -15     +48     +50      +6     -16
+  SMA 50/200 cross (long-only)            +0     +10    +106   +1250     -52     +62    +109     +11      -7     +28     +81     -33      +7
+  Donchian 20/10 (long-only)             -18     +15     +94    +521     -34     +53    +246     +75     -36     +81     +53     -14      +5
+  Donchian 55/20 (long-only)              +0     +66     +57    +225     -35    +121    +121     +78     -16     +31     +60     -13      -7
+  momentum 30d weekly (long-only)         -3     +63     +78    +694     -55     +42    +311    +121     -32    +120     +18      +4     -17
+  momentum 90d weekly (long-only)         +0      -3     +89   +1250     -57    +131     +41     +42     -30     +36     +72      +5     -17
