@@ -110,16 +110,20 @@ TEST = r'''
   const ftRule = {label: "RSI-2 bounce", stop_atr: 3, target_r: 1,
                   forward_test: {since: "2026-10-04", trades_a_month: 30, win: "53-55%", per_trade: 55, luck_pct: 4.6}};
   const why = {votes: [{name: "RSI-2 extreme", vote: 1, reading: "buy"}, {name: "Stochastic", vote: 1, reading: "buy"}]};
-  LAST.live = {guard: {BTC: {n: 3, wins: 2, win_pct: 66.7, pnl: -45.5, tripped: false, why: null, min_trades: 20,
-                             expect_win: 0.87, max_dd_per_btc: 11037}}};
+  LAST.live = {guard: {BTC: {since: "2026-10-04T16:00:00+05:30", n: 3, wins: 2, win_pct: 66.7, pnl: -45.5, tripped: false,
+                             why: null, min_trades: 20, expect_win: 0.87, max_dd_per_btc: 11037}}};
   gauges({index: "BTC", rule: ftRule}, why);
   out.ft_note = document.getElementById("gnote").textContent;
+  out.ft_box = document.getElementById("ftbox").innerHTML;
+  out.ft_box_shown = document.getElementById("ftbox").style.display;
   LAST.live.guard.BTC = {n: 25, wins: 16, win_pct: 64, pnl: -438, tripped: true,
                          why: "16 of 25 won (64%) - a rule that really wins 87% would do this badly less than 1% of the time",
                          min_trades: 20, expect_win: 0.87, max_dd_per_btc: 11037};
   gauges({index: "BTC", rule: ftRule}, why);
-  out.ft_tripped = document.getElementById("gnote").textContent;
+  out.ft_tripped = document.getElementById("ftbox").innerHTML;
   LAST.live = null;
+  gauges({index: "GOLD", rule: {label: "Trend + momentum rule", stop_atr: 3, target_r: 0.75, forward_test: null}}, why);
+  out.ft_gold_shown = document.getElementById("ftbox").style.display;
   out.rule_rows = document.getElementById("gauges").innerHTML;
   gauges({index: "NIFTY"}, why);
   out.engine_rows = document.getElementById("gauges").innerHTML;
@@ -178,12 +182,16 @@ check("...with what the 3-year test expects, to hold the real results against",
 check("the rule's rows use the wide gauge (room for '60 · sell above 90'); the engine's keep the narrow one",
       'class="gauge wide"' in (out.get("rule_rows") or "") and 'class="gauge"' in (out.get("engine_rows") or "")
       and 'class="gauge wide"' not in (out.get("engine_rows") or ""))
-check("the forward test's own record so far, and the guard's terms (the user, 4 Oct 2026: 'make this tool make profits and less losses')",
-      "So far: 3 trades, 66.7% won, -$45.50." in note
-      and "Guard: live orders switch OFF by themselves if, after 20+ trades, the win rate is far below 87%, or the drop passes $11,037 per BTC." in note,
-      note[-260:])
-check("...and when it has tripped, it says so and why", "The guard switched live orders OFF: 16 of 25 won (64%)" in (out.get("ft_tripped") or ""),
-      (out.get("ft_tripped") or "")[-200:])
+box = out.get("ft_box") or ""
+check("the forward test has its OWN box near the top (the user, 4 Oct 2026: 'i dont see anything' - the note sat at the card's foot)",
+      out.get("ft_box_shown") == "" and "Forward test · demo" in box and "since 2026-10-04 16:00 IST" in box
+      and ">Trades</div><div class=\"v\">3<" in box and "Won (test 87%)" in box and ">66.7%<" in box
+      and "−$45.50" in box and ">Armed<" in box
+      and "after 20+ trades, the win rate is far below 87%, or the drop passes $11,037 per BTC" in box, box)
+check("...the note under the votes no longer repeats it", "So far:" not in note)
+check("...when it has tripped: Guard OFF, and why", ">OFF<" in (out.get("ft_tripped") or "")
+      and "The guard switched live orders OFF: 16 of 25 won (64%)" in (out.get("ft_tripped") or ""))
+check("...no box for a rule not on trial (gold)", out.get("ft_gold_shown") == "none", out.get("ft_gold_shown"))
 check("a rule that is not on trial (gold) has no such note", "FORWARD TEST" not in (out.get("gold_note") or "")
       and (out.get("gold_note") or "").startswith("Trend + momentum rule:"), out.get("gold_note"))
 print("4. ON A PHONE THE MONEY SHOWS (the user, 4 Oct 2026: \"i dont see how much i get for targets\")")

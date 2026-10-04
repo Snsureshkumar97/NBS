@@ -3432,6 +3432,15 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .gauge .gv{text-align:right;font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums}
 .gnote{color:var(--ink-3);font-size:12px;margin-top:9px}
+/* the forward test's scorecard (ftBox): the demo's own record vs the 3-year test, and the guard's state */
+.ftbox{border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin:10px 0}
+.ftbox .ft-h{font-size:11.5px;font-weight:650;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.ftbox .ft-h span{font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3);margin-left:6px}
+.ftbox .ft-r{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ftbox .l{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+.ftbox .v{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.ftbox .ft-s{font-size:12px;color:var(--ink-3);margin-top:8px}
+@media (max-width:560px){.ftbox .ft-r{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* The three boxes across the top: where the market is, what it has done
    today, and how much of the rule set agrees. */
@@ -4517,7 +4526,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .notice.stale b{color:var(--warn-strong)}
 /* 10. no data yet: one quiet line, not a headline over empty rows */
 :root[data-look="kite"] #sigcard[data-state="blank"] #bias{font-size:18px;font-weight:500}
-:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#checksbox,#risk,#gnote,#tiles,#lswitch){display:none}
+:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#checksbox,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
 /* 4. the live-orders control is a switch, with its state in colour */
 :root[data-look="kite"] #tlive,:root[data-look="kite"] #ailive{position:relative;padding-left:50px;font-weight:600}
 :root[data-look="kite"] #tlive::before,:root[data-look="kite"] #ailive::before{content:"";position:absolute;left:12px;top:50%;
@@ -4587,6 +4596,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #tcontract{order:6}
   :root[data-look="kite"] #tissued{order:7}
   :root[data-look="kite"] #tlivestat{order:8}
+  :root[data-look="kite"] #ftbox{order:8}
   :root[data-look="kite"] #lswitch{order:9}
   :root[data-look="kite"] #ladder{order:10}
   :root[data-look="kite"] #laddernote{order:11}
@@ -4982,6 +4992,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="contract" id="tcontract" style="display:none"></div>
   <div class="issued" id="tissued" style="display:none"></div>
   <div class="livestat" id="tlivestat" style="display:none"></div>
+  <div class="ftbox" id="ftbox" style="display:none"></div>
   <div class="overnight" id="tovernight" style="display:none"></div>
   <div class="sub" id="reason"></div>
   <div class="lswitch" id="lswitch">
@@ -7300,16 +7311,29 @@ function roomRun(r){
 // The forward test's own record so far (exness_orders.forward_record) and its guard - the user, 4 Oct 2026:
 // "make this tool make profits and less losses": live orders switch OFF by themselves if the record turns
 // clearly worse than the test; they are never switched back ON for you.
-function guardText(k){
-  const g = ((LAST && LAST.live && LAST.live.guard) || {})[k];
-  if(!g) return "";
-  const rec = g.n ? ` So far: ${g.n} trade${g.n === 1 ? "" : "s"}, ${g.win_pct}% won, ${g.pnl >= 0 ? "+" : "-"}$${Math.abs(g.pnl).toFixed(2)}.`
-                  : " So far: no trades yet.";
-  return rec + (g.tripped ? ` The guard switched live orders OFF: ${g.why}.`
-                          : ` Guard: live orders switch OFF by themselves if, after ${g.min_trades}+ trades, the win rate is `
-                            + `far below ${Math.round(g.expect_win * 100)}%, or the drop passes $${Math.round(g.max_dd_per_btc).toLocaleString("en-US")} per BTC.`);
+function ftBox(r){
+  const el = $("ftbox");
+  if(!el) return;
+  const ft = r && r.rule && r.rule.forward_test;
+  const g = ft && ((LAST && LAST.live && LAST.live.guard) || {})[r.index];
+  if(!ft || !g){ el.style.display = "none"; el.innerHTML = ""; return; }
+  el.style.display = "";
+  const since = (g.since || "").replace("T", " ").slice(0, 16);
+  const cell = (l, v, col) => `<div><div class="l">${esc(l)}</div><div class="v"${col ? ` style="color:${col}"` : ""}>${v}</div></div>`;
+  const pc = g.pnl > 0 ? "var(--up)" : g.pnl < 0 ? "var(--down)" : "";
+  el.innerHTML = `<div class="ft-h">Forward test · demo<span>since ${esc(since)} IST · not proven</span></div>`
+    + `<div class="ft-r">`
+    + cell("Trades", g.n)
+    + cell(`Won (test ${Math.round(g.expect_win * 100)}%)`, g.n ? `${g.win_pct}%` : "—")
+    + cell("Result", `${g.pnl >= 0 ? "+" : "−"}$${Math.abs(g.pnl).toFixed(2)}`, pc)
+    + cell("Guard", g.tripped ? "OFF" : "Armed", g.tripped ? "var(--down)" : "var(--up)")
+    + `</div><div class="ft-s">` + (g.tripped ? `The guard switched live orders OFF: ${esc(g.why)}. Switch them on again only if you choose to.`
+        : `Live orders switch OFF by themselves if, after ${g.min_trades}+ trades, the win rate is far below `
+          + `${Math.round(g.expect_win * 100)}%, or the drop passes $${Math.round(g.max_dd_per_btc).toLocaleString("en-US")} per BTC. `
+          + `They are never switched back on for you.`) + `</div>`;
 }
 function gauges(r, why){
+  ftBox(r);
   const rows = [];
   (why && why.votes || []).forEach(v => {
     rows.push([v.name, v.vote, v.reading || "", v.vote===null?"var(--ink-3)"
@@ -7350,8 +7374,7 @@ function gauges(r, why){
       // what the 3-year test expects, so the real results can be held against it.
       + (ft ? ` FORWARD TEST on the demo account since ${ft.since} - not proven. In the 3-year test: about `
               + `${ft.trades_a_month} trades a month, ${ft.win} won, about +$${ft.per_trade} a trade per BTC, and coin `
-              + `flips did as well ${ft.luck_pct}% of the time. A few months of results cannot prove it either way.`
-              + guardText(r.index) : "")
+              + `flips did as well ${ft.luck_pct}% of the time. A few months of results cannot prove it either way.` : "")
     : "A dash is an input that abstained — it is ignored, not counted as neutral.";
 }
 
