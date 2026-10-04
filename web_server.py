@@ -8876,7 +8876,7 @@ async function priceTick(){
   // render() also sets from the market's state - so every 250ms poll and every
   // 3s render overwrote each other and the corner flickered between the clock
   // and the word "live". The feed gets its own tag and nothing else touches it.
-  feedTag(t.live, t.age);
+  feedTag(t.live, t.age, t.price_note);
 
   if(changed) render(LAST);
   aiTick(t);
@@ -8915,7 +8915,7 @@ function money2(v){
 // Written on every poll, so it only touches the DOM when something actually
 // changed - otherwise this is four needless mutations a second.
 let FEEDSTATE = null;
-function feedTag(live, age){
+function feedTag(live, age, note){
   const el = $("feed");
   if(!el) return;
   // Silence is only a fault while the market is trading. After the close the
@@ -8923,16 +8923,20 @@ function feedTag(live, age){
   // to "Market closed" reads as a broken tool rather than an ended day. The
   // auction counts as trading here: options are still printing.
   const trading = !!(LAST && LAST.market_open);
-  const label = live ? "Live" : (age != null && trading ? "Stalled" : "Idle");
+  // Exness: MetaApi asked for a pause - say so, with when it ends, rather than
+  // a bare "Stalled" that reads as a broken tool (4 Oct 2026).
+  const paused = !!note && !live && trading;
+  const label = live ? "Live" : paused ? "Paused" : (age != null && trading ? "Stalled" : "Idle");
   const cls = "feedtag" + (live ? " on" : (age != null && trading ? " off" : ""));
   // The age only enters the signature while stalled, where it is the whole
   // point of the tooltip; when live it would rewrite this four times a second.
-  const sig = label + "|" + cls + "|" + (live || age == null ? "" : Math.round(age));
+  const sig = label + "|" + cls + "|" + (live || age == null ? "" : Math.round(age)) + "|" + (paused ? note : "");
   if(sig === FEEDSTATE) return;
   FEEDSTATE = sig;
   el.textContent = label;
   el.className = cls;
-  el.title = live ? "Prices are streaming from Zerodha's tick socket."
+  el.title = paused ? note + ". The numbers on screen are the last ones received."
+    : live ? "Prices are streaming from Zerodha's tick socket."
     : (age == null ? "No tick socket yet."
        : !trading ? "The session is over, so there is nothing left to stream. "
                     + "These are the closing numbers."

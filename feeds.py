@@ -2340,6 +2340,11 @@ class Feed:
                                      (self.dstream.last_error
                                       if self.dstream and not self.dstream.connected
                                       else None)),
+                    # Exness: MetaApi has asked for a pause - said on the Live tag, so a frozen price
+                    # reads as a pause with an end, not a broken tool (4 Oct 2026).
+                    "price_note": (self.dstream.price_note()
+                                   if self.dstream is not None and hasattr(self.dstream, "price_note")
+                                   else None),
                     "stage": self.stage,
                     "live_analysis": self._live_status(),
                     "streamed": True}

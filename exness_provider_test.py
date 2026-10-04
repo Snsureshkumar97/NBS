@@ -376,8 +376,10 @@ try:
 finally:
     ep._log = _real_log
 
-print("9. THE PRICE IS ASKED EVERY SECOND (the user, 4 Oct 2026: \"yes make it every second\")")
-check("POLL_S is one second", ep.POLL_S == 1.0, ep.POLL_S)
+print("9. THE PRICE IS ASKED EVERY 2 SECONDS - every second used up MetaApi's whole minute budget (4 Oct 2026)")
+check("POLL_S is two seconds", ep.POLL_S == 2.0, ep.POLL_S)
+check("...so both symbols cost at most half of MetaApi's 6,000 credits a minute per application (50 a price)",
+      2 * (60 / ep.POLL_S) * 50 <= 3000, 2 * (60 / ep.POLL_S) * 50)
 pl = ep._Poller(provider=object(), poll_s=ep.POLL_S)
 pl.poll_once = lambda now=None: None                     # a pass that takes no time at all
 slept = []
@@ -394,8 +396,110 @@ except _Stop:
     pass
 finally:
     ep.time.sleep = _real_sleep
-check("...a quick pass then sleeps the rest of that second, so the next ask is a second after the last",
-      len(slept) == 1 and 0.9 < slept[0] <= 1.0, slept)
+check("...a quick pass then sleeps the rest of the 2 s, so the next ask is 2 s after the last",
+      len(slept) == 1 and 1.9 < slept[0] <= 2.0, slept)
+
+print("10. A 429: MetaApi's full wait, WHICH limit in the log, the poller asks less often, the page says why")
+logged = []
+ep._log = lambda msg, every_s=60.0: logged.append(msg)
+try:
+    rl2 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])),
+                   ("current-price", lambda u, q: Resp(429, {"metadata": {
+                       "recommendedRetryTime": (pd.Timestamp.now(tz="UTC") + pd.Timedelta(seconds=216)).isoformat(),
+                       "type": "LIMIT_REQUEST_RATE_PER_USER", "periodInMinutes": 60, "maxRequestsForPeriod": 18000}}))])
+    pr2 = ep.ExnessMetaApiProvider(session=rl2)
+    try:
+        pr2.quote("BTC"); e1 = None
+    except ep.RateLimited as exc:
+        e1 = exc
+    left = pr2.prices_paused_for()
+    check("MetaApi asked for 216 s and gets 216 s (it was cut to 120 s, and asking early earned another 429)",
+          210 <= left <= 216, left)
+    check("the 429 is a RateLimited, fresh, and still a RuntimeError (every old catch still works)",
+          isinstance(e1, ep.RateLimited) and e1.fresh is True and isinstance(e1, RuntimeError), repr(e1))
+    check("the log names the limit: type, period, maximum",
+          any("429 on prices" in m and "LIMIT_REQUEST_RATE_PER_USER" in m and "periodInMinutes 60" in m
+              and "maxRequestsForPeriod 18000" in m for m in logged), logged)
+    check("...and never the token", all(SECRET not in m for m in logged))
+    try:
+        pr2.quote("BTC"); e2 = None
+    except ep.RateLimited as exc:
+        e2 = exc
+    check("a call skipped during the pause is a RateLimited that is NOT fresh", e2 is not None and e2.fresh is False, repr(e2))
+    huge = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])),
+                    ("current-price", lambda u, q: Resp(429, {"metadata": {"recommendedRetryTime":
+                        (pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=5)).isoformat()}}))])
+    pr3 = ep.ExnessMetaApiProvider(session=huge)
+    try:
+        pr3.quote("BTC")
+    except ep.RateLimited:
+        pass
+    check("an absurd retry time is held to MAX_BACKOFF_S (10 min)", 590 <= pr3.prices_paused_for() <= ep.MAX_BACKOFF_S,
+          pr3.prices_paused_for())
+
+    class _RLProv:
+        def __init__(self):
+            self.fresh, self.paused = True, 0.0
+        def quote(self, k):
+            raise ep.RateLimited("MetaApi rate limit (prices); backing off 216s", fresh=self.fresh)
+        def broker_symbol(self, k):
+            return "BTCUSDm"
+        def prices_paused_for(self, now=None):
+            return self.paused
+    rp = _RLProv()
+    pl4 = ep._Poller(provider=rp, poll_s=2.0); pl4.keys.add("BTC")
+    pl4.poll_once()
+    check("after a 429 the poller asks every 4 s, not 2", pl4.interval == 4.0, pl4.interval)
+    pl4.poll_once(); pl4.poll_once()
+    check("...8 s after more, and never slower than POLL_MAX_S", pl4.interval == ep.POLL_MAX_S == 8.0, pl4.interval)
+    rp.fresh = False
+    pl4.interval = 2.0
+    pl4.poll_once()
+    check("a call merely SKIPPED during the pause does not slow it further", pl4.interval == 2.0, pl4.interval)
+    pl4.interval, pl4.calm_since = 8.0, 1000.0
+    pl4.maybe_speed_up(now=1000.0 + ep.POLL_CALM_S - 1)
+    check("not quite 10 calm minutes: still 8 s", pl4.interval == 8.0, pl4.interval)
+    pl4.maybe_speed_up(now=1000.0 + ep.POLL_CALM_S)
+    check("10 calm minutes: one step back, 4 s", pl4.interval == 4.0, pl4.interval)
+    pl4.maybe_speed_up(now=1000.0 + 2 * ep.POLL_CALM_S)
+    pl4.maybe_speed_up(now=1000.0 + 3 * ep.POLL_CALM_S)
+    check("...then 2 s, and never faster than POLL_S", pl4.interval == 2.0, pl4.interval)
+    rp.paused = 216.0
+    note = pl4.pause_note()
+    check("while MetaApi has prices paused the poller says so, with when it ends",
+          note and "slow down" in note and "3m 36s" in note, note)
+    check("...and the streamer hands the same words to the page", ep.ExnessStreamer(shared=pl4).price_note() == note)
+    rp.paused = 40.0
+    check("under a minute: in seconds", "about 40s" in (pl4.pause_note() or ""), pl4.pause_note())
+    rp.paused = 0.0
+    check("no pause: no note", pl4.pause_note() is None)
+finally:
+    ep._log = _real_log
+def _one_run(poller):
+    got = []
+    def _sl(sec):
+        got.append(sec)
+        raise _Stop
+    ep.time.sleep = _sl
+    try:
+        poller._run()
+    except _Stop:
+        pass
+    finally:
+        ep.time.sleep = _real_sleep
+    return got
+pl5 = ep._Poller(provider=object(), poll_s=2.0)
+pl5.poll_once = lambda now=None: None
+pl5.interval, pl5.calm_since = 8.0, ep.time.time()
+check("the loop itself waits the slower interval after a 429 (8 s, not 2)", 7.9 < (_one_run(pl5) or [0])[0] <= 8.0, pl5.interval)
+pl5.calm_since = ep.time.time() - ep.POLL_CALM_S - 1
+check("...and the loop itself steps back once things are calm (4 s)", 3.9 < (_one_run(pl5) or [0])[0] <= 4.0, pl5.interval)
+here = os.path.dirname(os.path.abspath(__file__))
+fsrc = open(os.path.join(here, "feeds.py")).read()
+wsrc = open(os.path.join(here, "web_server.py")).read()
+check("the feed's price payload carries the note", '"price_note": (self.dstream.price_note()' in fsrc)
+check("...and the page's Live tag reads it ('Paused', the note as its tooltip)",
+      "feedTag(t.live, t.age, t.price_note)" in wsrc and 'paused ? "Paused"' in wsrc)
 
 print()
 if fails:

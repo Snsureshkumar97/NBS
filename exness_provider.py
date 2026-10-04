@@ -33,11 +33,13 @@ adds "m" (BTCUSDm), Standard Cent "c", Pro none, Raw Spread none or "r". The rea
 name is read from the account's own symbol list, so any account type works;
 EXNESS_SYMBOL_SUFFIX in the environment overrides it.
 
-RATE LIMITS (MetaApi): 5,000 credits per account per 10 s; a price read costs 50.
-Every user of this tool shares ONE MetaApi account, so live prices come from ONE
-shared poller (both symbols every POLL_S seconds, ~10% of the budget) and candles
-are cached for CANDLE_CACHE_S - never one poll per viewer. A 429 backs off for the
-time MetaApi recommends.
+RATE LIMITS (MetaApi, docs/client/rateLimiting): a price read costs 50 CPU credits; the
+budget is 5,000 credits per ACCOUNT per 10 s, but also 6,000 per APPLICATION per minute
+(and more per hour) - shared by this poller, the balances and the live orders' position
+checks. Every user of this tool shares ONE MetaApi account, so live prices come from ONE
+shared poller (both symbols every POLL_S seconds) and candles are cached for
+CANDLE_CACHE_S - never one poll per viewer. A 429 backs off for the time MetaApi
+recommends, and the poller then asks less often until things have been quiet a while.
 """
 import datetime as dt
 import os
@@ -52,10 +54,20 @@ import config
 
 CLIENT = "https://mt-client-api-v1.{region}.agiliumtrade.ai"
 MARKET_DATA = "https://mt-market-data-client-api-v1.{region}.agiliumtrade.ai"
-# Every second (the user, 4 Oct 2026: "yes make it every second"): Exness's BTC quote changed about once a second
-# (19 different quotes in 20 s, measured), so 2 s caught about every other tick. Each pass asks for both symbols
-# (~0.3 s a request), and _run() sleeps only what is left of the second (never under 0.2 s).
-POLL_S = 1.0
+# Every 2 seconds. It was every second for a day (the user, 4 Oct 2026: "yes make it every second") - and that alone
+# is 2 symbols x 60 x 50 credits = 6,000 credits a minute, ALL of MetaApi's per-application minute budget before a
+# single balance or position check: MetaApi answered 429 and asked for 3-4 minute pauses, again and again, and the
+# page froze each time (the user: "tool just stopped after that 15 minute rsi 2 extreme reload"). 2 s ran for a day
+# and a half without one. _run() sleeps only what is left of the interval (never under 0.2 s).
+POLL_S = 2.0
+# After a 429 the poller asks half as often (up to POLL_MAX_S apart), and steps back toward POLL_S after
+# POLL_CALM_S without another - so if the budget is tighter than the arithmetic says, it finds a rate that holds
+# instead of freezing every few minutes.
+POLL_MAX_S = 8.0
+POLL_CALM_S = 600.0
+# MetaApi's recommendedRetryTime is honoured up to this (it was cut at 120 s while MetaApi asked for 216 s - asking
+# again early only earned another 429).
+MAX_BACKOFF_S = 600.0
 CANDLE_CACHE_S = 30.0
 # Just after a candle closes, the held history still lacks the NEW (forming) candle, and the entry rules read only a
 # candle they know is closed (cfd_rules.evaluate) - so for up to CANDLE_CACHE_S the BTC card read "waiting" every
@@ -111,6 +123,13 @@ class NotConfigured(RuntimeError):
     pass
 
 
+class RateLimited(RuntimeError):
+    """MetaApi said slow down: fresh=True on its 429 itself, False on a call skipped while backing off from one."""
+    def __init__(self, msg, fresh):
+        super().__init__(msg)
+        self.fresh = fresh
+
+
 class ExnessMetaApiProvider:
     """The data side - candles and a quote - plus "none" for everything an
     option venue would have, so the shared feed code can ask it the same
@@ -141,22 +160,27 @@ class ExnessMetaApiProvider:
                                 "are not set on the server.")
         svc = "candles" if base == MARKET_DATA else "prices"
         if time.time() < self._backoff_until.get(base, 0.0):
-            raise RuntimeError(f"MetaApi asked us to slow down ({svc}); retrying shortly.")
+            raise RateLimited(f"MetaApi asked us to slow down ({svc}); retrying shortly.", fresh=False)
         url = base.format(region=region) + path.format(account=account)
         r = self.session.get(url, params=params or None, headers={"auth-token": token, "Accept": "application/json"},
                              timeout=timeout or self.timeout)
         if r.status_code == 429:
-            wait = 10.0
+            wait, which = 10.0, ""
             try:
-                body = r.json()
-                at = (body.get("metadata") or {}).get("recommendedRetryTime")
+                meta = (r.json() or {}).get("metadata") or {}
+                at = meta.get("recommendedRetryTime")
                 if at:
                     wait = max(1.0, (pd.Timestamp(at) - pd.Timestamp.now(tz="UTC")).total_seconds())
+                # WHICH of MetaApi's limits it was - the per-account, per-application or per-server one, over what
+                # period - so the next tuning is read off the log, not guessed.
+                which = ", ".join(f"{k} {meta[k]}" for k in ("type", "periodInMinutes", "maxRequestsForPeriod")
+                                  if meta.get(k) is not None)
             except Exception:
                 pass
-            self._backoff_until[base] = time.time() + min(wait, 120.0)
-            _log(f"MetaApi 429 on {svc}: backing off {min(wait, 120.0):.0f}s")
-            raise RuntimeError(f"MetaApi rate limit ({svc}); backing off {wait:.0f}s")
+            wait = min(wait, MAX_BACKOFF_S)
+            self._backoff_until[base] = time.time() + wait
+            _log(f"MetaApi 429 on {svc}: backing off {wait:.0f}s" + (f" ({which})" if which else ""))
+            raise RateLimited(f"MetaApi rate limit ({svc}); backing off {wait:.0f}s", fresh=True)
         if r.status_code == 401:
             raise RuntimeError("MetaApi refused the token (401) - check METAAPI_TOKEN.")
         if r.status_code == 404:
@@ -169,6 +193,10 @@ class ExnessMetaApiProvider:
                                "- check it is Deployed and Connected at app.metaapi.cloud.")
         r.raise_for_status()
         return r.json()
+
+    def prices_paused_for(self, now=None):
+        """Seconds left of a back-off MetaApi asked for on PRICES, or 0."""
+        return max(0.0, self._backoff_until.get(CLIENT, 0.0) - (now or time.time()))
 
     def refresh_session(self):
         return None
@@ -339,11 +367,13 @@ def shared():
 
 # ---------------------------------------------------------------- the shared live poller
 class _Poller:
-    """ONE thread for the whole server: both symbols every POLL_S seconds."""
+    """ONE thread for the whole server: both symbols every POLL_S seconds (longer for a while after a 429)."""
 
     def __init__(self, provider=None, poll_s=POLL_S):
         self.provider = provider or shared()
         self.poll_s = poll_s
+        self.interval = poll_s                  # what _run() actually waits: poll_s, doubled after each 429
+        self.calm_since = 0.0                   # when the last 429 came (set by slow_down)
         self.keys = set()
         self.quotes = {}                        # broker symbol -> {bid, ask, mid, spread, at}
         self.bars = {}                          # broker symbol -> the 15-minute bar being built
@@ -367,6 +397,8 @@ class _Poller:
             except Exception as exc:
                 self.last_error = str(exc)[:200]
                 _log(f"{k} price failed after {time.time() - began:.1f}s: {type(exc).__name__}: {str(exc)[:160]}")
+                if isinstance(exc, RateLimited) and exc.fresh:
+                    self.slow_down()
                 continue
             took = time.time() - began
             if took > SLOW_QUOTE_S:
@@ -403,11 +435,39 @@ class _Poller:
             q = self.quotes.get(sym)
         return None if not q else max(0.0, (now or time.time()) - q["tick_at"])
 
+    def slow_down(self, now=None):
+        """A 429: ask half as often (at most POLL_MAX_S apart) from now on."""
+        self.calm_since = now or time.time()
+        if self.interval < POLL_MAX_S:
+            self.interval = min(POLL_MAX_S, self.interval * 2)
+            _log(f"prices now every {self.interval:g}s after MetaApi's 429", every_s=0)
+
+    def maybe_speed_up(self, now=None):
+        """POLL_CALM_S without a 429: one step back toward poll_s."""
+        now = now or time.time()
+        if self.interval > self.poll_s and now - self.calm_since >= POLL_CALM_S:
+            self.interval = max(self.poll_s, self.interval / 2)
+            self.calm_since = now
+            _log(f"prices back to every {self.interval:g}s", every_s=0)
+
+    def pause_note(self, now=None):
+        """What the page says while MetaApi has prices paused, or None."""
+        try:
+            left = self.provider.prices_paused_for(now)
+        except Exception:
+            return None
+        if left <= 0:
+            return None
+        return (f"MetaApi (Exness's data service) asked us to slow down - prices resume in about "
+                f"{int(left // 60)}m {int(left % 60):02d}s" if left >= 60 else
+                f"MetaApi (Exness's data service) asked us to slow down - prices resume in about {int(left)}s")
+
     def _run(self):
         while True:
             began = time.time()
             self.poll_once()
-            time.sleep(max(0.2, self.poll_s - (time.time() - began)))
+            self.maybe_speed_up()
+            time.sleep(max(0.2, self.interval - (time.time() - began)))
 
 
 _POLLER = None
@@ -474,6 +534,10 @@ class ExnessStreamer:
             q = self._p.quotes.get(self._sym(index_symbol))
         self.last_error = self._p.last_error
         return q["mid"] if q else None
+
+    def price_note(self):
+        """Why the prices are not moving, when MetaApi has them paused - for the page's Live tag."""
+        return self._p.pause_note()
 
     def quote(self, index_symbol, max_age=None):
         with self._p.lock:
