@@ -113,7 +113,7 @@ try:
 except RuntimeError as exc:
     m = str(exc)
 check("after a 429 it backs off for MetaApi's recommended time - the next call makes NO request",
-      len(rl.calls) == n_before and m and "slow down" in m, (len(rl.calls), n_before, m))
+      len(rl.calls) == n_before and m and "slow down" in m and "(prices)" in m, (len(rl.calls), n_before, m))
 
 print("5. CANDLES - PAGED BACKWARDS 1,000 AT A TIME, IST, CACHED")
 now = pd.Timestamp.now(tz="UTC").floor("15min")
@@ -277,6 +277,64 @@ try:
           len([c for c in c9.calls if "/candles" in c[0]]) == n9 + 1)
 finally:
     ep._utcnow = _real_now
+
+print("8d. A REFUSAL ON ONE SERVICE NEVER BLOCKS THE OTHER; A FAILED TOP-UP SERVES THE CANDLES ALREADY HELD (the user,")
+print("    4 Oct 2026: 'i always getting runtime error for 15 minutes' - the card read 'no candles for the rule: RuntimeError')")
+mode = {"candles": "ok"}
+def flaky_candles(u, q):
+    if mode["candles"] == "429":
+        return Resp(429, {"metadata": {"recommendedRetryTime": (pd.Timestamp.now(tz="UTC") + pd.Timedelta(seconds=30)).isoformat()}})
+    return candles(u, q)
+sd = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/candles", flaky_candles),
+              ("current-price", lambda u, q: Resp(200, {"symbol": "BTCUSDm", "bid": 84000.0, "ask": 84010.0}))])
+pd_ = ep.ExnessMetaApiProvider(session=sd)
+held = pd_.get_ohlc("BTC", "15m", lookback_days=3)
+mode["candles"] = "429"
+kd = ("BTCUSDm", "15m")
+td, fd, hd = pd_._candles[kd]
+pd_._candles[kd] = (td - 60, fd, hd)                                # time to top up - and the top-up is refused
+try:
+    got = pd_.get_ohlc("BTC", "15m", lookback_days=3); err = None
+except RuntimeError as exc:
+    got, err = None, str(exc)
+check("a refused candle top-up serves the candles already held - no error reaches the rule",
+      err is None and got is not None and len(got) == len(held) and got.index.equals(held.index), err)
+try:
+    q_ = pd_.quote("BTC"); qerr = None
+except RuntimeError as exc:
+    q_, qerr = None, str(exc)
+check("...and the live PRICE still comes through: the candles' back-off is not the prices'",
+      qerr is None and q_ and q_["bid"] == 84000.0, qerr)
+n_c = len([c for c in sd.calls if "/candles" in c[0]])
+td, fd, hd = pd_._candles[kd]
+pd_._candles[kd] = (td - 60, fd, hd)
+pd_.get_ohlc("BTC", "15m", lookback_days=3)
+check("...while the candles' back-off lasts, no new candle request is made", len([c for c in sd.calls if "/candles" in c[0]]) == n_c)
+pd_._backoff_until.clear(); mode["candles"] = "ok"
+td, fd, hd = pd_._candles[kd]
+pd_._candles[kd] = (td - 60, fd, hd)
+pd_.get_ohlc("BTC", "15m", lookback_days=3)
+check("...and once it is over, the next call tops up again", len([c for c in sd.calls if "/candles" in c[0]]) == n_c + 1)
+fresh_p = ep.ExnessMetaApiProvider(session=sd)
+mode["candles"] = "429"
+try:
+    fresh_p.get_ohlc("BTC", "15m", lookback_days=3); err2 = None
+except RuntimeError as exc:
+    err2 = str(exc)
+check("a FIRST load that is refused still says so - there is nothing held to serve", err2 and "candles" in err2, err2)
+mode["candles"] = "ok"
+pq = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/candles", candles),
+              ("current-price", lambda u, q: Resp(429, {"metadata": {}}))])
+pp = ep.ExnessMetaApiProvider(session=pq)
+try:
+    pp.quote("BTC")
+except RuntimeError:
+    pass
+try:
+    pp.get_ohlc("BTC", "15m", lookback_days=2); err3 = None
+except RuntimeError as exc:
+    err3 = str(exc)
+check("the other way round: a refused PRICE does not block the candles", err3 is None, err3)
 
 print("9. THE PRICE IS ASKED EVERY SECOND (the user, 4 Oct 2026: \"yes make it every second\")")
 check("POLL_S is one second", ep.POLL_S == 1.0, ep.POLL_S)

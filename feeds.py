@@ -38,6 +38,7 @@ A FEED IS NOT A SUBSCRIPTION
 
 import copy
 import datetime as dt
+import sys
 import threading
 import time
 import traceback
@@ -1837,7 +1838,10 @@ class Feed:
             df = self._provider_for(name, None).get_ohlc(name, "15m", lookback_days=cfd_rules.HISTORY_DAYS)
             ev = cfd_rules.evaluate(name, df)
         except Exception as exc:
-            ev = {"ready": False, "why": f"no candles for the rule: {type(exc).__name__}"}
+            # The message itself, not only its type ("RuntimeError" told nobody anything - 4 Oct 2026); the token is
+            # never in these messages (exness_provider builds them without it).
+            ev = {"ready": False, "why": f"no candles for the rule: {type(exc).__name__}: {str(exc)[:160]}"}
+            print(f"feeds: {name} rule - {ev['why']}", file=sys.stderr, flush=True)
         return cfd_rules.apply(rec, ev, name)
 
     def _cfd_stamp(self, name, rec):

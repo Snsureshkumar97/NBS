@@ -295,6 +295,22 @@ check("...and not drawn when the average is not known yet", "Price vs 200 avg" n
 q4 = card(0, 55.0, None)
 check("no 200-average yet: the number alone, no direction guessed", q4["RSI-2 extreme"]["reading"] == "55 · no setup")
 import feeds
+class _Boom:
+    def get_ohlc(self, *a, **k):
+        raise RuntimeError("MetaApi rate limit (candles); backing off 30s")
+class _FeedStub:
+    def _provider_for(self, name, ix):
+        return _Boom()
+fr = feeds.CryptoFeed._cfd_rule(_FeedStub(), "BTC", {"index": "BTC", "spot": 84000.0, "cfd_spread": 5.0}) \
+    if hasattr(feeds, "CryptoFeed") else None
+if fr is None:
+    for _cls in vars(feeds).values():
+        if isinstance(_cls, type) and hasattr(_cls, "_cfd_rule"):
+            fr = _cls._cfd_rule(_FeedStub(), "BTC", {"index": "BTC", "spot": 84000.0, "cfd_spread": 5.0})
+            break
+check("a candle failure shows its MESSAGE on the card, not only 'RuntimeError' (4 Oct 2026)",
+      fr is not None and fr["blockers"][0].startswith("Waiting - no candles for the rule: RuntimeError: MetaApi rate limit (candles)"),
+      fr and fr["blockers"])
 pub = feeds._public(dict(reading(), technical={}, trend={}), "BTC")
 check("the page gets the rule, the levels, exit at T3, and the forward-test note's facts", pub["rule"]["label"] == "RSI-2 bounce (87%)"
       and pub["exit_at"] == "T3" and pub["stop"] == 83700.0 and (pub["rule"].get("forward_test") or {}).get("trades_a_month") == 50)

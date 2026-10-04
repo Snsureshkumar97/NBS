@@ -41,6 +41,7 @@ time MetaApi recommends.
 """
 import datetime as dt
 import os
+import sys
 import threading
 import time
 
@@ -67,6 +68,18 @@ CANDLE_CLOSE_WINDOW_S = 600.0
 
 def _utcnow():
     return pd.Timestamp.now(tz="UTC")
+
+
+_LOGGED = {}
+
+
+def _log(msg, every_s=60.0):
+    """To the server's log (journalctl), each distinct message at most once a minute - MetaApi's refusals used to
+    be invisible there."""
+    now = time.time()
+    if now - _LOGGED.get(msg, 0.0) >= every_s:
+        _LOGGED[msg] = now
+        print(f"exness_provider: {msg}", file=sys.stderr, flush=True)
 SUFFIXES = ("", "m", "c", "r")
 IST = "Asia/Kolkata"
 # The tool's interval names -> MetaApi's timeframes (MetaApi documents 1m..1mn).
@@ -105,7 +118,10 @@ class ExnessMetaApiProvider:
         self._symbols = None
         self._resolved = {}
         self._candles = {}                     # (symbol, timeframe) -> (fetched_at, UTC frame, days held)
-        self._backoff_until = 0.0
+        # One back-off PER MetaApi service (prices: the client API; candles: the market-data API). It used to be one
+        # for both, so a 429 on candles froze the live prices too, and the rule read "no candles: RuntimeError"
+        # (the user, 4 Oct 2026: "i always getting runtime error for 15 minutes").
+        self._backoff_until = {}
         self._lock = threading.Lock()
         # One lock per (symbol, timeframe): a slow first load of a year of daily candles
         # (~8 s from MetaApi, measured 3 Oct 2026) must not hold up the 15-minute candles
@@ -118,8 +134,9 @@ class ExnessMetaApiProvider:
         if not (token and account):
             raise NotConfigured("Exness is not connected yet: METAAPI_TOKEN and METAAPI_ACCOUNT_ID "
                                 "are not set on the server.")
-        if time.time() < self._backoff_until:
-            raise RuntimeError("MetaApi asked us to slow down; retrying shortly.")
+        svc = "candles" if base == MARKET_DATA else "prices"
+        if time.time() < self._backoff_until.get(base, 0.0):
+            raise RuntimeError(f"MetaApi asked us to slow down ({svc}); retrying shortly.")
         url = base.format(region=region) + path.format(account=account)
         r = self.session.get(url, params=params or None, headers={"auth-token": token, "Accept": "application/json"},
                              timeout=self.timeout)
@@ -132,8 +149,9 @@ class ExnessMetaApiProvider:
                     wait = max(1.0, (pd.Timestamp(at) - pd.Timestamp.now(tz="UTC")).total_seconds())
             except Exception:
                 pass
-            self._backoff_until = time.time() + min(wait, 120.0)
-            raise RuntimeError(f"MetaApi rate limit; backing off {wait:.0f}s")
+            self._backoff_until[base] = time.time() + min(wait, 120.0)
+            _log(f"MetaApi 429 on {svc}: backing off {min(wait, 120.0):.0f}s")
+            raise RuntimeError(f"MetaApi rate limit ({svc}); backing off {wait:.0f}s")
         if r.status_code == 401:
             raise RuntimeError("MetaApi refused the token (401) - check METAAPI_TOKEN.")
         if r.status_code == 404:
@@ -245,7 +263,15 @@ class ExnessMetaApiProvider:
                 # Topping up: the bars since the newest one held (the newest is
                 # refetched too - it was still forming when it was read).
                 missing = int((now - hit[1].index.max()) / bar) + 2
-                fresh = self._frame(self._page(sym, tf, now, min(1000, max(5, missing))) or [])
+                try:
+                    fresh = self._frame(self._page(sym, tf, now, min(1000, max(5, missing))) or [])
+                except RuntimeError as exc:
+                    # A refused / failed top-up keeps the history already held - the rule then reads it (or waits for
+                    # the new candle) instead of failing outright; asked again on the next call.
+                    _log(f"{sym} {tf} top-up failed, serving the held candles: {exc}")
+                    out = hit[1][hit[1].index >= want_from].copy()
+                    out.index = out.index.tz_convert(IST)
+                    return out
                 df = pd.concat([hit[1][~hit[1].index.isin(fresh.index)], fresh]).sort_index()
                 df = df[df.index >= now - pd.Timedelta(days=max(days, hit[2]))]
                 self._candles[key] = (time.time(), df, max(days, hit[2]))
