@@ -35,6 +35,13 @@ STRICTER, in three ways - all fixed BEFORE the held-out year is looked at:
  test cannot tell an edge from none.
 
     python3 cfd_strict_search.py
+    python3 cfd_strict_search.py --close     the CLOSE-target table (cfd_outcomes.py --close: targets
+                                             0.1 - 0.33 x the stop) and only exits that WIN at least
+                                             80% in-sample - the user, 4 Oct 2026: "you didnt find
+                                             anything that can make the win rate above 80% even it can
+                                             give only one target to exit". Also prints what RANDOM
+                                             entries do at each close target: the win rate the target
+                                             alone gives, and what it nets after the spread.
 """
 import json
 import os
@@ -56,6 +63,8 @@ DAY_NS = 86400 * 10 ** 9
 
 def main():
     import pickle
+    close = "--close" in sys.argv
+    table, min_win = ("outcomes_close", 0.80) if close else ("outcomes", 0.0)
     import cfd_tick_study as cts
     import config
     import exness_data as ed
@@ -63,7 +72,7 @@ def main():
     report = {}
     for sym, (key, mult, gate) in {"BTCUSD": ("BTC", 1.0, 20), "XAUUSD": ("GOLD", 100.0, 25)}.items():
         full = ed.load(sym)
-        O = np.load(os.path.join(ed._dir(), f"outcomes_{sym}.npz"))
+        O = np.load(os.path.join(ed._dir(), f"{table}_{sym}.npz"))
         net, ext, ok = O["net"], O["ext"], O["ok"]
         stops, targets = list(O["stops"]), list(O["targets"])
         with open(os.path.join(ed._dir(), f"adx_{sym}_{gate}_{len(full)}.pkl"), "rb") as fh:
@@ -112,6 +121,22 @@ def main():
             t = np.where(sd > 0, sums.mean(axis=0) / (sd / np.sqrt(D)), 0.0)
             return np.nanmean(val, axis=0), t, D
 
+        if close:
+            # RANDOM ENTRIES - every tradable bar, both directions averaged: the win rate the target's
+            # distance alone gives, and the $ per trade it nets after the spread and swap.
+            allb = np.flatnonzero(ok)
+            print(f"\n  RANDOM entries (every bar, buy and sell averaged), $ per {'BTC' if key == 'BTC' else 'gold lot'}:")
+            print(f"  {'exit':14s} {'IN-SAMPLE win%  $/trade':>24s}   {'HELD-OUT win%  $/trade':>24s}")
+            vb = (every_signal(allb, np.ones(len(allb), np.int64)), every_signal(allb, -np.ones(len(allb), np.int64)))
+            for kk in range(len(stops)):
+                for jj in range(len(targets)):
+                    cells = []
+                    for msk in (ins[allb], oos[allb]):
+                        x = np.concatenate([vb[0][msk, kk, jj], vb[1][msk, kk, jj]])
+                        x = x[~np.isnan(x)]
+                        cells.append(f"{100 * np.mean(x > 0):>8.1f}% {np.mean(x):>+9.1f}")
+                    print(f"  {f'{stops[kk]:g}ATR/{targets[jj]:g}R':14s} {cells[0]:>24s}   {cells[1]:>24s}")
+
         def score(parts):
             sg = signal(parts)
             if sg is None:
@@ -124,6 +149,11 @@ def main():
             if r is None:
                 return None
             mean, t, D = r
+            if min_win:                     # only exits that WIN at least min_win of the in-sample signals
+                vals = every_signal(idx, side[idx])
+                t = np.where(np.nanmean(vals > 0, axis=0) >= min_win, t, -np.inf)
+                if not np.isfinite(t).any():
+                    return None
             k, j = np.unravel_index(np.argmax(t), t.shape)
             return float(t[k, j]), int(k), int(j), float(mean[k, j]), len(idx)
 
@@ -196,12 +226,15 @@ def main():
         # for scale: the live rule on the same tests, and the positive control
         plan = config.CFD_RULES[key]
         live = tuple(sorted(plan["votes"] + plan["filters"]))
-        k, j = stops.index(plan["stop_atr"]), targets.index(plan["target_r"])
+        # the live rule's own exit - or, on the close-target table, its bars with a target at 0.25 x its stop
+        k = stops.index(plan["stop_atr"])
+        j = targets.index(plan["target_r"]) if plan["target_r"] in targets else targets.index(0.25)
         agree, side = signal(live)
         idx = np.flatnonzero(agree & ins)
         m, t, _ = day_t(idx, every_signal(idx, side[idx]))
         print("  " + "-" * 120)
-        ref = line("LIVE RULE: " + " + ".join(live), live, k, j, float(t[k, j]), float(m[k, j]))
+        ref = line(("LIVE RULE: " if plan["target_r"] in targets else "LIVE RULE'S BARS, 0.25R: ") + " + ".join(live),
+                   live, k, j, float(t[k, j]), float(m[k, j]))
         ctl = line("CONTROL (cheats: sees the future) on the live rule's bars", live, k, j, float("nan"), float("nan"), cheat=True)
         passed = [r for r in rows if r["held_out"]["pass"]]
         print(f"\n  {sym}: {len(passed)} of {K} finalists PASS" + (": " + "; ".join(" + ".join(r["rule"]) for r in passed)
@@ -209,7 +242,8 @@ def main():
         if not ctl["held_out"]["pass"]:
             print("  !! the positive control did NOT pass - the test cannot be trusted")
         report[sym] = {"finalists": rows, "live_rule": ref, "control": ctl, "rules_scored": len(seen)}
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cfd_strict_search_result.json")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "cfd_strict_search_close_result.json" if close else "cfd_strict_search_result.json")
     with open(out, "w") as fh:
         json.dump(report, fh, indent=1, default=float)
     print("\nsaved", out)

@@ -48,7 +48,8 @@ def atr14(df):
 
 def _month(args):
     """Outcomes for the bars whose ENTRY falls in one month (ticks of that month + the next)."""
-    sym, y, m = args
+    sym, y, m = args[:3]
+    tgts = tuple(args[3]) if len(args) > 3 else TARGETS        # the close-target table (cfd_outcomes.py --close)
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import cfd_tick_study as t
     import exness_data as ed
@@ -62,7 +63,7 @@ def _month(args):
     idx = np.flatnonzero((bar_start + BAR_NS >= lo) & (bar_start + BAR_NS < hi))
     parts = [p for p in (t._month_ticks(sym, y, m), t._month_ticks(sym, *((y + 1, 1) if m == 12 else (y, m + 1))))
              if p is not None]
-    S_, M_, T_ = len(STOPS), len(TARGETS), len(idx)
+    S_, M_, T_ = len(STOPS), len(tgts), len(idx)
     net = np.full((T_, 2, S_, M_), np.nan, dtype=np.float32)
     ext = np.zeros((T_, 2, S_, M_), dtype=np.int64)
     ok = np.zeros(T_, dtype=bool)
@@ -70,7 +71,7 @@ def _month(args):
         return sym, idx, net, ext, ok
     T = np.concatenate([p[0] for p in parts]); M = np.concatenate([p[1] for p in parts])
     SP = np.concatenate([p[2] for p in parts])
-    tg = np.array(TARGETS)
+    tg = np.array(tgts)
     for n, i in enumerate(idx):
         t0 = bar_start[i] + BAR_NS                         # the bar's close = the entry time
         last = np.searchsorted(T, t0) - 1                  # the last tick at or before the close
@@ -107,25 +108,31 @@ def _month(args):
     return sym, idx, net, ext, ok
 
 
-def build(sym):
+def build(sym, targets=TARGETS, name="outcomes"):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import cfd_tick_study as t
     import exness_data as ed
     full = ed.load(sym)
     n = len(full)
-    NET = np.full((n, 2, len(STOPS), len(TARGETS)), np.nan, dtype=np.float32)
-    EXT = np.zeros((n, 2, len(STOPS), len(TARGETS)), dtype=np.int64)
+    NET = np.full((n, 2, len(STOPS), len(targets)), np.nan, dtype=np.float32)
+    EXT = np.zeros((n, 2, len(STOPS), len(targets)), dtype=np.int64)
     OK = np.zeros(n, dtype=bool)
     with ProcessPoolExecutor(max(1, min(6, (os.cpu_count() or 2) - 1))) as ex:
-        for s_, idx, net, ext, ok in ex.map(_month, [(sym, y, m) for (y, m) in ed.months_until(t.LAST)]):
+        for s_, idx, net, ext, ok in ex.map(_month, [(sym, y, m, targets) for (y, m) in ed.months_until(t.LAST)]):
             NET[idx], EXT[idx], OK[idx] = net, ext, ok
             print(f"  {sym}: {len(idx)} bars of a month done", flush=True)
-    path = os.path.join(ed._dir(), f"outcomes_{sym}.npz")
+    path = os.path.join(ed._dir(), f"{name}_{sym}.npz")
     np.savez(path, net=NET, ext=EXT, ok=OK, atr=atr14(full).to_numpy(), stops=np.array(STOPS),
-             targets=np.array(TARGETS), bar_start=full.index.tz_convert("UTC").asi8)
+             targets=np.array(targets), bar_start=full.index.tz_convert("UTC").asi8)
     return path
 
 
+# CLOSE TARGETS (the user, 4 Oct 2026: "you didnt find anything that can make the win rate above 80%
+# even it can give only one target to exit"): a target at 0.25 x the stop wins ~80% by geometry alone
+# (1 / 1.25), so the 80%+ question needs targets this close - a separate table, outcomes_close_<SYM>.npz.
+CLOSE_TARGETS = (0.1, 0.15, 0.2, 0.25, 0.33)
+
 if __name__ == "__main__":
+    close = "--close" in sys.argv
     for sym in ("BTCUSD", "XAUUSD"):
-        print(sym, "->", build(sym), flush=True)
+        print(sym, "->", build(sym, CLOSE_TARGETS, "outcomes_close") if close else build(sym), flush=True)
