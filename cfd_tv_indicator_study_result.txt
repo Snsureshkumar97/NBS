@@ -1,0 +1,47 @@
+BTC on Exness; $ per BTC; real ticks; the live RSI-2 rule for scale: +25,729 / +25,228 (87% won)
+  indicator / candles / exit                IN-SAMPLE   n  win%      net   PF     HELD-OUT   n  win%      net   PF    coin p
+  UT Bot Alerts / 15m / own exit                   3919   33%   -72,767  0.89           2120   36%   -17,951  0.95   
+  UT Bot Alerts / 15m / bracket 2R                 1878   34%   -32,303  0.96           1066   35%   -20,777  0.95   
+  Squeeze Momentum / 15m / own exit                2260   33%   -60,085  0.82           1272   36%   -14,546  0.92   
+  Squeeze Momentum / 15m / bracket 2R              1289   34%    -5,104  0.99            734   33%   -33,933  0.87   
+  WaveTrend / 15m / own exit                       1308   37%   -35,690  0.86            705   38%    -3,375  0.97   
+  WaveTrend / 15m / bracket 2R                     1131   34%   -20,223  0.95            621   35%   -18,909  0.92   
+  SSL Channel / 15m / own exit                     2776   30%   -86,848  0.84           1552   32%    +9,030  1.03   
+  SSL Channel / 15m / bracket 2R                   1609   35%    -1,914  1.00            938   35%   -22,866  0.94   
+  Chandelier Exit / 15m / own exit                 1081   31%   -29,430  0.92            613   33%   -23,401  0.88   
+  Chandelier Exit / 15m / bracket 2R               1215   36%    -3,136  0.99            728   35%   -12,664  0.95   
+  Range Filter / 15m / own exit                    1065   34%   -33,130  0.91            571   39%   +34,987  1.18   
+  Range Filter / 15m / bracket 2R                  1237   34%   -21,795  0.95            679   36%   +10,418  1.04   
+  HalfTrend / 15m / own exit                       1679   31%   -61,022  0.86            930   34%   +27,474  1.12   
+  HalfTrend / 15m / bracket 2R                     1438   36%   +13,535  1.03            810   35%   -17,456  0.94   
+  Hull Suite / 15m / own exit                      1698   30%   -90,742  0.80            898   33%    +5,785  1.02   
+  Hull Suite / 15m / bracket 2R                    1489   34%   -24,100  0.96            829   36%    +5,968  1.02   
+  Coral Trend / 15m / own exit                     1714   30%   -31,877  0.93            932   29%   -47,525  0.81   
+  Coral Trend / 15m / bracket 2R                   1437   35%    -9,669  0.98            808   35%   -11,450  0.96   
+  Supertrend / 15m / own exit                       844   31%   -45,677  0.87            479   34%   -11,524  0.94   
+  Supertrend / 15m / bracket 2R                    1112   34%   -28,380  0.93            634   35%   -12,209  0.95   
+  UT Bot Alerts / 1h / own exit                     950   34%   -34,455  0.90            511   39%   +15,562  1.08   
+  UT Bot Alerts / 1h / bracket 2R                   748   39%   -51,533  0.88            399   39%   -16,848  0.92   
+  Squeeze Momentum / 1h / own exit                  562   38%    -3,752  0.98            299   37%      -799  0.99   
+  Squeeze Momentum / 1h / bracket 2R                450   38%   -40,090  0.84            241   42%   +16,367  1.14   
+  WaveTrend / 1h / own exit                         351   36%    +2,825  1.02            209   36%   -24,208  0.76   
+  WaveTrend / 1h / bracket 2R                       325   42%   +15,425  1.09            193   39%   -40,277  0.69   
+  SSL Channel / 1h / own exit                       732   30%   -53,805  0.83            409   35%   -10,035  0.94   
+  SSL Channel / 1h / bracket 2R                     668   41%   -10,688  0.97            349   39%   -24,173  0.87   
+  Chandelier Exit / 1h / own exit                   350   39%   -44,899  0.80            211   43%   +13,628  1.12   
+  Chandelier Exit / 1h / bracket 2R                 395   39%   -11,449  0.95            228   41%    -8,502  0.94   
+  Range Filter / 1h / own exit                      329   44%    +8,426  1.04            201   41%   -10,031  0.92   
+  Range Filter / 1h / bracket 2R                    381   39%    +4,336  1.02            220   41%    -3,714  0.97   
+  HalfTrend / 1h / own exit                         491   36%   -32,383  0.88            287   40%   -24,569  0.84   
+  HalfTrend / 1h / bracket 2R                       555   39%   -20,415  0.93            301   39%   -16,878  0.90   
+  Hull Suite / 1h / own exit                        525   41%    -7,569  0.97            306   37%    -2,093  0.99   
+  Hull Suite / 1h / bracket 2R                      563   43%    -5,246  0.98            328   40%    -4,307  0.98   
+  Coral Trend / 1h / own exit                       507   38%   -16,173  0.93            298   39%   +22,480  1.14   
+  Coral Trend / 1h / bracket 2R                     529   45%   +33,289  1.13            310   41%    +6,967  1.04    0.6382
+  Supertrend / 1h / own exit                        300   42%   -46,223  0.77            190   45%    +2,591  1.02   
+  Supertrend / 1h / bracket 2R                      347   38%   -33,998  0.84            211   38%   -15,667  0.88   
+
+  profitable in both periods: 1 of 40
+    Coral Trend / 1h / bracket 2R: +33,289 / +6,967, coin p 0.6382
+  pass the strict test: 0
+  the live RSI-2 rule: +25,729 / +25,228 per BTC, 87% won, coin flips as good ~1%
