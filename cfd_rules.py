@@ -76,6 +76,7 @@ def compute(df):
     # the numbers behind it, for the card (not votes): RSI-2 itself and which side of its 200-candle average price is
     out["rsi2_value"] = rsi2.to_numpy()
     out["above200"] = np.where(s200.isna(), np.nan, (c > s200).astype(float)).astype(float)
+    out["sma200"] = s200.to_numpy()
     k_ = 100 * (c - l.rolling(14).min()) / (h.rolling(14).max() - l.rolling(14).min()).replace(0, np.nan)
     out["stoch50"] = _sgn(k_.rolling(3).mean() - 50)
     out["vol_rising"] = (v.rolling(5).mean() > v.rolling(20).mean()).to_numpy()
@@ -129,7 +130,8 @@ def evaluate(index_key, df, now=None):
     bar_close = closed.index[-1] + BAR
     num = lambda k: (None if a.get(k) is None or not np.isfinite(a[k]) else float(a[k]))
     values = {"rsi2": num("rsi2_value"), "adx": num("adx_value"),
-              "above200": None if num("above200") is None else bool(num("above200"))}
+              "above200": None if num("above200") is None else bool(num("above200")),
+              "sma200": num("sma200"), "close": float(closed["Close"].iloc[-1])}
     return {"ready": True, "votes": votes, "filters": filters, "side": side, "atr": float(a["atr"]), "values": values,
             "close": float(closed["Close"].iloc[-1]), "bar_close": bar_close.isoformat(),
             "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}

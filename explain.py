@@ -314,6 +314,16 @@ def _rule_explain(rec):
                     text = (f"RSI-2 is {r2:.1f} - not extreme. Price is {side_txt} its 200-candle average, so the rule "
                             f"waits for RSI-2 {wait}.")
         votes.append({"name": v.get("name"), "vote": d, "reading": reading, "text": text})
+        if (v.get("key") == "rsi2" and vals.get("above200") is not None and vals.get("sma200") is not None
+                and vals.get("close") is not None):
+            # The side of the 200-candle average is part of RSI-2's condition - shown as its own row (the user,
+            # 4 Oct 2026: "i dont see price vs 200 candle average on the signal card with the other votes").
+            up = vals["above200"]
+            votes.append({"name": "Price vs 200 avg", "vote": 1 if up else -1,
+                          "reading": f"{'above' if up else 'below'} {vals['sma200']:,.0f} · {'buys' if up else 'sells'} only",
+                          "text": f"Price {vals['close']:,.2f} is {'above' if up else 'below'} its 200-candle average "
+                                  f"{vals['sma200']:,.2f} - " + ("an uptrend, so the rule only buys, on sharp dips."
+                                                                 if up else "a downtrend, so the rule only sells, on sharp spikes.")})
     for f in info.get("filters") or []:
         ok = f.get("ok")
         t = _FILTER_TEXT.get(f.get("key"), ("yes", "no"))

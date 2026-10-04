@@ -82,7 +82,8 @@ raw = cfd_rules.compute(df.iloc[:-1])
 vals = ev["values"]
 check("the reading carries the numbers behind the votes (RSI-2, ADX, above/below the 200 average) - for the card",
       abs(vals["rsi2"] - raw["rsi2_value"][-1]) < 1e-9 and abs(vals["adx"] - raw["adx_value"][-1]) < 1e-9
-      and vals["above200"] == bool(raw["above200"][-1]), vals)
+      and vals["above200"] == bool(raw["above200"][-1]) and abs(vals["sma200"] - raw["sma200"][-1]) < 1e-9
+      and vals["close"] == float(df["Close"].iloc[-2]), vals)
 stale = cfd_rules.evaluate("BTC", df, now=idx[-1] + cfd_rules.BAR + pd.Timedelta(seconds=20))
 check("candles fetched before the last one closed (no newer candle yet): it WAITS rather than read half a candle",
       stale["ready"] is False and "waiting" in stale["why"], stale)
@@ -246,9 +247,12 @@ check("the verdict names the decision and the exit", "BUY" in w["verdict"] and "
 check("the levels say where the stop and the one target are", w["levels"][0].startswith("STOP 83,700")
       and "TARGET 84,060" in w["levels"][1], w["levels"])
 # the numbers on the card (the user, 4 Oct 2026: "show the rsi-2 number on the card")
-def card(side, r2, up, adx=31.4, spread=10.0, atr=100.0):
+def card(side, r2, up, adx=31.4, spread=10.0, atr=100.0, sma=None):
+    vals_ = {"rsi2": r2, "adx": adx, "above200": up}
+    if sma is not None:
+        vals_.update(sma200=sma, close=84000.0)
     ev_ = {"ready": True, "votes": {"rsi2": side}, "filters": {"adx25": adx >= 25}, "side": side, "atr": atr,
-           "close": 84000.0, "bar_close": "x", "fresh": True, "values": {"rsi2": r2, "adx": adx, "above200": up}}
+           "close": 84000.0, "bar_close": "x", "fresh": True, "values": vals_}
     return {v["name"]: v for v in explain.explain(cfd_rules.apply({"index": "BTC", "spot": 84000.0, "cfd_spread": spread},
                                                                     ev_, "BTC"))["votes"]}
 q1 = card(0, 60.4, False)
@@ -266,6 +270,20 @@ check("a setup: '6 · BUY', the number in the words", q3["RSI-2 extreme"]["readi
 check("ADX shows its value: '31 · yes'", q3["ADX 25+"]["reading"] == "31 · yes", q3["ADX 25+"]["reading"])
 check("the spread row shows the spread and its limit: '$10.00 / max $12.00 · yes'",
       q3["Spread vs target"]["reading"] == "$10.00 / max $12.00 · yes", q3["Spread vs target"]["reading"])
+q5 = card(0, 73.9, True, sma=83962.64); p5 = q5.get("Price vs 200 avg", {})
+check("the 200-candle average has its own row (the user, 4 Oct 2026): 'above 83,963 · buys only', in words too",
+      p5.get("reading") == "above 83,963 · buys only" and p5.get("vote") == 1
+      and p5.get("text") == "Price 84,000.00 is above its 200-candle average 83,962.64 - an uptrend, "
+                                            "so the rule only buys, on sharp dips.", p5)
+q6 = card(0, 60.4, False, sma=84962.0); p6 = q6.get("Price vs 200 avg", {})
+check("...below it: 'below 84,962 · sells only'", p6.get("reading") == "below 84,962 · sells only"
+      and p6.get("vote") == -1)
+order = [v["name"] for v in explain.explain(cfd_rules.apply({"index": "BTC", "spot": 84000.0, "cfd_spread": 10.0},
+         {"ready": True, "votes": {"rsi2": 0}, "filters": {"adx25": True}, "side": 0, "atr": 100.0, "close": 84000.0,
+          "bar_close": "x", "fresh": True, "values": {"rsi2": 50.0, "adx": 30.0, "above200": True, "sma200": 83000.0,
+          "close": 84000.0}}, "BTC"))["votes"]]
+check("...right under RSI-2, before the filters", order == ["RSI-2 extreme", "Price vs 200 avg", "ADX 25+", "Spread vs target"], order)
+check("...and not drawn when the average is not known yet", "Price vs 200 avg" not in card(0, 55.0, None))
 q4 = card(0, 55.0, None)
 check("no 200-average yet: the number alone, no direction guessed", q4["RSI-2 extreme"]["reading"] == "55 · no setup")
 import feeds
@@ -275,7 +293,7 @@ check("the page gets the rule, the levels, exit at T3, and the forward-test note
 nb = tickets.TicketBook(market="nse_index")
 check("an Indian reading has no rule and goes the engine's way", nb.books["NIFTY"] is not None and config.cfd_rule("NIFTY") is None)
 
-print("6. NEVER A TICKET WITHOUT A DIRECTION AND ITS LEVELS (4 Oct 2026, 12:30 IST: RSI-2 said buy, the spread check")
+print("6. NEVER A TICKET WITHOUT A DIRECTION AND ITS LEVELS (4 Oct 2026, 12:30 IST: RSI-2 fired (a sell), the spread check")
 print("   said no - and a ticket with no side, stop or target opened; Exness got an unprotected SELL)")
 _now["t"] = dt.datetime(2026, 10, 6, 12, 30, 5, tzinfo=IST)
 b6 = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d, "t6.csv"))
