@@ -456,7 +456,8 @@ function world(look){
     money: v => (v >= 0 ? "+" : "−") + "$" + Math.abs(Math.round(v)).toLocaleString("en-US"),
     num: (v, d = 2) => v === null || v === undefined || isNaN(v) ? "—" : Number(v).toFixed(d),
     fundsLabel: f => f.asset + " " + f.available.toFixed(2),
-    selectIndex: k => calls.selected.push(k), showTab: t => calls.tabs.push(t)};
+    selectIndex: k => calls.selected.push(k), showTab: t => calls.tabs.push(t),
+    switchMarketShortcut: () => { calls.switched = (calls.switched || 0) + 1; }};
   const f = new Function(...Object.keys(env), """ + __import__("json").dumps(fn_src) + r""" + "; return {kiteSide, kiteDash};")(...Object.values(env));
   return {els, calls, ...f};
 }
@@ -541,6 +542,26 @@ assert.deepStrictEqual(w.calls.selected, ["BANKNIFTY"]); assert.deepStrictEqual(
 w.kiteDash(D); assert.strictEqual(w.els.kdash.writes, 1, "not rewritten when nothing changed");
 w = world("kite"); w.kiteDash(S({broker: {name: "Zerodha", connected: false}}));
 assert.ok(w.els.kdash.innerHTML.includes("Zerodha is not connected"));
+// the market, and the way to the other one (the user, 4 Oct 2026: "add switch market on dasboard as well")
+assert.ok(w.els.kdash.innerHTML.includes(">Market<") && w.els.kdash.innerHTML.includes("Bitcoin")
+          && w.els.kdash.innerHTML.includes("This server runs one market") && !w.els.kdash.innerHTML.includes('data-kact="switchmarket"'),
+          "one market: named, no switch");
+const X = S({market: "crypto", market_label: "Crypto (BTC · Gold)", markets: ["nse_index", "crypto"],
+             market_options: {nse_index: "Indian indices", crypto: "Crypto (BTC · Gold)"},
+             indices: {BTC: {bias: "NEUTRAL", spot: 84775.21, cfd: true}}, order: ["BTC"],
+             broker: {name: "Exness", accounts: [{ok: true, kind: "demo", balance: 5006.36, equity: 5006.36, freeMargin: 5006.36, leverage: 200}]}});
+w = world("kite"); w.kiteDash(X);
+h = w.els.kdash.innerHTML;
+assert.ok(h.includes("Crypto (BTC · Gold)") && h.includes('data-kact="switchmarket"') && h.includes("Switch to Indian indices"),
+          "two markets: this one named, a button straight to the other");
+w.els.kdash.L.click({target: {closest: q => q === "[data-kact]" ? {dataset: {kact: "switchmarket"}} : null}});
+assert.strictEqual(w.calls.switched, 1, "the button switches (the same shortcut as the Funds box's)");
+assert.deepStrictEqual(w.calls.tabs, [], "...and opens no Signal page");
+assert.ok(h.includes("$5006.36") && h.includes("DEMO Exness account") && !h.includes("is not connected"),
+          "a connected Exness account's free margin, not 'not connected'");
+assert.ok(h.includes("<th>Market</th>") && h.includes(">Price</th>") && !h.includes("Index price"), "crypto: Market / Price, not Index");
+w.els.kdash.L.click({target: {closest: q => q === "tr[data-k]" ? {dataset: {k: "BTC"}} : (q === "[data-kact]" ? null : null)}});
+assert.deepStrictEqual(w.calls.selected, ["BTC"], "a row still opens its Signal page");
 console.log("ok:panels");
 """
     prog = prog.replace("w.els.tclear.style.display = \"none\"; KS = null;", "w.els.tclear.style.display = \"none\";")

@@ -4608,7 +4608,8 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"]:has(.pane[data-pane="home"].on) .kside :is(.kb-today,.kb-funds){display:none}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#gmk){order:5}
-  :root[data-look="kite"] .kd-top{display:grid;grid-template-columns:1fr 1fr;gap:36px;padding:8px 0 22px;border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .kd-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:36px;padding:8px 0 22px;border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .kd-m{font-size:22px;font-weight:400;line-height:1.3;margin-top:8px}
   :root[data-look="kite"] .kd-l{font-size:15px;color:var(--ink-2);margin-bottom:6px}
   :root[data-look="kite"] .kd-n{font-size:44px;font-weight:300;line-height:1.1;letter-spacing:0}
   :root[data-look="kite"] .kd-s{font-size:13px;color:var(--ink-3);margin-top:6px}
@@ -9411,19 +9412,41 @@ function kiteDash(s){
       + `<td>${open ? esc(`${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) : "—"}</td>`
       + `<td class="r" style="color:${open ? col(tk.pnl) : "var(--ink-3)"}">${open ? money(tk.pnl || 0) : "—"}</td></tr>`;
   }).join("");
-  const funds = br.connected && br.funds && br.funds.available != null
+  // Exness: the connected accounts' own free margin (the side column's Funds box reads them too) - it
+  // used to read only a Zerodha-style broker.funds, so a connected Exness demo showed "not connected".
+  const acc = (br.accounts || []).filter(a => a.ok);
+  const funds = acc.length
+    ? acc.map(a => `<div class="kd-n">$${num(a.freeMargin != null ? a.freeMargin : (a.balance || 0), 2)}</div>`
+        + `<div class="kd-s">${esc((a.kind || "").toUpperCase())} Exness account${a.shared ? " (shared feed)" : ""}`
+        + ` &middot; balance $${num(a.balance || 0, 2)}</div>`).join("")
+    : br.connected && br.funds && br.funds.available != null
     ? `<div class="kd-n">${esc(fundsLabel(br.funds))}</div><div class="kd-s">available on ${esc(br.name)}</div>`
     : `<div class="kd-n">—</div><div class="kd-s">${esc(br.name || "The broker")} is not connected</div>`;
+  // Which market, and the way to the other one - the Dashboard hides the side column's Funds box, and
+  // with it the only Switch market this look had (the user, 4 Oct 2026: "add switch market on dasboard
+  // as well"). A button, not a select: this panel is rewritten whenever a figure changes, and a select
+  // rebuilt mid-click drops the click (see the header's own); with two markets it switches straight over.
+  const mk = s.markets || [], mo = s.market_options || {};
+  const other = mk.length === 2 ? mk.find(m => m !== s.market) : null;
+  const market = s.market_label
+    ? `<div><div class="kd-l">Market</div><div class="kd-m">${esc(s.market_label)}</div>`
+      + (mk.length > 1
+         ? `<button class="klink kd-sw" type="button" data-kact="switchmarket">${other ? "Switch to " + esc(mo[other] || other) : "Switch market"}</button>`
+         : `<div class="kd-s">This server runs one market</div>`) + `</div>`
+    : "";
+  const cfd = order.some(k => ((s.indices || {})[k] || {}).cfd);
   const h = `<div class="kd-top"><div><div class="kd-l">Today's result</div><div class="kd-n" style="color:${col(net)}">${money(net)}</div>`
     + `<div class="kd-s">booked ${money(ses.booked || 0)} &middot; open ${money(ses.open || 0)}</div>`
     + (lv ? `<div class="kd-s">live orders <b style="color:${col(lv.net)}">${money(lv.net)}</b> &middot; ${liveNote(lv)}</div>` : "") + `</div>`
-    + `<div><div class="kd-l">Funds available</div>${funds}</div></div>`
-    + `<table class="kd-tab"><thead><tr><th>Index</th><th class="r">Index price</th><th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
+    + `<div><div class="kd-l">Funds available</div>${funds}</div>${market}</div>`
+    + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`;
   if(h !== KDASH_HTML){ KDASH_HTML = h; el.innerHTML = h; }
   if(!el.dataset.wired){
     el.dataset.wired = "1";
     el.addEventListener("click", e => {
+      const b = e.target.closest("[data-kact]");
+      if(b && b.dataset && b.dataset.kact === "switchmarket"){ switchMarketShortcut(); return; }
       const tr = e.target.closest("tr[data-k]"); if(!tr) return;
       selectIndex(tr.dataset.k); showTab("signal");
     });

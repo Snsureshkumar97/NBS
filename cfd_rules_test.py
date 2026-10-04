@@ -117,6 +117,23 @@ check("spread 12 (20% of the target): no trade, and the card's filter row says w
       and at_cap["index_targets"] == [None] * 3 and at_cap["rule"]["filters"][-1]["ok"] is False
       and at_cap["rule"]["filters"][-1]["spread"] == 12.0)
 check("no spread known: no trade (never on a guess)", unknown["bias"] == "NEUTRAL" and unknown["rule"]["filters"][-1]["ok"] is False)
+# The engine's reasons are not the rule's (the user's screenshot, 4 Oct 2026: "Momentum disagrees - the MACD
+# histogram is 5.26 ..." and "Momentum against" over the RSI-2 rule, which has no MACD in it)
+leftover = {"index": "BTC", "spot": 84775.0, "cfd_spread": 10.0, "adx_blocked": True, "macd_blocked": True,
+            "not_worth_it": True, "blockers": ["Momentum disagrees - the MACD histogram is 5.26"]}
+quiet = cfd_rules.apply(dict(leftover), dict(ev3, side=0, votes={"rsi2": 0}, atr=75.5), "BTC")
+check("no trade: the card's reason is the rule's own - no RSI-2 setup, and the spread over its limit",
+      quiet["blockers"] == ["No RSI-2 extreme on the last 15-minute close.",
+                            "The spread (10.00) is 20% or more of the target - over the 9.06 limit while the market is this quiet."],
+      quiet["blockers"])
+check("...the engine's MACD / ADX / room flags cleared (the watchlist read 'Momentum against')",
+      quiet["macd_blocked"] is False and quiet["adx_blocked"] is False and quiet["not_worth_it"] is False)
+check("...and the action says the same", quiet["action"].startswith("NO TRADE - WAIT (No RSI-2 extreme on the last"))
+fired = cfd_rules.apply(dict(leftover, cfd_spread=5.0), ev3, "BTC")
+check("a trade: no reasons against it left on the card", fired["option_type"] == "PE" and fired["blockers"] == []
+      and fired["macd_blocked"] is False)
+waiting = cfd_rules.apply(dict(leftover), {"ready": False, "why": "no candles yet"}, "BTC")
+check("not ready: says what it is waiting for", waiting["blockers"] == ["Waiting - no candles yet."], waiting["blockers"])
 g_ev = {"ready": True, "votes": {"d1_trend": 1, "h1_trend": 1, "roc12": 1}, "filters": {"adx_rising": True, "vol_rising": True},
         "side": 1, "atr": 10.0, "close": 4000.0, "bar_close": "x", "fresh": True}
 g = cfd_rules.apply({"index": "GOLD", "spot": 4000.0, "cfd_spread": 50.0}, g_ev, "GOLD")

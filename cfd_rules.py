@@ -158,6 +158,7 @@ def apply(rec, ev, index_key):
         if not sp_ok:
             side = 0
     spot = rec.get("spot")
+    why = []
     # The engine's room-to-run reward:risk (reach_to_risk / reach_points) is not this rule's: its own
     # is target over stop, fixed. Left in, the trade log's reward_risk column read the engine's 17.51
     # for a 0.75 trade (the user, 4 Oct 2026: "fix the journal reward risk") - as ai_desk does for
@@ -172,9 +173,39 @@ def apply(rec, ev, index_key):
                    target_basis="rule", gate_targets=None, confidence="Rule",
                    action=f"{'BUY' if side > 0 else 'SELL'} - {info['label']}: every vote agrees on the 15-minute close")
     else:
+        why = _why_not(info, ev, plan)
         rec.update(bias="NEUTRAL", option_type=None, index_stop_loss=None, risk_points=None,
                    reach_to_risk=None, reach_points=None,
                    index_targets=[None, None, None], target_basis="rule", confidence="N/A",
-                   action=("NO TRADE - WAIT (" + (ev.get("why") or "the rule's votes and filters do not all agree "
-                                                  "on the last 15-minute close") + ")"))
+                   action="NO TRADE - WAIT (" + "; ".join(w.rstrip(".") for w in why) + ")")
+    # The engine's own reasons are not this rule's: left in, the Signal card said "Momentum disagrees - the
+    # MACD histogram is ..." and the watchlist "Momentum against" over an RSI-2 rule that has no MACD in it
+    # (the user's screenshot, 4 Oct 2026). The rule's reason, or nothing.
+    rec.update(blockers=[] if rec["bias"] != "NEUTRAL" else why, adx_blocked=False, macd_blocked=False,
+               not_worth_it=False)
     return rec
+
+
+def _why_not(info, ev, plan):
+    """Why the rule is not trading, in words, for the card: the reading it is waiting for, the votes that
+    did not fire or agree, the filters that said no."""
+    if not ev.get("ready"):
+        return [f"Waiting - {ev.get('why') or 'no reading yet'}."]
+    out = []
+    votes = info.get("votes") or []
+    silent = [v["name"] for v in votes if not v.get("vote")]
+    if silent:
+        out.append(f"No {' / '.join(silent)} on the last 15-minute close.")
+    elif len({v.get("vote") for v in votes}) > 1:
+        out.append("The rule's votes disagree on the last 15-minute close.")
+    for f in info.get("filters") or []:
+        if f.get("ok") is not False:
+            continue
+        if f.get("key") == "spread_ok":
+            sp, lim = f.get("spread"), f.get("limit")
+            out.append("No live spread known - no trade on a guess." if sp is None or lim is None else
+                       f"The spread ({sp:,.2f}) is {round(100 * plan.get('max_spread_share', 0))}% or more of the "
+                       f"target - over the {lim:,.2f} limit while the market is this quiet.")
+        else:
+            out.append(f"{f.get('name')}: no.")
+    return out or ["The rule's votes and filters do not all agree on the last 15-minute close."]
