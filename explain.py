@@ -289,19 +289,41 @@ def _rule_explain(rec):
     """The Signal card's breakdown for an Exness entry rule: its own votes and filters, the
     decision, and the levels - nothing of the engine it replaces."""
     info = rec["rule"]
+    vals = info.get("values") or {}
     votes = []
     for v in info.get("votes") or []:
         d = v.get("vote")
         t = _RULE_TEXT.get(v.get("key"), ("buy", "sell", "none"))
-        votes.append({"name": v.get("name"), "vote": d,
-                      "reading": "buy" if d == 1 else "sell" if d == -1 else "—",
-                      "text": t[0] if d == 1 else t[1] if d == -1 else t[2]})
+        reading = "buy" if d == 1 else "sell" if d == -1 else "—"
+        text = t[0] if d == 1 else t[1] if d == -1 else t[2]
+        if v.get("key") == "rsi2" and vals.get("rsi2") is not None:
+            # the number itself, and how far it has to go (the user, 4 Oct 2026: "show the rsi-2 number on the card")
+            r2, up = vals["rsi2"], vals.get("above200")
+            need = None if up is None else ("buy below 10" if up else "sell above 90")
+            reading = f"{r2:.0f} · " + ("BUY" if d == 1 else "SELL" if d == -1 else need or "no setup")
+            if d:
+                text += f" (RSI-2 {r2:.1f}.)"
+            elif up is not None:
+                wait = "below 10 (a sharp dip) to buy" if up else "above 90 (a sharp spike) to sell"
+                side_txt = "above" if up else "below"
+                if (r2 < 10 and not up) or (r2 > 90 and up):
+                    # extreme, but against the 200-candle trend - the rule only takes dips in an uptrend, spikes in a downtrend
+                    text = (f"RSI-2 is {r2:.1f} - a sharp {'dip' if r2 < 10 else 'spike'}, but price is {side_txt} its "
+                            f"200-candle average, so the rule does not take it; it waits for RSI-2 {wait}.")
+                else:
+                    text = (f"RSI-2 is {r2:.1f} - not extreme. Price is {side_txt} its 200-candle average, so the rule "
+                            f"waits for RSI-2 {wait}.")
+        votes.append({"name": v.get("name"), "vote": d, "reading": reading, "text": text})
     for f in info.get("filters") or []:
         ok = f.get("ok")
         t = _FILTER_TEXT.get(f.get("key"), ("yes", "no"))
+        reading = "—" if ok is None else ("yes" if ok else "no")
+        if ok is not None and f.get("key") == "adx25" and vals.get("adx") is not None:
+            reading = f"{vals['adx']:.0f} · {reading}"
+        if ok is not None and f.get("key") == "spread_ok" and f.get("spread") is not None and f.get("limit") is not None:
+            reading = f"${f['spread']:,.2f} / max ${f['limit']:,.2f} · {reading}"
         votes.append({"name": f.get("name"), "vote": None if ok is None else (1 if ok else -1),
-                      "reading": "—" if ok is None else ("yes" if ok else "no"),
-                      "text": "" if ok is None else (t[0] if ok else t[1])})
+                      "reading": reading, "text": "" if ok is None else (t[0] if ok else t[1])})
     side = info.get("side") if info.get("ready") else 0
     tail = (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
             "distance; nothing moves the stop on the way, out after 24 hours.")

@@ -112,6 +112,9 @@ TEST = r'''
   const why = {votes: [{name: "RSI-2 extreme", vote: 1, reading: "buy"}, {name: "Stochastic", vote: 1, reading: "buy"}]};
   gauges({index: "BTC", rule: ftRule}, why);
   out.ft_note = document.getElementById("gnote").textContent;
+  out.rule_rows = document.getElementById("gauges").innerHTML;
+  gauges({index: "NIFTY"}, why);
+  out.engine_rows = document.getElementById("gauges").innerHTML;
   gauges({index: "GOLD", rule: {label: "Trend + momentum rule", stop_atr: 3, target_r: 0.75, forward_test: null}}, why);
   out.gold_note = document.getElementById("gnote").textContent;
   console.log(JSON.stringify(out));
@@ -164,6 +167,9 @@ check("the note says FORWARD TEST on the demo account since 2026-10-04 - not pro
 check("...with what the 3-year test expects, to hold the real results against",
       "about 30 trades a month, 53-55% won, about +$55 a trade per BTC" in note and "did as well 4.6% of the time" in note
       and "cannot prove it either way" in note, note)
+check("the rule's rows use the wide gauge (room for '60 · sell above 90'); the engine's keep the narrow one",
+      'class="gauge wide"' in (out.get("rule_rows") or "") and 'class="gauge"' in (out.get("engine_rows") or "")
+      and 'class="gauge wide"' not in (out.get("engine_rows") or ""))
 check("a rule that is not on trial (gold) has no such note", "FORWARD TEST" not in (out.get("gold_note") or "")
       and (out.get("gold_note") or "").startswith("Trend + momentum rule:"), out.get("gold_note"))
 print("4. ON A PHONE THE MONEY SHOWS (the user, 4 Oct 2026: \"i dont see how much i get for targets\")")

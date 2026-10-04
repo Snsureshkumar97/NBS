@@ -7324,7 +7324,7 @@ function gauges(r, why){
     const mag = vote==null ? 0 : Math.min(1, Math.abs(vote)/2);
     const w = mag*50;
     const left = vote>0 ? 50 : 50-w;
-    return `<div class="gauge">
+    return `<div class="gauge${r.rule ? " wide" : ""}">
       <div class="gn">${esc(name)}</div>
       <div class="gt"><u></u><i style="left:${left}%;width:${w}%;background:${colour}"></i></div>
       <div class="gv" style="color:${colour}">${esc(reading)||"—"}</div>

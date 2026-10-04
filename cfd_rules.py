@@ -73,6 +73,9 @@ def compute(df):
     rsi2 = 100 - 100 / (1 + _rma(d.clip(lower=0), 2) / _rma((-d).clip(lower=0), 2).replace(0, np.nan))
     s200 = c.rolling(200).mean()
     out["rsi2"] = np.where((rsi2 < 10) & (c > s200), 1, np.where((rsi2 > 90) & (c < s200), -1, 0)).astype(np.int8)
+    # the numbers behind it, for the card (not votes): RSI-2 itself and which side of its 200-candle average price is
+    out["rsi2_value"] = rsi2.to_numpy()
+    out["above200"] = np.where(s200.isna(), np.nan, (c > s200).astype(float)).astype(float)
     k_ = 100 * (c - l.rolling(14).min()) / (h.rolling(14).max() - l.rolling(14).min()).replace(0, np.nan)
     out["stoch50"] = _sgn(k_.rolling(3).mean() - 50)
     out["vol_rising"] = (v.rolling(5).mean() > v.rolling(20).mean()).to_numpy()
@@ -84,6 +87,7 @@ def compute(df):
     adx = _rma(100 * (pdi - ndi).abs() / (pdi + ndi), 14)
     out["adx_rising"] = (adx > adx.shift(3)).to_numpy()
     out["adx25"] = (adx >= 25).to_numpy()                                   # a strong trend
+    out["adx_value"] = adx.to_numpy()
     out["atr"] = tr.ewm(alpha=1 / 14, adjust=False).mean().to_numpy()     # cfd_outcomes.atr14
     return out
 
@@ -123,7 +127,10 @@ def evaluate(index_key, df, now=None):
     first = votes[plan["votes"][0]]
     side = first if first != 0 and all(x == first for x in votes.values()) and all(filters.values()) else 0
     bar_close = closed.index[-1] + BAR
-    return {"ready": True, "votes": votes, "filters": filters, "side": side, "atr": float(a["atr"]),
+    num = lambda k: (None if a.get(k) is None or not np.isfinite(a[k]) else float(a[k]))
+    values = {"rsi2": num("rsi2_value"), "adx": num("adx_value"),
+              "above200": None if num("above200") is None else bool(num("above200"))}
+    return {"ready": True, "votes": votes, "filters": filters, "side": side, "atr": float(a["atr"]), "values": values,
             "close": float(closed["Close"].iloc[-1]), "bar_close": bar_close.isoformat(),
             "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}
 
@@ -139,7 +146,8 @@ def apply(rec, ev, index_key):
             "votes": [{"key": k, "name": LABELS.get(k, k), "vote": (ev.get("votes") or {}).get(k)} for k in plan["votes"]],
             "filters": [{"key": k, "name": LABELS.get(k, k), "ok": (ev.get("filters") or {}).get(k)} for k in plan["filters"]],
             "side": ev.get("side", 0), "bar_close": ev.get("bar_close"), "fresh": ev.get("fresh", False),
-            "forward_test": plan.get("forward_test")}       # on trial, not proven - the card says so
+            "forward_test": plan.get("forward_test"),       # on trial, not proven - the card says so
+            "values": ev.get("values") or {}}               # RSI-2, ADX, above/below the 200 average - the card's numbers
     rec["rule"] = info
     # A CFD has no option: nothing of the engine's option fields may be frozen into the ticket.
     rec.update(suggested_strike=None, strike_swap=None, strike_taken=False, premium_targets=[None, None, None],
