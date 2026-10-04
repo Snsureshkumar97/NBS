@@ -336,6 +336,46 @@ except RuntimeError as exc:
     err3 = str(exc)
 check("the other way round: a refused PRICE does not block the candles", err3 is None, err3)
 
+print("8e. A SLOW PRICE CAN NO LONGER FREEZE THE PAGE (the user, 4 Oct 2026: 'after 15 minutes load the tool. stopped moving')")
+class TimedSession(Session):
+    def get(self, url, params=None, headers=None, timeout=None):
+        self.timeouts = getattr(self, "timeouts", []) + [(url.rsplit("/", 1)[-1], timeout)]
+        return Session.get(self, url, params, headers, timeout)
+ts9 = TimedSession([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/candles", candles),
+                    ("current-price", lambda u, q: Resp(200, {"symbol": "BTCUSDm", "bid": 84000.0, "ask": 84010.0}))])
+p10 = ep.ExnessMetaApiProvider(session=ts9)
+p10.quote("BTC")
+p10.get_ohlc("BTC", "15m", lookback_days=2)
+qt = [t for u, t in ts9.timeouts if u == "current-price"]
+ct = [t for u, t in ts9.timeouts if u == "candles"]
+check("a price is waited for at most 5 s (it was the provider's 30 s); candles keep their own longer timeout",
+      qt == [ep.QUOTE_TIMEOUT_S] and ep.QUOTE_TIMEOUT_S == 5.0 and ct and all(t == p10.timeout for t in ct), (qt, ct[:1]))
+logged = []
+_real_log = ep._log
+ep._log = lambda msg, every_s=60.0: logged.append(msg)
+try:
+    class _SlowProv:
+        def quote(self, k):
+            raise RuntimeError("read timed out")
+        def broker_symbol(self, k):
+            return "BTCUSDm"
+    pl2 = ep._Poller(provider=_SlowProv()); pl2.keys.add("BTC"); pl2.poll_once()
+    check("a failed price is written to the server log, with why", logged and "BTC price failed" in logged[-1]
+          and "read timed out" in logged[-1], logged)
+    clock = iter([100.0, 104.2, 104.2, 104.2, 104.2])
+    _real_time = ep.time.time
+    ep.time.time = lambda: next(clock)
+    try:
+        class _QuoteProv(_SlowProv):
+            def quote(self, k):
+                return {"symbol": "BTCUSDm", "bid": 1.0, "ask": 2.0, "mid": 1.5, "spread": 1.0, "tick_at": 104.0}
+        pl3 = ep._Poller(provider=_QuoteProv()); pl3.keys.add("BTC"); pl3.poll_once()
+    finally:
+        ep.time.time = _real_time
+    check("...and a slow one (over 3 s) too", any("BTC price slow: 4.2s" in m for m in logged), logged)
+finally:
+    ep._log = _real_log
+
 print("9. THE PRICE IS ASKED EVERY SECOND (the user, 4 Oct 2026: \"yes make it every second\")")
 check("POLL_S is one second", ep.POLL_S == 1.0, ep.POLL_S)
 pl = ep._Poller(provider=object(), poll_s=ep.POLL_S)

@@ -63,6 +63,11 @@ CANDLE_CACHE_S = 30.0
 # CANDLE_CLOSE_WINDOW_S of a new candle, ask again every CANDLE_CLOSE_REFETCH_S until it is there; past that window
 # (a closed market - gold at the weekend - has no new candles for days) the normal cache.
 CANDLE_CLOSE_REFETCH_S = 2.0
+# A live price is asked for every second (POLL_S); waiting the provider's full timeout (30 s) on one slow answer froze
+# every price on the page for up to a minute (BTC then gold, one after the other - the user, 4 Oct 2026: "after 15
+# minutes load the tool. stopped moving"). A price older than this is worth nothing anyway: give up and ask again.
+QUOTE_TIMEOUT_S = 5.0
+SLOW_QUOTE_S = 3.0
 CANDLE_CLOSE_WINDOW_S = 600.0
 
 
@@ -129,7 +134,7 @@ class ExnessMetaApiProvider:
         self._fetch_locks = {}
 
     # ------------------------------------------------------------ plumbing
-    def _get(self, base, path, **params):
+    def _get(self, base, path, timeout=None, **params):
         token, account, region = creds()
         if not (token and account):
             raise NotConfigured("Exness is not connected yet: METAAPI_TOKEN and METAAPI_ACCOUNT_ID "
@@ -139,7 +144,7 @@ class ExnessMetaApiProvider:
             raise RuntimeError(f"MetaApi asked us to slow down ({svc}); retrying shortly.")
         url = base.format(region=region) + path.format(account=account)
         r = self.session.get(url, params=params or None, headers={"auth-token": token, "Accept": "application/json"},
-                             timeout=self.timeout)
+                             timeout=timeout or self.timeout)
         if r.status_code == 429:
             wait = 10.0
             try:
@@ -199,7 +204,7 @@ class ExnessMetaApiProvider:
     def quote(self, index_key):
         sym = self.broker_symbol(index_key)
         q = self._get(CLIENT, "/users/current/accounts/{account}/symbols/" + sym + "/current-price",
-                      keepSubscription="true")
+                      timeout=QUOTE_TIMEOUT_S, keepSubscription="true")
         bid, ask = float(q["bid"]), float(q["ask"])
         try:
             tick_at = pd.Timestamp(q["time"]).timestamp() if q.get("time") else None
@@ -356,11 +361,16 @@ class _Poller:
 
     def poll_once(self, now=None):
         for k in list(self.keys):
+            began = time.time()
             try:
                 q = self.provider.quote(k)
             except Exception as exc:
                 self.last_error = str(exc)[:200]
+                _log(f"{k} price failed after {time.time() - began:.1f}s: {type(exc).__name__}: {str(exc)[:160]}")
                 continue
+            took = time.time() - began
+            if took > SLOW_QUOTE_S:
+                _log(f"{k} price slow: {took:.1f}s")
             t = now or time.time()
             # The last tick's own time: a closed market (gold at the weekend) keeps answering
             # with Friday's quote, and that must neither look live nor build flat bars.
