@@ -3,6 +3,7 @@
 import os
 import sys
 import tempfile
+import time
 
 os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -376,10 +377,12 @@ try:
 finally:
     ep._log = _real_log
 
-print("9. THE PRICE IS ASKED EVERY 2 SECONDS - every second used up MetaApi's whole minute budget (4 Oct 2026)")
-check("POLL_S is two seconds", ep.POLL_S == 2.0, ep.POLL_S)
-check("...so both symbols cost at most half of MetaApi's 6,000 credits a minute per application (50 a price)",
-      2 * (60 / ep.POLL_S) * 50 <= 3000, 2 * (60 / ep.POLL_S) * 50)
+print("9. THE PRICE EVERY SECOND - OFF THE 1-MINUTE CANDLE (0.1 credits), NOT THE PRICE API (50): every second on the")
+print("   price API used up MetaApi's whole minute budget and froze the page for minutes (4-5 Oct 2026)")
+check("POLL_S is one second", ep.POLL_S == 1.0, ep.POLL_S)
+cost = 2 * (60 / ep.POLL_S) * 0.1 + 2 * (60 / ep.TRUE_QUOTE_EVERY_S) * 50
+check("...both symbols every second + the price API every 30 s: under a tenth of the 6,000 credits a minute",
+      cost <= 600, cost)
 pl = ep._Poller(provider=object(), poll_s=ep.POLL_S)
 pl.poll_once = lambda now=None: None                     # a pass that takes no time at all
 slept = []
@@ -396,8 +399,8 @@ except _Stop:
     pass
 finally:
     ep.time.sleep = _real_sleep
-check("...a quick pass then sleeps the rest of the 2 s, so the next ask is 2 s after the last",
-      len(slept) == 1 and 1.9 < slept[0] <= 2.0, slept)
+check("...a quick pass then sleeps the rest of the second, so the next ask is a second after the last",
+      len(slept) == 1 and 0.9 < slept[0] <= 1.0, slept)
 
 print("10. A 429: MetaApi's full wait, WHICH limit in the log, the poller asks less often, the page says why")
 logged = []
@@ -412,7 +415,7 @@ try:
         pr2.quote("BTC"); e1 = None
     except ep.RateLimited as exc:
         e1 = exc
-    left = pr2.prices_paused_for()
+    left = pr2.paused_for(ep.CLIENT)
     check("MetaApi asked for 216 s and gets 216 s (it was cut to 120 s, and asking early earned another 429)",
           210 <= left <= 216, left)
     check("the 429 is a RateLimited, fresh, and still a RuntimeError (every old catch still works)",
@@ -434,8 +437,8 @@ try:
         pr3.quote("BTC")
     except ep.RateLimited:
         pass
-    check("an absurd retry time is held to MAX_BACKOFF_S (10 min)", 590 <= pr3.prices_paused_for() <= ep.MAX_BACKOFF_S,
-          pr3.prices_paused_for())
+    check("an absurd retry time is held to MAX_BACKOFF_S (10 min)", 590 <= pr3.paused_for(ep.CLIENT) <= ep.MAX_BACKOFF_S,
+          pr3.paused_for(ep.CLIENT))
 
     class _RLProv:
         def __init__(self):
@@ -494,6 +497,91 @@ pl5.interval, pl5.calm_since = 8.0, ep.time.time()
 check("the loop itself waits the slower interval after a 429 (8 s, not 2)", 7.9 < (_one_run(pl5) or [0])[0] <= 8.0, pl5.interval)
 pl5.calm_since = ep.time.time() - ep.POLL_CALM_S - 1
 check("...and the loop itself steps back once things are calm (4 s)", 3.9 < (_one_run(pl5) or [0])[0] <= 4.0, pl5.interval)
+
+print("11. THE LIVE PRICE OFF THE FORMING 1-MINUTE CANDLE - STILL MOVING WHILE THE PRICE API IS PAUSED")
+NOW11 = pd.Timestamp("2026-10-05T23:23:41Z").timestamp()
+def one_min(close, spread=1000, at="2026-10-05T23:23:00.000Z", prev_close=86600.0):
+    prev = (pd.Timestamp(at) - pd.Timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return lambda u, q: Resp(200, [{"time": prev, "close": prev_close, "spread": spread},
+                                   {"time": at, "close": close, "spread": spread, "tickVolume": 64}])
+class TSession(Session):
+    def get(self, url, params=None, headers=None, timeout=None):
+        self.timeouts = getattr(self, "timeouts", []) + [timeout]
+        return Session.get(self, url, params, headers, timeout)
+s11 = TSession([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/timeframes/1m/candles", one_min(86599.56))])
+p11 = ep.ExnessMetaApiProvider(session=s11)
+q11 = p11.live_quote("BTC", now=NOW11)
+call = [c for c in s11.calls if "/timeframes/1m/candles" in c[0]][-1]
+check("asked of the MARKET-DATA host, MetaApi's 1m timeframe, the newest 2, a price's 5-s wait",
+      call[0].startswith("https://mt-market-data-client-api-v1.") and call[1].get("limit") == 2
+      and call[1].get("startTime") == "2026-10-05T23:23:41.000Z" and s11.timeouts[-1] == ep.QUOTE_TIMEOUT_S, call[:2])
+check("the NEWEST candle's close is the bid; 1000 points x 0.01 = the $10 spread; mid = bid + 5",
+      q11["bid"] == 86599.56 and q11["spread"] == 10.0 and round(q11["ask"], 2) == 86609.56
+      and round(q11["mid"], 2) == 86604.56 and q11["symbol"] == "BTCUSDm", q11)
+check("this minute's candle is a live price: tick_at = now", q11["tick_at"] == NOW11, q11["tick_at"])
+check("...and the token is in no URL or query", all(SECRET not in c[0] and SECRET not in str(c[1]) for c in s11.calls))
+g11 = ep.ExnessMetaApiProvider(session=Session([("/symbols", lambda u, q: Resp(200, ["XAUUSDm"])),
+                                                ("/timeframes/1m/candles", one_min(4145.191, spread=240, prev_close=4145.0))]))
+gq = g11.live_quote("GOLD", now=NOW11)
+check("gold: 240 points x 0.001 = $0.24", abs(gq["spread"] - 0.24) < 1e-9 and gq["bid"] == 4145.191, gq)
+fri = ep.ExnessMetaApiProvider(session=Session([("/symbols", lambda u, q: Resp(200, ["XAUUSDm"])),
+                                                ("/timeframes/1m/candles", one_min(4140.3, spread=260, at="2026-10-03T02:14:00.000Z"))]))
+fq = fri.live_quote("GOLD", now=pd.Timestamp("2026-10-03T15:30:00Z").timestamp())
+check("a closed market's newest candle is Friday's: tick_at is that candle's END, so it ages like a stale quote",
+      fq["tick_at"] == pd.Timestamp("2026-10-03T02:15:00Z").timestamp(), fq["tick_at"])
+p11._true_spread["BTCUSDm"] = (NOW11 - 30, 25.0)
+check("the price API's own spread, 30 s old and WIDER ($25), wins over the candle's", p11.live_quote("BTC", now=NOW11)["spread"] == 25.0)
+p11._true_spread["BTCUSDm"] = (NOW11 - ep.TRUE_SPREAD_MAX_AGE_S - 1, 25.0)
+check("...but not once it is over 2 minutes old", p11.live_quote("BTC", now=NOW11)["spread"] == 10.0)
+p11._true_spread["BTCUSDm"] = (NOW11 - 5, 4.0)
+check("...and a NARROWER one never hides the candle's", p11.live_quote("BTC", now=NOW11)["spread"] == 10.0)
+
+closes = iter([86599.56, 86593.17, 86608.15])
+def moving(u, q):
+    c = next(closes)
+    return Resp(200, [{"time": "2026-10-05T23:23:00.000Z", "close": c, "spread": 1000}])
+def refused(u, q):
+    return Resp(429, {"metadata": {"recommendedRetryTime": (pd.Timestamp.now(tz="UTC") + pd.Timedelta(seconds=216)).isoformat()}})
+s12 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/timeframes/1m/candles", moving), ("current-price", refused)])
+p12 = ep.ExnessMetaApiProvider(session=s12)
+pol12 = ep._Poller(provider=p12, poll_s=1.0); pol12.keys.add("BTC")
+logged = []
+ep._log = lambda msg, every_s=60.0: logged.append(msg)
+try:
+    for k in range(3):
+        pol12.poll_once(now=NOW11 + k)
+finally:
+    ep._log = _real_log
+st12 = ep.ExnessStreamer(shared=pol12)
+check("the price API refused (429) and paused - yet the price MOVED three times, off the candle",
+      p12.paused_for(ep.CLIENT) > 200 and round(st12.index_price("BTC"), 2) == 86613.15, (p12.paused_for(ep.CLIENT), st12.index_price("BTC")))
+check("...a forming 15-minute bar was built from those prices", st12.forming_bar("BTC") is not None
+      and round(st12.forming_bar("BTC")["high"], 2) == 86613.15 and round(st12.forming_bar("BTC")["low"], 2) == 86598.17)
+check("...the spread check's 429 did NOT slow the candle prices down", pol12.interval == 1.0, pol12.interval)
+check("...the page is NOT told prices are paused - they are not", pol12.pause_note() is None and p12.prices_paused_for() == 0.0)
+check("...the price API was asked ONCE in those 3 seconds (every 30 s at most), not every pass",
+      len([c for c in s12.calls if c[0].endswith("current-price")]) == 1, len([c for c in s12.calls if c[0].endswith("current-price")]))
+p12._backoff_until[ep.MARKET_DATA] = time.time() + 40
+check("only when BOTH sources are paused does the page say so", 30 < p12.prices_paused_for() <= 40
+      and "about" in (pol12.pause_note() or ""), (p12.prices_paused_for(), pol12.pause_note()))
+p12._backoff_until.clear()
+
+s14 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])),
+               ("/timeframes/1m/candles", lambda u, q: Resp(200, [{"time": "2026-10-05T23:23:00.000Z", "close": 86600.0, "spread": 1000}])),
+               ("current-price", lambda u, q: Resp(200, {"symbol": "BTCUSDm", "bid": 86590.0, "ask": 86620.0}))])
+pol14 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=s14), poll_s=1.0); pol14.keys.add("BTC")
+for k in range(3):
+    pol14.poll_once(now=time.time() + k)
+n14 = len([c for c in s14.calls if c[0].endswith("current-price")])
+check("a WORKING price API is still asked only once in 3 passes (every 30 s), not on every pass", n14 == 1, n14)
+check("...and its own wider spread ($30) reaches the candle price on the next pass",
+      ep.ExnessStreamer(shared=pol14).quote("BTC")["spread"] == 30.0, ep.ExnessStreamer(shared=pol14).quote("BTC"))
+s13 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/timeframes/1m/candles", lambda u, q: Resp(500, {})),
+               ("current-price", lambda u, q: Resp(200, {"symbol": "BTCUSDm", "bid": 84000.0, "ask": 84010.0}))])
+pol13 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=s13), poll_s=1.0); pol13.keys.add("BTC")
+pol13.poll_once(now=NOW11)
+check("the market-data API failing: the price API is the fallback (84,005)",
+      ep.ExnessStreamer(shared=pol13).index_price("BTC") == 84005.0, ep.ExnessStreamer(shared=pol13).index_price("BTC"))
 here = os.path.dirname(os.path.abspath(__file__))
 fsrc = open(os.path.join(here, "feeds.py")).read()
 wsrc = open(os.path.join(here, "web_server.py")).read()

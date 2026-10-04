@@ -37,9 +37,11 @@ RATE LIMITS (MetaApi, docs/client/rateLimiting): a price read costs 50 CPU credi
 budget is 5,000 credits per ACCOUNT per 10 s, but also 6,000 per APPLICATION per minute
 (and more per hour) - shared by this poller, the balances and the live orders' position
 checks. Every user of this tool shares ONE MetaApi account, so live prices come from ONE
-shared poller (both symbols every POLL_S seconds) and candles are cached for
-CANDLE_CACHE_S - never one poll per viewer. A 429 backs off for the time MetaApi
-recommends, and the poller then asks less often until things have been quiet a while.
+shared poller (both symbols every POLL_S seconds, read off the forming 1-minute candle on
+the market-data API at 0.1 credits - the price API only every TRUE_QUOTE_EVERY_S, for its
+spread) and candles are cached for CANDLE_CACHE_S - never one poll per viewer. A 429 backs
+off for the time MetaApi recommends, and the poller then asks less often until things have
+been quiet a while.
 """
 import datetime as dt
 import os
@@ -54,12 +56,22 @@ import config
 
 CLIENT = "https://mt-client-api-v1.{region}.agiliumtrade.ai"
 MARKET_DATA = "https://mt-market-data-client-api-v1.{region}.agiliumtrade.ai"
-# Every 2 seconds. It was every second for a day (the user, 4 Oct 2026: "yes make it every second") - and that alone
-# is 2 symbols x 60 x 50 credits = 6,000 credits a minute, ALL of MetaApi's per-application minute budget before a
-# single balance or position check: MetaApi answered 429 and asked for 3-4 minute pauses, again and again, and the
-# page froze each time (the user: "tool just stopped after that 15 minute rsi 2 extreme reload"). 2 s ran for a day
-# and a half without one. _run() sleeps only what is left of the interval (never under 0.2 s).
-POLL_S = 2.0
+# Every second - read off the FORMING 1-minute candle on MetaApi's market-data API (live_quote), not the price API.
+# The price API's current-price costs 50 credits: every second for two symbols is 6,000 credits a minute, ALL of
+# MetaApi's per-application minute budget - it answered 429 and asked for 3-4 minute pauses, again and again, and
+# the page froze each time (the user, 5 Oct 2026: "tool just stopped after that 15 minute rsi 2 extreme reload";
+# "its stopped for almost 5 minutes after the 15 minute candle close"). A 1-minute candle costs 0.1 credits and its
+# close moves with every tick (measured on the VM 5 Oct 2026: a new close on nearly every 2-s ask, tick count
+# rising, ~0.5-1.7 s an answer). _run() sleeps only what is left of the interval (never under 0.2 s).
+POLL_S = 1.0
+# The price API itself only every TRUE_QUOTE_EVERY_S per symbol (2 x 2 x 50 = 200 credits a minute): its spread is
+# the broker's own, and a wider one than the candle's wins for TRUE_SPREAD_MAX_AGE_S. It is also the fallback when
+# the market-data API fails.
+TRUE_QUOTE_EVERY_S = 30.0
+TRUE_SPREAD_MAX_AGE_S = 120.0
+# Exness's point size per symbol: a candle's spread is in points (BTCUSDm has 2 decimals, XAUUSDm 3 - read off live
+# candles 5 Oct 2026: BTC 1000 points = the $10 spread, gold 240 = $0.24). MT5 candles are built on the BID.
+POINT = {"BTCUSD": 0.01, "XAUUSD": 0.001}
 # After a 429 the poller asks half as often (up to POLL_MAX_S apart), and steps back toward POLL_S after
 # POLL_CALM_S without another - so if the budget is tighter than the arithmetic says, it finds a rate that holds
 # instead of freezing every few minutes.
@@ -146,6 +158,7 @@ class ExnessMetaApiProvider:
         # for both, so a 429 on candles froze the live prices too, and the rule read "no candles: RuntimeError"
         # (the user, 4 Oct 2026: "i always getting runtime error for 15 minutes").
         self._backoff_until = {}
+        self._true_spread = {}                 # broker symbol -> (when, the price API's own spread)
         self._lock = threading.Lock()
         # One lock per (symbol, timeframe): a slow first load of a year of daily candles
         # (~8 s from MetaApi, measured 3 Oct 2026) must not hold up the 15-minute candles
@@ -194,9 +207,14 @@ class ExnessMetaApiProvider:
         r.raise_for_status()
         return r.json()
 
+    def paused_for(self, base, now=None):
+        """Seconds left of a back-off MetaApi asked for on one of its services, or 0."""
+        return max(0.0, self._backoff_until.get(base, 0.0) - (now or time.time()))
+
     def prices_paused_for(self, now=None):
-        """Seconds left of a back-off MetaApi asked for on PRICES, or 0."""
-        return max(0.0, self._backoff_until.get(CLIENT, 0.0) - (now or time.time()))
+        """Seconds until a live price can be had again: 0 while EITHER source (the market-data candle, the price
+        API) is open - the page is only stuck when both are paused."""
+        return min(self.paused_for(MARKET_DATA, now), self.paused_for(CLIENT, now))
 
     def refresh_session(self):
         return None
@@ -238,8 +256,37 @@ class ExnessMetaApiProvider:
             tick_at = pd.Timestamp(q["time"]).timestamp() if q.get("time") else None
         except (TypeError, ValueError):
             tick_at = None
+        self._true_spread[sym] = (time.time(), ask - bid)
         return {"symbol": sym, "bid": bid, "ask": ask, "mid": (bid + ask) / 2, "spread": ask - bid,
                 "time": q.get("time"), "tick_at": tick_at}
+
+    def live_quote(self, index_key, now=None):
+        """The live price off the FORMING 1-minute candle (market-data API, 0.1 credits - see POLL_S): its close is
+        the latest bid, its spread (points x POINT) the cost; the price API's own spread wins while it is fresh
+        and wider. tick_at: now while the newest candle is this minute's or the last; else that candle's end - a
+        closed market (gold at the weekend) has no new candles, so its price ages like a quiet quote."""
+        sym = self.broker_symbol(index_key)
+        now = now or time.time()
+        rows = self._get(MARKET_DATA, "/users/current/accounts/{account}/historical-market-data/symbols/" + sym
+                         + "/timeframes/1m/candles", timeout=QUOTE_TIMEOUT_S,
+                         startTime=pd.Timestamp(now, unit="s", tz="UTC").strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                         limit=2) or []
+        if not rows:
+            raise RuntimeError(f"MetaApi returned no 1-minute candle for {sym}")
+        c = max(rows, key=lambda r: pd.Timestamp(r["time"]))
+        bid = float(c["close"])
+        base = (config.INSTRUMENTS.get(index_key) or {}).get("exness_symbol")
+        spreads = []
+        if c.get("spread") is not None and POINT.get(base):
+            spreads.append(float(c["spread"]) * POINT[base])
+        held = self._true_spread.get(sym)
+        if held and now - held[0] <= TRUE_SPREAD_MAX_AGE_S:
+            spreads.append(held[1])
+        spread = max(spreads) if spreads else 0.0
+        start = pd.Timestamp(c["time"]).timestamp()
+        tick_at = now if start + 60 >= now - 60 else start + 60
+        return {"symbol": sym, "bid": bid, "ask": bid + spread, "mid": bid + spread / 2, "spread": spread,
+                "time": c["time"], "tick_at": min(tick_at, now), "source": "candle"}
 
     def spot(self, index_key):
         return self.quote(index_key)["mid"]
@@ -374,6 +421,7 @@ class _Poller:
         self.poll_s = poll_s
         self.interval = poll_s                  # what _run() actually waits: poll_s, doubled after each 429
         self.calm_since = 0.0                   # when the last 429 came (set by slow_down)
+        self._true_at = {}                      # instrument -> when the price API was last asked
         self.keys = set()
         self.quotes = {}                        # broker symbol -> {bid, ask, mid, spread, at}
         self.bars = {}                          # broker symbol -> the 15-minute bar being built
@@ -389,11 +437,34 @@ class _Poller:
                 self.started = True
                 threading.Thread(target=self._run, daemon=True, name="exness-poller").start()
 
+    def _fetch(self, k, now=None):
+        """One instrument's price: the forming 1-minute candle (live_quote) first, the price API when that fails;
+        the price API also every TRUE_QUOTE_EVERY_S for the broker's own spread. Raises when both fail."""
+        live = getattr(self.provider, "live_quote", None)
+        if live is None:
+            return self.provider.quote(k)
+        try:
+            q = live(k, now)
+        except Exception as exc:
+            _log(f"{k} candle price failed: {type(exc).__name__}: {str(exc)[:160]}")
+            if isinstance(exc, RateLimited) and exc.fresh:
+                self.slow_down()
+        else:
+            if time.time() - self._true_at.get(k, 0.0) >= TRUE_QUOTE_EVERY_S:
+                self._true_at[k] = time.time()
+                try:
+                    self.provider.quote(k)              # only to refresh the provider's own spread (live_quote reads it)
+                except Exception as exc:
+                    _log(f"{k} spread check failed: {type(exc).__name__}: {str(exc)[:160]}")
+            return q
+        self._true_at[k] = time.time()
+        return self.provider.quote(k)
+
     def poll_once(self, now=None):
         for k in list(self.keys):
             began = time.time()
             try:
-                q = self.provider.quote(k)
+                q = self._fetch(k, now)
             except Exception as exc:
                 self.last_error = str(exc)[:200]
                 _log(f"{k} price failed after {time.time() - began:.1f}s: {type(exc).__name__}: {str(exc)[:160]}")
