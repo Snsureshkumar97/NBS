@@ -3434,10 +3434,10 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .gnote{color:var(--ink-3);font-size:12px;margin-top:9px}
 /* the forward test's scorecard (ftBox): the demo's own record vs the 3-year test, and the guard's state */
 .ftbox{border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin:10px 0}
-.ftbox .ft-h{font-size:11.5px;font-weight:650;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.ftbox .ft-h{font-size:12px;font-weight:650;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
 .ftbox .ft-h span{font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3);margin-left:6px}
 .ftbox .ft-r{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.ftbox .l{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+.ftbox .l{font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
 .ftbox .v{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
 .ftbox .ft-s{font-size:12px;color:var(--ink-3);margin-top:8px}
 @media (max-width:560px){.ftbox .ft-r{grid-template-columns:repeat(2,minmax(0,1fr))}}
