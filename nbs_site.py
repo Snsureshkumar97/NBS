@@ -2746,7 +2746,7 @@ def market_page(user=None, markets=None, error=None):
 
 def connect_page(user, state, detail, user_id="", since="", app_ok=True,
                  app_why="", error=None, notice=None, own_app=False, app_key_tail="",
-                 callback_url=""):
+                 callback_url="", order_ip=""):
     """The Zerodha connection screen — one button and an honest status line, and the
     account's own Kite Connect app (user_kite.app_for) for anyone who is not the site owner."""
     good = state == "ok"
@@ -2806,11 +2806,18 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
                    '<label style="font-size:13px;font-weight:700">API secret<input name="kite_api_secret" '
                    f'type="password" autocomplete="new-password" required {field}></label>'
                    '<button class="btn wide" name="action" value="save_app">Save my app</button></form>')
-    app_box += ('<p style="font-size:13px;color:var(--ink-3);margin:12px 0 0">Live orders also need a static IP '
-                'registered on <b>your</b> developer account that nobody else uses. This server&rsquo;s IP is '
-                'registered to the site owner, and Zerodha allows sharing it only with immediate family - so with '
-                'your own app keep live orders off until you have your own IP. Prices, signals and paper trades '
-                'need no IP. The secret is stored only on this server and never shown again.</p>')
+    if own_app and order_ip:
+        app_box += (f'<p style="font-size:14px;color:var(--ink-2);margin:12px 0 0">Your live orders leave from '
+                    f'<b class="mono">{_esc(order_ip)}</b>, an address only your orders use. Add it on '
+                    '<b>developers.kite.trade</b> (Profile, top right &rarr; IP Whitelist) before switching live '
+                    'orders on - Zerodha refuses an order from any other IP. Prices, signals and paper trades need '
+                    'no IP. The secret is stored only on this server and never shown again.</p>')
+    else:
+        app_box += ('<p style="font-size:13px;color:var(--ink-3);margin:12px 0 0">Live orders also need a static IP '
+                    'registered on <b>your</b> developer account that nobody else uses. This server&rsquo;s IP is '
+                    'registered to the site owner, and Zerodha allows sharing it only with immediate family - so with '
+                    'your own app keep live orders off until the site owner gives you your own IP. Prices, signals '
+                    'and paper trades need no IP. The secret is stored only on this server and never shown again.</p>')
 
     body = f"""<div class="wrap"><div class="mid">
  <div class="panel">

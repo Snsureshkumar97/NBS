@@ -2779,7 +2779,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             user, info["state"], info["detail"], user_id=info["user_id"],
             since=info["since"], app_ok=app_ok, app_why=app_why,
             error=error, notice=notice, own_app=info.get("own_app"),
-            app_key_tail=info.get("app_key_tail"), callback_url=config.web_callback_url()))
+            app_key_tail=info.get("app_key_tail"), callback_url=config.web_callback_url(),
+            order_ip=info.get("order_ip")))
 
     def _live_indian_open(self, user):
         """Is a live Zerodha position still working for this account? Its exits need today's login."""

@@ -77,6 +77,20 @@ def api_key_for(email):
     return app_for(email)[0]
 
 
+def order_proxy_for(email):
+    """The proxy this account's ORDER calls go through, or None (the server's own IP).
+
+    Zerodha accepts an API order only from an IP on the app owner's developer account, and shares one only with
+    immediate family. The server's IP is the site owner's, so an account with its OWN app gets its own IP: a proxy
+    VM with a static address (nbs-order-proxy, set up 5 Oct 2026), recorded on the account by the operator as
+    kite_order_proxy (its internal URL) and kite_order_ip (the address to whitelist). Never for the server's own
+    app - those orders must keep leaving from the server's own whitelisted IP."""
+    user = (accounts.get_user(email) or {}) if email else {}
+    if not (user.get("kite_api_key") and user.get("kite_api_secret")):
+        return None
+    return user.get("kite_order_proxy") or None
+
+
 def _clean(v):
     return str(v or "").strip()
 
@@ -275,4 +289,6 @@ def summary(email):
         # Whose Kite Connect app this account logs in through - never the key itself, only its last 4.
         "own_app": bool(user.get("kite_api_key") and user.get("kite_api_secret")),
         "app_key_tail": (user.get("kite_api_key") or "")[-4:] if user.get("kite_api_secret") else "",
+        # The address this account's live orders leave from, for its own IP whitelist (order_proxy_for).
+        "order_ip": (user.get("kite_order_ip") or "") if order_proxy_for(email) else "",
     }

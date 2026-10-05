@@ -103,8 +103,8 @@ check("ai_desk: the option token is looked up under the account's key",
 made = []
 fake_kc = types.ModuleType("kiteconnect")
 class _KC:
-    def __init__(self, api_key):
-        self.api_key = api_key
+    def __init__(self, api_key, **kw):
+        self.api_key, self.kw = api_key, kw
         made.append(api_key)
     def set_access_token(self, t):
         self.token = t
@@ -116,8 +116,21 @@ try:
     k = live_orders._kite_factory(FRIEND)()
     check("a live order for him is sent through HIS app (his key, his token)",
           made[-1] == FKEY and k.token == "friend-access", (made, getattr(k, "token", None)))
+    check("...with no order proxy on the account: no proxy at all (straight from the server)", k.kw == {}, k.kw)
     k = live_orders._kite_factory(OWNER)()
-    check("...and the owner's through the server's, as before", made[-1] == "serverkey1234" and k.token == "owner-access")
+    check("...and the owner's through the server's, as before", made[-1] == "serverkey1234" and k.token == "owner-access"
+          and k.kw == {})
+    PROXY = "http://10.160.0.3:8888"
+    accounts.update_user(FRIEND, {"kite_order_proxy": PROXY, "kite_order_ip": "34.180.7.83"})
+    k = live_orders._kite_factory(FRIEND)()
+    check("his order calls go through HIS order proxy (his own IP, which his developer account whitelists)",
+          made[-1] == FKEY and k.kw == {"proxies": {"https": PROXY}}, k.kw)
+    check("...and the page learns the address to whitelist", uk.summary(FRIEND)["order_ip"] == "34.180.7.83")
+    accounts.update_user(OWNER, {"kite_order_proxy": PROXY, "kite_order_ip": "34.180.7.83"})
+    k = live_orders._kite_factory(OWNER)()
+    check("a proxy on an account WITHOUT its own app is ignored - the server's app keeps the server's own IP",
+          k.kw == {} and uk.order_proxy_for(OWNER) is None and uk.summary(OWNER)["order_ip"] == "", k.kw)
+    accounts.update_user(OWNER, {"kite_order_proxy": None, "kite_order_ip": None})
 finally:
     if real_kc is not None:
         sys.modules["kiteconnect"] = real_kc
@@ -141,6 +154,11 @@ check("...and that live orders need his OWN static IP, the server's being the ow
 html2 = nbs_site.connect_page(FRIEND, "ok", "fine", own_app=True, app_key_tail="9xyz", callback_url=cb)
 check("with an app: whose (last 4), the Redirect URL, a remove button - no secret field",
       "9xyz" in html2 and cb in html2 and 'value="remove_app"' in html2 and "kite_api_secret" not in html2)
+check("...without an order IP yet: keep live orders off until the site owner gives one",
+      "until the site owner gives you your own IP" in html2)
+html3 = nbs_site.connect_page(FRIEND, "ok", "fine", own_app=True, app_key_tail="9xyz", callback_url=cb, order_ip="34.180.7.83")
+check("with an order IP: the exact address to whitelist, and where", "34.180.7.83" in html3 and "IP Whitelist" in html3
+      and "only your orders use" in html3 and "until the site owner gives you" not in html3)
 
 import web_server
 def handler(user=FRIEND, same_origin=True, live_open=False):
@@ -194,6 +212,30 @@ try:
     check("no live executor at all: does not block", h._live_indian_open(FRIEND) is False)
 finally:
     web_server.feeds.for_user = real_for_user
+
+print("7. set_order_proxy.py - THE OPERATOR RECORDS AN ACCOUNT'S ORDER PROXY")
+import io
+import contextlib
+import set_order_proxy as sop
+def run(*args):
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = sop.main(list(args))
+    return rc, buf.getvalue()
+rc, out = run(FRIEND, "http://10.160.0.3:8888", "34.180.7.83")
+u = accounts.get_user(FRIEND) or {}
+check("sets the proxy and the IP to whitelist", rc == 0 and u.get("kite_order_proxy") == "http://10.160.0.3:8888"
+      and u.get("kite_order_ip") == "34.180.7.83" and "34.180.7.83" in out, out)
+check("...and prints no key, secret or token", all(x not in out for x in (FKEY, FSECRET, "friend-access")), out)
+for args, why in (((FRIEND, "10.160.0.3:8888", "34.180.7.83"), "a URL without http://"),
+                  ((FRIEND, "http://10.160.0.3:8888", "not-an-ip"), "a bad IP"),
+                  (("nobody@example.invalid", "http://10.160.0.3:8888", "34.180.7.83"), "an unknown account"),
+                  ((FRIEND,), "missing arguments")):
+    rc, out = run(*args)
+    check(f"refused: {why}", rc != 0, out)
+rc, out = run(FRIEND, "--clear")
+u = accounts.get_user(FRIEND) or {}
+check("--clear removes both", rc == 0 and not u.get("kite_order_proxy") and not u.get("kite_order_ip"), out)
 
 print()
 print("USER KITE APP TEST PASSED" if not fails else f"USER KITE APP TEST FAILED: {fails}")

@@ -151,7 +151,10 @@ def _kite_factory(email):
         token = user_kite.token_for(email)
         if not token:
             raise RuntimeError("Zerodha is not connected for this account today.")
-        k = KiteConnect(api_key=user_kite.api_key_for(email))     # the account's OWN app when it has one
+        # The account's OWN app when it has one - and then its own IP, through its order proxy, since Zerodha takes
+        # an order only from an IP on that app's developer account (user_kite.order_proxy_for).
+        proxy = user_kite.order_proxy_for(email)
+        k = KiteConnect(api_key=user_kite.api_key_for(email), **({"proxies": {"https": proxy}} if proxy else {}))
         k.set_access_token(token)
         return k
     return make
