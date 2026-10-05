@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """An account's OWN Kite Connect app (user_kite.app_for): Zerodha lets an app be used only by the client ID
 that created it (and immediate family added to it), so a friend logging in through the server's app was told
-"user is not enabled for the app" (the user, 5 Oct 2026 - Vishnu bought his own app). Saving, checking and
+"user is not enabled for the app" (the user, 5 Oct 2026 - a friend bought his own app). Saving, checking and
 removing it; every per-account Zerodha call using it; the server's own app untouched for everyone else.
 Stubs only - nothing here reaches Zerodha."""
 import os

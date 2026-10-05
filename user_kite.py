@@ -64,7 +64,7 @@ def app_for(email):
     """(api_key, api_secret, own): the account's OWN Kite Connect app when it saved one, else the server's.
 
     Zerodha lets an app be used only by the client ID that created it (and immediate family added to it), so a
-    friend logging in through the server's app is refused - the user, 5 Oct 2026: Vishnu's login said "user is
+    friend logging in through the server's app is refused - the user, 5 Oct 2026: a friend's login said "user is
     not enabled for the app"; he bought his own app. Everything that talks to Zerodha for an account asks here."""
     user = (accounts.get_user(email) or {}) if email else {}
     key, secret = user.get("kite_api_key"), user.get("kite_api_secret")
