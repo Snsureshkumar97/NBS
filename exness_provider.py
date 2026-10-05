@@ -135,6 +135,25 @@ class NotConfigured(RuntimeError):
     pass
 
 
+class MarketDataBusy(RuntimeError):
+    """A best-effort price ask skipped because its market-data slot was taken - keep the last price."""
+
+
+# MetaApi runs at most 5 historical-market-data requests at once per account (LIMIT_CONCURRENT_MARKET_DATA_
+# REQUESTS_PER_ACCOUNT). Two price threads asking a 1-minute candle every second, the rules' 15-minute / 1-hour /
+# daily top-ups and the charts went past it on 5 Oct 2026 - 429s, then "not connected to the broker" (504) on the
+# 15-minute top-ups at the closes, so the rules never saw the new candle and gold's SELL was never taken. Now: at
+# most MD_MAX_CONCURRENT in flight (headroom under 5), the live price may use only ONE of them and never waits for
+# it (a busy slot = keep the last price), and everything else - the candles the rules decide on - waits its turn.
+MD_MAX_CONCURRENT = 3
+MD_WAIT_S = 20.0
+_MD_SLOTS = threading.BoundedSemaphore(MD_MAX_CONCURRENT)
+_MD_PRICE_SLOT = threading.BoundedSemaphore(1)
+# When the 1-minute candle cannot be had, the price API (50 credits) stands in - at most this often per instrument,
+# so a market-data outage cannot push the price API back over its own budget.
+FALLBACK_MIN_S = 5.0
+
+
 class RateLimited(RuntimeError):
     """MetaApi said slow down: fresh=True on its 429 itself, False on a call skipped while backing off from one."""
     def __init__(self, msg, fresh):
@@ -166,7 +185,7 @@ class ExnessMetaApiProvider:
         self._fetch_locks = {}
 
     # ------------------------------------------------------------ plumbing
-    def _get(self, base, path, timeout=None, **params):
+    def _get(self, base, path, timeout=None, best_effort=False, **params):
         token, account, region = creds()
         if not (token and account):
             raise NotConfigured("Exness is not connected yet: METAAPI_TOKEN and METAAPI_ACCOUNT_ID "
@@ -175,6 +194,28 @@ class ExnessMetaApiProvider:
         if time.time() < self._backoff_until.get(base, 0.0):
             raise RateLimited(f"MetaApi asked us to slow down ({svc}); retrying shortly.", fresh=False)
         url = base.format(region=region) + path.format(account=account)
+        if base != MARKET_DATA:
+            return self._send(url, svc, token, timeout, params)
+        if best_effort:
+            if not _MD_PRICE_SLOT.acquire(blocking=False):
+                raise MarketDataBusy("the live-price slot is busy")
+            if not _MD_SLOTS.acquire(blocking=False):
+                _MD_PRICE_SLOT.release()
+                raise MarketDataBusy("every market-data slot is busy")
+            try:
+                return self._send(url, svc, token, timeout, params)
+            finally:
+                _MD_SLOTS.release()
+                _MD_PRICE_SLOT.release()
+        if not _MD_SLOTS.acquire(timeout=MD_WAIT_S):
+            raise RuntimeError(f"MetaApi market data busy: no free slot in {MD_WAIT_S:.0f}s")
+        try:
+            return self._send(url, svc, token, timeout, params)
+        finally:
+            _MD_SLOTS.release()
+
+    def _send(self, url, svc, token, timeout, params):
+        base = MARKET_DATA if svc == "candles" else CLIENT
         r = self.session.get(url, params=params or None, headers={"auth-token": token, "Accept": "application/json"},
                              timeout=timeout or self.timeout)
         if r.status_code == 429:
@@ -268,7 +309,7 @@ class ExnessMetaApiProvider:
         sym = self.broker_symbol(index_key)
         now = now or time.time()
         rows = self._get(MARKET_DATA, "/users/current/accounts/{account}/historical-market-data/symbols/" + sym
-                         + "/timeframes/1m/candles", timeout=QUOTE_TIMEOUT_S,
+                         + "/timeframes/1m/candles", timeout=QUOTE_TIMEOUT_S, best_effort=True,
                          startTime=pd.Timestamp(now, unit="s", tz="UTC").strftime("%Y-%m-%dT%H:%M:%S.000Z"),
                          limit=2) or []
         if not rows:
@@ -452,10 +493,14 @@ class _Poller:
             return self.provider.quote(k)
         try:
             return live(k, now)
+        except MarketDataBusy:
+            raise                                   # a busy slot: keep the last price, no stand-in (poll_once skips it)
         except Exception as exc:
             _log(f"{k} candle price failed: {type(exc).__name__}: {str(exc)[:160]}")
             if isinstance(exc, RateLimited) and exc.fresh:
                 self.slow_down()
+            if time.time() - self._true_at.get(k, 0.0) < FALLBACK_MIN_S:
+                raise
         self._true_at[k] = time.time()
         return self.provider.quote(k)
 
@@ -479,6 +524,8 @@ class _Poller:
             began = time.time()
             try:
                 q = self._fetch(k, now)
+            except MarketDataBusy:
+                continue                            # its slot is taken this pass: the last price stands
             except Exception as exc:
                 self.last_error = str(exc)[:200]
                 _log(f"{k} price failed after {time.time() - began:.1f}s: {type(exc).__name__}: {str(exc)[:160]}")

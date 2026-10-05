@@ -161,6 +161,7 @@ pol = ep._Poller(provider=ep.ExnessMetaApiProvider(session=ps))
 pol.keys.add("BTC")
 t0 = 1_790_000_100.0 - (1_790_000_100.0 % 900) + 60      # one minute into a 15-minute bar
 for k in range(3):
+    pol._true_at.clear()                 # each ask 5+ s apart, so each may stand in with the price API (FALLBACK_MIN_S)
     pol.poll_once(now=t0 + k)
 st = ep.ExnessStreamer(shared=pol)
 check("streamer start() is True once configured", st.start() is True and st.connected)
@@ -623,6 +624,106 @@ pol13 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=s13), poll_s=1.0); 
 pol13.poll_once(now=NOW11)
 check("the market-data API failing: the price API is the fallback (84,005)",
       ep.ExnessStreamer(shared=pol13).index_price("BTC") == 84005.0, ep.ExnessStreamer(shared=pol13).index_price("BTC"))
+print("12. AT MOST 3 MARKET-DATA REQUESTS IN FLIGHT, THE PRICE ONLY EVER ONE OF THEM (MetaApi: 5 per account;")
+print("    past it on 5 Oct 2026 the 15-minute top-ups failed at the closes and gold's SELL was never taken)")
+import threading
+class GateSession:
+    """Holds every request open until released, counting how many are in flight at once."""
+    def __init__(self):
+        self.lock, self.inflight, self.peak, self.price_peak, self.price_inflight = threading.Lock(), 0, 0, 0, 0
+        self.release = threading.Event()
+    def get(self, url, params=None, headers=None, timeout=None):
+        if url.endswith("/symbols"):
+            return Resp(200, ["BTCUSDm", "XAUUSDm"])
+        price = url.endswith("/timeframes/1m/candles")
+        with self.lock:
+            self.inflight += 1; self.peak = max(self.peak, self.inflight)
+            if price:
+                self.price_inflight += 1; self.price_peak = max(self.price_peak, self.price_inflight)
+        self.release.wait(5)
+        with self.lock:
+            self.inflight -= 1
+            if price:
+                self.price_inflight -= 1
+        return Resp(200, [{"time": "2026-10-05T15:00:00.000Z", "close": 100.0, "spread": 1000, "open": 100.0,
+                           "high": 100.0, "low": 100.0, "tickVolume": 1}])
+gs = GateSession()
+pg = ep.ExnessMetaApiProvider(session=gs)
+pg.broker_symbol("BTC"); pg.broker_symbol("GOLD")
+outcomes = []
+def price_ask(key):
+    try:
+        pg.live_quote(key); outcomes.append(("price", "ok"))
+    except ep.MarketDataBusy:
+        outcomes.append(("price", "busy"))
+def candle_ask(n):
+    try:
+        pg._get(ep.MARKET_DATA, "/users/current/accounts/{account}/historical-market-data/symbols/BTCUSDm/timeframes/15m/candles",
+                startTime="2026-10-05T15:00:00.000Z", limit=5); outcomes.append(("candle", "ok"))
+    except RuntimeError as exc:
+        outcomes.append(("candle", str(exc)))
+ts_ = [threading.Thread(target=price_ask, args=(k,)) for k in ("BTC", "GOLD", "BTC")]
+ts_ += [threading.Thread(target=candle_ask, args=(n,)) for n in range(4)]
+for t in ts_:
+    t.start()
+import time as _t
+_t.sleep(0.5)
+with gs.lock:
+    held_now, price_now = gs.inflight, gs.price_inflight
+gs.release.set()
+for t in ts_:
+    t.join(10)
+check("never more than 3 requests in flight at once", gs.peak <= ep.MD_MAX_CONCURRENT == 3 and held_now == 3, (gs.peak, held_now))
+check("...the live price only ever one of them", gs.price_peak <= 1 and price_now <= 1, (gs.price_peak, price_now))
+check("...a price that finds its slot taken is skipped at once (busy), never queued",
+      ("price", "busy") in outcomes and sum(1 for o in outcomes if o[0] == "price") == 3, outcomes)
+check("...and every candle the rules asked for WAITED its turn and got through",
+      [o for o in outcomes if o[0] == "candle"] == [("candle", "ok")] * 4, outcomes)
+real_wait = ep.MD_WAIT_S
+ep.MD_WAIT_S = 0.2
+taken = [ep._MD_SLOTS.acquire(blocking=False) for _ in range(ep.MD_MAX_CONCURRENT)]
+try:
+    try:
+        pg._get(ep.MARKET_DATA, "/users/current/accounts/{account}/historical-market-data/symbols/BTCUSDm/timeframes/15m/candles",
+                limit=5); busy_msg = None
+    except RuntimeError as exc:
+        busy_msg = str(exc)
+    check("all slots held past MD_WAIT_S: a plain 'busy' error (the top-up then serves the held candles)",
+          busy_msg is not None and "busy" in busy_msg, busy_msg)
+finally:
+    for ok in taken:
+        if ok:
+            ep._MD_SLOTS.release()
+    ep.MD_WAIT_S = real_wait
+
+class BusyProv:
+    calls = 0
+    def live_quote(self, k, now=None):
+        raise ep.MarketDataBusy("the live-price slot is busy")
+    def quote(self, k):
+        type(self).calls += 1
+        return {"symbol": "BTCUSDm", "bid": 1.0, "ask": 2.0, "mid": 1.5, "spread": 1.0}
+    def broker_symbol(self, k):
+        return "BTCUSDm"
+pb = ep._Poller(provider=BusyProv(), poll_s=1.0); pb.keys.add("BTC")
+pb.quotes["BTCUSDm"] = {"mid": 77.0, "at": 1.0, "tick_at": 1.0}
+pb.poll_once()
+check("a busy slot: the last price stands, no stand-in from the price API, nothing logged as a failure",
+      pb.quotes["BTCUSDm"]["mid"] == 77.0 and BusyProv.calls == 0 and pb.last_error is None, (pb.quotes, BusyProv.calls))
+
+class DownProv(BusyProv):
+    def live_quote(self, k, now=None):
+        raise RuntimeError("MetaApi: the Exness account is not connected to the broker right now (504)")
+DownProv.calls = 0
+pd_ = ep._Poller(provider=DownProv(), poll_s=1.0); pd_.keys.add("BTC")
+for _ in range(4):
+    pd_.poll_once()
+check("market data down: the price API stands in at most once per FALLBACK_MIN_S (5 s), not every pass",
+      DownProv.calls == 1, DownProv.calls)
+pd_._true_at["BTC"] -= ep.FALLBACK_MIN_S + 0.1
+pd_.poll_once()
+check("...and again once 5 s have passed", DownProv.calls == 2, DownProv.calls)
+
 here = os.path.dirname(os.path.abspath(__file__))
 fsrc = open(os.path.join(here, "feeds.py")).read()
 wsrc = open(os.path.join(here, "web_server.py")).read()
