@@ -1,0 +1,35 @@
+======================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, real expiries, after costs. Entries: the live checks as configured (REGIME_OR_BREAK=False).
+ Exit as live: stop, T1 -> stop to T1, Supertrend trail, out at T2, 2-hour breakeven filled at the market when already past, day-end close.
+======================================================================================================================================================
+                                              IN-SAMPLE: trades, won, total, profit factor, worst drop    | HELD-OUT FINAL YEAR
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ today (entries from the first candle)         2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077
+   same, old breakeven fill (at entry) - reference  2024   38% ₹  +796,324 PF 1.60 DD ₹  54,421  | 1181   34% ₹  +359,287 PF 1.48 DD ₹  63,848
+   same, WITHOUT the 2-hour breakeven          1859   49% ₹  +464,392 PF 1.24 DD ₹ 117,674  | 1038   49% ₹  +160,006 PF 1.13 DD ₹ 111,178
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ skip the first 15 minutes (from 09:30 candle)  1948   39% ₹  +371,571 PF 1.22 DD ₹  87,795  | 1139   35% ₹   +59,445 PF 1.06 DD ₹ 107,642
+ skip the first 30 minutes (from 09:45 candle)  1859   39% ₹  +365,433 PF 1.23 DD ₹  78,244  | 1090   35% ₹   +61,565 PF 1.06 DD ₹ 106,423
+   skip 45 (robustness only)                   1766   40% ₹  +399,626 PF 1.27 DD ₹  59,692  | 1043   36% ₹   +82,903 PF 1.09 DD ₹  86,035
+   skip 60 (robustness only)                   1706   39% ₹  +313,748 PF 1.22 DD ₹  69,938  | 1018   36% ₹   +37,380 PF 1.04 DD ₹ 120,034
+
+ THE 2-HOUR BREAKEVEN (live since 29 Sep), PRICED AS IT FILLS - better than none in both periods?
+   NO LONGER clears the bar:  with it vs without - in-sample    -26,883  held-out    -34,779   worst drop: in-sample   -25,900  held-out    -9,101
+
+ VERDICT - kept only if better than today in BOTH periods
+   drop  skip 15 min   in-sample    -65,938  held-out    -65,782   worst drop: in-sample    -3,979  held-out    +5,565
+   drop  skip 30 min   in-sample    -72,076  held-out    -63,661   worst drop: in-sample   -13,530  held-out    +4,346
+   drop  skip 45 min   in-sample    -37,883  held-out    -42,324   worst drop: in-sample   -32,082  held-out   -16,042
+   drop  skip 60 min   in-sample   -123,761  held-out    -87,847   worst drop: in-sample   -21,836  held-out   +17,957
+
+ TODAY'S OWN TRADES, BY THE CANDLE THEY WERE TAKEN OFF
+ signal candle              IN-SAMPLE: n, won, total, per trade           | HELD-OUT
+ 09:15 (entry ~09:30)         304   35% ₹   +90,358 ₹  +297/trade  |  181   33% ₹   +72,982 ₹  +403/trade
+ 09:30 (entry ~09:45)         217   34% ₹   +14,322 ₹   +66/trade  |  163   29% ₹    -6,054 ₹   -37/trade
+ 09:45-10:45                  445   37% ₹  +109,671 ₹  +246/trade  |  257   31% ₹   +40,537 ₹  +158/trade
+ 11:00 onward                1039   43% ₹  +223,157 ₹  +215/trade  |  566   40% ₹   +17,762 ₹   +31/trade
+
+ BY INDEX (in-sample / held-out totals)
+   NIFTY      today ₹ +154,936 / ₹  +30,386   skip 15 ₹ +140,699 / ₹   -4,479   skip 30 ₹ +160,428 / ₹   -9,603
+   BANKNIFTY  today ₹ +172,293 / ₹   -5,376   skip 15 ₹ +130,508 / ₹   +2,805   skip 30 ₹ +118,598 / ₹  +17,991
+   SENSEX     today ₹ +110,280 / ₹ +100,217   skip 15 ₹ +100,364 / ₹  +61,119   skip 30 ₹  +86,406 / ₹  +53,178
