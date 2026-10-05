@@ -2773,12 +2773,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     # -------------------------------------------------------- kite, per user
     def _connect(self, user, error=None, notice=None):
-        app_ok, app_why = user_kite.app_ready()
+        app_ok, app_why = user_kite.app_ready(user)
         info = user_kite.summary(user)
         return self._send(nbs_site.connect_page(
             user, info["state"], info["detail"], user_id=info["user_id"],
             since=info["since"], app_ok=app_ok, app_why=app_why,
-            error=error, notice=notice))
+            error=error, notice=notice, own_app=info.get("own_app"),
+            app_key_tail=info.get("app_key_tail"), callback_url=config.web_callback_url()))
+
+    def _live_indian_open(self, user):
+        """Is a live Zerodha position still working for this account? Its exits need today's login."""
+        try:
+            ex = getattr(feeds.for_user(user, "nse_index", start=False), "live", None)
+            import live_orders
+            return ex is not None and any(p.get("state") in live_orders.ACTIVE
+                                          for p in (getattr(ex, "positions", None) or {}).values())
+        except Exception:
+            return False
 
     def _do_connect(self, form):
         user = self._current_user()
@@ -2789,14 +2800,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
             user_kite.disconnect(user)
             feeds.wake(user)
             return self._connect(user, notice="Disconnected from Zerodha.")
+        if action in ("save_app", "remove_app"):
+            # The account's OWN Kite Connect app (user_kite.app_for) - typed into this page, so only from this site.
+            if not self._same_origin():
+                return self._connect(user, error="Refused: that request did not come from this site.")
+            if self._live_indian_open(user):
+                return self._connect(user, error="A live Zerodha position is still open - its exits need today's "
+                                                 "login. Change the app after it has closed.")
+            if action == "remove_app":
+                user_kite.remove_app(user)
+                feeds.wake(user)
+                return self._connect(user, notice="Your own app is removed; this account logs in through the "
+                                                  "server's app again. Connect to Zerodha to log in.")
+            ok, msg = user_kite.save_app(user, form.get("kite_api_key"), form.get("kite_api_secret"))
+            if ok:
+                feeds.wake(user)
+            return self._connect(user, notice=msg if ok else None, error=None if ok else msg)
         if action != "start":
             return self._connect(user)
 
-        app_ok, app_why = user_kite.app_ready()
+        app_ok, app_why = user_kite.app_ready(user)
         if not app_ok:
             return self._connect(user, error=app_why)
         try:
-            url = user_kite.login_url(_new_nonce(user))
+            url = user_kite.login_url(_new_nonce(user), user)
         except Exception as exc:
             return self._connect(user, error=str(exc))
         return self._redirect(url)

@@ -781,7 +781,7 @@ class Feed:
         if not token:
             raise RuntimeError("no Zerodha token on this account")
         try:
-            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            provider = KiteDataProvider(user_kite.api_key_for(self.email), token)
         except Exception as exc:
             raise RuntimeError(f"could not reach Zerodha: {exc}")
         tokens = self.eq_tokens
@@ -989,7 +989,7 @@ class Feed:
         token = user_kite.token_for(self.email)
         if not token:
             return None, "missing", "Not connected to Zerodha yet."
-        return KiteDataProvider(config.KITE_API_KEY, token), "ok", ""
+        return KiteDataProvider(user_kite.api_key_for(self.email), token), "ok", ""
 
     def _run(self):
         provider = None
@@ -1156,7 +1156,7 @@ class Feed:
             self.stream_error = "no Zerodha token on this account"
             return
         try:
-            st = KiteStreamer(config.KITE_API_KEY, token)
+            st = KiteStreamer(user_kite.api_key_for(self.email), token)
             if not st.start():
                 self.stream_error = f"ticker would not start: {st.last_error}"
                 return
@@ -1441,7 +1441,7 @@ class Feed:
             self.stream_error = "tick socket silent and no Zerodha token to rebuild it"
             return
         try:
-            new = KiteStreamer(config.KITE_API_KEY, token)
+            new = KiteStreamer(user_kite.api_key_for(self.email), token)
             if not new.start():
                 self.stream_error = f"tick socket rebuild failed: {new.last_error}"
                 return
@@ -1500,7 +1500,7 @@ class Feed:
         if not token:
             return
         try:
-            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            provider = KiteDataProvider(user_kite.api_key_for(self.email), token)
         except Exception:
             return
         toks = []
@@ -1553,7 +1553,7 @@ class Feed:
             if not token:
                 return
             try:
-                mp = KiteDataProvider(config.KITE_API_KEY, token).chain_tokens(name, expiry)
+                mp = KiteDataProvider(user_kite.api_key_for(self.email), token).chain_tokens(name, expiry)
             except Exception:
                 mp = {}
             if not mp:
@@ -1732,7 +1732,7 @@ class Feed:
         if not token:
             return
         try:
-            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            provider = KiteDataProvider(user_kite.api_key_for(self.email), token)
             tok = provider.option_token(trade["index"], trade["strike"],
                                         trade["option_type"])
         except Exception:
@@ -1779,7 +1779,7 @@ class Feed:
         if not token:
             return
         try:
-            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            provider = KiteDataProvider(user_kite.api_key_for(self.email), token)
             tok = provider.option_token(name, strike, opt)
         except Exception:
             tok = None
@@ -1796,7 +1796,7 @@ class Feed:
     # ------------------------------------------------- futures and order flow
     def _flow_provider(self):
         token = user_kite.token_for(self.email)
-        return KiteDataProvider(config.KITE_API_KEY, token) if token else None
+        return KiteDataProvider(user_kite.api_key_for(self.email), token) if token else None
 
     def _flow_tick(self, st):
         """Find and stream the futures kite_flow reads, and sample them. Cheap:
@@ -2166,7 +2166,7 @@ class Feed:
             self._eq_tried = False        # no token yet; worth trying again
             return
         try:
-            provider = KiteDataProvider(config.KITE_API_KEY, token)
+            provider = KiteDataProvider(user_kite.api_key_for(self.email), token)
             found = provider.equity_tokens(symbols)
         except Exception:
             return

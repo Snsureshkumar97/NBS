@@ -177,7 +177,8 @@ feed = feeds.Feed.__new__(feeds.Feed)
 feed.email, feed.market = "test@example.invalid", "nse_index"
 feed.tokens, feed.opt_tokens, feed.sug_tokens, feed.eq_tokens = {"NIFTY": NIFTY}, {}, {}, {}
 feed.streamer, feed.stream_error, feed._stream_born = c, None, 0.0
-feeds.user_kite = types.SimpleNamespace(token_for=lambda email: "test-token")
+feeds.user_kite = types.SimpleNamespace(token_for=lambda email: "test-token",
+                                        api_key_for=lambda email: "test-key")   # the account's own app (user_kite.app_for)
 KiteTicker.ROOT_URI = f"ws://127.0.0.1:{good.port}"
 from_thread(lambda: feed._rebuild_kite_stream(c))
 new = feed.streamer

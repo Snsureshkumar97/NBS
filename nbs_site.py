@@ -2745,8 +2745,10 @@ def market_page(user=None, markets=None, error=None):
 
 
 def connect_page(user, state, detail, user_id="", since="", app_ok=True,
-                 app_why="", error=None, notice=None):
-    """The Zerodha connection screen — one button and an honest status line."""
+                 app_why="", error=None, notice=None, own_app=False, app_key_tail="",
+                 callback_url=""):
+    """The Zerodha connection screen — one button and an honest status line, and the
+    account's own Kite Connect app (user_kite.app_for) for anyone who is not the site owner."""
     good = state == "ok"
     label = {"ok": "Connected", "missing": "Not connected",
              "stale": "Needs reconnecting today", "expired": "Session expired",
@@ -2777,6 +2779,39 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
                        '<button class="link" name="action" value="disconnect">'
                        'Disconnect this account</button></form>')
 
+    # The account's own Kite Connect app: Zerodha lets an app be used only by the client ID that created it (and
+    # immediate family added to it) - anyone else logging in through the server's app is told "user is not enabled
+    # for the app" (the user, 5 Oct 2026, connecting a friend's account).
+    field = ('style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bd);'
+             'border-radius:8px;margin:6px 0 12px;font:inherit;background:var(--sunken);color:var(--ink)"')
+    if own_app:
+        app_box = (f'<p style="font-size:14px;color:var(--ink-2);margin:10px 0 0">This account logs in through '
+                   f'<b>your own Kite Connect app</b> (API key ending <span class="mono">{_esc(app_key_tail)}</span>).'
+                   f' Its Redirect URL on developers.kite.trade must be <span class="mono">{_esc(callback_url)}</span>.</p>'
+                   '<form method="post" action="/connect" style="text-align:center;margin-top:14px">'
+                   '<button class="link" name="action" value="remove_app">Remove my app - use the site&rsquo;s '
+                   'app again</button></form>')
+    else:
+        app_box = (f'<p style="font-size:14px;color:var(--ink-2);margin:10px 0 0">Zerodha lets a Kite Connect app '
+                   'be used only by the person who created it (and immediate family added to it). If Zerodha says '
+                   '<i>&ldquo;user is not enabled for the app&rdquo;</i>, use your own app:</p>'
+                   '<ol style="font-size:14px;color:var(--ink-2);margin:8px 0 12px;padding-left:20px;line-height:1.55">'
+                   '<li>On <b>developers.kite.trade</b>, open your app and set its <b>Redirect URL</b> to '
+                   f'<span class="mono">{_esc(callback_url)}</span></li>'
+                   '<li>Paste the app&rsquo;s API key and API secret here and save.</li>'
+                   '<li>Press <b>Connect to Zerodha</b> above and log in.</li></ol>'
+                   '<form method="post" action="/connect" autocomplete="off">'
+                   '<label style="font-size:13px;font-weight:700">API key<input name="kite_api_key" type="text" '
+                   f'autocomplete="off" spellcheck="false" required {field}></label>'
+                   '<label style="font-size:13px;font-weight:700">API secret<input name="kite_api_secret" '
+                   f'type="password" autocomplete="new-password" required {field}></label>'
+                   '<button class="btn wide" name="action" value="save_app">Save my app</button></form>')
+    app_box += ('<p style="font-size:13px;color:var(--ink-3);margin:12px 0 0">Live orders also need a static IP '
+                'registered on <b>your</b> developer account that nobody else uses. This server&rsquo;s IP is '
+                'registered to the site owner, and Zerodha allows sharing it only with immediate family - so with '
+                'your own app keep live orders off until you have your own IP. Prices, signals and paper trades '
+                'need no IP. The secret is stored only on this server and never shown again.</p>')
+
     body = f"""<div class="wrap"><div class="mid">
  <div class="panel">
   <h1>Your Zerodha connection</h1>
@@ -2786,6 +2821,11 @@ def connect_page(user, state, detail, user_id="", since="", app_ok=True,
   <p style="font-size:14.5px;color:var(--ink-2);margin:0">{_esc(detail)}</p>
   {rows}
   {action}
+ </div>
+
+ <div class="panel" style="margin-top:16px;box-shadow:none">
+  <h1 style="font-size:16px">Your own Kite Connect app</h1>
+  {app_box}
  </div>
 
  <div class="panel" style="margin-top:16px;box-shadow:none">

@@ -1133,7 +1133,7 @@ class AIDesk:
             st, token = self.feed.streamer, user_kite.token_for(self.feed.email)
             if st is None or not token:
                 return None
-            tok = KiteDataProvider(config.KITE_API_KEY, token).option_token(
+            tok = KiteDataProvider(user_kite.api_key_for(self.feed.email), token).option_token(
                 name, trade["strike"], trade["option_type"], str(trade.get("expiry") or "")[:10] or None)
             if not tok:
                 return None

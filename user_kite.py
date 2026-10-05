@@ -60,15 +60,73 @@ def _today_ist():
 # ---------------------------------------------------------------------------
 # the app itself
 # ---------------------------------------------------------------------------
-def app_ready():
+def app_for(email):
+    """(api_key, api_secret, own): the account's OWN Kite Connect app when it saved one, else the server's.
+
+    Zerodha lets an app be used only by the client ID that created it (and immediate family added to it), so a
+    friend logging in through the server's app is refused - the user, 5 Oct 2026: Vishnu's login said "user is
+    not enabled for the app"; he bought his own app. Everything that talks to Zerodha for an account asks here."""
+    user = (accounts.get_user(email) or {}) if email else {}
+    key, secret = user.get("kite_api_key"), user.get("kite_api_secret")
+    if key and secret:
+        return key, secret, True
+    return config.KITE_API_KEY, config.KITE_API_SECRET, False
+
+
+def api_key_for(email):
+    return app_for(email)[0]
+
+
+def _clean(v):
+    return str(v or "").strip()
+
+
+def save_app(email, api_key, api_secret):
+    """Keep this account's own Kite Connect app. (ok, message). Zerodha has no call that checks a key and secret
+    without a login, so only their shape is checked here; the next "Connect to Zerodha" proves them. Any token
+    from the previous app is dropped - it belongs to that app and would be refused under this one."""
+    api_key, api_secret = _clean(api_key), _clean(api_secret)
+    if not api_key or not api_secret:
+        return False, "Both the API key and the API secret are needed."
+    if not (api_key.isalnum() and api_secret.isalnum()):
+        return False, "An API key or secret is letters and numbers only - check for a stray character."
+    if not (6 <= len(api_key) <= 64 and 16 <= len(api_secret) <= 128):
+        return False, "That does not look like a Kite Connect API key and secret - copy them again from developers.kite.trade."
+    if api_key == config.KITE_API_KEY:
+        return False, "That is this server's own app. Use the API key of the app on YOUR developer account."
+    ok, msg = accounts.update_user(email, {
+        "kite_api_key": api_key, "kite_api_secret": api_secret,
+        "kite_token": None, "kite_user_id": None, "kite_connected": None, "kite_connected_at": None,
+    })
+    if not ok:
+        return False, msg
+    with _lock:
+        _checks.pop(email, None)
+        _funds.pop(email, None)
+    return True, "Your own Kite Connect app is saved. Now press Connect to Zerodha and log in."
+
+
+def remove_app(email):
+    """Back to the server's app - and drop the token, which belonged to the removed app."""
+    with _lock:
+        _checks.pop(email, None)
+        _funds.pop(email, None)
+    return accounts.update_user(email, {
+        "kite_api_key": None, "kite_api_secret": None,
+        "kite_token": None, "kite_user_id": None, "kite_connected": None, "kite_connected_at": None,
+    })
+
+
+def app_ready(email=None):
     """Can anyone connect at all? Returns (ok, reason).
 
     Separated from a user's own state because the failure reads completely
     differently: a missing API key is the operator's job, and telling a user
     to "try connecting again" when the server has no credentials would send
-    them round a loop they cannot exit.
+    them round a loop they cannot exit. An account with its own app does not
+    need the server's.
     """
-    if not config.KITE_API_KEY or not config.KITE_API_SECRET:
+    if not app_for(email)[2] and (not config.KITE_API_KEY or not config.KITE_API_SECRET):
         return False, ("This server has no Kite Connect app configured. "
                        "The site owner needs to set KITE_API_KEY and "
                        "KITE_API_SECRET before anyone can connect.")
@@ -79,7 +137,7 @@ def app_ready():
     return True, ""
 
 
-def login_url(nonce):
+def login_url(nonce, email=None):
     """Zerodha's login page, carrying a one-time nonce back to the callback.
 
     The nonce is how the callback knows which of its users started this login.
@@ -87,7 +145,7 @@ def login_url(nonce):
     request token, and a stranger could hand us a token from their own account
     and have it filed under somebody else's email.
     """
-    url = kite_auth._kite(config.KITE_API_KEY).login_url()
+    url = kite_auth._kite(api_key_for(email)).login_url()
     return url + "&redirect_params=" + urllib.parse.quote(
         urllib.parse.urlencode({"n": nonce}))
 
@@ -97,12 +155,12 @@ def login_url(nonce):
 # ---------------------------------------------------------------------------
 def connect(email, request_token):
     """Exchange a request token for this user's access token. (ok, message)."""
-    ok, why = app_ready()
+    ok, why = app_ready(email)
     if not ok:
         return False, why
+    key, secret, _ = app_for(email)
     try:
-        access = kite_auth.exchange(config.KITE_API_KEY, config.KITE_API_SECRET,
-                                    request_token)
+        access = kite_auth.exchange(key, secret, request_token)
     except Exception as exc:
         return False, f"Zerodha refused the login: {exc}"
 
@@ -111,7 +169,7 @@ def connect(email, request_token):
     # tell which one this is.
     who = ""
     try:
-        profile = kite_auth._kite(config.KITE_API_KEY, access).profile() or {}
+        profile = kite_auth._kite(key, access).profile() or {}
         who = profile.get("user_id") or profile.get("user_name") or ""
     except Exception:
         pass
@@ -167,7 +225,7 @@ def status(email, force=False):
         if cached and now - cached[0] < _CHECK_TTL:
             return cached[1], cached[2]
     try:
-        state, detail = kite_auth.token_status(config.KITE_API_KEY, token)
+        state, detail = kite_auth.token_status(api_key_for(email), token)
     except Exception as exc:
         state, detail = "unknown", f"Couldn't check the connection: {exc}"
     with _lock:
@@ -192,7 +250,7 @@ def funds(email, force=False):
         if cached and now - cached[0] < FUNDS_TTL:
             return cached[1]
     try:
-        m = kite_auth._kite(config.KITE_API_KEY, token).margins("equity") or {}
+        m = kite_auth._kite(api_key_for(email), token).margins("equity") or {}
         avail = (m.get("available") or {}).get("live_balance")
         net = m.get("net")
         out = {"asset": "INR", "available": round(float(avail if avail is not None else (net or 0)), 2),
@@ -214,4 +272,7 @@ def summary(email):
         "connected": state == "ok",
         "user_id": user.get("kite_user_id") or "",
         "since": user.get("kite_connected_at") or "",
+        # Whose Kite Connect app this account logs in through - never the key itself, only its last 4.
+        "own_app": bool(user.get("kite_api_key") and user.get("kite_api_secret")),
+        "app_key_tail": (user.get("kite_api_key") or "")[-4:] if user.get("kite_api_secret") else "",
     }

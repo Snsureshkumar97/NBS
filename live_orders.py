@@ -151,7 +151,7 @@ def _kite_factory(email):
         token = user_kite.token_for(email)
         if not token:
             raise RuntimeError("Zerodha is not connected for this account today.")
-        k = KiteConnect(api_key=config.KITE_API_KEY)
+        k = KiteConnect(api_key=user_kite.api_key_for(email))     # the account's OWN app when it has one
         k.set_access_token(token)
         return k
     return make
