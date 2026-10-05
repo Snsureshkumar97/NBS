@@ -184,16 +184,38 @@ fresh_home()
 d = account("exitcheck_blocked")
 write_sidecar(d, ".delta.json", {"X-1": {"state": "open"}})
 r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "vm_precheck.py")],
-                   capture_output=True, text=True, env=dict(os.environ))
+                   capture_output=True, text=True, env=dict(os.environ, VM_PRECHECK_ANYWHERE="1"))   # standing in for the VM
 check("non-zero exit when blocked - run for real as a subprocess, not just check()'s return value",
       r.returncode == 1, r.returncode)
 check("BLOCKED is the actual last line of real stdout", r.stdout.strip().splitlines()[-1] == "BLOCKED - not restarting", r.stdout)
 
 fresh_home()
 r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "vm_precheck.py")],
-                   capture_output=True, text=True, env=dict(os.environ))
+                   capture_output=True, text=True, env=dict(os.environ, VM_PRECHECK_ANYWHERE="1"))   # standing in for the VM
 check("exit 0 and CLEAR TO RESTART printed for real, run as a subprocess, when nothing blocks",
       r.returncode == 0 and r.stdout.strip().splitlines()[-1] == "CLEAR TO RESTART", (r.returncode, r.stdout))
+
+print("13b. ONLY THE VM'S ANSWER COUNTS - RUN ANYWHERE ELSE IT REFUSES (5 Oct 2026: run on the Mac it read the")
+print("     Mac's stale logs and printed CLEAR TO RESTART all day; the VM's open gold ticket was never listed)")
+fresh_home()
+env_off = {k: v for k, v in os.environ.items() if k != "VM_PRECHECK_ANYWHERE"}
+r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "vm_precheck.py")],
+                   capture_output=True, text=True, env=env_off)
+check("off the VM, with nothing open: exit 2 and BLOCKED, never a CLEAR from the wrong machine's logs",
+      r.returncode == 2 and r.stdout.strip().splitlines()[-1] == "BLOCKED - not restarting"
+      and "CLEAR TO RESTART" not in r.stdout, (r.returncode, r.stdout))
+check("...and it prints the command that runs it ON the VM", "gcloud compute ssh nbs-signal-tool" in r.stdout
+      and "vm_precheck.py" in r.stdout, r.stdout)
+import socket as _socket
+_real_host = _socket.gethostname
+try:
+    _socket.gethostname = lambda: "nbs-signal-tool"
+    check("on the VM itself (its hostname): allowed", vp.on_the_vm() is True)
+    _socket.gethostname = lambda: "Sureshs-MacBook-Pro.local"
+    os.environ.pop("VM_PRECHECK_ANYWHERE", None)
+    check("on a Mac: not", vp.on_the_vm() is False)
+finally:
+    _socket.gethostname = _real_host
 
 print("14. real_positions()/open_paper_trades() DIRECTLY: MULTIPLE REAL POSITIONS IN ONE SIDECAR, ALL NAMED")
 fresh_home()

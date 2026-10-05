@@ -159,7 +159,24 @@ def check():
     return ok, lines
 
 
+VM_HOST = "nbs-signal-tool"
+VM_COMMAND = ("gcloud compute ssh nbs-signal-tool --zone=asia-south1-a --project=nbs-signal-tool-4821 --quiet "
+              "--command='cd ~/nbs && .venv/bin/python vm_precheck.py'")
+
+
+def on_the_vm():
+    """This reads the trade logs of the machine it runs on. Run on the Mac it read the Mac's stale copy from
+    before the move to Google Cloud and printed CLEAR TO RESTART all through 5 Oct 2026 - the VM's own open gold
+    ticket was never listed. Only the VM's answer means anything."""
+    import socket
+    return socket.gethostname().split(".")[0] == VM_HOST or os.environ.get("VM_PRECHECK_ANYWHERE") == "1"
+
+
 if __name__ == "__main__":
+    if not on_the_vm():
+        print("NOT ON THE VM - this machine's trade logs are not the server's. Run it there:\n  " + VM_COMMAND)
+        print("BLOCKED - not restarting")
+        sys.exit(2)
     ok, lines = check()
     print("\n".join(lines))
     sys.exit(0 if ok else 1)
