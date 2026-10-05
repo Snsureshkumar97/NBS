@@ -269,20 +269,25 @@ class TicketBook:
         """DAILY_LOSS_LIMIT_R full-risk losses, as a share of capital."""
         return round(float(_cfg("DAILY_LOSS_LIMIT_R", 0)) * self.risk_pct, 2)
 
-    def booked_net_today(self):
-        """Closed P&L for today, from the log, cached for a few seconds."""
+    def booked_net_today(self, index=None):
+        """Closed P&L for today, from the log, cached for a few seconds - the whole book's, or one
+        instrument's own when `index` is given (DAILY_LOSS_LIMIT_PER_INSTRUMENT)."""
         now = time.time()
         c = self._booked_cache
-        if c is not None and now - c[0] <= 3.0:
-            return c[1]
-        try:
-            per, _ = trade_log.booked_today(now_ist().strftime("%Y-%m-%d"),
-                                            path=self.path)
-            val = round(sum(per.values()), 2) if per else 0.0
-        except Exception:
-            val = None
-        self._booked_cache = (now, val)
-        return val
+        if c is None or now - c[0] > 3.0:
+            try:
+                per, _ = trade_log.booked_today(now_ist().strftime("%Y-%m-%d"),
+                                                path=self.path)
+                per = per or {}
+            except Exception:
+                per = None
+            self._booked_cache = c = (now, per)
+        per = c[1]
+        if per is None:
+            return None
+        if index is not None:
+            return round(per.get(index, 0.0), 2)
+        return round(sum(per.values()), 2) if per else 0.0
 
     def _restore_memory(self):
         """Rebuild, from the log, what each index remembers about its last
@@ -496,8 +501,9 @@ class TicketBook:
         keys = config.instruments_in(self.market)
         return keys[0] if keys else None
 
-    def entry_block(self):
-        """Why no new ticket may be issued right now — or None if one may.
+    def entry_block(self, index=None):
+        """Why no new ticket may be issued right now — or None if one may. `index` is the
+        instrument asking: on a DAILY_LOSS_LIMIT_PER_INSTRUMENT market its own losses count.
 
         Deliberately separate from the signal itself: the analysis keeps
         running and the signal keeps being shown and explained. Only the act
@@ -584,11 +590,12 @@ class TicketBook:
         # limit that trips on a dip and un-trips on the bounce is no limit.
         limit = self.loss_limit()
         if limit:
-            booked = self.booked_net_today()
+            own = bool(index) and self.market in _cfg("DAILY_LOSS_LIMIT_PER_INSTRUMENT", ())
+            booked = self.booked_net_today(index if own else None)
             if booked is not None and booked <= -limit:
                 pct = self.loss_limit_pct()
                 return ("loss_limit", "LOSS LIMIT",
-                        f"Today's closed trades are down {abs(booked):,.0f}, past "
+                        f"Today's closed {index + ' ' if own else ''}trades are down {abs(booked):,.0f}, past "
                         f"the daily loss limit of {limit:,.0f} ({pct:g}% of the "
                         f"account). No new tickets today - the "
                         f"signal is still shown. A losing day ends here rather "
@@ -902,7 +909,7 @@ class TicketBook:
         def hold(code, short, why):
             book.wait_reason = (code, short, why)
             return []
-        block = self.entry_block()
+        block = self.entry_block(book.name)
         if block is not None:
             return hold(*block)
         block = self._closed_hold(rec)
@@ -971,7 +978,7 @@ class TicketBook:
         # signal happened to be reading by chance. The user, 2 Oct 2026, on
         # an actual NSE holiday: "the tool should give a message... why the
         # market closed today."
-        block = self.entry_block()
+        block = self.entry_block(book.name)
         if block is not None:
             book.confirm_since = now
             book.confirm_streak = 1
@@ -1307,7 +1314,7 @@ class TicketBook:
         book.trend_waiver_applied = False
         if rec.get("rule") is not None:
             return False                 # an entry rule decides only at a 15-minute close (_consider_rule)
-        if self.entry_block() is not None:
+        if self.entry_block(book.name) is not None:
             return False
         # Re-arm is only ever a second ticket the SAME way, so it answers to
         # the same-direction rules: the cooldown after the last exit and the

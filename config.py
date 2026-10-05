@@ -571,6 +571,12 @@ INTRADAY_VOLUME_PROFILE = {
 RISK_PER_TRADE_PCT = 1.0
 RISK_PCT_CHOICES = (0.5, 1.0, 1.5, 2.0)
 DAILY_LOSS_LIMIT_R = 3
+# Markets whose daily loss limit counts each instrument's OWN closed trades. On the crypto market BTC and
+# gold are separate rules on separate instruments: one BTC stop at 0.25 lot (~$175) was past the whole
+# $120 limit ($2,000 at 2%) and held gold's SELL for the rest of the day (the user, 5 Oct 2026: "remove
+# btc loss and let gold take the trade"). Now BTC's loss stops BTC; gold answers to its own. The Indian
+# indices keep one limit for the day across all three (not listed here).
+DAILY_LOSS_LIMIT_PER_INSTRUMENT = ("crypto",)
 
 # No NEW tickets before this time, whatever the signal says. 09:15-09:20 is
 # the opening auction settling: spreads are wide, the first 15m candle barely
