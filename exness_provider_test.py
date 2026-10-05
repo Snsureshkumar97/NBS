@@ -548,7 +548,12 @@ pol12 = ep._Poller(provider=p12, poll_s=1.0); pol12.keys.add("BTC")
 logged = []
 ep._log = lambda msg, every_s=60.0: logged.append(msg)
 try:
+    pol12.poll_once(now=NOW11)
+    check("a price pass never asks the price API while the candle answers",
+          len([c for c in s12.calls if c[0].endswith("current-price")]) == 0)
     for k in range(3):
+        pol12.refresh_spreads()                     # the spread thread's pass: the price API refuses (429)
+    for k in (1, 2):
         pol12.poll_once(now=NOW11 + k)
 finally:
     ep._log = _real_log
@@ -559,7 +564,7 @@ check("...a forming 15-minute bar was built from those prices", st12.forming_bar
       and round(st12.forming_bar("BTC")["high"], 2) == 86613.15 and round(st12.forming_bar("BTC")["low"], 2) == 86598.17)
 check("...the spread check's 429 did NOT slow the candle prices down", pol12.interval == 1.0, pol12.interval)
 check("...the page is NOT told prices are paused - they are not", pol12.pause_note() is None and p12.prices_paused_for() == 0.0)
-check("...the price API was asked ONCE in those 3 seconds (every 30 s at most), not every pass",
+check("...the spread thread asked the price API ONCE in 3 passes (every 30 s at most)",
       len([c for c in s12.calls if c[0].endswith("current-price")]) == 1, len([c for c in s12.calls if c[0].endswith("current-price")]))
 p12._backoff_until[ep.MARKET_DATA] = time.time() + 40
 check("only when BOTH sources are paused does the page say so", 30 < p12.prices_paused_for() <= 40
@@ -571,11 +576,47 @@ s14 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])),
                ("current-price", lambda u, q: Resp(200, {"symbol": "BTCUSDm", "bid": 86590.0, "ask": 86620.0}))])
 pol14 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=s14), poll_s=1.0); pol14.keys.add("BTC")
 for k in range(3):
-    pol14.poll_once(now=time.time() + k)
+    pol14.refresh_spreads()
 n14 = len([c for c in s14.calls if c[0].endswith("current-price")])
-check("a WORKING price API is still asked only once in 3 passes (every 30 s), not on every pass", n14 == 1, n14)
+check("a WORKING price API is still asked only once in 3 spread passes (every 30 s), not on every pass", n14 == 1, n14)
+pol14.poll_once(now=time.time())
 check("...and its own wider spread ($30) reaches the candle price on the next pass",
       ep.ExnessStreamer(shared=pol14).quote("BTC")["spread"] == 30.0, ep.ExnessStreamer(shared=pol14).quote("BTC"))
+started = []
+class _FakeThread:
+    def __init__(self, target=None, args=(), daemon=None, name=None):
+        started.append((name, args))
+    def start(self):
+        pass
+_real_thread = ep.threading.Thread
+ep.threading.Thread = _FakeThread
+try:
+    pol15 = ep._Poller(provider=object(), poll_s=1.0)
+    pol15.watch("BTC"); pol15.watch("GOLD"); pol15.watch("BTC")
+finally:
+    ep.threading.Thread = _real_thread
+check("a thread PER instrument (a slow gold answer cannot hold Bitcoin's price) + ONE spread thread; watching "
+      "again starts nothing", sorted(n for n, _ in started) == ["exness-poller-BTC", "exness-poller-GOLD", "exness-spreads"]
+      and ("exness-poller-BTC", ("BTC",)) in started, started)
+class _QuoteOnly:
+    n = 0
+    def quote(self, k):
+        _QuoteOnly.n += 1
+        return {"symbol": "X", "bid": 1.0, "ask": 2.0, "mid": 1.5, "spread": 1.0}
+pl17 = ep._Poller(provider=_QuoteOnly(), poll_s=1.0); pl17.keys.add("BTC")
+pl17.refresh_spreads()
+check("a provider whose price IS the price API gets no extra spread asks", _QuoteOnly.n == 0, _QuoteOnly.n)
+seen = []
+pl16 = ep._Poller(provider=object(), poll_s=1.0)
+pl16.poll_once = lambda now=None, keys=None: seen.append(keys)
+try:
+    ep.time.sleep = _sleep
+    pl16._run("GOLD")
+except _Stop:
+    pass
+finally:
+    ep.time.sleep = _real_sleep
+check("...and each thread's pass asks for its own instrument only", seen == [["GOLD"]], seen)
 s13 = Session([("/symbols", lambda u, q: Resp(200, ["BTCUSDm"])), ("/timeframes/1m/candles", lambda u, q: Resp(500, {})),
                ("current-price", lambda u, q: Resp(200, {"symbol": "BTCUSDm", "bid": 84000.0, "ask": 84010.0}))])
 pol13 = ep._Poller(provider=ep.ExnessMetaApiProvider(session=s13), poll_s=1.0); pol13.keys.add("BTC")

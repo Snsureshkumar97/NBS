@@ -414,7 +414,8 @@ def shared():
 
 # ---------------------------------------------------------------- the shared live poller
 class _Poller:
-    """ONE thread for the whole server: both symbols every POLL_S seconds (longer for a while after a 429)."""
+    """ONE poller for the whole server: each symbol on its own thread every POLL_S seconds (longer for a while after
+    a 429), and the price API's spread check on one more."""
 
     def __init__(self, provider=None, poll_s=POLL_S):
         self.provider = provider or shared()
@@ -432,36 +433,49 @@ class _Poller:
 
     def watch(self, index_key):
         with self.lock:
+            if index_key in self.keys:
+                return
             self.keys.add(index_key)
+            # A thread PER instrument: one shared loop was as slow as its slowest request - gold's, or the price
+            # API's spread check (3.5-6.4 s a pass on 5 Oct 2026) - and Bitcoin's price waited for it.
+            threading.Thread(target=self._run, args=(index_key,), daemon=True,
+                             name=f"exness-poller-{index_key}").start()
             if not self.started:
                 self.started = True
-                threading.Thread(target=self._run, daemon=True, name="exness-poller").start()
+                threading.Thread(target=self._run_spreads, daemon=True, name="exness-spreads").start()
 
     def _fetch(self, k, now=None):
-        """One instrument's price: the forming 1-minute candle (live_quote) first, the price API when that fails;
-        the price API also every TRUE_QUOTE_EVERY_S for the broker's own spread. Raises when both fail."""
+        """One instrument's price: the forming 1-minute candle (live_quote) first, the price API when that fails.
+        Raises when both fail."""
         live = getattr(self.provider, "live_quote", None)
         if live is None:
             return self.provider.quote(k)
         try:
-            q = live(k, now)
+            return live(k, now)
         except Exception as exc:
             _log(f"{k} candle price failed: {type(exc).__name__}: {str(exc)[:160]}")
             if isinstance(exc, RateLimited) and exc.fresh:
                 self.slow_down()
-        else:
-            if time.time() - self._true_at.get(k, 0.0) >= TRUE_QUOTE_EVERY_S:
-                self._true_at[k] = time.time()
-                try:
-                    self.provider.quote(k)              # only to refresh the provider's own spread (live_quote reads it)
-                except Exception as exc:
-                    _log(f"{k} spread check failed: {type(exc).__name__}: {str(exc)[:160]}")
-            return q
         self._true_at[k] = time.time()
         return self.provider.quote(k)
 
-    def poll_once(self, now=None):
+    def refresh_spreads(self):
+        """The price API once per TRUE_QUOTE_EVERY_S per instrument, for the broker's own spread (live_quote reads
+        it; a wider one wins). On its own thread (_run_spreads): it answered in 3.5-5 s on 5 Oct 2026, and the
+        prices must not wait for it."""
+        if getattr(self.provider, "live_quote", None) is None:
+            return
         for k in list(self.keys):
+            if time.time() - self._true_at.get(k, 0.0) < TRUE_QUOTE_EVERY_S:
+                continue
+            self._true_at[k] = time.time()
+            try:
+                self.provider.quote(k)
+            except Exception as exc:
+                _log(f"{k} spread check failed: {type(exc).__name__}: {str(exc)[:160]}")
+
+    def poll_once(self, now=None, keys=None):
+        for k in (list(self.keys) if keys is None else keys):
             began = time.time()
             try:
                 q = self._fetch(k, now)
@@ -533,12 +547,20 @@ class _Poller:
                 f"{int(left // 60)}m {int(left % 60):02d}s" if left >= 60 else
                 f"MetaApi (Exness's data service) asked us to slow down - prices resume in about {int(left)}s")
 
-    def _run(self):
+    def _run(self, key=None):
         while True:
             began = time.time()
-            self.poll_once()
+            if key is None:
+                self.poll_once()
+            else:
+                self.poll_once(keys=[key])
             self.maybe_speed_up()
             time.sleep(max(0.2, self.interval - (time.time() - began)))
+
+    def _run_spreads(self):
+        while True:
+            self.refresh_spreads()
+            time.sleep(1.0)
 
 
 _POLLER = None
