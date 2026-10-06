@@ -1,0 +1,16 @@
+======================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot after costs, real expiries. Same exits for all (live, on 5-minute candles).
+======================================================================================================================================================
+ entry            IN-SAMPLE: trades, won, total, per trade, profit factor, worst drop      | HELD-OUT FINAL YEAR
+ first signal      2707   39% ₹  +491,421 ₹ +182/tr PF 1.20 DD ₹  79,044  | 1589   37% ₹   +74,208 ₹  +47/tr PF 1.05 DD ₹ 105,912
+ candle close      2355   38% ₹  +428,806 ₹ +182/tr PF 1.22 DD ₹  88,974  | 1374   37% ₹  +166,108 ₹ +121/tr PF 1.14 DD ₹ 102,520
+ confirmed         2381   37% ₹  +325,520 ₹ +137/tr PF 1.16 DD ₹  97,897  | 1395   36% ₹  +106,780 ₹  +77/tr PF 1.09 DD ₹ 120,242
+
+ VERDICT - kept only if better than 'first signal' (today's live behaviour) in BOTH periods
+   drop  candle close   in-sample    -62,615  held-out    +91,899   worst drop: in-sample    +9,930  held-out    -3,392
+   drop  confirmed      in-sample   -165,901  held-out    +32,572   worst drop: in-sample   +18,853  held-out   +14,329
+
+ 'FIRST SIGNAL' ENTRIES BY WHEN IN THE CANDLE THEY FIRED - and where the 15-minute candle then closed
+   after 5 min     2476 entries | in-sample ₹  +270,751 (₹ +173/tr)  held-out ₹   +58,028 (₹  +64/tr) | index from entry to the candle's close: -1.3 pts in the trade's favour
+   after 10 min     975 entries | in-sample ₹  +127,636 (₹ +208/tr)  held-out ₹   +49,050 (₹ +136/tr) | index from entry to the candle's close: +4.3 pts in the trade's favour
+   at the close     845 entries | in-sample ₹   +93,034 (₹ +177/tr)  held-out ₹   -32,870 (₹ -103/tr) | index from entry to the candle's close: +0.0 pts in the trade's favour
