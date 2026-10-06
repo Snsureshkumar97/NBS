@@ -1,0 +1,18 @@
+
+====================================================================================================================================
+ EXNESS BTCUSD ON REAL TICKS - the new crypto entry; $ per 1 BTC, after spread and swap
+====================================================================================================================================
+ exit                       IN-SAMPLE  n   win%   net after swap   PF    maxDD    HELD-OUT  n   win%   net after swap   PF    maxDD
+ plain 1R (new live)                 2121  50.8%      -34,831   0.94    38,389            1215  50.5%       -3,057   0.99    19,415
+ plain 2R                            1531  34.2%      -41,760   0.92    44,776             855  35.6%       -1,070   1.00    21,724
+ plain 5R (before today)             1148  25.4%      -23,271   0.95    40,475             613  27.4%      +24,925   1.11    19,733
+
+====================================================================================================================================
+ EXNESS XAUUSD ON REAL TICKS - the new crypto entry; $ per gold lot, after spread and swap
+====================================================================================================================================
+ exit                       IN-SAMPLE  n   win%   net after swap   PF    maxDD    HELD-OUT  n   win%   net after swap   PF    maxDD
+ plain 1R (new live)                 1406  50.0%      -30,347   0.94    43,923             667  51.0%      -33,445   0.95    86,500
+ plain 2R                            1015  33.4%      -31,456   0.94    52,666             502  36.9%      +49,984   1.07    55,765
+ plain 5R (before today)              754  24.7%      +10,334   1.03    29,728             369  27.1%      +90,159   1.16    66,307
+
+ For scale - the rules this replaced: BTC RSI-2 87% +25,729 / +25,228 per BTC; gold trend rule +108,722 / +47,774 per lot (in-sample / held-out).
