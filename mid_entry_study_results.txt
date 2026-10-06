@@ -1,0 +1,22 @@
+
+IN-SAMPLE (to 15 Aug 2025): 2005 trades, today's method ₹+437,509; average premium paid ₹8,493 a lot
+   change vs today (₹, 3 indices, per lot)  saving per filled entry ->   0.00%   0.10%   0.25%   0.50%   1.00%   2.00%
+   miss  0% (the fastest runners)                 +0    +17,028    +42,570    +85,141   +170,281   +340,562
+   miss  5% (the fastest runners)           -164,622   -148,440   -124,168    -83,713     -2,805   +159,012
+   miss 10% (the fastest runners)           -267,442   -252,217   -229,380   -191,318   -115,193    +37,057
+   miss 20% (the fastest runners)           -475,342   -461,670   -441,162   -406,982   -338,623   -201,903
+   miss 30% (the fastest runners)           -599,315   -587,444   -569,638   -539,962   -480,609   -361,904
+   (miss 10% at RANDOM, saving 0.50%: +34,114 on average)
+   (miss 20% at RANDOM, saving 0.50%: -19,922 on average)
+   the 10% fastest runners made ₹+267,442 of today's ₹+437,509 (63% of them won, vs 39% overall)
+
+HELD-OUT FINAL YEAR: 1167 trades, today's method ₹+125,227; average premium paid ₹11,468 a lot
+   change vs today (₹, 3 indices, per lot)  saving per filled entry ->   0.00%   0.10%   0.25%   0.50%   1.00%   2.00%
+   miss  0% (the fastest runners)                 +0    +13,383    +33,457    +66,915   +133,829   +267,659
+   miss  5% (the fastest runners)           -100,236    -87,542    -68,500    -36,764    +26,709   +153,653
+   miss 10% (the fastest runners)           -141,624   -129,583   -111,523    -81,422    -21,220    +99,184
+   miss 20% (the fastest runners)           -192,885   -182,026   -165,739   -138,593    -84,301    +24,282
+   miss 30% (the fastest runners)           -267,207   -257,708   -243,459   -219,712   -172,216    -77,225
+   (miss 10% at RANDOM, saving 0.50%: +46,444 on average)
+   (miss 20% at RANDOM, saving 0.50%: +25,512 on average)
+   the 10% fastest runners made ₹+141,624 of today's ₹+125,227 (52% of them won, vs 35% overall)

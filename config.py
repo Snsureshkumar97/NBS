@@ -578,6 +578,13 @@ DAILY_LOSS_LIMIT_R = 3
 # indices keep one limit for the day across all three (not listed here).
 DAILY_LOSS_LIMIT_PER_INSTRUMENT = ("crypto",)
 
+# How a live Zerodha entry is priced (live_orders.py). "ltp_buffer" (unchanged, the default): one limit at the live price
+# + 2%, which fills at the ask. "mid_chase": start at the middle of the best bid and ask, step toward the ask every 5 s,
+# never above that same limit, cancelled at 20 s as before - may save part of the spread, may miss a fast entry. The
+# user, 6 Oct 2026: "yes build the mid price entry". Bid and ask are logged on every entry in both modes
+# (<trades.csv>.live.fills.jsonl), so the two can be compared on real fills.
+ENTRY_PRICE_MODE = "ltp_buffer"
+
 # No NEW tickets before this time, whatever the signal says. 09:15-09:20 is
 # the opening auction settling: spreads are wide, the first 15m candle barely
 # exists, and every indicator is reading a bar with almost nothing in it.

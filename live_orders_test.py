@@ -80,6 +80,17 @@ class FakeKite:
         self.calls.append(("ltp", keys))
         return {k: {"last_price": self.last.get(k.split(":", 1)[1], 130.0)} for k in keys}
 
+    depth = None                          # (best bid, best ask) when a test sets it; no depth by default
+    def quote(self, keys):
+        self.calls.append(("quote", keys))
+        out = {}
+        for k in keys:
+            q = {"last_price": self.last.get(k.split(":", 1)[1], 130.0)}
+            if self.depth:
+                q["depth"] = {"buy": [{"price": self.depth[0]}], "sell": [{"price": self.depth[1]}]}
+            out[k] = q
+        return out
+
     def place_order(self, **kw):
         self.calls.append(("place", kw))
         if self.raise_on_place:
@@ -348,6 +359,92 @@ drain(ex)
 sl = fk.places(order_type="SL")
 check("half filled: the rest cancelled and the stop is for the half that filled",
       ("cancel", bid) in fk.calls and sl and sl[0]["quantity"] == 65, sl)
+
+print("7b. MID-PRICE ENTRY (config.ENTRY_PRICE_MODE = 'mid_chase'; the user, 6 Oct 2026)")
+import config as _cfg_mod
+ex, fk, clk, closed = rig()
+fk.depth = (129.0, 131.0)
+ex.on_ticket_event("opened", ticket())
+drain(ex)
+p = ex.positions[ticket()["trade_id"]]
+buy = fk.places(transaction_type="BUY")[0]
+check("the usual mode is unchanged: one limit at the live price + 2% (132.6)", buy["price"] == 132.6 and p["entry_mode"] == "ltp_buffer", buy["price"])
+check("...and the book at that moment is kept with the position (bid 129 / ask 131)", p["quote_bid"] == 129.0 and p["quote_ask"] == 131.0)
+_cfg_mod.ENTRY_PRICE_MODE = "mid_chase"
+try:
+    ex, fk, clk, closed = rig()
+    fk.depth = (129.0, 131.0)
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    p = ex.positions[ticket()["trade_id"]]
+    buy = fk.places(transaction_type="BUY")[0]
+    bid = [o for o in fk.orders_.values() if o["transaction_type"] == "BUY"][0]["order_id"]
+    check("mid_chase: the first limit is the MID of bid 129 / ask 131 (130.0)", buy["price"] == 130.0 and p["entry_mode"] == "mid_chase", buy["price"])
+    check("...the planned steps go to the ask, never above live price + 2%", p["entry_steps"] == [130.0, 130.35, 130.7, 131.0]
+          and max(p["entry_steps"]) <= p["entry_cap"], p["entry_steps"])
+    check("...the funds check is made for the highest it could pay (the cap)", p["entry_cap"] == 132.6)
+    clk.advance(lo.MID_STEP_S - 1); drain(ex)
+    check("not filled, before the first step: nothing changed", not [c for c in fk.calls if c[0] == "modify"])
+    clk.advance(1); drain(ex)
+    mods = [c for c in fk.calls if c[0] == "modify"]
+    check("not filled after 5 s: raised one step (130.35)", mods == [("modify", bid, 130.35)], mods)
+    clk.advance(lo.MID_STEP_S); drain(ex)
+    clk.advance(lo.MID_STEP_S); drain(ex)
+    mods = [c for c in fk.calls if c[0] == "modify"]
+    check("...then 130.7, then the ask 131.0 - three steps, no more", [m[2] for m in mods] == [130.35, 130.7, 131.0], mods)
+    fk.fill(bid, price=131.0)
+    clk.advance(1); drain(ex)
+    p = ex.positions[ticket()["trade_id"]]
+    check("filled on the last step: protected as any entry (a stop at Zerodha)", p["state"] == "open" and fk.places(order_type="SL"))
+
+    ex, fk, clk, closed = rig()
+    fk.depth = (129.0, 131.0)
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    bid = [o for o in fk.orders_.values() if o["transaction_type"] == "BUY"][0]["order_id"]
+    fk.fill(bid, price=130.0)
+    clk.advance(1); drain(ex)
+    check("filled at the mid straight away: no steps at all, bought at 130.0",
+          ex.positions[ticket()["trade_id"]]["state"] == "open" and not [c for c in fk.calls if c[0] == "modify"])
+
+    ex, fk, clk, closed = rig()
+    fk.depth = (129.0, 131.0)
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    bid = [o for o in fk.orders_.values() if o["transaction_type"] == "BUY"][0]["order_id"]
+    for _ in range(4):
+        clk.advance(lo.MID_STEP_S); drain(ex)
+    p = ex.positions[ticket()["trade_id"]]
+    check("never filled: cancelled at 20 s exactly as before, nothing bought", ("cancel", bid) in fk.calls and p["state"] == "failed")
+
+    ex, fk, clk, closed = rig()
+    fk.depth = None
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    p = ex.positions[ticket()["trade_id"]]
+    check("no bid/ask from Zerodha: the usual limit (132.6), and it says so",
+          fk.places(transaction_type="BUY")[0]["price"] == 132.6 and p["entry_mode"] == "ltp_buffer"
+          and any("No bid/ask" in n["text"] for n in ex.notes), [n["text"] for n in ex.notes][:2])
+
+    ex, fk, clk, closed = rig()
+    fk.depth = (129.0, 131.0)
+    fk.cash = 17_000.0                              # enough for 130 at the mid (16,960), not at the cap 132.6 (17,298)
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    p = ex.positions[ticket()["trade_id"]]
+    check("funds are checked for the most it may pay (the cap), not the mid - it can climb there",
+          p["state"] == "failed" and not fk.places(transaction_type="BUY") and "Not enough funds" in ex.notes[0]["text"]
+          and "130 x 132.6 plus charges" in ex.notes[0]["text"],
+          [n["text"] for n in ex.notes][:1])
+
+    ex, fk, clk, closed = rig()
+    fk.depth = (120.0, 140.0)                       # a wide book: the ask is above the cap
+    ex.on_ticket_event("opened", ticket())
+    drain(ex)
+    p = ex.positions[ticket()["trade_id"]]
+    check("a wide book: no step above the usual cap (132.6), and no repeated price", p["entry_steps"] == [130.0, 132.6], p["entry_steps"])
+finally:
+    _cfg_mod.ENTRY_PRICE_MODE = "ltp_buffer"
 
 print("8. REFUSALS")
 ex, fk, clk, closed = rig()

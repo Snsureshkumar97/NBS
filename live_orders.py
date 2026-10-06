@@ -75,6 +75,12 @@ ENTRY_BUFFER = 0.02
 EXIT_BUFFER = 0.03
 STOP_LIMIT_GAP = 0.05
 FILL_WAIT_S = 20
+# config.ENTRY_PRICE_MODE = "mid_chase": the entry starts at the middle of Zerodha's best bid and ask and is raised a
+# step toward the ask every MID_STEP_S - never above the usual limit (live price + ENTRY_BUFFER), still cancelled at
+# FILL_WAIT_S. The user, 6 Oct 2026: "yes build the mid price entry". Bid and ask are recorded on every entry either
+# way, so a fill can be compared with the mid it could have had.
+MID_CHASE_STEPS = 3
+MID_STEP_S = 5
 REPRICE_S = 5
 MAX_EXIT_ATTEMPTS = 6
 MAX_ENTRIES_PER_DAY = 10
@@ -333,6 +339,19 @@ class Executor:
                 return r
         return None
 
+    def _quote(self, pos):
+        """{bid, ask, ltp} for the contract right now off Zerodha's quote (best of its depth), or None."""
+        try:
+            key = f"{pos['exchange']}:{pos['tradingsymbol']}"
+            q = (self.kite().quote([key]) or {}).get(key) or {}
+            depth = q.get("depth") or {}
+            bid = float(((depth.get("buy") or [{}])[0]).get("price") or 0)
+            ask = float(((depth.get("sell") or [{}])[0]).get("price") or 0)
+            ltp = float(q.get("last_price") or 0)
+            return {"bid": bid or None, "ask": ask or None, "ltp": ltp or None}
+        except Exception:
+            return None
+
     def _ltp(self, pos):
         try:
             key = f"{pos['exchange']}:{pos['tradingsymbol']}"
@@ -440,12 +459,27 @@ class Executor:
                        tick=float(inst.get("tick_size") or 0.05), lot_size=lot_size, qty=lots * lot_size)
             if lots < 1:
                 return self._fail(pos, "No live order: the ticket is for less than one lot.")
-            ltp = self._ltp(pos) or trade.get("entry_ltp")
+            q = self._quote(pos)
+            if q:
+                pos["quote_bid"], pos["quote_ask"], pos["quote_ltp"] = q["bid"], q["ask"], q["ltp"]
+            ltp = (q or {}).get("ltp") or self._ltp(pos) or trade.get("entry_ltp")
             if not ltp:
                 return self._fail(pos, "No live order: no live price for the contract.")
-            limit = _ceil_tick(float(ltp) * (1 + ENTRY_BUFFER), pos["tick"])
+            cap = _ceil_tick(float(ltp) * (1 + ENTRY_BUFFER), pos["tick"])
+            limit, pos["entry_mode"], pos["entry_cap"] = cap, "ltp_buffer", cap
+            if str(getattr(config, "ENTRY_PRICE_MODE", "ltp_buffer")) == "mid_chase":
+                bid, ask = (q or {}).get("bid"), (q or {}).get("ask")
+                if bid and ask and ask >= bid > 0:
+                    mid = (bid + ask) / 2.0
+                    steps = list(dict.fromkeys(min(cap, _ceil_tick(mid + (ask - mid) * k / MID_CHASE_STEPS, pos["tick"]))
+                                               for k in range(MID_CHASE_STEPS + 1)))       # no repeated price
+                    limit = steps[0]
+                    pos.update(entry_mode="mid_chase", entry_steps=steps, entry_step=0)
+                else:
+                    self._note(index, "No bid/ask from Zerodha for a mid-price entry - the usual limit "
+                                      "(live price + 2%).", "warn", pos)
             pos["entry_limit"] = limit
-            need = limit * pos["qty"] + CHARGES_ALLOWANCE
+            need = cap * pos["qty"] + CHARGES_ALLOWANCE
             try:
                 avail = self._available(fresh=True)
             except Exception as exc:
@@ -455,14 +489,17 @@ class Executor:
             if avail is not None and need > avail:
                 pos["funds_short"] = round(need - avail, 2)
                 return self._fail(pos, f"Not enough funds in Kite: this order needs about Rs {need:,.0f} "
-                                       f"({pos['qty']} x {limit} plus charges) and the account is short by "
+                                       f"({pos['qty']} x {cap} plus charges) and the account is short by "
                                        f"Rs {need - avail:,.0f}. No order sent.")
             pos["sending"] = True
             pos["entry_order_id"] = self._place(pos, transaction_type="BUY", quantity=pos["qty"],
                                                 order_type="LIMIT", price=limit)
             pos["state"], pos["entry_at"] = "entering", self.clock()
+            book = (f", bid {pos['quote_bid']} / ask {pos['quote_ask']}" if pos.get("quote_bid") and pos.get("quote_ask")
+                    else "")
+            how = " - mid price, raised toward the ask if not filled" if pos["entry_mode"] == "mid_chase" else ""
             self._note(index, f"{who}ticket: BUY {pos['qty']} {pos['tradingsymbol']} limit {limit} sent "
-                              f"(order {pos['entry_order_id']}).", pos=pos)
+                              f"(order {pos['entry_order_id']}{book}){how}.", pos=pos)
         except Exception as exc:
             if pos.get("sending") and not pos.get("entry_order_id") and _unanswered(exc):
                 # It may have reached Zerodha. Look for it by its tag rather than
@@ -501,7 +538,20 @@ class Executor:
                 return self._protect(pos)
             pos["entry_status"] = status          # Zerodha's own final word - vm_precheck reads it
             return self._fail(pos, f"Entry order {status.lower()} by Zerodha: {h.get('status_message') or 'no reason given'}.")
-        if self.clock() - pos.get("entry_at", 0) >= FILL_WAIT_S:
+        steps, k = pos.get("entry_steps") or [], int(pos.get("entry_step") or 0)
+        waited = self.clock() - pos.get("entry_at", 0)
+        if (pos.get("entry_mode") == "mid_chase" and k < len(steps) - 1 and waited < FILL_WAIT_S
+                and waited >= (k + 1) * MID_STEP_S):
+            try:
+                self.kite().modify_order(variety="regular", order_id=pos["entry_order_id"], price=steps[k + 1])
+                pos["entry_step"], pos["entry_limit"] = k + 1, steps[k + 1]
+                self._note(pos["index"], f"Not filled at {steps[k]} - raised to {steps[k + 1]} "
+                                         f"(step {k + 1} of {len(steps) - 1} toward the ask).", pos=pos)
+            except Exception as exc:
+                pos["entry_step"] = len(steps) - 1           # stop chasing; the cancel at FILL_WAIT_S still applies
+                self._note(pos["index"], f"Could not raise the entry price ({self._why(exc)}).", "warn", pos)
+            return
+        if waited >= FILL_WAIT_S:
             try:
                 self.kite().cancel_order(variety="regular", order_id=pos["entry_order_id"])
             except Exception:
@@ -806,6 +856,10 @@ class Executor:
                    "source": pos.get("source", "rule"), "day": pos.get("day"),
                    "contract": pos.get("tradingsymbol"), "qty": bought,
                    "entry_avg": pos.get("avg_price"), "paper_entry": pos.get("paper_entry"),
+                   # how it was bought, and the book at that moment - mid-price entry's real effect is read off these
+                   "entry_mode": pos.get("entry_mode"), "quote_bid": pos.get("quote_bid"),
+                   "quote_ask": pos.get("quote_ask"), "quote_ltp": pos.get("quote_ltp"),
+                   "entry_limit": pos.get("entry_limit"),
                    "exit_avg": exit_avg, "exit_qty_priced": priced,
                    "sold_outside_qty": int(pos.get("outside_sold") or 0),
                    "gross_pnl": (round((exit_avg - float(pos["avg_price"])) * priced, 2)
