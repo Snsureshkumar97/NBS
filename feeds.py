@@ -1381,12 +1381,22 @@ class Feed:
     def _fresh_premium(self, name, rec):
         """The mark of the contract `rec` suggests, off the socket, if it arrived in the last few seconds - else None.
 
-        For a ticket's freeze (tickets.fresh_price). Crypto only: its chain price is a REST snapshot up to
-        delta_provider.CHAIN_CACHE_S old; the Indian chain is streamed already. Compared on the strike AND the side, and read
-        with an age limit, so a stalled socket or another contract's price is never used.
+        For a ticket's freeze (tickets.fresh_price). Crypto: its chain price is a REST snapshot up to
+        delta_provider.CHAIN_CACHE_S old. Indian: the chain is streamed only for some strikes, so a suggestion that has just
+        moved to a new strike can carry a price seconds old (5 Oct 2026: a Nifty ticket froze 115.5 while that minute traded
+        120.95-128.9 and the real buy filled 123.5) - the suggested contract's own tick off the Kite socket is used, and the
+        ticket waits for it (tickets._price_hold). Compared on the strike AND the side, and read with an age limit, so a
+        stalled socket or another contract's price is never used.
         """
         if self.market == "nse_index":
-            return None
+            st, ent = self.streamer, self.sug_tokens.get(name)
+            if (st is None or not hasattr(st, "price_age") or not ent
+                    or ent[0] != rec.get("suggested_strike") or ent[1] != rec.get("option_type")):
+                return None
+            age = st.price_age(ent[2])
+            if age is None or age > FRESH_MARK_MAX_AGE_S:
+                return None
+            return st.price(ent[2])
         ds, ent = self.dstream, self.sug_tokens.get(name)
         if ds is None or not ent or ent[0] != rec.get("suggested_strike") or ent[1] != rec.get("option_type"):
             return None

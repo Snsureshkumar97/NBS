@@ -1069,6 +1069,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 10. and is frozen from the contract's own live price ----------
+        held = self._price_hold(rec)
+        if held is not None:
+            return hold(*held)
+
         events = []
         if book.trade is not None and book.trade["status"] == "OPEN":
             px = self._price_for(book.trade, rec)
@@ -1121,6 +1126,27 @@ class TicketBook:
                     f"Over three years this rule made about the same money on "
                     f"nearly half the trades, with a smaller worst losing run.")
         return None
+
+    def _price_hold(self, rec):
+        """Held until the suggested option's OWN live price is in - Indian indices, premium-tracked tickets.
+
+        The reading's premium can be the option chain's, and the chain is streamed only for some strikes: a suggestion
+        that has just moved to a new strike carries a price seconds old in a fast market. 5 Oct 2026: a Nifty ticket
+        froze 115.5 while that minute traded 120.95-128.9; the real buy filled 123.5, and the stop and targets sat
+        where they would for a price nobody paid. The feed (feeds._fresh_premium) answers only off the socket, for
+        this strike and side, within a few seconds; a second later it usually has it. A book with no feed behind it
+        (fresh_price None) and every other market are left as they were."""
+        if self.market != "nse_index" or self.fresh_price is None or rec.get("premium_source") != "live":
+            return None
+        try:
+            px = self.fresh_price(rec["index"], rec)
+        except Exception:
+            px = None
+        if px:
+            return None
+        return ("price_wait", "WAITING FOR PRICE",
+                f"The {rec.get('suggested_strike')} {rec.get('option_type')}'s own live price has not arrived yet - "
+                "the ticket is frozen from it, not from an older quote. Usually a second or two.")
 
     def _divergence_hold(self, rec):
         """Held while the entry runs into an RSI divergence against it - a new
@@ -1334,7 +1360,8 @@ class TicketBook:
                 or self._regime_hold(rec) is not None
                 or self._reward_hold(book.name, rec) is not None
                 or self._spread_hold(rec) is not None
-                or self._strike_taken(book, rec) is not None):
+                or self._strike_taken(book, rec) is not None
+                or self._price_hold(rec) is not None):
             return False
         last = self._last_any()
         gap_s = _cfg("MIN_MINUTES_BETWEEN_TICKETS", 0) * 60

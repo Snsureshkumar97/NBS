@@ -81,9 +81,30 @@ rows = list(csv.DictReader(open(LOG)))
 check("the log's OPEN row carries the price the ticket was frozen from", rows and float(rows[0]["entry"]) == 1268.7, rows[0]["entry"] if rows else None)
 pub = b.public("NIFTY")["ticket"]
 check("the page's ticket shows the same entry, stop and first target", pub["entry"] == 1268.7 and pub["stop"] == t["premium_sl"] and pub["targets"][0] == t["premium_targets"][0])
-for name, cb in (("a callback that has nothing", lambda n, r: None), ("a callback that raises", lambda n, r: [][3]), ("a bad tick (+40%)", lambda n, r: OLD * 1.4), ("no callback", None)):
+for name, cb in (("a bad tick (+40%)", lambda n, r: OLD * 1.4), ("no callback (a book with no feed)", None)):
     b, LOG = book_with(cb); t = issue(b)
     check(f"{name}: frozen from the chain's price, exactly as before", t and t["entry_ltp"] == OLD and t["premium_sl"] == 859.76 and t["premium_targets"][0] == 1436.49, t and t["entry_ltp"])
+# 6 Oct 2026: an Indian ticket WAITS for its contract's own live price - the chain's can be seconds old for a strike the
+# stream has not reached (5 Oct: frozen 115.5, that minute traded 120.95-128.9, filled 123.5).
+for name, cb in (("a callback that has nothing", lambda n, r: None), ("a callback that raises", lambda n, r: [][3])):
+    b, LOG = book_with(cb); t = issue(b)
+    wr = b.books["NIFTY"].wait_reason
+    check(f"Indian, {name}: NO ticket from the chain's price - it waits, and says so", t is None and wr and wr[0] == "price_wait"
+          and "own live price" in wr[2], (t and t["entry_ltp"], wr))
+arrives = {"px": None}
+b, LOG = book_with(lambda n, r: arrives["px"])
+issue(b, n=130)
+arrives["px"] = FRESH
+t = issue(b, n=3)
+check("...and the moment the live price arrives, it opens - frozen from THAT price, levels with it", t and t["entry_ltp"] == FRESH
+      and abs((t["entry_ltp"] - t["premium_sl"]) - 351.67) < 0.02, t and t["entry_ltp"])
+tsrc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "tickets.py")).read()
+rearm = tsrc[tsrc.index("    def _rearm(self, book, rec):"):tsrc.index("    def _open(self, book, rec):")]
+check("a re-arm (a second ticket the same way) waits for the live price too", "or self._price_hold(rec) is not None):" in rearm)
+cb_book = tickets.TicketBook(owner=None, market="crypto")
+cb_book.fresh_price = lambda n, r: None            # a feed behind it, with no live mark this second
+check("crypto keeps its fallback: no live mark -> no wait (the chain's snapshot, re-anchored when a mark comes)",
+      cb_book._price_hold(sig()) is None)
 b, LOG = book_with(lambda n, r: FRESH); t = issue(b, sig(premium_source="approx_move", live_ltp=None, premium_targets=[10., 20., 30.], premium_stop_loss=5.0))
 check("a ticket priced off the index (no live premium) is not rebased", t and t["entry_ltp"] is None and t["use_premium"] is False)
 
@@ -108,9 +129,34 @@ f.dstream = None
 check("no socket: nothing", f._fresh_premium("BTC", rec) is None)
 f.dstream = Stream(1268.7, 1.0); f.sug_tokens.pop("BTC")
 check("no contract streaming for that index: nothing", f._fresh_premium("BTC", rec) is None)
+print("4. THE INDIAN MARKET: THE SUGGESTED CONTRACT'S OWN TICK OFF THE KITE SOCKET, ARRIVED JUST NOW")
 fn = feeds.Feed("t:fresh:nse", "fresh2@example.invalid", "nse_index")
-fn.sug_tokens["NIFTY"] = (24200, "PE", 12345); fn.dstream = Stream(1268.7, 1.0)
-check("the Indian market is left as it was (its chain is streamed already)", fn._fresh_premium("NIFTY", {"suggested_strike": 24200, "option_type": "PE"}) is None)
+class KiteFake:
+    def __init__(self, px, age): self.px, self.age = px, age
+    def price(self, tok): return self.px
+    def price_age(self, tok): return self.age
+fn.sug_tokens["NIFTY"] = (24200, "PE", 12345)
+nrec = {"suggested_strike": 24200, "option_type": "PE"}
+fn.streamer = KiteFake(123.5, 0.4)
+check("a tick of THIS contract under a second old: its price", fn._fresh_premium("NIFTY", nrec) == 123.5)
+check("another strike or side: nothing", fn._fresh_premium("NIFTY", {"suggested_strike": 24250, "option_type": "PE"}) is None
+      and fn._fresh_premium("NIFTY", {"suggested_strike": 24200, "option_type": "CE"}) is None)
+fn.streamer = KiteFake(123.5, feeds.FRESH_MARK_MAX_AGE_S + 1)
+check("its last tick older than a few seconds: nothing (the stream moved on)", fn._fresh_premium("NIFTY", nrec) is None)
+fn.streamer = KiteFake(123.5, None)
+check("no tick of it yet: nothing", fn._fresh_premium("NIFTY", nrec) is None)
+fn.streamer = types.SimpleNamespace(price=lambda tok: 123.5)
+check("a streamer without per-token ages: nothing (never an unaged price)", fn._fresh_premium("NIFTY", nrec) is None)
+fn.streamer = None
+check("no socket: nothing", fn._fresh_premium("NIFTY", nrec) is None)
+import data_providers as dp
+ks = dp.KiteStreamer.__new__(dp.KiteStreamer)
+import threading as _th
+ks._lock, ks._prices, ks._price_at = _th.Lock(), {7: 99.0}, {7: __import__("time").time() - 2.0}
+check("KiteStreamer.price_age: seconds since that token's own tick", 1.9 < ks.price_age(7) < 3.0 and ks.price_age(8) is None
+      and ks.price_age(None) is None, ks.price_age(7))
+src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_providers.py")).read()
+check("...stamped on every tick, beside the price", "self._prices[tok] = lp\n                    self._price_at[tok] = now" in src)
 
 print("FRESH ENTRY TEST PASSED" if not fails else f"FRESH ENTRY TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

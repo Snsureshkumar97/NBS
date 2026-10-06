@@ -1452,6 +1452,7 @@ class KiteStreamer:
         self.access_token = access_token
         self.bar_seconds = bar_seconds   # 900 = the 15-minute candle
         self._prices = {}          # instrument_token -> last traded price
+        self._price_at = {}        # instrument_token -> time.time() of ITS last tick (price_age)
         self._bars = {}            # instrument_token -> in-progress candle
         self._change = {}          # instrument_token -> % change vs prev close
         self._lock = threading.Lock()
@@ -1506,6 +1507,7 @@ class KiteStreamer:
                     tok = int(tok)
                     lp = float(lp)
                     self._prices[tok] = lp
+                    self._price_at[tok] = now
                     # Quote/full mode carries the day's % change directly.
                     # If only LTP mode is active, derive it from the previous
                     # close in the tick's OHLC block when that's present.
@@ -1706,6 +1708,15 @@ class KiteStreamer:
             return None
         with self._lock:
             return self._prices.get(int(token))
+
+    def price_age(self, token):
+        """Seconds since this token's OWN last tick, or None before its first - a token's last price can sit in
+        _prices long after its stream moved on (feeds._fresh_premium)."""
+        if token is None:
+            return None
+        with self._lock:
+            at = self._price_at.get(int(token))
+        return None if at is None else time.time() - at
 
     def change_pct(self, token):
         """Day's % change for a token, or None if not seen yet."""
