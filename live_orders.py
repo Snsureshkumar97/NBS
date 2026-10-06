@@ -499,6 +499,7 @@ class Executor:
         if status in ("REJECTED", "CANCELLED"):
             if pos["filled_qty"] > 0:
                 return self._protect(pos)
+            pos["entry_status"] = status          # Zerodha's own final word - vm_precheck reads it
             return self._fail(pos, f"Entry order {status.lower()} by Zerodha: {h.get('status_message') or 'no reason given'}.")
         if self.clock() - pos.get("entry_at", 0) >= FILL_WAIT_S:
             try:
@@ -507,6 +508,9 @@ class Executor:
                 pass
             h = self._history(pos["entry_order_id"])
             pos["filled_qty"] = int(h.get("filled_quantity") or 0)
+            # The order's status AFTER the cancel: CANCELLED is confirmed; anything else means the cancel may not have
+            # landed and the order could still fill - vm_precheck keeps blocking a restart on it (6 Oct 2026).
+            pos["entry_status"] = h.get("status")
             if h.get("average_price"):
                 pos["avg_price"] = float(h["average_price"])
             if pos["filled_qty"] > 0:

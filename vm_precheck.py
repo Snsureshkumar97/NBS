@@ -55,6 +55,23 @@ SAFE_STATE = "closed"
 SIDECAR_SUFFIXES = (".live.json", ".delta.json", ".exness_live.json")   # Kite/NSE, Delta, Exness (3 Oct 2026)
 # An Exness order that never went through is recorded "failed" - there is no position behind it.
 SAFE_STATES = {".exness_live.json": {"closed", "failed"}}
+# A Zerodha entry that "failed" with nothing filled: safe only when no order reached Zerodha, or Zerodha itself said the
+# order is CANCELLED / REJECTED (live_orders records it as entry_status). A failed entry whose cancel was never
+# confirmed may still fill, so it keeps blocking (6 Oct 2026: an unfilled 09:57 entry blocked the 15:40 deploy).
+KITE_DEAD = ("CANCELLED", "REJECTED")
+
+
+def _kite_failed_safe(pos):
+    """live_orders writes entry_order_id and filled_qty into every position it creates; a record without them is not
+    one this can read, and blocks like any unknown state."""
+    if pos.get("state") != "failed" or "filled_qty" not in pos or "entry_order_id" not in pos:
+        return False
+    try:
+        if int(pos["filled_qty"] or 0) != 0:
+            return False
+    except (TypeError, ValueError):
+        return False
+    return pos["entry_order_id"] is None or pos.get("entry_status") in KITE_DEAD
 
 
 def now_ist():
@@ -74,7 +91,7 @@ def account_dirs():
     return sorted(d for d in glob.glob(os.path.join(base, "*")) if os.path.isdir(d))
 
 
-def real_positions(account_dir):
+def real_positions(account_dir, acks=()):
     """Every REAL position this account's broker-facing state files know about
     that is not confirmed closed - a list of (sidecar filename, trade_id, state).
     Reads <trades.csv>.live.json and <trades.csv>.delta.json, whichever exist."""
@@ -95,8 +112,11 @@ def real_positions(account_dir):
         safe = SAFE_STATES.get(suffix, {SAFE_STATE})
         for trade_id, pos in positions.items():
             state = (pos or {}).get("state") if isinstance(pos, dict) else None
-            if state not in safe:
-                out.append((fname, trade_id, state))
+            if state in safe or trade_id in acks:
+                continue
+            if suffix == ".live.json" and isinstance(pos, dict) and _kite_failed_safe(pos):
+                continue
+            out.append((fname, trade_id, state))
     return out
 
 
@@ -132,7 +152,7 @@ def open_paper_trades(account_dir, blocked_ids):
     return out
 
 
-def check():
+def check(acks=()):
     """(ok, lines) for the whole server - ok is False the instant any account has
     a real, non-closed position; lines is every line this prints, in the same
     order, for a caller that wants the text without re-running the scan. The very
@@ -143,7 +163,7 @@ def check():
     ok = True
     for d in account_dirs():
         short = os.path.basename(d)[:6]
-        reals = real_positions(d)
+        reals = real_positions(d, acks)
         by_file = {}
         for fname, tid, state in reals:
             by_file.setdefault(fname, []).append(tid)
@@ -155,6 +175,8 @@ def check():
             when = "today" if date == today else (date or "an unknown day")
             lines.append(f"open {when}: {short} trades.csv {index} {strike} {option_type} "
                         f"at {time_ist} -> {market} paper (does not block)")
+    for a in acks:
+        lines.append(f"ACKNOWLEDGED by the operator (checked at the broker, not by this script): {a}")
     lines.append("CLEAR TO RESTART" if ok else "BLOCKED - not restarting")
     return ok, lines
 
@@ -177,6 +199,7 @@ if __name__ == "__main__":
         print("NOT ON THE VM - this machine's trade logs are not the server's. Run it there:\n  " + VM_COMMAND)
         print("BLOCKED - not restarting")
         sys.exit(2)
-    ok, lines = check()
+    acks = tuple(sys.argv[sys.argv.index("--ack") + 1:]) if "--ack" in sys.argv else ()
+    ok, lines = check(acks)
     print("\n".join(lines))
     sys.exit(0 if ok else 1)

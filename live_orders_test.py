@@ -336,6 +336,7 @@ p = ex.positions[ticket()["trade_id"]]
 check("nothing filled in FILL_WAIT_S: cancelled, failed, no stop", ("cancel", bid) in fk.calls
       and p["state"] == "failed" and not fk.places(order_type="SL"))
 check("...and said so", "not filled" in ex.notes[0]["text"])
+check("...recording Zerodha's own status after the cancel (CANCELLED) for the restart check", p.get("entry_status") == "CANCELLED", p.get("entry_status"))
 
 ex, fk, clk, closed = rig()
 ex.on_ticket_event("opened", ticket())
@@ -367,6 +368,7 @@ fk.reject(bid, "Insufficient funds")
 drain(ex)
 check("rejected by Zerodha after sending: failed with its reason",
       ex.positions[ticket()["trade_id"]]["state"] == "failed" and "Insufficient funds" in ex.notes[0]["text"])
+check("...and Zerodha's status (REJECTED) kept on the position", ex.positions[ticket()["trade_id"]].get("entry_status") == "REJECTED")
 
 ex, fk, clk, closed = rig()
 ex.on_ticket_event("opened", ticket())

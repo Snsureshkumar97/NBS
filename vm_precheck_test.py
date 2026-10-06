@@ -239,6 +239,31 @@ write_sidecar(d, ".exness_live.json", {"BTC-9": {"state": "open", "index": "BTC"
 ok, lines = vp.check()
 check("an open Exness position blocks, named by its file and trade id", ok is False
       and any("trades.csv.exness_live.json" in l and "BTC-9" in l for l in lines), lines)
+print("15. A ZERODHA ENTRY THAT FAILED WITH NOTHING BOUGHT (6 Oct 2026: an unfilled 09:57 entry blocked the 15:40 deploy)")
+base = {"state": "failed", "filled_qty": 0, "entry_order_id": "261006190336409"}
+for extra, blocks, why in (({"entry_status": "CANCELLED"}, False, "Zerodha confirmed it CANCELLED: does not block"),
+                           ({"entry_status": "REJECTED"}, False, "Zerodha REJECTED it: does not block"),
+                           ({"entry_order_id": None}, False, "no order ever reached Zerodha (refused before sending): does not block"),
+                           ({}, True, "an order whose final status was never recorded (before 6 Oct): still BLOCKS"),
+                           ({"entry_status": "OPEN"}, True, "the cancel was not confirmed (still OPEN - it could fill): BLOCKS"),
+                           ({"entry_status": "CANCELLED", "filled_qty": 20}, True, "anything filled: BLOCKS")):
+    fresh_home()
+    write_sidecar(account("k"), ".live.json", {"S-1": dict(base, **extra)})
+    check(why, vp.check()[0] is (not blocks))
+fresh_home()
+write_sidecar(account("k"), ".live.json", {"S-1": {"state": "failed", "filled_qty": 0}})
+check("a 'failed' record missing its order field is not one this can read: BLOCKS", vp.check()[0] is False)
+fresh_home()
+write_sidecar(account("k"), ".live.json", {"S-1": dict(base)})
+ok, lines = vp.check(acks=("S-1",))
+check("--ack S-1 (checked at the broker by the operator): clears exactly that one, and says so in the output",
+      ok is True and any("ACKNOWLEDGED" in l and "S-1" in l for l in lines), lines)
+write_sidecar(account("k2"), ".live.json", {"S-2": {"state": "open", "filled_qty": 40, "entry_order_id": "x"}})
+check("...but never another position", vp.check(acks=("S-1",))[0] is False)
+r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "vm_precheck.py"), "--ack", "S-2", "S-1"],
+                   capture_output=True, text=True, env=dict(os.environ, VM_PRECHECK_ANYWHERE="1"))
+check("--ack on the command line, several ids", r.returncode == 0 and r.stdout.strip().splitlines()[-1] == "CLEAR TO RESTART", r.stdout)
+
 for state in ("attention", "some-new-state"):
     fresh_home()
     write_sidecar(account("x"), ".exness_live.json", {"G-1": {"state": state}})
