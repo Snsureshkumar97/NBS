@@ -416,27 +416,40 @@ _ANALYSIS_CACHE = {}
 _ANALYSIS_LOCK = threading.Lock()
 
 
-def _shared_analysis(name, df):
-    """(compute_technical_signal, compute_market_trend) for these candles - computed once for identical candles.
-    The key is the instrument, the length, the first and last candle times, the live bar, and the last 60 closes and
-    volumes, so a feed one candle behind, or with a refreshed earlier candle, computes its own."""
-    tail = df.iloc[-60:]
+def _clock():
+    return time.time()
+
+
+def _shared_analysis(name, df, owner=None):
+    """(compute_technical_signal, compute_market_trend) for these candles, shared between feeds.
+
+    Shared when the COMPLETED candles are the same (the instrument, the length, the first and last candle times, the
+    60 completed closes and volumes before the live one) AND either the live candle is identical or the answer was
+    worked out in this same second. The second rule is the user's choice, 6 Oct 2026 ("yes go ahead with the same
+    second sharing"): the two Indian feeds (one per account) build their live candle from their own Zerodha ticks, so
+    it never matched exactly and each computed the same three indices every second (38% of the server's time); the
+    crypto feeds' shared live bar moved between their reads. A feed may now get an analysis worked out up to a second
+    earlier on another feed's live candle - a few ticks apart. A feed one candle behind, a refreshed earlier candle,
+    or the next second computes its own - and so does the SAME feed (`owner`) asking again with a moved live candle:
+    it is sharing between feeds, never a feed reusing its own older answer."""
+    hist_tail = df.iloc[-61:-1]
     last = df.iloc[-1]
-    key = (name, len(df), df.index[0], df.index[-1],
-           float(last["Open"]), float(last["High"]), float(last["Low"]), float(last["Close"]),
-           float(last.get("Volume", 0.0) or 0.0),
-           float(tail["Close"].sum()), float(tail["Volume"].sum()) if "Volume" in tail else 0.0)
+    hist = (name, len(df), df.index[0], df.index[-1],
+            float(hist_tail["Close"].sum()), float(hist_tail["Volume"].sum()) if "Volume" in hist_tail else 0.0)
+    live = (float(last["Open"]), float(last["High"]), float(last["Low"]), float(last["Close"]),
+            float(last.get("Volume", 0.0) or 0.0))
+    sec = int(_clock())
     with _ANALYSIS_LOCK:
         hit = _ANALYSIS_CACHE.get(name)
-    if hit is not None and hit[0] == key:
-        return dict(hit[1]), copy.deepcopy(hit[2])
+    if hit is not None and hit[0] == hist and (hit[1] == live or (hit[2] == sec and hit[5] != owner)):
+        return dict(hit[3]), copy.deepcopy(hit[4])
     tech = signal_engine.compute_technical_signal(df, name)
     try:
         trend = signal_engine.compute_market_trend(df, name)
     except Exception:
         trend = None
     with _ANALYSIS_LOCK:
-        _ANALYSIS_CACHE[name] = (key, tech, trend)
+        _ANALYSIS_CACHE[name] = (hist, live, sec, tech, trend, owner)
     return dict(tech), copy.deepcopy(trend)
 
 def _public(rec, name=None):
@@ -2058,7 +2071,7 @@ class Feed:
             if not isinstance(oi, dict) or "available" not in oi:
                 oi = signal_engine.compute_option_chain_signal(None)
             try:
-                tech, trend = _shared_analysis(name, df)
+                tech, trend = _shared_analysis(name, df, owner=id(self))
                 spot = float(df["Close"].iloc[-1])
                 step = config.INSTRUMENTS[name]["strike_step"]
                 try:
