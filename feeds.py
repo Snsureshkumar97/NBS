@@ -404,6 +404,41 @@ def _room(rec):
     }
 
 
+
+# ---------------------------------------------------------------- the live recompute, shared
+# Every crypto account's feed reads the same shared Exness candles (exness_provider.shared) and the same shared live
+# bar (the one poller), and each recomputed the same BTC / gold indicators every second - three accounts, three times
+# the work. With the Indian feeds in market hours that held the GIL and made every page wait (the user, 6 Oct 2026:
+# "tool is slow"; py-spy: 78% of the server's time in five feeds' _live_analysis, /healthz median 50 ms). Identical
+# candles now get ONE computation, each feed its own copy. An Indian feed's live bar comes from its own ticks, so it
+# rarely matches another's - and then it is computed as before.
+_ANALYSIS_CACHE = {}
+_ANALYSIS_LOCK = threading.Lock()
+
+
+def _shared_analysis(name, df):
+    """(compute_technical_signal, compute_market_trend) for these candles - computed once for identical candles.
+    The key is the instrument, the length, the first and last candle times, the live bar, and the last 60 closes and
+    volumes, so a feed one candle behind, or with a refreshed earlier candle, computes its own."""
+    tail = df.iloc[-60:]
+    last = df.iloc[-1]
+    key = (name, len(df), df.index[0], df.index[-1],
+           float(last["Open"]), float(last["High"]), float(last["Low"]), float(last["Close"]),
+           float(last.get("Volume", 0.0) or 0.0),
+           float(tail["Close"].sum()), float(tail["Volume"].sum()) if "Volume" in tail else 0.0)
+    with _ANALYSIS_LOCK:
+        hit = _ANALYSIS_CACHE.get(name)
+    if hit is not None and hit[0] == key:
+        return dict(hit[1]), copy.deepcopy(hit[2])
+    tech = signal_engine.compute_technical_signal(df, name)
+    try:
+        trend = signal_engine.compute_market_trend(df, name)
+    except Exception:
+        trend = None
+    with _ANALYSIS_LOCK:
+        _ANALYSIS_CACHE[name] = (key, tech, trend)
+    return dict(tech), copy.deepcopy(trend)
+
 def _public(rec, name=None):
     """_public_base(), and on a CFD (Exness - no options) every option field emptied:
     no strike, premium, expiry or option spread - the page shows the price levels a
@@ -2013,7 +2048,7 @@ class Feed:
             if not isinstance(oi, dict) or "available" not in oi:
                 oi = signal_engine.compute_option_chain_signal(None)
             try:
-                tech = signal_engine.compute_technical_signal(df, name)
+                tech, trend = _shared_analysis(name, df)
                 spot = float(df["Close"].iloc[-1])
                 step = config.INSTRUMENTS[name]["strike_step"]
                 try:
@@ -2027,10 +2062,7 @@ class Feed:
                 rec = signal_engine.build_recommendation(name, tech, oi, step,
                                                           reach=reach,
                                                           avoid_strikes=self._avoid_strikes(name))
-                try:
-                    rec["trend"] = signal_engine.compute_market_trend(df, name)
-                except Exception:
-                    rec["trend"] = None
+                rec["trend"] = trend
                 rec["candles"] = df
                 rec["opening_range"] = signal_engine.opening_range(df)
             except Exception as exc:
