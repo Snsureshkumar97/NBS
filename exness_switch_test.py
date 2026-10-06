@@ -268,8 +268,8 @@ base = se.build_recommendation("BTC", tech(84000.0), OI, 400, reach=REACH)
 config.CFD_EXIT_PLAN = _shipped
 check("without a plan: the market-reach ladder (0.4/0.7/1.0 of 1,500)", base["target_basis"] == "market_reach"
       and base["index_targets"] == [84600.0, 85050.0, 85500.0] and base["gate_targets"] is None, base["index_targets"])
-check("SHIPPED: plain 5R for both BTC and GOLD (cfd_tick_study.py, 3 Oct 2026)",
-      config.CFD_EXIT_PLAN == {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}, config.CFD_EXIT_PLAN)
+check("SHIPPED: one target at 1:1 for both BTC and GOLD (the user, 6 Oct 2026; 5R from 3 Oct before it)",
+      config.CFD_EXIT_PLAN == {"BTC": {"plain_r": 1.0}, "GOLD": {"plain_r": 1.0}}, config.CFD_EXIT_PLAN)
 was_plan = dict(config.CFD_EXIT_PLAN)
 config.CFD_EXIT_PLAN = {}
 base = se.build_recommendation("BTC", tech(84000.0), OI, 400, reach=REACH)

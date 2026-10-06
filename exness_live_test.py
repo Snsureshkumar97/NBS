@@ -15,6 +15,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import accounts
 import config
+# The BTC / gold entry rules were removed from the live config on 6 Oct 2026 (CFD_RULES = {}, the engine decides);
+# the rule machinery stays for a rollback, so this test loads the retired rules to keep testing it.
+config.CFD_RULES = dict(config.CFD_RULES_RETIRED)
 import exness_orders as eo
 import real_entry
 import user_exness as ux

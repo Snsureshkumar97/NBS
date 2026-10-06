@@ -92,6 +92,9 @@ check("a backup of the file as it was", len(baks) == 1 and open(baks[0], "rb").r
 check("the file keeps its private 0600 mode", oct(os.stat(path).st_mode & 0o777) == "0o600", oct(os.stat(path).st_mode & 0o777))
 check("run again: nothing left to correct", fx.plan_file(path) == [])
 import config
+# The BTC / gold entry rules were removed from the live config on 6 Oct 2026 (CFD_RULES = {}, the engine decides);
+# the rule machinery stays for a rollback, so this test loads the retired rules to keep testing it.
+config.CFD_RULES = dict(config.CFD_RULES_RETIRED)
 was_rules = config.CFD_RULES
 config.CFD_RULES = dict(was_rules, BTC=dict(was_rules["BTC"], target_r=2.0))
 check("...even after the rule's settings change (they are never read: the rows keep their own ratio)",

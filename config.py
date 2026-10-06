@@ -738,7 +738,9 @@ CFD_STALE_QUOTE_S = 600
 # Closer targets win more often (T1 0.3R / T2 0.6R: 76%) and LOSE more: the small wins do not pay
 # for the losses and the spread. The candle backtests said otherwise only because they let T1 and
 # the T2 exit both happen inside one 15-minute bar (cfd_tick_check.py).
-CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
+# 1:1 since 6 Oct 2026 (the user: "room to run with risk reward back to 1:1" -> "One target at 1:1"): one target at the
+# stop's own distance. Was 5x since 3 Oct (cfd_tick_study.py).
+CFD_EXIT_PLAN = {"BTC": {"plain_r": 1.0}, "GOLD": {"plain_r": 1.0}}
 
 # The ENTRY RULE per Exness instrument (cfd_rules.py; cfd_vote_search.py, 4 Oct 2026 - the user chose
 # the "accuracy-first" rule for both). When set, it replaces the engine's own call AND exit for that
@@ -780,7 +782,15 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 5.0}, "GOLD": {"plain_r": 5.0}}
 # 994 trades 87% +25,363; held-out 741 trades 87% +25,473; coin flips as good 1.0% (that check's bar 1.7%).
 # Still better in both when every trade is charged the demo account's own $10 spread (the archive has $7 since
 # mid-2026): +25,729 / +25,228 vs +24,096 / +24,546. At $10, it skips while ATR is under ~$83.
-CFD_RULES = {
+#
+# REMOVED 6 Oct 2026 - the user: "for the crypto market votes i want to remove them and add EMA 20/50 vwap macd and adx
+# gate above 25 only these and room to run with risk reward back to 1:1" (chose "switch now", backtest after). BTC and
+# gold go back to the engine: the Trend vote (price and EMA 20 against EMA 50), MACD and VWAP, all three agreeing
+# (VOTE_OVERRIDES["crypto"] drops RSI), ADX 25 or more, the room-to-run check with reward:risk at least 1:1
+# (MIN_REWARD_RISK_T3["crypto"]), out at one target at 1:1 (CFD_EXIT_PLAN). The rules are kept below, unused, for a
+# rollback: CFD_RULES = CFD_RULES_RETIRED.
+CFD_RULES = {}
+CFD_RULES_RETIRED = {
     "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],
             "stop_atr": 3.0, "target_r": 0.2, "max_spread_share": 0.2,
             "forward_test": {"since": "2026-10-04", "trades_a_month": 50, "win": "87%", "per_trade": 30,
@@ -1680,7 +1690,9 @@ DI_VOTE_MODE = "off"
 #   "drop"        votes to remove: "Trend", "MACD", "RSI", "VWAP"
 #   "min_agree", "max_dissent", "adx"   override config.strictness() for this
 #                 market only
-VOTE_OVERRIDES = {"nse_index": {}, "crypto": {}}
+# crypto since 6 Oct 2026 (the user, see CFD_RULES): Trend (EMA 20/50), MACD, VWAP - RSI dropped - all three must
+# agree, and ADX 25 or more.
+VOTE_OVERRIDES = {"nse_index": {}, "crypto": {"drop": ["RSI"], "min_agree": 3, "max_dissent": 0, "adx": 25}}
 
 # The BTC option SELLER (btc_seller.py) - PAPER ONLY: it records what it would do
 # and cannot place an order. The user, 2 Oct 2026: "yes build it in paper mode",

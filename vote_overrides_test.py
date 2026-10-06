@@ -43,6 +43,9 @@ def rec(key, t):
 
 
 was = {k: dict(v) for k, v in config.VOTE_OVERRIDES.items()}
+# The mechanism is tested from an empty crypto setting; the SHIPPED one (6 Oct 2026: Trend/MACD/VWAP, ADX 25) is
+# checked at the end, once `was` is restored.
+config.VOTE_OVERRIDES["crypto"] = {}
 
 print("1. THE LOOKUP - EMPTY FOR EVERY MARKET TODAY, AND PER MARKET WHEN SET")
 check("BTC (crypto) has no override today", config.vote_overrides("BTC") == {})
@@ -142,7 +145,9 @@ check("a DOWN candle on 3x volume votes -1", se.compute_technical_signal(df4, "B
 
 config.VOTE_OVERRIDES.clear()
 config.VOTE_OVERRIDES.update(was)
-check("the shipped setting is back: every market empty", all(v == {} for v in config.VOTE_OVERRIDES.values()))
+check("the shipped setting is back: the Indian market empty; crypto votes Trend (EMA 20/50), MACD and VWAP, all three, ADX 25",
+      config.VOTE_OVERRIDES["nse_index"] == {}
+      and config.VOTE_OVERRIDES["crypto"] == {"drop": ["RSI"], "min_agree": 3, "max_dissent": 0, "adx": 25})
 
 print()
 if fails:
