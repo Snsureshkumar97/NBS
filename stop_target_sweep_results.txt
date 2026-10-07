@@ -1,0 +1,59 @@
+Replaying the live entries under 5 stop caps x 3 exit targets...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, real expiries, after costs. Live entry checks, live exit (T1 -> stop to T1, Supertrend trail, 2-hour breakeven priced as it fills), one position per index, cooldown waiver.
+ columns: trades, won, total, profit factor, worst drop, worst single DAY.   TODAY = stop cap 2.0 ATR, out at T2
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ stop cap 1.0 ATR, out at T1                     2634   39% ₹   +23,085 PF 1.01 DD ₹ 102,506 day ₹ -18,312  | 1495   35% ₹   -87,975 PF 0.93 DD ₹ 178,162 day ₹ -26,589
+ stop cap 1.0 ATR, out at T2                     2419   39% ₹  +385,273 PF 1.20 DD ₹  76,787 day ₹ -18,312  | 1396   36% ₹  +106,091 PF 1.09 DD ₹  95,435 day ₹ -22,523
+ stop cap 1.0 ATR, out at T3                     2370   39% ₹  +455,888 PF 1.25 DD ₹  73,310 day ₹ -18,312  | 1370   36% ₹  +127,224 PF 1.11 DD ₹  80,304 day ₹ -26,093
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ stop cap 1.5 ATR, out at T1                     2378   40% ₹   +58,757 PF 1.03 DD ₹ 113,752 day ₹ -17,174  | 1352   36% ₹   -58,947 PF 0.95 DD ₹ 138,440 day ₹ -18,676
+ stop cap 1.5 ATR, out at T2                     2182   40% ₹  +341,090 PF 1.18 DD ₹  71,038 day ₹ -17,174  | 1252   37% ₹  +139,978 PF 1.13 DD ₹  82,696 day ₹ -18,676
+ stop cap 1.5 ATR, out at T3                     2142   40% ₹  +405,031 PF 1.22 DD ₹  65,656 day ₹ -17,174  | 1234   37% ₹  +169,811 PF 1.16 DD ₹  72,206 day ₹ -18,676
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ stop cap 2.0 ATR, out at T1                     2174   40% ₹  +179,092 PF 1.10 DD ₹ 111,447 day ₹ -16,860  | 1252   35% ₹   -54,384 PF 0.95 DD ₹ 148,163 day ₹ -20,572
+ stop cap 2.0 ATR, out at T2   <- TODAY          2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+ stop cap 2.0 ATR, out at T3                     1967   39% ₹  +486,865 PF 1.29 DD ₹  80,301 day ₹ -16,860  | 1152   35% ₹  +149,452 PF 1.15 DD ₹  94,845 day ₹ -20,572
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ stop cap 2.5 ATR, out at T1                     2018   38% ₹  +114,252 PF 1.06 DD ₹ 148,646 day ₹ -19,145  | 1191   34% ₹   -54,621 PF 0.95 DD ₹ 159,570 day ₹ -20,190
+ stop cap 2.5 ATR, out at T2                     1872   38% ₹  +371,225 PF 1.22 DD ₹ 110,212 day ₹ -19,145  | 1121   34% ₹  +105,872 PF 1.11 DD ₹ 102,428 day ₹ -19,509
+ stop cap 2.5 ATR, out at T3                     1840   38% ₹  +403,121 PF 1.25 DD ₹  96,959 day ₹ -19,145  | 1110   34% ₹  +127,460 PF 1.13 DD ₹  97,795 day ₹ -19,509
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ stop cap 3.0 ATR, out at T1                     1890   38% ₹  +172,077 PF 1.10 DD ₹ 116,930 day ₹ -19,359  | 1133   33% ₹   -87,412 PF 0.92 DD ₹ 168,066 day ₹ -20,451
+ stop cap 3.0 ATR, out at T2                     1761   38% ₹  +403,927 PF 1.26 DD ₹  78,922 day ₹ -19,359  | 1073   33% ₹   +56,760 PF 1.06 DD ₹  98,593 day ₹ -19,509
+ stop cap 3.0 ATR, out at T3                     1734   38% ₹  +439,975 PF 1.29 DD ₹  71,058 day ₹ -19,359  | 1066   33% ₹   +77,121 PF 1.08 DD ₹  95,640 day ₹ -19,509
+
+ GRID - change in total profit vs today (in-sample / held-out), Rs per lot; * = better in BOTH periods
+                                      out at T1                     out at T2                     out at T3
+   cap 1.0 ATR            -414,424 /  -213,201           -52,236 /   -19,136           +18,379 /    +1,997 *
+   cap 1.5 ATR            -378,752 /  -184,174           -96,419 /   +14,751           -32,478 /   +44,584  
+   cap 2.0 ATR            -258,417 /  -179,611                +0 /        +0 =         +49,356 /   +24,226 *
+   cap 2.5 ATR            -323,257 /  -179,848           -66,284 /   -19,355           -34,388 /    +2,233  
+   cap 3.0 ATR            -265,432 /  -212,639           -33,582 /   -68,466            +2,466 /   -48,106  
+
+ VERDICT - KEEP only if more profit than today in BOTH periods (worst drop / worst day: minus = better)
+   drop  stop cap 1.0 ATR, out at T1                  profit: in-sample  -414,424  held-out  -213,201   worst drop:  +10,732 /  +76,086   worst day:   -1,452 /   -6,017
+   drop  stop cap 1.0 ATR, out at T2                  profit: in-sample   -52,236  held-out   -19,136   worst drop:  -14,987 /   -6,641   worst day:   -1,452 /   -1,951
+   KEEP  stop cap 1.0 ATR, out at T3                  profit: in-sample   +18,379  held-out    +1,997   worst drop:  -18,464 /  -21,772   worst day:   -1,452 /   -5,520
+   drop  stop cap 1.5 ATR, out at T1                  profit: in-sample  -378,752  held-out  -184,174   worst drop:  +21,978 /  +36,364   worst day:     -313 /   +1,896
+   drop  stop cap 1.5 ATR, out at T2                  profit: in-sample   -96,419  held-out   +14,751   worst drop:  -20,736 /  -19,381   worst day:     -313 /   +1,896
+   drop  stop cap 1.5 ATR, out at T3                  profit: in-sample   -32,478  held-out   +44,584   worst drop:  -26,118 /  -29,870   worst day:     -313 /   +1,896
+   drop  stop cap 2.0 ATR, out at T1                  profit: in-sample  -258,417  held-out  -179,611   worst drop:  +19,673 /  +46,087   worst day:       +0 /       +0
+   KEEP  stop cap 2.0 ATR, out at T3                  profit: in-sample   +49,356  held-out   +24,226   worst drop:  -11,473 /   -7,232   worst day:       +0 /       +0
+   drop  stop cap 2.5 ATR, out at T1                  profit: in-sample  -323,257  held-out  -179,848   worst drop:  +56,872 /  +57,493   worst day:   -2,285 /     +382
+   drop  stop cap 2.5 ATR, out at T2                  profit: in-sample   -66,284  held-out   -19,355   worst drop:  +18,438 /     +352   worst day:   -2,285 /   +1,063
+   drop  stop cap 2.5 ATR, out at T3                  profit: in-sample   -34,388  held-out    +2,233   worst drop:   +5,185 /   -4,281   worst day:   -2,285 /   +1,063
+   drop  stop cap 3.0 ATR, out at T1                  profit: in-sample  -265,432  held-out  -212,639   worst drop:  +25,156 /  +65,989   worst day:   -2,499 /     +121
+   drop  stop cap 3.0 ATR, out at T2                  profit: in-sample   -33,582  held-out   -68,466   worst drop:  -12,852 /   -3,484   worst day:   -2,499 /   +1,063
+   drop  stop cap 3.0 ATR, out at T3                  profit: in-sample    +2,466  held-out   -48,106   worst drop:  -20,716 /   -6,437   worst day:   -2,499 /   +1,063
+
+ FOLLOW-UP (stop cap 2.0 ATR, T2 vs T3, same run settings):
+   per index    NIFTY      in-sample +154,936 -> +159,428 (+4,492)   held-out  +30,386 ->  +36,402 (+6,016)
+                BANKNIFTY  in-sample +172,293 -> +183,013 (+10,720)  held-out   -5,376 ->   +6,822 (+12,198)
+                SENSEX     in-sample +110,280 -> +144,424 (+34,144)  held-out +100,217 -> +106,229 (+6,012)
+   month by month: T3 better in 24 of 37 months, worse in 13
+   exits: only 6.0% (T2) / 3.0% (T3) of trades end AT the target; the rest end at the original stop (~19%) or by
+   the T1 step-up, the Supertrend trail, the 2-hour breakeven or the day's close - the exit target mostly caps the
+   best trades, and since the T1 step-up and trail (2 Oct) a capped winner is the main thing T2 costs.
