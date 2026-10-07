@@ -1,0 +1,18 @@
+Running the pasted rules on 3 years of 5-minute candles, all three indices...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, after costs, real expiries.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ THE TOOL'S OWN SYSTEM (as live, 15-minute) -    2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+ the pasted Trend Rider                          1557   35% ₹   +26,121 PF 1.02 DD ₹ 121,213 day ₹ -13,452  |  866   39% ₹   +86,596 PF 1.13 DD ₹  56,043 day ₹ -10,373
+   + stop after the first two trades both stop   1473   36% ₹   +29,044 PF 1.02 DD ₹ 132,268 day ₹ -11,486  |  832   38% ₹   +64,768 PF 1.10 DD ₹  59,528 day ₹ -12,910
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+   NIFTY alone                                    530   36% ₹   +32,691 PF 1.09 DD ₹  35,305 day ₹  -4,109  |  282   39% ₹   +33,300 PF 1.17 DD ₹  16,710 day ₹  -6,524
+   BANKNIFTY alone                                514   36% ₹   -28,776 PF 0.94 DD ₹  81,029 day ₹  -8,946  |  291   37% ₹    +5,117 PF 1.02 DD ₹  36,578 day ₹  -6,142
+   SENSEX alone                                   513   35% ₹   +22,206 PF 1.06 DD ₹  40,204 day ₹  -6,119  |  293   40% ₹   +48,178 PF 1.23 DD ₹  14,215 day ₹  -5,333
+
+ HOW THE PASTED SYSTEM'S TRADES END
+   the pasted Trend Rider                       stop 56.0%  target 27.4%  square-off 16.5%  other  0.1%   avg ₹+47/trade   1.1 trades a day per index
+
+ Costs per trade (2 x 0.25% slippage on the premium plus charges) are the same for both systems; the pasted one also trades a little LESS often (its VWAP filter refuses many crossovers).
