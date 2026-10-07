@@ -172,7 +172,8 @@ const ps = Object.assign({}, s, {
 // ...on a page of its own since 7 Oct 2026 ("and postions can you give a separate tab"); the Dashboard links to it
 kiteDash(ps);
 assert.ok(!els.kdash.innerHTML.includes('class="kd-tab kd-pos"') && els.kdash.innerHTML.includes('data-kact="positions"')
-          && els.kdash.innerHTML.includes("2 open, 2 closed today"), "the Dashboard links to Positions instead of holding it");
+          && els.kdash.innerHTML.includes(">2 open<") && els.kdash.innerHTML.includes("2 closed today"),
+          "the Dashboard links to Positions instead of holding it");
 posPane(ps);
 const sm = els.kpossum.innerHTML;
 assert.ok(sm.includes("<span>Open now</span>") && sm.includes(money(-1414 - 4338)) && sm.includes("2 positions")
@@ -223,8 +224,12 @@ check("Positions is a tab of its own, right after the Dashboard, and redrawn on 
 check("on a phone Positions sits in the bottom bar after Home, and More does not light up for it",
       SRC.index('<nav class="botnav"') < SRC.index('data-tab="positions" type="button"') < SRC.index('<button id="bnmore"')
       and '!["home", "positions", "signal", "chart", "chain"].includes(name)' in SRC)
-check("the trade settings (lots and system per index) sit above the Dashboard's summary",
-      SRC.index('<div class="kdlots" id="kdlots"></div>') < SRC.index('<div class="kdash" id="kdash"></div>'))
+check("the trade settings are a tab of their own, and the bulk buttons sit on Positions, not the Dashboard (7 Oct 2026)",
+      SRC.index('<section class="pane" data-pane="tradeset">') < SRC.index('<div class="kdlots" id="kdlots"></div>')
+      < SRC.index('<section class="pane" data-pane="journal">')
+      and SRC.index('<section class="pane" data-pane="positions">') < SRC.index('<div class="dashbulk" id="dashbulk">')
+      < SRC.index('<section class="pane" data-pane="tradeset">')
+      and 'if(TAB === "tradeset") lotsDash(s);' in SRC and "  kiteDash(s);\n  lotsDash(s);" not in SRC)
 
 print()
 print("LIVE PAPER SPLIT TEST PASSED" if not fails else f"LIVE PAPER SPLIT TEST FAILED: {fails}")

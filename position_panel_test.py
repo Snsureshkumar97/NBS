@@ -102,6 +102,9 @@ h = draw({index: "NIFTY", tracked_on: "premium", entry: 118.4, now: 131.2, pnl: 
 assert.ok(h.includes("<span>P&amp;L · 2 lots</span><b") && h.includes("+₹1,664"), h);
 assert.ok(h.includes("<span>Size</span><b>2 lots · 130 qty</b>") && h.includes("<span>Cost</span><b>₹15,392</b>")
           && h.includes("<span>Today's range</span><b>96.10 – 140.25</b>") && h.includes("<span>Index price</span><b>25,210</b>"), h);
+CCY = "USD";
+h = draw({index: "BTC", tracked_on: "premium", entry: 412.5, now: 431.8, pnl: 19.3, lots: 10, lot_size: 0.001, reward_risk: 1.8}, {spot: 83527}, {});
+assert.ok(h.includes("<span>Size</span><b>10 lots \u00b7 0.01 BTC</b>") && !h.includes("0 qty"), "a Delta contract (0.001 BTC): its size in BTC - " + h);
 console.log("ok:ticket");
 '''
     r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)

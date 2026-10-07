@@ -533,7 +533,7 @@ const D = S({indices: {NIFTY: {bias: "BULLISH", spot: 24000, confidence: "High"}
 w.kiteDash(D);
 h = w.els.kdash.innerHTML;
 assert.ok(h.includes("Live trades &middot; real money") && h.includes("No live order today") && h.includes("Paper trades")
-          && h.includes("−$352") && h.includes(">Booked<") && h.includes("+$98") && !h.includes("Today's result")
+          && h.includes("−$352") && h.includes("booked +$98") && !h.includes("Today's result")
           && h.includes("Funds available") && h.includes("USD 0.56"),
           "the big figures: the real money and the paper trades apart (7 Oct 2026) - paper = booked +98 and the open paper ticket's -450 - and the funds");
 assert.ok(h.includes('>Paper</span>'), "the open trade (no real order) is tagged Paper");

@@ -285,13 +285,14 @@ INDEX = {"type": "string", "description": "Index key in this market, e.g. NIFTY,
                                            "Defaults to the index selected on screen."}
 
 SOURCES = [
-    {"name": "get_signal", "tabs": ("home", "positions", "signal"), "routes": ("/api/state",), "fn": _signal,
+    {"name": "get_signal", "tabs": ("home", "positions", "tradeset", "signal"), "routes": ("/api/state",), "fn": _signal,
      "description": "The Signal tab for one index: the live signal (bias, action, confidence, strike, targets, stop, "
                     "reward:risk, room), every indicator reading and vote behind it (trend, MACD, RSI, VWAP, PCR, ADX "
                     "and its gate), what is holding a ticket back, the open ticket with its frozen levels and "
                     "entry-time reading, the last closed trades on this index, today's session totals, live-order "
                     "status and recent automatic updates. The same block that arrives with every question, for "
-                    "any other index. The Positions tab is these open tickets and closed trades, index by index.",
+                    "any other index. The Positions tab is these open tickets and closed trades, index by index; the Trade "
+                    "settings tab is each index's lots, system and live orders, as in its session.",
      "params": {"index": INDEX}},
     {"name": "get_chart", "tabs": ("chart",), "routes": ("/api/candles/",), "fn": _chart,
      "description": "The Chart tab: an index's candles with its fast and slow EMA and VWAP series, the signal's levels "

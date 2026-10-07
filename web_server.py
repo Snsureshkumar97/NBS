@@ -3331,6 +3331,19 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .tile .l{font-size:12px;color:var(--ink-3);font-weight:600;letter-spacing:.3px}
 .tile .v{font-size:18px;font-weight:650;letter-spacing:-.4px;margin-top:2px}
 .tile .d{font-size:12px;color:var(--ink-3);margin-top:1px}
+/* the Signal card's four figures as one strip, as the open ticket's panel (the user, 7 Oct 2026: "work on the signal tab
+   layout") - no boxes, a hairline between them */
+/* (the Zerodha look, where Day move and Trend strength are not drawn: the four left are Index price, Reward : risk,
+   Ticket gate and Supertrend - children 1, 4, 5, 6) */
+:root[data-look="kite"] #sigcard #tiles{gap:0;grid-template-columns:repeat(4,minmax(0,1fr));padding:12px 0;
+  border-top:1px solid var(--bd-soft);border-bottom:1px solid var(--bd-soft)}
+:root[data-look="kite"] #sigcard #tiles .tile{background:transparent;border:0;border-radius:0;padding:0 16px;min-width:0}
+:root[data-look="kite"] #sigcard #tiles .tile:first-child{padding-left:0}
+:root[data-look="kite"] #sigcard #tiles .tile + .tile{border-left:1px solid var(--bd-soft)}
+@media (max-width:760px){
+  :root[data-look="kite"] #sigcard #tiles{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
+  :root[data-look="kite"] #sigcard #tiles .tile:nth-child(odd){border-left:0;padding-left:0}
+}
 
 /* ---------- levels ---------- */
 /* The index/premium switch above the ladder. Two buttons rather than a
@@ -3530,10 +3543,11 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-msg{font-size:12px;color:var(--ink-3);flex-basis:100%}
 .kdlots .kdl-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;flex-basis:100%}
 /* the trade settings: a row per index (7 Oct 2026) */
-.kdlots{display:block;margin:6px 0 14px;padding:12px 14px;border:1px solid var(--bd-soft);border-radius:10px;background:var(--surface, transparent)}
+.kdlots{display:block;margin:6px 0 10px}
 .kdlots .kdl-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:6px}
 .kdlots .kdl-sub{font-size:12px;color:var(--ink-3)}
-.kdlots .kdl-tab{max-width:620px}
+.kdlots .kdl-tab{max-width:760px}
+.kdlots .kdl-live small{display:inline;margin-left:4px;font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-tab td{vertical-align:middle;padding:6px 10px 6px 0}
 .kdlots .kdl-tab label{display:inline-flex}
 .kdlots .kdl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -3541,7 +3555,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-u{margin-left:8px}
 .kdlots .kdl-msg{display:block;margin-top:6px}
 /* the Positions page */
-.kposcard .kposn{font-size:12px;color:var(--ink-3)}
+.kposcard .kposn{font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0;font-weight:400;margin-left:8px}
+.kposcard .dashbulk{display:flex;flex-wrap:wrap;gap:8px;margin:0}
 .scrwrap.kposwrap{max-height:none}      /* a page of its own: every position shows, no inner scroll */
 .psum.kpossum{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0 6px}
 .psum.kpossum small{display:block;font-size:12px;color:var(--ink-3);margin-top:4px}
@@ -3577,6 +3592,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
    right-hand side, as a bar each side of centre so agreement and dissent are
    the same shape in both directions. */
 .gauges{margin-top:16px;border-top:1px solid var(--bd-soft);padding-top:6px}
+.gauges .gh{margin:8px 0 4px}
 .gauge{display:grid;grid-template-columns:88px 1fr 96px;gap:12px;
   align-items:center;padding:8px 0;border-bottom:1px solid var(--bd-soft)}
 .gauge:last-child{border-bottom:0}
@@ -3938,6 +3954,8 @@ table.scr td.sec{color:var(--ink-3);font-size:12px}
 .gmk .q .p{font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
 .gmk .q .c{font-size:12px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
 .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+/* nine desk cards: three rows of three on a wide screen, never a card left alone on a row (7 Oct 2026) */
+@media (min-width:901px){.dgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .dcard{display:block;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.05),
   rgba(255,255,255,.015)),rgba(9,11,17,.72);border:1px solid var(--bd);border-radius:16px;
   padding:16px 18px;cursor:pointer;font:inherit;color:inherit;text-decoration:none;
@@ -4473,7 +4491,7 @@ button.mgroup:hover{color:var(--ink-2)}
 .pane[data-pane="chart"] #cv{height:clamp(520px,68vh,900px)}
 @media(max-width:640px){.pane[data-pane="chart"] #cv{height:460px}}
 /* 9. no signal: one sentence instead of four empty rows */
-.ladempty{margin:8px 0 2px;padding:12px 14px;border:1px dashed var(--bd);border-radius:var(--r-sm);
+.ladempty{margin:10px 0 2px;padding:0;border:0;border-radius:0;
   color:var(--ink-2);font-size:13px;line-height:1.5}
 /* 11. keyboard: a way past the menu, and a focus ring in either look */
 .skip{position:fixed;left:12px;top:-64px;z-index:200;background:var(--accent);color:#fff;
@@ -4796,7 +4814,15 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
-  :root[data-look="kite"] .kd-poslink{margin-top:16px}
+  :root[data-look="kite"] .psum.kd-kpi{grid-template-columns:repeat(5,minmax(0,1fr));margin:10px 0 6px;padding:16px 0 18px;
+    border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .psum.kd-kpi b{font-size:26px;font-weight:400}
+  :root[data-look="kite"] .psum.kd-kpi small{display:block;font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.5}
+  :root[data-look="kite"] .psum.kd-kpi .kd-mkt b{font-size:17px;white-space:normal;line-height:1.3}
+  :root[data-look="kite"] .psum.kd-kpi .kd-sw{margin-top:8px;font-size:12px;padding:5px 10px}
+  :root[data-look="kite"] .psum.kd-kpi .kd-poslink{margin-left:6px;padding:2px 8px;font-size:12px;color:var(--accent);border-color:var(--accent)}
+  :root[data-look="kite"] .kd-tabh{margin-top:22px}
+  :root[data-look="kite"] .kd-tabh + table.kd-tab{margin-top:6px}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#htoday){display:none}
   :root[data-look="kite"]:has(.pane[data-pane="home"].on) .kside :is(.kb-today,.kb-funds){display:none}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
@@ -4975,6 +5001,7 @@ button.mgroup:hover{color:var(--ink-2)}
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
   <button class="tab on" data-tab="home" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i>Home</button>
   <button class="tab" data-tab="positions" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 13h18"/></svg></i>Positions</button>
+  <button class="tab" data-tab="tradeset" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></i>Trade settings</button>
   <p class="mgroup">Desk</p>
   <button class="tab" data-tab="signal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i>Signal</button>
   <button class="tab" data-tab="chart" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i>Chart</button>
@@ -5123,14 +5150,7 @@ button.mgroup:hover{color:var(--ink-2)}
  <div class="panes">
 
  <section class="pane on" data-pane="home">
-  <div class="kdlots" id="kdlots"></div>
   <div class="kdash" id="kdash"></div>
-  <div class="dashbulk" id="dashbulk">
-   <button class="lbtn dashlive" id="dashlive" type="button" aria-pressed="false"
-   hidden>Turn on live trades</button>
-   <button class="lbtn dashclearall" id="dashclearall" type="button"
-   hidden>Clear all positions</button>
-  </div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5641,11 +5661,30 @@ button.mgroup:hover{color:var(--ink-2)}
  <section class="pane" data-pane="positions">
   <div class="card kposcard" data-panel="kpos" id="kposcard">
    <div class="jhead">
-    <p class="eyebrow" role="heading" aria-level="2">Positions &middot; today</p>
-    <span class="kposn" id="kposn"></span>
+    <p class="eyebrow" role="heading" aria-level="2">Positions &middot; today <span class="kposn" id="kposn"></span></p>
+    <!-- the two bulk buttons live with the positions they act on (the user, 7 Oct 2026: "clear all positions and turn
+         on all live trades should be in position section") -->
+    <div class="dashbulk" id="dashbulk">
+     <button class="lbtn dashlive" id="dashlive" type="button" aria-pressed="false"
+     hidden>Turn on live trades</button>
+     <button class="lbtn dashclearall" id="dashclearall" type="button"
+     hidden>Clear all positions</button>
+    </div>
    </div>
    <div class="psum kpossum" id="kpossum"></div>
    <div class="scrwrap kposwrap" id="kpos"></div>
+  </div>
+ </section>
+
+ <!-- Each index's lots, system and live orders, a page of their own (the user, 7 Oct 2026: "give trade settings a
+      different tab") -->
+ <section class="pane" data-pane="tradeset">
+  <div class="card tsetcard" data-panel="tset" id="tsetcard">
+   <p class="eyebrow" role="heading" aria-level="2">Trade settings &middot; per index</p>
+   <div class="kdlots" id="kdlots"></div>
+   <div class="gnote">Lots and system apply to the next ticket on that index; an open one keeps what it opened with.
+    Live orders are switched on and off on the Signal page (one index) or on Positions (all at once) - each asks first,
+    because it places real orders.</div>
   </div>
  </section>
 
@@ -5854,6 +5893,9 @@ let TAB = "home";         // the section on screen
 let GATED_FOR = null;     // which market the tabs were last gated for
 const DESK = [
   ["signal", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='4'/><circle cx='12' cy='12' r='1'/></svg>", "Signal", "The call, its strike, the ladder and what is holding it back."],
+  ["positions", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2'/><path d='M3 13h18'/></svg>", "Positions", "Today's trades, open and closed, live and paper - and the bulk buttons."],
+  ["tradeset", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0'/><circle cx='16' cy='6' r='2'/><circle cx='10' cy='12' r='2'/><circle cx='18' cy='18' r='2'/></svg>", "Trade settings", "Each index's lots and system, and whether it places live orders."],
+  ["journal", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z'/><path d='M5 17a3 3 0 013-3h11'/></svg>", "Journal", "Your record by day: the running total, the calendar and the risk."],
   ["chart", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 19h16'/><path d='M5 15l4-4 3 3 6-7'/></svg>", "Chart", "Candles with both EMAs and VWAP, at 5m, 15m or daily."],
   ["chain", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M12 4v16M4 10h16M4 15h16'/></svg>", "Option chain", "Calls and puts around the money, with the spread you would pay."],
   ["market", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='4' y='4' width='7' height='7' rx='1'/><rect x='13' y='4' width='7' height='7' rx='1'/><rect x='4' y='13' width='7' height='7' rx='1'/><rect x='13' y='13' width='7' height='7' rx='1'/></svg>", "Market", "The map, sector strength, the constituents and who is moving the index."],
@@ -5969,7 +6011,7 @@ function kdlQty(el){
     const units = v => Number(v.toFixed(4)).toLocaleString("en-IN", {maximumFractionDigits: 3});   // 0.1, 10 - no trailing zeros
     q.textContent = isNaN(lots) ? "" : q.dataset.cfd
       ? `= ${units(lots * (ls || 1))} ${q.dataset.q === "GOLD" ? "oz" : q.dataset.q}`
-      : ls ? `= ${num(lots * ls, 0)} qty` : "";
+      : ls && ls < 1 ? `= ${units(lots * ls)} ${q.dataset.q}` : ls ? `= ${num(lots * ls, 0)} qty` : "";
   });
 }
 function lotsDash(s){
@@ -5989,9 +6031,8 @@ function lotsDash(s){
     // A row per index, its lots and the system that trades it side by side, at the top of the Dashboard (the user,
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
-    el.innerHTML = `<div class="kdl-head"><span class="kdl-h">Trade settings</span>`
-      + `<span class="kdl-sub">per index &middot; for the next ticket; an open one keeps what it opened with</span></div>`
-      + `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>${sysChoices.length ? "<th>System</th>" : ""}</tr></thead><tbody>`
+    el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -5999,7 +6040,7 @@ function lotsDash(s){
           + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</td>`
           + (sysChoices.length ? `<td><label><span class="kdl-sr">${esc(k)} system</span><select data-sys="${esc(k)}">`
               + sysChoices.map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
-          + `</tr>`).join("")
+          + `<td class="kdl-live" data-live="${esc(k)}"></td></tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
       const ss = e.target.closest("select[data-sys]");
@@ -6046,6 +6087,12 @@ function lotsDash(s){
       }finally{ sel.disabled = false; }
     };
   }
+  // each index's live orders as they stand, every poll (the switches themselves are on Signal and Positions)
+  if(el.querySelectorAll) el.querySelectorAll("td[data-live]").forEach(td => {
+    const k = td.dataset.live, on = live && live.includes(k) ? !!s.live.enabled[k] : null;
+    const html = on == null ? `<span class="kdl-u">paper only</span>` : on ? `<b style="color:var(--up)">On</b> <small>real orders</small>` : `Off`;
+    if(td.innerHTML !== html) td.innerHTML = html;
+  });
   if(Date.now() < KDLOTS_HOLD){ kdlQty(el); return; }
   el.querySelectorAll("select[data-k]").forEach(sel => {
     const v = lotsOf(sess, sel.dataset.k);
@@ -7613,7 +7660,11 @@ function ticketBox(r, state){
     } else {
       // What the premium cost to buy - entry x lot size x lots - the money at
       // risk in full; asked for on 20 Sep 2026, for both markets.
-      rows.push(["Size", tk.lot_size ? `${lotTxt} · ${num(tk.lot_size * (tk.lots || 1), 0)} qty` : lotTxt],
+      // a Delta contract is 0.001 BTC: its size in BTC, never "0 qty"
+      const q = (tk.lot_size || 0) * (tk.lots || 1);
+      rows.push(["Size", !tk.lot_size ? lotTxt : tk.lot_size < 1
+                 ? `${lotTxt} · ${Number(q.toFixed(4)).toLocaleString("en-IN", {maximumFractionDigits: 3})} ${tk.index || ""}`
+                 : `${lotTxt} · ${num(q, 0)} qty`],
                 ["Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
                          ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—"]);
       // The strike's own high and low so far today, live (the user, 29 Sep 2026: "the tool
@@ -7880,7 +7931,7 @@ function gauges(r, why){
   }
   if(!rows.length){ $("gauges").innerHTML=""; $("gnote").textContent=""; return; }
 
-  $("gauges").innerHTML = rows.map(([name,vote,reading,colour]) => {
+  $("gauges").innerHTML = `<div class="rr-h gh">The votes</div>` + rows.map(([name,vote,reading,colour]) => {
     // Magnitude is capped: these votes are small integers, and a bar that
     // grew without limit would say more about the scale than the reading.
     const mag = vote==null ? 0 : Math.min(1, Math.abs(vote)/2);
@@ -9059,6 +9110,7 @@ function render(s){
   recapDraw(s);
   if(TAB === "home") homeDraw(s);
   if(TAB === "positions") posPane(s);
+  if(TAB === "tradeset") lotsDash(s);
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -9719,10 +9771,10 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["home", "positions", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
+const TABS = ["home", "positions", "tradeset", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
               "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk"];
-const TAB_LABEL = {home:"Home", positions:"Positions", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
+const TAB_LABEL = {home:"Home", positions:"Positions", tradeset:"Trade settings", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels", gann:"Gann levels", tradingview:"TradingView",
@@ -9803,6 +9855,7 @@ function showTab(name, push){
   if(name === "admin") adminFetch();
   if(name === "journal") journalFetch();
   if(name === "positions" && LAST) posPane(LAST);
+  if(name === "tradeset" && LAST) lotsDash(LAST);
   if(name === "screener") scFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
@@ -10017,7 +10070,8 @@ function posTable(s){
     const lots = t.lots == null ? 1 : t.lots;
     if(cfdOf(k) || t.cfd) return `${num(lots, 2)} lot`;
     const q = t.qty != null ? t.qty : lots * (t.lot_size || 1);
-    return num(q, 0);
+    // a Delta contract is 0.001 BTC: the BTC it comes to, not a quantity rounded to 0
+    return q > 0 && q < 1 ? `${Number(q.toFixed(4)).toLocaleString("en-IN", {maximumFractionDigits: 3})} ${esc(k)}` : num(q, 0);
   };
   let live = 0, paper = 0;
   const body = rows.map(({k, t, open, ai}) => {
@@ -10099,45 +10153,37 @@ function kiteDash(s){
   }).join("");
   // Exness: the connected accounts' own free margin (the side column's Funds box reads them too) - it
   // used to read only a Zerodha-style broker.funds, so a connected Exness demo showed "not connected".
-  const acc = (br.accounts || []).filter(a => a.ok);
-  const funds = acc.length
-    ? acc.map(a => `<div class="kd-n">$${num(a.freeMargin != null ? a.freeMargin : (a.balance || 0), 2)}</div>`
-        + `<div class="kd-s">${esc((a.kind || "").toUpperCase())} Exness account${a.shared ? " (shared feed)" : ""}`
-        + ` &middot; balance $${num(a.balance || 0, 2)}</div>`).join("")
-    : br.connected && br.funds && br.funds.available != null
-    ? `<div class="kd-n">${esc(fundsLabel(br.funds))}</div><div class="kd-s">available on ${esc(br.name)}</div>`
-    : `<div class="kd-n">—</div><div class="kd-s">${esc(br.name || "The broker")} is not connected</div>`;
-  // Which market, and the way to the other one - the Dashboard hides the side column's Funds box, and
-  // with it the only Switch market this look had (the user, 4 Oct 2026: "add switch market on dasboard
-  // as well"). A button, not a select: this panel is rewritten whenever a figure changes, and a select
-  // rebuilt mid-click drops the click (see the header's own); with two markets it switches straight over.
   const mk = s.markets || [], mo = s.market_options || {};
   const other = mk.length === 2 ? mk.find(m => m !== s.market) : null;
-  const market = s.market_label
-    ? `<div><div class="kd-l">Market</div><div class="kd-m">${esc(s.market_label)}</div>`
-      + (mk.length > 1
-         ? `<button class="lbtn kd-sw" type="button" data-kact="switchmarket">&#8644; ${other ? "Switch to " + esc(mo[other] || other) : "Switch market"}</button>`
-         : `<div class="kd-s">This server runs one market</div>`) + `</div>`
-    : "";
   const cfd = order.some(k => ((s.indices || {})[k] || {}).cfd);
   const pos = posCount(s);
-  // Today as a table: live (real money) and paper apart, each with its result, what has closed and what is open.
-  const sumRow = (name, sub, x) => !x
-    ? `<tr><td><b>${name}</b><small>${sub}</small></td><td class="r big" style="color:var(--ink-3)">${money(0)}</td>`
-      + `<td class="r">—</td><td class="r">—</td><td class="r">0</td><td class="r">0</td></tr>`
-    : `<tr><td><b>${name}</b><small>${sub}</small></td><td class="r big" style="color:${col(x.net)}">${money(x.net)}</td>`
-      + `<td class="r" style="color:${col(x.booked)}">${money(x.booked)}</td><td class="r" style="color:${col(x.open)}">${money(x.open)}</td>`
-      + `<td class="r">${x.closed}</td><td class="r">${x.open_n}</td></tr>`;
-  const h = `<div class="kd-top"><div class="kd-sumw"><div class="kd-l">Today</div>`
-    + `<table class="ntab kd-sum"><thead><tr><th></th><th class="r">Result</th><th class="r">Booked</th><th class="r">Open</th>`
-    + `<th class="r">Closed</th><th class="r">Running</th></tr></thead><tbody>`
-    + sumRow("Live trades &middot; real money", lv ? "the broker's own fills" : "No live order today", lv)
-    + sumRow("Paper trades", "no order placed", pp) + `</tbody></table></div>`
-    + `<div><div class="kd-l">Funds available</div>${funds}</div>${market}</div>`
+  // The Dashboard at a glance (the user, 7 Oct 2026: "work on dashboard layout"): today's live and paper results, the
+  // positions, the funds and the market as one row of figures, then every index in a table. A figure cell is
+  // [label, value, colour, the line under it] - values and lines are this page's own text, escaped here.
+  const fig = (l, v, c, sub, cls) => `<div${cls ? ` class="${cls}"` : ""}><span>${l}</span><b${c ? ` style="color:${c}"` : ""}>${v}</b>`
+    + (sub ? `<small>${sub}</small>` : "") + `</div>`;
+  const split = x => `booked ${esc(money(x.booked))} &middot; open ${esc(money(x.open))}`;
+  const accF = (br.accounts || []).filter(a => a.ok)[0];
+  const fundsV = accF ? "$" + num(accF.freeMargin != null ? accF.freeMargin : (accF.balance || 0), 2)
+    : br.connected && br.funds && br.funds.available != null ? fundsLabel(br.funds) : "—";
+  const fundsS = accF ? `${esc((accF.kind || "").toUpperCase())} Exness account &middot; balance $${num(accF.balance || 0, 2)}`
+    : br.connected && br.funds && br.funds.available != null ? `available on ${esc(br.name)}`
+    : `${esc(br.name || "The broker")} is not connected`;
+  const sw = mk.length > 1
+    ? `<button class="lbtn kd-sw" type="button" data-kact="switchmarket">&#8644; ${other ? "Switch to " + esc(mo[other] || other) : "Switch market"}</button>`
+    : `This server runs one market`;
+  const h = `<div class="psum kd-kpi">`
+    + fig("Live trades &middot; real money", lv ? esc(money(lv.net)) : esc(money(0)), lv ? col(lv.net) : "var(--ink-3)",
+          lv ? split(lv) : "No live order today")
+    + fig("Paper trades", pp ? esc(money(pp.net)) : esc(money(0)), pp ? col(pp.net) : "var(--ink-3)", pp ? split(pp) : "no order placed")
+    + fig("Positions", `${pos.open} open`, pos.open ? "" : "var(--ink-3)",
+          `${pos.closed} closed today` + (pos.n ? ` <button class="lbtn kd-poslink" type="button" data-kact="positions">View &rarr;</button>` : ""))
+    + fig("Funds available", esc(fundsV), "", fundsS)
+    + (s.market_label ? fig("Market", esc(s.market_label), "", sw, "kd-mkt") : "")
+    + `</div>`
+    + `<div class="kd-l kd-tabh">Markets</div>`
     + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
-    + `<tbody>${rows}</tbody></table>`
-    + (pos.n ? `<button class="lbtn kd-sw kd-poslink" type="button" data-kact="positions">Positions &middot; ${pos.open} open, `
-               + `${pos.closed} closed today &rarr;</button>` : "");
+    + `<tbody>${rows}</tbody></table>`;
   if(h !== KDASH_HTML){ KDASH_HTML = h; el.innerHTML = h; }
   if(!el.dataset.wired){
     el.dataset.wired = "1";
@@ -10153,7 +10199,6 @@ function kiteDash(s){
 
 function homeDraw(s){
   kiteDash(s);
-  lotsDash(s);
   const g = $("gmk");
   if(g && MKT_ROWS){
     g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {
