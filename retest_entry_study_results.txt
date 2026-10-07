@@ -1,0 +1,31 @@
+Replaying the live signals on all three indices, side by side...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, after costs, real expiries.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ enter at the signal - TODAY                     2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+ retest the signal price, wait 30 min            1625   43% ₹  +258,304 PF 1.19 DD ₹  59,014 day ₹ -15,695  |  974   36% ₹    -3,046 PF 1.00 DD ₹ 131,312 day ₹ -18,783
+ retest the signal price, wait 60 min            1693   43% ₹  +307,649 PF 1.22 DD ₹  58,068 day ₹ -15,695  | 1016   36% ₹    -8,062 PF 0.99 DD ₹ 131,234 day ₹ -20,639
+ retest 0.25 ATR beyond it, wait 30 min          1352   38% ₹  +224,804 PF 1.19 DD ₹  72,832 day ₹ -16,759  |  823   36% ₹   +45,894 PF 1.06 DD ₹ 108,142 day ₹ -18,751
+ retest 0.25 ATR beyond it, wait 60 min          1492   39% ₹  +265,224 PF 1.21 DD ₹  70,889 day ₹ -23,017  |  904   35% ₹    -4,444 PF 0.99 DD ₹ 114,355 day ₹ -23,191
+
+ VERDICT - KEEP only if more profit than today in BOTH periods (worst drop / worst day: minus = better)
+   drop  retest signal price, 30 min                  profit: in-sample  -179,205  held-out  -128,273   worst drop:  -32,760 /  +29,235   worst day:   +1,165 /   +1,790
+   drop  retest signal price, 60 min                  profit: in-sample  -129,860  held-out  -133,289   worst drop:  -33,706 /  +29,158   worst day:   +1,165 /      -67
+   drop  retest 0.25 ATR, 30 min                      profit: in-sample  -212,705  held-out   -79,333   worst drop:  -18,942 /   +6,065   worst day:     +101 /   +1,821
+   drop  retest 0.25 ATR, 60 min                      profit: in-sample  -172,285  held-out  -129,670   worst drop:  -20,884 /  +12,278   worst day:   -6,157 /   -2,619
+
+ HOW OFTEN THE PULLBACK CAME - and what the trades it never came for made under today's entry
+   signal price  30 min: pulled back on 74.0% of signals.  Today's trades it would MISS:  865 made ₹ -571,089 / ₹ -258,247;  the ones it takes made ₹+1,008,598 / ₹ +383,474 at today's entry
+   signal price  60 min: pulled back on 79.6% of signals.  Today's trades it would MISS:  689 made ₹ -578,125 / ₹ -294,887;  the ones it takes made ₹+1,015,634 / ₹ +420,114 at today's entry
+   0.25 ATR      30 min: pulled back on 54.2% of signals.  Today's trades it would MISS: 1440 made ₹ +218,868 / ₹ +125,692;  the ones it takes made ₹ +218,641 / ₹     -466 at today's entry
+   0.25 ATR      60 min: pulled back on 64.3% of signals.  Today's trades it would MISS: 1131 made ₹ +202,636 / ₹ +123,405;  the ones it takes made ₹ +234,873 / ₹   +1,822 at today's entry
+
+ LIKE FOR LIKE - every signal on its own (no one-position walk): the SAME trade entered at the signal vs at the retest
+   signal price  30 min: where it pulled back (4447): at the signal ₹ +461/trade, at the retest ₹  +81/trade (bought +23.6 index points from the signal price); where it never did (1564): ₹ -887/trade at the signal
+   signal price  60 min: where it pulled back (4784): at the signal ₹ +451/trade, at the retest ₹  +76/trade (bought +23.6 index points from the signal price); where it never did (1226): ₹-1,220/trade at the signal
+   0.25 ATR      30 min: where it pulled back (3261): at the signal ₹  +48/trade, at the retest ₹ +115/trade (bought -3.9 index points from the signal price); where it never did (2751): ₹ +184/trade at the signal
+   0.25 ATR      60 min: where it pulled back (3867): at the signal ₹  +35/trade, at the retest ₹ +103/trade (bought -3.8 index points from the signal price); where it never did (2145): ₹ +245/trade at the signal
+
+ NOT TESTED: the guide's 2-3x volume rule - no intraday volume exists for the indices (all 0), and NSE's futures volume is per DAY (known only after the close).
