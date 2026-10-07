@@ -1,0 +1,25 @@
+Sweeping the Structural Trend Rider on 15-minute candles, all three indices...
+
+ ADX > 18 and rising - change vs today per lot (in-sample / held-out); * = better in BOTH periods
+   stop on last                 target 2.0R              target 2.25R               target 2.5R              target 2.75R               target 3.0R
+   3 candles             -14,335 /  -64,875        -16,372 /  -89,600        +37,220 /  -69,851        +54,407 /  -55,570        +79,575 /  -37,607 
+   4 candles             -12,438 /  -35,824        -21,727 /  -40,128        +37,570 /  -22,468        +49,303 /   -8,185        +82,850 /   +2,232*
+   5 candles             +31,033 /  -22,822        +42,054 /   -8,916        +86,886 /  +10,057*       +57,679 /  +20,094*       +80,043 /  +23,535*
+   6 candles             +61,710 /  -11,214        +75,942 /  -12,197        +98,359 /   -2,798        +67,590 /  +12,618*       +85,928 /  +21,215*
+
+ ADX > 20 and rising - change vs today per lot (in-sample / held-out); * = better in BOTH periods
+   stop on last                 target 2.0R              target 2.25R               target 2.5R              target 2.75R               target 3.0R
+   3 candles             -12,921 /  -44,988         +6,368 /  -73,624        +64,598 /  -52,461        +86,581 /  -49,767       +109,069 /  -36,254 
+   4 candles             +51,692 /  -19,704        +58,608 /  -32,475       +113,902 /  -15,221       +128,027 /   -6,719       +156,957 /   +1,131*
+   5 candles             +43,876 /  -12,921        +61,181 /   -1,625       +106,896 /  +16,852*       +81,431 /  +23,129*      +100,776 /   +9,964*
+   6 candles             +81,105 /  -11,880        +99,360 /  -10,433       +124,507 /     -826       +104,145 /  +15,792*      +110,217 /  +10,355*
+
+ ADX > 22 and rising - change vs today per lot (in-sample / held-out); * = better in BOTH periods
+   stop on last                 target 2.0R              target 2.25R               target 2.5R              target 2.75R               target 3.0R
+   3 candles             -40,760 /  -91,986        -33,884 / -116,408        -28,839 / -109,716        -10,325 / -107,878         +9,724 /  -90,305 
+   4 candles             +25,565 /  -68,176        +14,071 /  -72,168        +49,415 /  -63,346        +55,040 /  -57,991        +72,751 /  -47,772 
+   5 candles             +98,908 /  -55,100        +90,179 /  -36,867       +133,074 /  -24,372       +100,453 /  -30,914       +113,053 /  -31,830 
+   6 candles            +103,873 /  -41,534       +103,497 /  -37,065       +129,551 /  -44,694       +102,981 /  -32,377       +112,235 /  -26,650 
+
+ 12 of 60 settings beat today's system in BOTH periods.
+ The pasted cell (ADX 20, last 5 candles, 2.5R): +544,405 / +142,079 - reproduces pasted_combos_study.py's +544,405 / +142,079
