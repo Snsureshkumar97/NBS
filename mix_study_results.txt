@@ -1,0 +1,34 @@
+Replaying the tool and the Trend Rider, alone and mixed, on all four indices...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, after costs, real expiries.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ the tool alone (live today)                     2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+ the Trend Rider alone, 2.5R                     1230   40% ₹  +544,405 PF 1.36 DD ₹  84,835 day ₹ -22,391  |  743   44% ₹  +142,079 PF 1.15 DD ₹  95,197 day ₹ -35,812
+ the Trend Rider alone, 2.75R                    1227   40% ₹  +518,940 PF 1.35 DD ₹  85,131 day ₹ -22,391  |  741   44% ₹  +148,356 PF 1.16 DD ₹  94,487 day ₹ -35,812
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ A. tool's trades, only when Trend Rider agrees  1406   39% ₹  +360,887 PF 1.30 DD ₹  61,406 day ₹ -19,914  |  842   33% ₹   +58,829 PF 1.08 DD ₹  77,074 day ₹ -13,575
+ B. Trend Rider's trades, both agree, 2.5R       1113   42% ₹  +503,942 PF 1.37 DD ₹  80,805 day ₹ -22,286  |  675   45% ₹  +113,143 PF 1.14 DD ₹  88,427 day ₹ -33,684
+ B. Trend Rider's trades, both agree, 2.75R      1113   42% ₹  +509,416 PF 1.37 DD ₹  80,805 day ₹ -22,286  |  673   45% ₹  +114,043 PF 1.14 DD ₹  95,526 day ₹ -33,684
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ MIDCAP SELECT ALONE (monthly options, paper only in the tool)
+   the tool alone                                 715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+   the Trend Rider alone, 2.75R                   425   46% ₹   +95,338 PF 1.14 DD ₹  42,521 day ₹ -10,198  |  233   45% ₹    -8,054 PF 0.98 DD ₹  99,014 day ₹ -16,657
+   A. tool's trades, Trend Rider agrees           500   43% ₹  +179,405 PF 1.35 DD ₹  26,011 day ₹ -12,806  |  287   34% ₹    +6,870 PF 1.02 DD ₹  67,468 day ₹  -9,844
+   B. Trend Rider's trades, both agree, 2.75R     386   49% ₹  +129,608 PF 1.22 DD ₹  46,915 day ₹ -15,085  |  223   43% ₹   -12,864 PF 0.97 DD ₹  73,738 day ₹ -15,409
+
+ VERDICT vs the tool alone - more profit in BOTH periods? (worst drop / worst day: minus = better)
+   drop  A. tool + Trend Rider agreeing               profit: in-sample   -76,622  held-out   -66,398   worst drop:  -30,368 /  -25,003   worst day:   -3,054 /   +6,998
+   drop  B. both agree, 2.5R                          profit: in-sample   +66,433  held-out   -12,084   worst drop:  -10,969 /  -13,649   worst day:   -5,426 /  -13,112
+   drop  B. both agree, 2.75R                         profit: in-sample   +71,907  held-out   -11,183   worst drop:  -10,969 /   -6,550   worst day:   -5,426 /  -13,112
+   KEEP  the Trend Rider alone, 2.5R                  profit: in-sample  +106,896  held-out   +16,852   worst drop:   -6,939 /   -6,880   worst day:   -5,531 /  -15,240
+   KEEP  the Trend Rider alone, 2.75R                 profit: in-sample   +81,431  held-out   +23,130   worst drop:   -6,643 /   -7,589   worst day:   -5,531 /  -15,240
+
+ EACH INDEX ON ITS OWN - the tool vs the Trend Rider (2.75R) vs B (both agree, 2.75R): in-sample / held-out per lot
+   NIFTY       tool   +154,936 /   +30,386    Trend Rider   +180,232 /   +69,814    both agree   +183,593 /   +37,947
+   BANKNIFTY   tool   +172,293 /    -5,376    Trend Rider   +147,747 /   +23,664    both agree   +151,303 /   +37,496
+   SENSEX      tool   +110,280 /  +100,217    Trend Rider   +190,961 /   +54,879    both agree   +174,520 /   +38,600
+   MIDCPNIFTY  tool   +141,945 /   +86,451    Trend Rider    +95,338 /    -8,054    both agree   +129,608 /   -12,864
+
+ HOW OFTEN THEY AGREE: of the candles where the tool reads a side, the Trend Rider's conditions point the same way: NIFTY 66%, BANKNIFTY 63%, SENSEX 64%, MIDCPNIFTY 66%

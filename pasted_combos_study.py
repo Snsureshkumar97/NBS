@@ -55,9 +55,9 @@ def signals(df, combo, adx_min=20.0):
     return long_, short
 
 
-def run(k, df, sigma_by_day, days, combo, tf, adx_min=20.0, rr=2.0, swing=5):
+def run(k, df, sigma_by_day, days, combo, tf, adx_min=20.0, rr=2.0, swing=5, sig=None):
     o, h, l, c = (df[x].to_numpy() for x in ("Open", "High", "Low", "Close"))
-    long_, short = signals(df, combo, adx_min)
+    long_, short = sig if sig is not None else signals(df, combo, adx_min)    # sig: (long, short) given by a caller (mix_study.py)
     atr = ind.atr(df, 14).to_numpy()
     idx = df.index
     step = pd.Timedelta(minutes=tf)
