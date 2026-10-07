@@ -841,7 +841,36 @@ check("the page has the per-index button and the status line", 'id="tlive"' in S
 check("turning it on asks first, naming real money and the static IP",
       "Place REAL orders on" in SRC and "static IP" in SRC)
 check("Clear ticket warns that it sells a real position when one is held", "AND SELL YOUR REAL POSITION" in SRC)
-check("status text is set as text, never HTML", 'st.textContent = lines' in SRC)
+# The status under the live switch (and on the AI tab) is drawn as HTML since 7 Oct 2026 - an open position as rows -
+# so everything the server sends must come out escaped. Run the real renderer in node with hostile text.
+import shutil as _sh, subprocess as _sp
+_NODE = _sh.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
+if not _NODE:
+    check("node is available for the status renderer check", False)
+else:
+    _a = SRC.index("// An OPEN live position as a few labelled rows")
+    _z = SRC.index("\n}\n", SRC.index("function liveStatusHTML(")) + 3
+    _esc = SRC[SRC.index("const esc=s=>"):].split("\n")[0]
+    _prog = _esc + "\nconst money = v => (v >= 0 ? '+' : '-') + Math.abs(v);\n" + SRC[_a:_z] + r'''
+const assert = require("assert");
+const bad = "<img src=x onerror=alert(1)>";
+let h = liveStatusHTML({state: "open", filled_qty: 65, tradingsymbol: bad, avg_price: 120.5, stop_trigger: 98}, "Zerodha", "x");
+assert.ok(!h.includes("<img") && h.includes("&lt;img"), "a Zerodha symbol is escaped: " + h);
+assert.ok(h.includes("<td>Bought at</td>") && h.includes("<b>120.5</b>") && h.includes("trigger 98") && h.includes("Stop at Zerodha"), h);
+h = liveStatusHTML({state: "open", side: "BUY", qty: 0.1, symbol: bad, kind: "cfd", avg_price: 1, sl: 2, tp: 3, profit: -4}, "Exness", "x");
+assert.ok(!h.includes("<img") && h.includes("Stop at Exness") && h.includes("Exness P&amp;L"), h);
+h = liveStatusHTML({state: "open", filled_qty: 1, tradingsymbol: "BTC", avg_price: 1, stop_trigger: 2, stop_at_venue: false}, "Delta India", "x");
+assert.ok(h.includes("Stop - NOT at Delta") && h.includes("only works while the server is running"), "Delta's own-watch warning kept: " + h);
+h = liveStatusHTML({state: "failed", error: bad}, "Exness", "Live (CFD): not placed - " + bad);
+assert.ok(!h.includes("<img") && h.includes("not placed"), "any other state: its sentence, escaped: " + h);
+assert.strictEqual(liveStatusHTML(null, "Zerodha", ""), "", "nothing to show: nothing drawn");
+console.log("ok:status");
+'''
+    _r = _sp.run([_NODE, "-e", _prog], capture_output=True, text=True, timeout=60)
+    check("status rows: every server value escaped, open positions as rows, other states their one sentence",
+          "ok:status" in _r.stdout and _r.returncode == 0, ((_r.stdout or "") + (_r.stderr or ""))[-700:])
+check("...and the note under it is escaped too, on both the Signal card and the AI tab",
+      '<div class="lnote">${esc(note.at)} &middot; ${esc(note.text)}</div>' in SRC and '`<div class="lnote">${esc(x)}</div>`' in SRC)
 FSRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "feeds.py")).read()
 check("only the Indian-indices feed gets an executor, and it listens to that feed's tickets",
       'self.market == "nse_index"' in FSRC and "self.tickets.listeners.append(self.live.on_ticket_event)" in FSRC)

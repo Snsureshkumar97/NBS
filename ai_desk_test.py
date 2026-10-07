@@ -981,7 +981,7 @@ check("the page has the lots selector, posts it to the same endpoint, and shows 
       'id="ailots"' in SRC and "body: new URLSearchParams({lots: sel.value})" in SRC
       and 'cell("Cost"' in SRC and "<th>Cost</th><th>Exit</th>" in SRC)
 check("the Signal card shows the cost too: a Cost cell on the open ticket and a cost line on the suggestion, both markets",
-      SRC.count('cell("Cost"') >= 2 and "Cost of ${what}:" in SRC and "the premium paid" in SRC)
+      SRC.count('cell("Cost"') >= 2 and "rrow(`Cost of ${what}`" in SRC and "the premium paid" in SRC)
 check("the journal offers the AI desk's trades and badges them",
       'data-src="ai">AI trades' in SRC and 'jbadge ai">AI' in SRC and "<th>Lots</th><th>Cost</th>" in SRC)
 print("AI DESK TEST PASSED" if not fails else f"AI DESK TEST FAILED: {fails}")

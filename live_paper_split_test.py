@@ -151,15 +151,16 @@ assert.ok(nifty.includes('jbadge live') && nifty.includes(">Live<"), "the Nifty 
 assert.ok(sensex.includes(">Paper<") && !sensex.includes("jbadge live"), "the Sensex trade (no order) is tagged Paper");
 kiteSide(s);
 const k = els.kside.innerHTML;
-assert.ok(k.includes("Live trades · real money") && k.includes("Paper trades") && k.includes("jbadge live"), "the side column too");
+assert.ok(k.includes("<td>Live</td>") && k.includes("<td>Paper</td>") && k.includes("jbadge live"), "the side column too - its Today table (7 Oct 2026)");
 assert.ok(!k.includes("&amp;middot;"), "no escaped entity shown as text (the side column's labels are escaped)");
 assert.ok(!k.includes(money(-19998)), "...without the mixed figure");
 homeDraw(s);
 assert.ok(els.htoday.innerHTML.includes("Live trades") && els.htoday.innerHTML.includes("Paper trades") && !els.htoday.innerHTML.includes(">Net<"), "Home's strip");
 recapDraw(s);
 assert.ok(els.recap.innerHTML.includes("Live trades") && els.recap.innerHTML.includes("Paper trades") && !els.recap.innerHTML.includes(">Net<"), "the Record recap");
-const lines = els.recaplist.innerHTML.split("</div>");
-assert.ok(lines[0].includes(">Live<") && lines[1].includes(">Paper<"), "each closed trade in the recap is tagged");
+const lines = els.recaplist.innerHTML.split("<tbody>")[1].split("</tr>");
+assert.ok(lines[0].includes(">Live<") && lines[1].includes(">Paper<") && els.recaplist.innerHTML.includes(">P&amp;L<"),
+          "each closed trade in the recap is tagged - a row of its table (7 Oct 2026)");
 // THE POSITIONS TABLE (the user, 7 Oct 2026, with Kite's Positions page: "make the dash board with qty enter ltp and now.
 // ltp as well add it" ... "with the strike value as well")
 const ps = Object.assign({}, s, {

@@ -479,8 +479,9 @@ let h = w.els.kside.innerHTML;
 assert.ok(h.includes("Market open") && h.includes("beat live") && h.includes("23:28:13 IST"), "the market's state, in the column");
 assert.ok(h.includes("Live orders") && h.includes('aria-checked="false"') && h.includes(">OFF<") && !h.includes("klive on"), "the switch reads OFF");
 assert.ok(h.includes("No open trade on BTC. No trade."), "no trade open");
-assert.ok(h.includes("Today") && h.includes("+$98") && h.includes("10 tickets") && h.includes("2 stopped out"), "today");
-assert.ok(h.includes("Live trades · real money") && h.includes("Paper trades") && h.includes("no live order today"),
+assert.ok(h.includes("Today") && h.includes("+$98") && h.includes("<span>Tickets</span><b>10</b>")
+          && h.includes("<span>Stopped out</span><b>2</b>"), "today - a table and three counters (7 Oct 2026)");
+assert.ok(h.includes("<td>Live</td>") && h.includes("<td>Paper</td>") && h.includes("no live order today"),
           "today: the real money and the paper trades as two figures (7 Oct 2026), never one");
 assert.ok(h.includes("Funds") && h.includes("USD 0.56") && h.includes("available on Delta Exchange") && h.includes('data-kact="switchmarket"'), "funds and the way to the other market - now a button that opens the header's own dropdown, not a link to a separate page");
 assert.ok(h.includes("kb-today") && h.includes("kb-funds"), "the panels the Dashboard hides are marked");
@@ -532,7 +533,7 @@ const D = S({indices: {NIFTY: {bias: "BULLISH", spot: 24000, confidence: "High"}
 w.kiteDash(D);
 h = w.els.kdash.innerHTML;
 assert.ok(h.includes("Live trades &middot; real money") && h.includes("No live order today") && h.includes("Paper trades")
-          && h.includes("−$352") && h.includes("booked +$98") && !h.includes("Today's result")
+          && h.includes("−$352") && h.includes(">Booked<") && h.includes("+$98") && !h.includes("Today's result")
           && h.includes("Funds available") && h.includes("USD 0.56"),
           "the big figures: the real money and the paper trades apart (7 Oct 2026) - paper = booked +98 and the open paper ticket's -450 - and the funds");
 assert.ok(h.includes('>Paper</span>'), "the open trade (no real order) is tagged Paper");

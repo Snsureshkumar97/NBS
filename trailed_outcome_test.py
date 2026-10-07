@@ -254,7 +254,7 @@ src = open(os.path.join(HERE, "web_server.py")).read()
 check("the Signal page's session bar is gone (25 Sep 2026); the left column's Today box carries the tickets, the wins and the stops, "
       "and the server still sends the trailed-out count to the page and the bot",
       "function sessionStrip" not in src and "trailed out in profit" not in src
-      and "${ses.wins || 0} ran to target" in src and "${ses.stops || 0} stopped out" in src and "locked" in src)
+      and "<span>To target</span><b>${ses.wins || 0}</b>" in src and "<span>Stopped out</span><b>${ses.stops || 0}</b>" in src and "locked" in src)
 check("the Record card has a tile for them, and 'Stopped out' says it is at a loss",
       'tile("Trailed out"' in src and 'tile("Stopped out", rec.sl+"%","at a loss")' in src)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)

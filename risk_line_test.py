@@ -75,7 +75,7 @@ assert.ok(txt().includes("Risk on this signal") && !/capital/.test(txt()), "no s
 const tk = {open: true, tracked_on: "premium", entry: 130.0, stop: 110.0, lot_size: 65, lots: 2, charges: null};
 riskBox({lot_size: 65}, tk, {});
 assert.ok(txt().includes("Cost of this ticket") && txt().includes("for 2 lots"), "an open ticket is costed for its lots - " + txt());
-assert.ok(txt().includes("16,900") && txt().includes("8,450 per lot"), "...the cost is for BOTH lots (130 x 65 x 2), the per-lot figure beside it - " + txt());
+assert.ok(txt().includes("16,900") && txt().includes("8,450") && txt().includes("per lot"), "...the cost is for BOTH lots (130 x 65 x 2), the per-lot figure in its own column - " + txt());
 
 // "No trade": nothing to say, and no empty box
 riskBox({bias: "NEUTRAL"}, null, {capital: 200000});

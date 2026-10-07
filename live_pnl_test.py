@@ -101,7 +101,7 @@ check("the state carries it, and the Journal API accepts the new filter",
       '"live_pnl": snap.get("live_pnl")' in SRC and 'source not in ("all", "mine", "tool", "ai", "live")' in SRC)
 check("the Journal has the filter and a Live tag; the Today box, the Dashboard and Home show the figure (as its own "
       "headline since 7 Oct 2026 - live_paper_split_test.py runs those)",
-      'data-src="live">Live orders</button>' in SRC and 'class="jbadge live"' in SRC and 'row("Live trades · real money",' in SRC
+      'data-src="live">Live orders</button>' in SRC and 'class="jbadge live"' in SRC and 'trow("Live", lv)' in SRC
       and "Live trades &middot; real money" in SRC and 'cell("Live trades", money(lvn)' in SRC)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if NODE:
@@ -118,7 +118,7 @@ assert.strictEqual(lv.open, 50, "the rule ticket with a real position (30) + the
 assert.strictEqual(lv.open_n, 2); assert.strictEqual(lv.net, -50); assert.strictEqual(lv.booked, -100); assert.strictEqual(lv.closed, 2);
 s.tickets.BTC.ticket.pnl = 130; lv = livePnl(s);
 assert.strictEqual(lv.net, 50, "the open part follows the tickets, which the fast tick moves");
-assert.ok(liveNote(lv).includes("2 closed") && liveNote(lv).includes("2 open") && liveNote(lv).includes("-$100"), liveNote(lv));
+assert.ok(lv.closed === 2 && lv.open_n === 2 && lv.booked === -100, "the figures the Today tables show (7 Oct 2026)");
 console.log("ok:livepnl");
 """
     r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)

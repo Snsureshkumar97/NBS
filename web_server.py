@@ -3443,6 +3443,21 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
    rupee column — it is a "what would that be worth to me" dial, not a size. */
 .lots{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
 .kdlots{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:4px 0 18px;font-size:13px;color:var(--ink-2)}
+/* Figures as tables, not sentences (the user, 7 Oct 2026: "they dont look good numbers everythere ... using tables").
+   Numbers right-aligned in tabular digits so a column of rupees lines up. */
+.ntab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.ntab th{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3);text-align:left;
+  padding:4px 6px;border-bottom:1px solid var(--bd-soft, var(--bd))}
+.ntab td{padding:5px 6px;border-bottom:1px solid var(--bd-soft, var(--bd));vertical-align:baseline}
+.ntab tr:last-child td{border-bottom:0}
+.ntab .r{text-align:right;white-space:nowrap}
+.ntab small{display:block;font-size:12px;color:var(--ink-3);font-weight:400}
+.ntab .big{font-size:20px;font-weight:500}
+.kgrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;font-size:12px;color:var(--ink-3)}
+.kgrid3 div{display:flex;flex-direction:column;align-items:flex-start}
+.kgrid3 b{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.rtab{margin:2px 0 6px}
+.rtab td:first-child{color:var(--ink-2)}
 .kdlots .kdl-h{font-weight:600;color:var(--ink-1, var(--ink));margin-right:4px}
 .kdlots label{display:flex;align-items:center;gap:7px}
 .kdlots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);border-radius:6px;padding:3px 6px;font:inherit}
@@ -3599,6 +3614,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .livestat{font-size:12px;color:var(--ink-2);margin-top:6px;padding:6px 10px;border-radius:8px;
   background:var(--raised);border:1px solid var(--bd);line-height:1.5}
 .livestat.err{color:var(--down);border-color:rgba(239,85,112,.45)}
+.livestat .lnote,.ailivestat .lnote{margin-top:4px;color:var(--ink-3)}
+.livestat .ntab,.ailivestat .ntab{font-size:12px}
 .contract{font-size:13px;color:var(--ink-2);margin-top:4px}
 .contract b{color:var(--ink)}
 .issued{font-size:12px;color:var(--ink-3);margin-top:3px}
@@ -4663,6 +4680,8 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#gmk){order:5}
   :root[data-look="kite"] .kd-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:36px;padding:8px 0 22px;border-bottom:1px solid var(--bd-soft)}
+  :root[data-look="kite"] .kd-sumw{grid-column:span 2;min-width:0}
+  :root[data-look="kite"] .kd-tab td,:root[data-look="kite"] .kd-tab th{font-variant-numeric:tabular-nums}
   :root[data-look="kite"] .kd-m{font-size:22px;font-weight:400;line-height:1.3;margin-top:8px}
   /* a real button, not link text - as a 13px link beside the 44px figures it was easy to miss (4 Oct 2026) */
   :root[data-look="kite"] .kd-sw{margin-top:12px;font-size:13px;padding:7px 14px;color:var(--accent);border-color:var(--accent);cursor:pointer}
@@ -6207,14 +6226,15 @@ function riskBox(r, tk, sess){
   const costPer = (tk && tk.open)
     ? ((tk.tracked_on === "premium" && tk.entry != null && tk.lot_size) ? tk.entry * tk.lot_size : null)
     : ((r.ltp != null && r.lot_size && r.bias && r.bias !== "NEUTRAL") ? r.ltp * r.lot_size : null);
-  const costLine = (costPer != null && costPer > 0)
-    ? `Cost of ${what}: <b>${money(costPer * lots, false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
-      + ` (${money(costPer, false)} per ${unit}, the premium paid). `
-    : "";
+  // Cost and risk as a table (7 Oct 2026): per lot, and for the lots this trade is sized at.
+  const forN = `for ${lots} ${unit}${lots!==1?"s":""}`;
+  const rrow = (label, sub, per, all) => `<tr><td>${label}<small>${sub}</small></td><td class="r">${money(per, false)}</td>`
+    + `<td class="r"><b>${money(all, false)}</b></td></tr>`;
+  const costRow = (costPer != null && costPer > 0) ? rrow(`Cost of ${what}`, "the premium paid", costPer, costPer * lots) : "";
   if(perLot != null && perLot > 0){
     const total = (perLot + lotCost) * lots + flat;
-    parts.push(costLine + `Risk on ${what}: <b>${money(total,false)}</b> for ${lots} ${unit}${lots!==1?"s":""}`
-          + ` (${money(perLot,false)} per ${unit}, entry to stop${chg ? ", plus charges" : ""}).`);
+    parts.push(`<table class="ntab rtab"><thead><tr><th></th><th class="r">per ${unit}</th><th class="r">${forN}</th></tr></thead><tbody>`
+      + costRow + rrow(`Risk on ${what}`, `entry to stop${chg ? ", plus charges" : ""}`, perLot, total) + `</tbody></table>`);
   } else if(!(tk && tk.open) && r.bias && r.bias !== "NEUTRAL"){
     // Only when there IS a trade to size; on "No trade" there is nothing to say.
     parts.push("No live premium stop for this signal, so its risk in money cannot be worked out yet.");
@@ -6930,9 +6950,10 @@ function exnessPick(title){
     wrap.setAttribute("role", "dialog");
     wrap.innerHTML = `<div class="xpick-box"><h3>${esc(title)}</h3><p>Which Exness account takes the orders?</p>`
       + accts.map((a, n) => `<button type="button" class="lbtn xpick-a" data-n="${n}"${a.investor || !a.ok ? " disabled" : ""}>`
-          + `<b>${esc((a.kind || "?").toUpperCase())}</b> · ${esc(a.server || "")} · `
-          + (a.ok ? `balance $${num(a.balance || 0, 2)} · free margin $${num(a.freeMargin || 0, 2)}` : esc(a.detail || "not reachable"))
-          + (a.investor ? " · read-only password, cannot trade" : "") + `</button>`).join("")
+          + `<b>${esc((a.kind || "?").toUpperCase())}</b> <span>${esc(a.server || "")}</span><br>`
+          + (a.ok ? `<small>Balance <b>$${num(a.balance || 0, 2)}</b> &nbsp; Free margin <b>$${num(a.freeMargin || 0, 2)}</b></small>`
+                  : `<small>${esc(a.detail || "not reachable")}</small>`)
+          + (a.investor ? `<br><small>read-only password, cannot trade</small>` : "") + `</button>`).join("")
       + `<button type="button" class="lbtn xpick-c">Cancel</button></div>`;
     document.body.appendChild(wrap);
     const done = v => { wrap.remove(); resolve(v); };
@@ -6974,6 +6995,23 @@ async function exnessLive(index, source, btn, enabledNow){
   }catch(e){ alert("Could not reach this tool's own server."); }
   finally{ if(btn) btn.disabled = false; }
 }
+// An OPEN live position as a few labelled rows, not a sentence (the user, 7 Oct 2026: "check the whole tool for
+// messy numbers ... show it in a good way"); every other state stays the one sentence liveStateText /
+// exnessStateText give, escaped. Used under the Signal card's live switch and on the AI tab.
+function liveStatusHTML(p, venue, text){
+  if(!p || p.state !== "open") return text ? `<div>${esc(text)}</div>` : "";
+  const onDelta = (venue || "").indexOf("Delta") === 0, ex = venue === "Exness";
+  const v = x => x == null ? "—" : String(x);
+  const rows = ex
+    ? [["Position", `${p.side || ""} ${p.qty || ""} ${p.symbol || ""} · ${(p.kind || "").toUpperCase()}`],
+       ["Filled at", v(p.avg_price)], ["Stop at Exness", v(p.sl)], ["Target at Exness", v(p.tp)]]
+      .concat(p.profit != null ? [["Exness P&L", money(p.profit)]] : [])
+    : [["Holding", `${v(p.filled_qty)} ${p.tradingsymbol || ""}`], ["Bought at", v(p.avg_price)],
+       [onDelta ? (p.stop_at_venue ? "Stop at Delta (mark)" : "Stop - NOT at Delta") : "Stop at Zerodha", `trigger ${v(p.stop_trigger)}`]];
+  return `<table class="ntab kv"><tbody>`
+    + rows.map(([l, x]) => `<tr><td>${esc(l)}</td><td class="r"><b>${esc(x)}</b></td></tr>`).join("") + `</tbody></table>`
+    + (onDelta && !p.stop_at_venue ? `<div>This tool watches the mark itself, so the stop only works while the server is running.</div>` : "");
+}
 function exnessStateText(p){
   const k = (p.kind || "").toUpperCase(), what = `${p.side || ""} ${p.qty || ""} ${p.symbol || ""}`;
   return ({
@@ -7000,11 +7038,10 @@ function liveBox(s){
   b.style.marginLeft = ($("tclear").style.display === "none" && $("tskip").style.display === "none") ? "auto" : "";
   const p = (L.positions || []).find(x => x.index === CUR);
   const note = (L.notes || []).find(n => n.index === CUR);
-  const lines = [];
-  if(p) lines.push(L.venue === "Exness" ? exnessStateText(p) : liveStateText(p, (L.venue || "").indexOf("Delta") === 0));
-  if(note) lines.push(`${note.at} · ${note.text}`);
-  st.textContent = lines.filter(Boolean).join("  —  ");
-  st.style.display = st.textContent ? "" : "none";
+  const txt = p ? (L.venue === "Exness" ? exnessStateText(p) : liveStateText(p, (L.venue || "").indexOf("Delta") === 0)) : "";
+  const html = liveStatusHTML(p, L.venue, txt) + (note ? `<div class="lnote">${esc(note.at)} &middot; ${esc(note.text)}</div>` : "");
+  st.innerHTML = html;
+  st.style.display = html ? "" : "none";
   st.classList.toggle("err", !!((note && note.level === "error") || (p && p.state === "attention")));
 }
 
@@ -9533,7 +9570,6 @@ function livePnl(s){
   }
   return {booked: L.booked || 0, closed: L.closed || 0, open, open_n: n, net: (L.booked || 0) + open, venue: L.venue};
 }
-const liveNote = lv => `${lv.closed} closed &middot; ${lv.open_n} open &middot; booked ${money(lv.booked)} &middot; open ${money(lv.open)}`;
 // The PAPER trades as their own figure - never added to the real money (the user, 7 Oct 2026: "can you make in the dashboard
 // live trades and paper trades separate it shows in same"). Same shape as livePnl: the server gives what closed today and the
 // AI desk's open part; the rule tickets' open part is summed here from the tickets with no real position.
@@ -9547,7 +9583,6 @@ function paperPnl(s){
   }
   return {booked: P.booked || 0, closed: P.closed || 0, open, open_n: n, net: (P.booked || 0) + open};
 }
-const paperNote = pp => `${pp.closed} closed &middot; ${pp.open_n} open &middot; booked ${money(pp.booked)} &middot; open ${money(pp.open)}`;
 // The Trend Rider's trades (trend_rider.py), badged apart from the tool's own rules' ones.
 const trTag = t => t && t.system === "trend_rider" ? ' <span class="jbadge tr" title="Taken by the Trend Rider">TR</span>' : "";
 // Which kind a trade is, on every line that shows one: the Journal's own badges.
@@ -9585,18 +9620,24 @@ function kiteSide(s){
   } else {
     h += box("Open trade", `<div class="kmuted">No open trade on ${esc(CUR)}. ${esc(($("bias") && $("bias").textContent) || "")}.</div>`);
   }
-  const lv = livePnl(s), pp = paperPnl(s), lvn = lv ? lv.net : 0;
-  h += box("Today", row("Live trades · real money", `<span style="color:${col(lvn)}">${money(lvn)}</span>`)
-    + `<div class="kmuted">${lv ? "real fills &middot; " + liveNote(lv) : "no live order today"}</div>`
-    + row("Paper trades", pp ? `<span style="color:${col(pp.net)}">${money(pp.net)}</span>` : "—")
-    + (pp ? `<div class="kmuted">${paperNote(pp)}</div>` : "")
-    + `<div class="kmuted">${ses.issued == null ? 0 : ses.issued} tickets &middot; ${ses.wins || 0} ran to target &middot; ${ses.stops || 0} stopped out</div>`, "kb-today");
+  const lv = livePnl(s), pp = paperPnl(s);
+  const trow = (name, x) => `<tr><td>${name}</td>`
+    + (x ? `<td class="r" style="color:${col(x.net)}"><b>${money(x.net)}</b></td><td class="r">${money(x.booked)}</td><td class="r">${money(x.open)}</td>`
+         : `<td class="r" style="color:var(--ink-3)">${money(0)}</td><td class="r">—</td><td class="r">—</td>`) + `</tr>`;
+  h += box("Today", `<table class="ntab kt"><thead><tr><th></th><th class="r">Result</th><th class="r">Booked</th><th class="r">Open</th></tr></thead>`
+    + `<tbody>${trow("Live", lv)}${trow("Paper", pp)}</tbody></table>`
+    + (lv ? "" : `<div class="kmuted">no live order today</div>`)
+    + `<div class="kgrid3"><div><span>Tickets</span><b>${ses.issued == null ? 0 : ses.issued}</b></div>`
+    + `<div><span>To target</span><b>${ses.wins || 0}</b></div><div><span>Stopped out</span><b>${ses.stops || 0}</b></div></div>`, "kb-today");
   let f = "";
   if(br.accounts && br.accounts.length)
-    f = br.accounts.map(a => `<div class="knum" style="font-size:15px">${esc((a.kind || "?").toUpperCase())}`
-        + `${a.shared ? " (shared feed)" : ""} · $${a.ok ? num(a.balance || 0, 2) : "—"}</div>`
-        + `<div class="kmuted">${esc(a.server || "")}${a.ok ? ` · equity $${num(a.equity || 0, 2)} · free margin $${num(a.freeMargin || 0, 2)}`
-        + (a.leverage ? ` · 1:${a.leverage}` : "") : " · " + esc(a.detail || "not reachable")}${a.investor ? " · read-only" : ""}</div>`).join("")
+    f = br.accounts.map(a => `<table class="ntab kv"><thead><tr><th>${esc((a.kind || "?").toUpperCase())}${a.shared ? " (shared feed)" : ""}`
+        + `${a.investor ? " · read-only" : ""}</th><th class="r">${esc(a.server || "")}</th></tr></thead><tbody>`
+        + (a.ok ? `<tr><td>Balance</td><td class="r"><b>$${num(a.balance || 0, 2)}</b></td></tr>`
+                + `<tr><td>Equity</td><td class="r">$${num(a.equity || 0, 2)}</td></tr>`
+                + `<tr><td>Free margin</td><td class="r">$${num(a.freeMargin || 0, 2)}</td></tr>`
+                + (a.leverage ? `<tr><td>Leverage</td><td class="r">1:${a.leverage}</td></tr>` : "")
+                : `<tr><td colspan="2">${esc(a.detail || "not reachable")}</td></tr>`) + `</tbody></table>`).join("")
         + `<a class="klink" href="/connect-exness">Exness accounts</a>`;
   else if(br.connected && br.funds && br.funds.available != null)
     f = `<div class="knum">${esc(fundsLabel(br.funds))}</div><div class="kmuted">available on ${esc(br.name)}</div>`;
@@ -9700,13 +9741,18 @@ function kiteDash(s){
          : `<div class="kd-s">This server runs one market</div>`) + `</div>`
     : "";
   const cfd = order.some(k => ((s.indices || {})[k] || {}).cfd);
-  const lvn = lv ? lv.net : 0;
-  const h = `<div class="kd-top"><div><div class="kd-l">Live trades &middot; real money</div>`
-    + `<div class="kd-n" style="color:${col(lvn)}">${money(lvn)}</div>`
-    + `<div class="kd-s">${lv ? "real fills &middot; " + liveNote(lv) : "No live order today"}</div></div>`
-    + `<div><div class="kd-l">Paper trades</div>`
-    + `<div class="kd-n" style="color:${col(pp ? pp.net : 0)}">${pp ? money(pp.net) : "—"}</div>`
-    + `<div class="kd-s">${pp ? paperNote(pp) : ""}</div></div>`
+  // Today as a table: live (real money) and paper apart, each with its result, what has closed and what is open.
+  const sumRow = (name, sub, x) => !x
+    ? `<tr><td><b>${name}</b><small>${sub}</small></td><td class="r big" style="color:var(--ink-3)">${money(0)}</td>`
+      + `<td class="r">—</td><td class="r">—</td><td class="r">0</td><td class="r">0</td></tr>`
+    : `<tr><td><b>${name}</b><small>${sub}</small></td><td class="r big" style="color:${col(x.net)}">${money(x.net)}</td>`
+      + `<td class="r" style="color:${col(x.booked)}">${money(x.booked)}</td><td class="r" style="color:${col(x.open)}">${money(x.open)}</td>`
+      + `<td class="r">${x.closed}</td><td class="r">${x.open_n}</td></tr>`;
+  const h = `<div class="kd-top"><div class="kd-sumw"><div class="kd-l">Today</div>`
+    + `<table class="ntab kd-sum"><thead><tr><th></th><th class="r">Result</th><th class="r">Booked</th><th class="r">Open</th>`
+    + `<th class="r">Closed</th><th class="r">Running</th></tr></thead><tbody>`
+    + sumRow("Live trades &middot; real money", lv ? "the broker's own fills" : "No live order today", lv)
+    + sumRow("Paper trades", "no order placed", pp) + `</tbody></table></div>`
     + `<div><div class="kd-l">Funds available</div>${funds}</div>${market}</div>`
     + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`
@@ -10239,7 +10285,8 @@ function aiRender(d){
   })();
   const lp = lpos[0];
   const lines = [];
-  if(lp) lines.push(d.live_venue === "Exness" ? exnessStateText(lp) : liveStateText(lp, (d.live_venue || "").indexOf("Delta") === 0));
+  const ltxt = lp ? (d.live_venue === "Exness" ? exnessStateText(lp) : liveStateText(lp, (d.live_venue || "").indexOf("Delta") === 0)) : "";
+  const head = liveStatusHTML(lp, d.live_venue, ltxt);
   if(lnote) lines.push(`${lnote.at} · ${lnote.text}`);
   const brk = (LAST && LAST.broker) || {};
   if(brk.connected && brk.funds && brk.funds.available != null)
@@ -10247,8 +10294,9 @@ function aiRender(d){
   if(k === "BTC" && brk.name === "Delta Exchange" && !brk.connected)
     lines.push("Delta Exchange keys not added yet - open \"Connect Delta Exchange\" at the top of the page "
                + "(or /connect-delta) before switching live orders on.");
-  lstat.textContent = lines.filter(Boolean).join("  —  ");
-  lstat.style.display = lstat.textContent ? "" : "none";
+  const html = head + lines.filter(Boolean).map(x => `<div class="lnote">${esc(x)}</div>`).join("");
+  lstat.innerHTML = html;
+  lstat.style.display = html ? "" : "none";
   lstat.classList.toggle("err", !!((lnote && lnote.level === "error") || (lp && lp.state === "attention")));
 
   aiDecisions(d, k);
@@ -11798,10 +11846,11 @@ function recapDraw(s){
            tr.day_change > 0 ? "var(--up)" : tr.day_change < 0 ? "var(--down)" : "");
   const recent = (ses.recent || []).slice(0, 4);
   $("recaplist").innerHTML = recent.length
-    ? recent.map(t => `<div>${esc(t.index)} ${esc(String(t.strike || ""))} `
-        + `${esc(t.option_type || "")}${tradeTag(t)} &middot; ${esc(t.exit_time || "")} &middot; `
-        + `<span style="color:${(t.pnl||0) >= 0 ? "var(--up)" : "var(--down)"}">`
-        + `${t.pnl == null ? "no price" : money(t.pnl)}</span></div>`).join("")
+    ? `<table class="ntab"><thead><tr><th>Trade</th><th class="r">Closed</th><th class="r">P&amp;L</th></tr></thead><tbody>`
+      + recent.map(t => `<tr><td>${esc(t.index)} ${esc(String(t.strike || ""))} ${esc(t.option_type || "")}${trTag(t)}${tradeTag(t)}</td>`
+        + `<td class="r">${esc(String(t.exit_time || "").slice(0, 5))}</td>`
+        + `<td class="r" style="color:${(t.pnl||0) >= 0 ? "var(--up)" : "var(--down)"}">${t.pnl == null ? "no price" : money(t.pnl)}</td></tr>`).join("")
+      + `</tbody></table>`
     : `<div>Nothing has closed yet today.</div>`;
 }
 
