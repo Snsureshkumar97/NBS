@@ -602,6 +602,18 @@ DAILY_LOSS_LIMIT_OFF = ("nse_index",)
 # the rule tickets: every AI entry question is a model call billed to the user's key, so it stays out until asked for.
 AI_DESK_SKIP = ("MIDCPNIFTY",)
 
+# Which SYSTEM trades each Indian index (the user, 7 Oct 2026: "so apply for which index best apply for that"). "rules"
+# = the tool's own engine; "trend_rider" = trend_rider.py, the pasted Structural Trend Rider. Chosen per index on the
+# Dashboard (TicketBook.system_for); these are the starting choices, from mix_study.py's per-index 3-year results
+# (in-sample / held-out per lot, the tool vs the Trend Rider at 2.75R): Nifty 154,936 / 30,386 vs 180,232 / 69,814;
+# Bank Nifty 172,293 / -5,376 vs 147,747 / 23,664; Sensex 110,280 / 100,217 vs 190,961 / 54,879; Midcap 141,945 /
+# 86,451 vs 95,338 / -8,054. Picking per index from those same figures flatters the result - a starting point to watch.
+SYSTEMS = ("rules", "trend_rider")
+SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX": "rules", "MIDCPNIFTY": "rules"}
+# The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
+# (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
+TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}
+
 # How a live Zerodha entry is priced (live_orders.py). "ltp_buffer" (unchanged, the default): one limit at the live price
 # + 2%, which fills at the ask. "mid_chase": start at the middle of the best bid and ask, step toward the ask every 5 s,
 # never above that same limit, cancelled at 20 s as before - may save part of the spread, may miss a fast entry. The

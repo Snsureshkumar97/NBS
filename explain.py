@@ -326,8 +326,10 @@ def _rule_explain(rec):
                                                                  if up else "a downtrend, so the rule only sells, on sharp spikes.")})
     for f in info.get("filters") or []:
         ok = f.get("ok")
-        t = _FILTER_TEXT.get(f.get("key"), ("yes", "no"))
+        t = f.get("texts") or _FILTER_TEXT.get(f.get("key"), ("yes", "no"))      # the Trend Rider brings its own
         reading = "—" if ok is None else ("yes" if ok else "no")
+        if ok is not None and f.get("reading"):
+            reading = f"{f['reading']} · {reading}"
         if ok is not None and f.get("key") == "adx25" and vals.get("adx") is not None:
             reading = f"{vals['adx']:.0f} · {reading}"
         if ok is not None and f.get("key") == "spread_ok" and f.get("spread") is not None and f.get("limit") is not None:
@@ -335,22 +337,33 @@ def _rule_explain(rec):
         votes.append({"name": f.get("name"), "vote": None if ok is None else (1 if ok else -1),
                       "reading": reading, "text": "" if ok is None else (t[0] if ok else t[1])})
     side = info.get("side") if info.get("ready") else 0
-    tail = (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
-            "distance; nothing moves the stop on the way, out after 24 hours.")
+    tr = info.get("system") == "trend_rider"
+    tail = ((f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
+             f"{info.get('target_r'):g} x the risk; nothing moves the stop on the way, out at the day's close.") if tr else
+            (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
+             "distance; nothing moves the stop on the way, out after 24 hours."))
     if not info.get("ready"):
         verdict = "Waiting - " + (info.get("why") or "no reading yet") + "."
         headline = "No trade - waiting for the rule's reading"
     elif side:
-        word = "BUY" if side > 0 else "SELL"
-        verdict = f"Every vote and filter agrees on the last 15-minute close: {word}." + tail
+        word = ("BUY CE" if side > 0 else "BUY PE") if tr else ("BUY" if side > 0 else "SELL")
+        verdict = (f"Every condition holds, for the first time, on the last 15-minute close: {word}." if tr else
+                   f"Every vote and filter agrees on the last 15-minute close: {word}.") + tail
         headline = f"{word} - {info.get('label')}"
+    elif tr:
+        verdict = " ".join(rec.get("blockers") or ["No fresh Trend Rider signal on the last 15-minute close."])
+        headline = "No trade - Trend Rider waiting"
     else:
         verdict = ("Not every vote and filter agrees on the last 15-minute close, so no trade. The rule decides "
                    "again at the next close.")
         headline = "No trade - the rule's votes do not all agree"
     levels = []
     tg, sl = rec.get("index_targets") or [None, None, None], rec.get("index_stop_loss")
-    if side and sl is not None and tg[2] is not None:
+    if side and sl is not None and tg[2] is not None and tr:
+        levels = [f"STOP {_n(sl, 2)} - the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}; it stays there.",
+                  f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "
+                  f"(T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
+    elif side and sl is not None and tg[2] is not None:
         levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; it stays there.",
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the stop distance, the trade's only exit "
                   f"target (T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]

@@ -195,6 +195,9 @@ class TicketBook:
         # Each instrument's own lots (the user, 7 Oct 2026: "make lot selects separate for markets each market i
         # should select different lots may you can add one in dashboard"). An instrument not in here takes `lots`.
         self.lots_by = {}
+        # Each Indian index's system ("rules" / "trend_rider", config.SYSTEMS) - the user's choice, else
+        # config.SYSTEM_DEFAULTS (7 Oct 2026). See system_for().
+        self.systems_by = {}
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
@@ -239,6 +242,9 @@ class TicketBook:
             for k, v in (s.get("lots_by") or {}).items():
                 if k in names and v not in (None, ""):
                     self.lots_by[k] = self._snap_lots(v)
+            for k, v in (s.get("systems_by") or {}).items():
+                if k in names and v in _cfg("SYSTEMS", ("rules",)):
+                    self.systems_by[k] = v
         except Exception:
             pass
 
@@ -258,6 +264,14 @@ class TicketBook:
         choices = config.lot_choices(self.market)
         return min(choices, key=lambda c: abs(c - self._from_contracts(float(lots), choices)))
 
+    def system_for(self, index):
+        """Which system trades this instrument: the user's choice, else config.SYSTEM_DEFAULTS, else the tool's own
+        rules. Indian indices only - every other market trades on its own rules."""
+        if self.market != "nse_index":
+            return "rules"
+        v = self.systems_by.get(index) or (_cfg("SYSTEM_DEFAULTS", {}) or {}).get(index) or "rules"
+        return v if v in _cfg("SYSTEMS", ("rules",)) else "rules"
+
     def lots_for(self, index):
         """How many lots a ticket on this instrument is issued for: its own choice, else the market's."""
         return self.lots_by.get(index, self.lots)
@@ -271,7 +285,7 @@ class TicketBook:
             tmp = p + ".tmp"
             with open(tmp, "w") as fh:
                 json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots,
-                           "lots_by": self.lots_by}, fh)
+                           "lots_by": self.lots_by, "systems_by": self.systems_by}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -413,7 +427,7 @@ class TicketBook:
     # settings
     # =====================================================================
     def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
-                  capital=None, risk_pct=None, lots_index=None):
+                  capital=None, risk_pct=None, lots_index=None, system=None, system_index=None):
         with self.lock:
             if capital is not None:
                 # 0 or blank clears it, which also switches the loss limit off.
@@ -432,6 +446,12 @@ class TicketBook:
                     self.lots = self._snap_lots(lots)
                     self.lots_by = {}
                 self._save_settings()
+            if system is not None and self.market == "nse_index":
+                # One index's system; an unknown index or system changes nothing. A ticket already open keeps the exit
+                # it was opened with.
+                if system in _cfg("SYSTEMS", ("rules",)) and system_index in config.instruments_in(self.market):
+                    self.systems_by[system_index] = system
+                    self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
             if auto_rearm is not None:
@@ -837,6 +857,8 @@ class TicketBook:
         # Per market (config.time_breakeven_minutes): off for crypto since 3 Oct 2026, the
         # Indian indices unchanged.
         wait_min = config.time_breakeven_minutes(trade.get("index") or book.name)
+        if trade.get("plain_exit"):
+            wait_min = 0          # one fixed stop and target, as tested (an entry rule, the Trend Rider): never moved
         if (wait_min and not trade["sl_hit"] and not trade["hit"]["T1"]
                 and not trade["time_breakeven_done"]):
             elapsed_min = (now_ist() - trade["entry_ts"]).total_seconds() / 60.0
@@ -942,7 +964,7 @@ class TicketBook:
         if book.trade is not None and book.trade["status"] == "OPEN":
             return hold("position_open", "POSITION OPEN",
                         "A ticket is already running on this instrument. It ends at its target, its stop or "
-                        "24 hours.")
+                        + ("the day's close." if self.market == "nse_index" else "24 hours."))
         info = rec.get("rule") or {}
         if not info.get("ready"):
             return hold("neutral", "NO SIGNAL", info.get("why") or "The rule has no reading yet.")
@@ -964,7 +986,12 @@ class TicketBook:
             return hold("neutral", "NEXT CLOSE", "The rule agreed on the last 15-minute close, but a decision is "
                         "only taken in the first two minutes after a close - as it was tested. The next one is at "
                         "the next close.")
-        cd = _cfg("REENTRY_COOLDOWN_MIN", 0)
+        # An index option's ticket is frozen from its OWN live premium, as the engine's tickets are (_price_hold).
+        block = self._price_hold(rec)
+        if block is not None:
+            return hold(*block)
+        # The Trend Rider was tested with no wait after an exit - its "first close where it holds" is its own spacing.
+        cd = 0 if info.get("no_cooldown") else _cfg("REENTRY_COOLDOWN_MIN", 0)
         if cd and book.last_close_at is not None and (now_ist() - book.last_close_at).total_seconds() < cd * 60:
             left = int(cd - (now_ist() - book.last_close_at).total_seconds() / 60) + 1
             return hold("reentry_cooldown", "COOLDOWN", f"{cd} minutes after the last exit before a new ticket - "
@@ -1445,6 +1472,8 @@ class TicketBook:
             # nothing moves the stop on the way; a rule's ticket has no reversal exit either.
             "plain_exit": rec.get("target_basis") in ("plain_r", "rule"),
             "rule_strategy": rec.get("target_basis") == "rule",
+            # Which system issued it: "trend_rider" (trend_rider.py), else the tool's own rules - the page's TR badge.
+            "system": (rec.get("rule") or {}).get("system") or "rules",
             # A rule's reward:risk is fixed with its levels (target over stop); frozen so the open
             # ticket's panel keeps showing it after the rule's reading goes quiet.
             "reward_risk": rec.get("reach_to_risk") if rec.get("target_basis") == "rule" else None,
@@ -1725,7 +1754,7 @@ class TicketBook:
             # strike, no expiry - and the spread it paid, frozen at entry.
             "cfd": bool(trade.get("cfd")), "entry_spread": trade.get("entry_spread"),
             "reward_risk": trade.get("reward_risk"),      # a rule's fixed one; None = the panel reads the live signal's
-            "lots": trade.get("lots", 1), "lot_size": trade.get("lot_size"),
+            "lots": trade.get("lots", 1), "lot_size": trade.get("lot_size"), "system": trade.get("system") or "rules",
             "targets": (trade["premium_targets"] if trade["use_premium"]
                         else trade["index_targets"]),
             "stop": (trade["premium_sl"] if trade["use_premium"]
@@ -1836,6 +1865,9 @@ class TicketBook:
                 "recent": self.closed[:8],
                 "lots": self.lots,
                 "lots_by": {k: self.lots_for(k) for k in config.instruments_in(self.market)},
+                "systems_by": ({k: self.system_for(k) for k in config.instruments_in(self.market)}
+                               if self.market == "nse_index" else {}),
+                "system_choices": list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else [],
                 "lot_choices": config.lot_choices(self.market),
                 "capital": self.capital,
                 "risk_pct": self.risk_pct,

@@ -457,6 +457,10 @@ def _public(rec, name=None):
     no strike, premium, expiry or option spread - the page shows the price levels a
     buy or a sell is tracked on, with Exness's own live spread."""
     out = _public_base(rec, name)
+    if out is not None and rec.get("rule") is not None and not config.is_cfd(name or rec.get("index")):
+        out["rule"] = rec.get("rule")             # the Trend Rider's conditions (trend_rider.py) on an Indian index
+        if rec.get("target_basis") == "rule":
+            out["exit_at"] = "T3"
     if out is not None and config.is_cfd(name or rec.get("index")):
         out["rule"] = rec.get("rule")             # an Exness entry rule's own votes (cfd_rules.py), or None
         if rec.get("target_basis") == "rule":
@@ -1084,6 +1088,7 @@ class Feed:
                         rec["checks"] = self._signal_checks(name, rec)
                         self._cfd_stamp(name, rec)
                         self._cfd_rule(name, rec)
+                        self._trend_rider(name, rec)
                         try:
                             evs = self.tickets.update(name, rec)
                         except Exception:
@@ -1885,6 +1890,29 @@ class Feed:
             self._note_fault(f"{name} signal checks", f"{type(exc).__name__}: {exc}")
             return None
 
+    def _trend_rider(self, name, rec):
+        """An Indian index set to the Trend Rider (TicketBook.system_for, config.SYSTEM_DEFAULTS): its reading on the
+        last CLOSED 15-minute candle replaces the engine's call (trend_rider.py). Never raises - a failure is a reading
+        that waits, with the reason."""
+        if rec is None or self.market != "nse_index" or self.tickets.system_for(name) != "trend_rider":
+            return rec
+        import trend_rider
+        try:
+            ev = trend_rider.evaluate(name, rec.get("candles"))
+        except Exception as exc:
+            ev = {"ready": False, "why": f"no reading: {type(exc).__name__}: {str(exc)[:160]}"}
+            print(f"feeds: {name} trend rider - {ev['why']}", file=sys.stderr, flush=True)
+        try:
+            return trend_rider.apply(rec, ev, name, avoid_strikes=self._avoid_strikes(name))
+        except Exception as exc:
+            print(f"feeds: {name} trend rider apply - {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+            rec.update(bias="NEUTRAL", option_type=None, index_stop_loss=None, index_targets=[None, None, None],
+                       premium_targets=[None, None, None], premium_stop_loss=None, target_basis="rule",
+                       action=f"NO TRADE - WAIT (Trend Rider: {type(exc).__name__})")
+            rec["rule"] = {"label": "Trend Rider", "system": "trend_rider", "ready": False, "side": 0,
+                           "why": f"{type(exc).__name__}: {exc}", "votes": [], "filters": []}
+            return rec
+
     def _cfd_rule(self, name, rec):
         """An Exness instrument with an entry rule (config.CFD_RULES): its reading on the last CLOSED
         15-minute candle replaces the engine's call (cfd_rules.py). Never raises - a failure is a
@@ -2095,6 +2123,7 @@ class Feed:
             rec["checks"] = self._signal_checks(name, rec)
             self._cfd_stamp(name, rec)
             self._cfd_rule(name, rec)
+            self._trend_rider(name, rec)
             try:
                 evs = self.tickets.update(name, rec)
             except Exception as exc:

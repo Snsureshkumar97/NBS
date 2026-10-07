@@ -2374,7 +2374,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            auto_rearm=as_bool("auto_rearm"),
                            limits=as_bool("limits"),
                            capital=as_num("capital"), risk_pct=as_num("risk_pct"),
-                           lots_index=(form.get("lots_index") or "").upper() or None)
+                           lots_index=(form.get("lots_index") or "").upper() or None,
+                           system=(form.get("system") or None), system_index=(form.get("system_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -3447,6 +3448,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);border-radius:6px;padding:3px 6px;font:inherit}
 .kdlots .kdl-u{font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-msg{font-size:12px;color:var(--ink-3);flex-basis:100%}
+.kdlots .kdl-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;flex-basis:100%}
+.jbadge.tr{color:#7a5af8;border-color:rgba(122,90,248,.45)}
 .lotqty{font-size:12px;color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
   border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
@@ -5796,15 +5799,47 @@ function lotsDash(s){
   const choices = sess.lot_choices || [1, 2, 3, 4, 5];
   if(!order.length || !sess.lots_by && sess.lots == null){ el.innerHTML = ""; el.dataset.sig = ""; return; }
   const live = s.live && s.live.enabled ? Object.keys(s.live.enabled) : null;
-  const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",");
+  // Which system trades each index (the user, 7 Oct 2026: "so apply for which index best apply for that"):
+  // the tool's own rules or the Trend Rider - Indian indices only.
+  const sys = sess.systems_by || {}, sysChoices = sess.system_choices || [];
+  const SYSNAME = {rules: "Current rules", trend_rider: "Trend Rider"};
+  const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
     el.innerHTML = `<span class="kdl-h">Lots</span>` + order.map(k =>
       `<label><span>${esc(k)}</span><select data-k="${esc(k)}">`
       + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select>`
       + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</label>`).join("")
+      + (sysChoices.length ? `<span class="kdl-row"><span class="kdl-h">System</span>` + order.map(k =>
+          `<label><span>${esc(k)}</span><select data-sys="${esc(k)}">`
+          + sysChoices.map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label>`).join("")
+          + `</span>` : "")
       + `<span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
+      const ss = e.target.closest("select[data-sys]");
+      if(ss){
+        const k = ss.dataset.sys, want = ss.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        ss.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({system: want, system_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.systems_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          ss.value = got;
+          if(msg) msg.textContent = `${k}: traded by ${SYSNAME[got] || got} from its next signal. An open ticket keeps `
+            + `the exit it opened with.`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).systems_by || {})[k];
+          if(was) ss.value = was;
+          if(msg) msg.textContent = `${k}: the system could not be changed (are you still signed in?) - still ${SYSNAME[was] || was}.`;
+        }finally{ ss.disabled = false; }
+        return;
+      }
       const sel = e.target.closest("select[data-k]"); if(!sel) return;
       const k = sel.dataset.k, want = parseFloat(sel.value);
       KDLOTS_HOLD = Date.now() + 5000;
@@ -5827,6 +5862,10 @@ function lotsDash(s){
   el.querySelectorAll("select[data-k]").forEach(sel => {
     const v = lotsOf(sess, sel.dataset.k);
     if(v != null && document.activeElement !== sel && sel.value !== String(v)) sel.value = String(v);
+  });
+  el.querySelectorAll("select[data-sys]").forEach(sel => {
+    const v = sys[sel.dataset.sys];
+    if(v && document.activeElement !== sel && sel.value !== v) sel.value = v;
   });
 }
 
@@ -7488,7 +7527,7 @@ function gauges(r, why){
     </div>`;
   }).join("");
   const ft = r.rule && r.rule.forward_test;
-  $("gnote").textContent = r.rule
+  $("gnote").textContent = r.rule && r.rule.note ? r.rule.note : r.rule
     ? `${r.rule.label}: a trade only when every vote agrees and every filter says yes - decided once, on each `
       + `15-minute close. Stop ${r.rule.stop_atr} x ATR, one target at ${r.rule.target_r} x the stop distance.`
       // On trial (the user, 4 Oct 2026: "run the forward test on demo with RSI-2"): said plainly, with
@@ -8562,7 +8601,7 @@ function render(s){
     $("conftag").style.display="inline-flex";
     $("conftag").className="tag "+(bull?"up":bear?"down":"flat");
     $("conftag").textContent = r.rule
-      ? `${r.rule.label} · every vote agrees${r.rule.forward_test ? " · forward test" : ""}`
+      ? (r.rule.tag || `${r.rule.label} · every vote agrees${r.rule.forward_test ? " · forward test" : ""}`)
       : (bull||bear? (s.cfd ? (r.option_type==="CE"?"Buy":"Sell")
                             : r.strike+" "+(r.option_type==="CE"?"Call":"Put"))+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";
@@ -9509,6 +9548,8 @@ function paperPnl(s){
   return {booked: P.booked || 0, closed: P.closed || 0, open, open_n: n, net: (P.booked || 0) + open};
 }
 const paperNote = pp => `${pp.closed} closed &middot; ${pp.open_n} open &middot; booked ${money(pp.booked)} &middot; open ${money(pp.open)}`;
+// The Trend Rider's trades (trend_rider.py), badged apart from the tool's own rules' ones.
+const trTag = t => t && t.system === "trend_rider" ? ' <span class="jbadge tr" title="Taken by the Trend Rider">TR</span>' : "";
 // Which kind a trade is, on every line that shows one: the Journal's own badges.
 const tradeTag = t => t && (t.entry_real || t.live)
   ? ' <span class="jbadge live" title="A real order: placed at the broker">Live</span>'
@@ -9540,7 +9581,7 @@ function kiteSide(s){
       return `<span class="${hh ? "hit" : ""}">T${i + 1} ${num(v)}${hh ? " ✓" : ""}</span>`; }).join("")}</div>`;
     const tc = $("tclear");
     if(tc && tc.style.display !== "none") b += `<button type="button" class="lbtn kclear" data-kact="clear">Clear ticket</button>`;
-    h += box(`Open trade &middot; ${esc(name)}${tradeTag(tk)}`, b);
+    h += box(`Open trade &middot; ${esc(name)}${trTag(tk)}${tradeTag(tk)}`, b);
   } else {
     h += box("Open trade", `<div class="kmuted">No open trade on ${esc(CUR)}. ${esc(($("bias") && $("bias").textContent) || "")}.</div>`);
   }
@@ -9607,7 +9648,7 @@ function posTable(s){
     const strike = t.strike != null && !(cfdOf(k) || t.cfd)
       ? `${esc(String(Math.round(t.strike)))} ${esc(t.option_type || "")}`
       : esc(t.option_type === "CE" ? "Buy" : t.option_type === "PE" ? "Sell" : (t.option_type || "—"));
-    const tag = (ai ? ' <span class="jbadge ai" title="The AI desk\'s trade">AI</span>' : "") + tradeTag({entry_real: real});
+    const tag = (ai ? ' <span class="jbadge ai" title="The AI desk\'s trade">AI</span>' : "") + trTag(t) + tradeTag({entry_real: real});
     const when = open ? "open" : `closed ${esc(String(t.closed || "").slice(0, 5))}`;
     return `<tr class="${open ? "" : "kd-closed"}"><td><b>${esc(k)}</b>${tag}<div class="kd-when">${when}</div></td>`
       + `<td><b>${strike}</b></td><td class="r">${qty(k, t)}</td><td class="r">${num(t.entry)}</td>`

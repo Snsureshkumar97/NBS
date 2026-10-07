@@ -69,7 +69,7 @@ const posted = [];
 let reply = null;
 global.fetch = async (url, opt) => { posted.push(Object.fromEntries(opt.body)); return {json: async () => reply}; };
 class Sel { constructor(k, v){ this.dataset = {k}; this.value = String(v); this.disabled = false; }
-  closest(){ return this; } }
+  closest(q){ return q.includes("data-sys") ? null : this; } }        // a Lots select, not a System one
 const els = {};
 const document = {activeElement: null};
 function $(id){ return els[id] || null; }

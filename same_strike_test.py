@@ -462,7 +462,7 @@ tickets.now_ist = lambda: BASE + dt.timedelta(seconds=CLOCK["s"])
 print("5. WHAT THE FEED HANDS THE PAGE, AND WHAT THE PAGE SAYS")
 src = open(os.path.join(HERE, "feeds.py")).read()
 check("both places a reading is built are given the strikes already traded",
-      src.count("avoid_strikes=self._avoid_strikes(name)") == 2, src.count("avoid_strikes=self._avoid_strikes(name)"))
+      src.count("avoid_strikes=self._avoid_strikes(name)") == 3, src.count("avoid_strikes=self._avoid_strikes(name)"))   # + the Trend Rider's strike (7 Oct 2026)
 check("the public reading carries the swap and the no-free-strike flag",
       '"strike_swap": rec.get("strike_swap")' in src and '"strike_taken": rec.get("strike_taken")' in src)
 

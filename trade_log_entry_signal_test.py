@@ -59,7 +59,9 @@ check("anything added since (the 21 Sep signal-checks stamp) goes after them, at
       trade_log.FIELDS[i + 4:] == ["checks_agree", "checks_against", "checks",
                                     # Added 2 Oct 2026 (WAIVE_COOLDOWN_ON_TRENDING_TARGET) -
                                     # same rule, after everything that came before it.
-                                    "cooldown_waived_trend"])
+                                    "cooldown_waived_trend",
+                                    # Added 7 Oct 2026: which system issued the ticket (rules / trend_rider).
+                                    "system"])
 
 print("2. A FRESH ROW CARRIES THE READING AT THAT CALL")
 row = trade_log._base_row(trade(), rec(), NOW)

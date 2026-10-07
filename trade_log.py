@@ -51,6 +51,8 @@ FIELDS = [
     # continuation through automatically, kept separate from a hand-chosen
     # skip so the two can be measured apart.
     "cooldown_waived_trend",
+    # Added 7 Oct 2026: which system issued the ticket - "rules" or "trend_rider" (config.SYSTEMS).
+    "system",
 ]
 
 
@@ -201,6 +203,7 @@ def _base_row(trade, rec, now):
         # is unreadable a week later — one lot on a good move, or five on a
         # mediocre one?
         "lots": trade.get("lots", 1),
+        "system": trade.get("system") or "rules",
         # "cfd": an Exness ticket - the instrument itself, bought (CE) or sold (PE). Marked
         # on the row, so the journal tells it apart from the Delta option trades before it.
         "tracked_on": "premium" if trade["use_premium"] else ("cfd" if trade.get("cfd") else "index"),
@@ -354,6 +357,7 @@ def booked_split_today(date_str=None, path=None):
         # Each closed trade as the Dashboard's Positions table lists it (the user, 7 Oct 2026: "make the dash board with
         # qty enter ltp and now. ltp as well add it") - a live one at the broker's own fill prices (the overlay).
         closed.append({"trade_id": r.get("trade_id"), "index": r.get("index"), "strike": _f(r.get("strike")),
+                       "system": r.get("system") or o.get("system") or "rules",
                        "option_type": r.get("option_type"), "lots": lots, "lot_size": size,
                        "qty": round(lots * size, 4) if lots and size else None,
                        "entry": _f(r.get("entry")), "exit": _f(r.get("exit")), "pnl": p, "live": r.get("filled") or None,
