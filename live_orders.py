@@ -163,6 +163,14 @@ def _kite_factory(email):
         k = KiteConnect(api_key=user_kite.api_key_for(email), **({"proxies": {"https": proxy}} if proxy else {}))
         k.set_access_token(token)
         return k
+
+    def identity():
+        """What a client is built from - the login, the app, the route. Executor.kite() builds a new client when this
+        changes: a client built before the morning's login keeps the dead token all day otherwise (6 and 7 Oct 2026:
+        the day's first entry read the funds and the quote with it - "Incorrect `api_key` or `access_token`")."""
+        import user_kite
+        return user_kite.token_for(email), user_kite.api_key_for(email), user_kite.order_proxy_for(email)
+    make.identity = identity
     return make
 
 
@@ -174,6 +182,7 @@ class Executor:
         self.path = (log_path + ".live.json") if log_path else None
         self.log_path = log_path
         self.make_kite = kite or _kite_factory(email)
+        self.kite_identity = getattr(self.make_kite, "identity", None) or (lambda: None)
         self.close_ticket = close_ticket or (lambda index, status: None)
         self.now = now or now_ist
         self.clock = clock or time.time
@@ -190,6 +199,7 @@ class Executor:
         self._instruments = {}       # (exchange, day) -> rows
         self._kite = None
         self._kite_day = None
+        self._kite_who = None
         self._funds = None           # (read at, cash available) - never shown to the bot
         self._load()
         self._recover()
@@ -315,8 +325,12 @@ class Executor:
     # ------------------------------------------------------------ kite
     def kite(self):
         today = self._today()
-        if self._kite is None or self._kite_day != today:
-            self._kite, self._kite_day = self.make_kite(), today
+        try:
+            who = self.kite_identity()
+        except Exception:
+            who = self._kite_who                     # cannot tell: keep the client rather than fail the call
+        if self._kite is None or self._kite_day != today or who != self._kite_who:
+            self._kite, self._kite_day, self._kite_who = self.make_kite(), today, who
         return self._kite
 
     def _rows(self, exch):
