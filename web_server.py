@@ -3344,6 +3344,17 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   :root[data-look="kite"] #sigcard #tiles{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
   :root[data-look="kite"] #sigcard #tiles .tile:nth-child(odd){border-left:0;padding-left:0}
 }
+/* the Chart tab's Today's range the same way: the range, where the price sits in it (drawn), and the gap to VWAP */
+:root[data-look="kite"] #trendtiles{gap:0;grid-template-columns:repeat(3,minmax(0,1fr)) !important;margin-top:8px}
+:root[data-look="kite"] #trendtiles .tile{background:transparent;border:0;border-radius:0;padding:0 16px;min-width:0}
+:root[data-look="kite"] #trendtiles .tile:first-child{padding-left:0}
+:root[data-look="kite"] #trendtiles .tile + .tile{border-left:1px solid var(--bd-soft)}
+@media (max-width:760px){
+  :root[data-look="kite"] #trendtiles{grid-template-columns:minmax(0,1fr) !important;row-gap:10px}
+  :root[data-look="kite"] #trendtiles .tile + .tile{border-left:0;padding-left:0;border-top:1px solid var(--bd-soft);padding-top:10px}
+  :root[data-look="kite"] #trendtiles .tile .v{font-size:20px}
+  :root[data-look="kite"] #trendtiles .rngbar{margin:9px 0 7px}
+}
 
 /* ---------- levels ---------- */
 /* The index/premium switch above the ladder. Two buttons rather than a
@@ -3844,8 +3855,16 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .chartlegend b{color:var(--ink);font-weight:650}
 .chartlegend .o{color:var(--ink-2)}
 .chartctl{display:flex;gap:5px;flex:none}
+.chartkeys{display:flex;flex-wrap:wrap;gap:4px 14px;padding:5px 10px;font-size:12px;color:var(--ink-3);
+  border-bottom:1px solid var(--bd-soft)}
+.chartkeys:empty{display:none}
+.chartkeys span{display:inline-flex;align-items:center}
+.rngbar{display:block;position:relative;height:6px;border-radius:3px;background:var(--bd);margin:12px 0 9px}
+.rngbar i{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;border-radius:2px;background:var(--ink)}
 .chartctl .lbtn{padding:3px 10px;font-size:12px;line-height:1.5}
 #cv{display:block;width:100%;height:430px;cursor:crosshair;touch-action:none}
+/* a desktop: the price pane has room, with RSI, MACD and ADX under it (7 Oct 2026: "check the chart tab layout") */
+@media (min-width:901px){#cv{height:clamp(430px,66vh,720px)}}
 @media(max-width:640px){#cv{height:330px}}
 .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:11px;font-size:12px;
   color:var(--ink-2)}
@@ -5279,18 +5298,9 @@ button.mgroup:hover{color:var(--ink-2)}
     <button class="lbtn" id="cvreset" type="button">Reset</button>
     </div>
     </div>
+    <div class="chartkeys" id="cvkeys"></div>
     <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
     earlier candles, scroll to zoom."></canvas>
-    </div>
-    <div class="legend">
-    <span><i class="key" style="background:var(--ema-fast)"></i>EMA 20</span>
-    <span><i class="key" style="background:var(--ema-slow)"></i>EMA 50</span>
-    <span><i class="key dash"></i>VWAP</span>
-    <span><i class="swatch" style="background:var(--up)"></i>Up candle</span>
-    <span><i class="swatch" style="background:var(--down)"></i>Down candle</span>
-    <span><i class="key" style="background:var(--rsi)"></i>RSI</span>
-    <span><i class="key" style="background:var(--macd-line)"></i>MACD</span>
-    <span><i class="key dash2"></i>MACD signal</span>
     </div>
     </div>
    </div>
@@ -8381,6 +8391,7 @@ function chartDraw(){
     cx.textAlign = "center";
     cx.fillText("waiting for candles…", w/2, h/2);
     $("cvlegend").textContent = "";
+    if($("cvkeys")) $("cvkeys").textContent = "";
     return;
   }
 
@@ -8659,11 +8670,14 @@ function chartDraw(){
   }
   lv.forEach(a => {
     cx.save();
+    cx.font = "10px -apple-system,sans-serif";
+    const txt = a.label + " " + Math.round(a.v).toLocaleString("en-IN");
+    const tw = Math.max(PAD.r, Math.ceil(cx.measureText(txt).width) + 8);   // reaches into the plot only when it must
     cx.fillStyle = a.colour;
-    cx.fillRect(w-PAD.r, a.ty-8, PAD.r, 16);
-    cx.fillStyle = onColour(a.colour); cx.font = "10px -apple-system,sans-serif";
+    cx.fillRect(w-tw, a.ty-8, tw, 16);
+    cx.fillStyle = onColour(a.colour);
     cx.textAlign = "left"; cx.textBaseline = "middle";
-    cx.fillText(a.label + " " + Math.round(a.v).toLocaleString("en-IN"), w-PAD.r+4, a.ty);
+    cx.fillText(txt, w-tw+4, a.ty);
     cx.restore();
   });
 
@@ -8734,7 +8748,12 @@ function chartDraw(){
   + `<span>L <b>${f(readout[3])}</b></span>`
   + `<span>C <b>${f(readout[4])}</b></span>`
   + `<span style="color:${cc}">${chg>=0?"+":""}${f(chg)} (${chg>=0?"+":""}${pc.toFixed(2)}%)</span>`
-  + `<span class="o">EMA ${d.ema_fast_len||20}<i class="key" style="display:inline-block;`
+  + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
+  // the indicator keys on a slim row of their own under the toolbar (7 Oct 2026: the readout, the keys and the
+  // buttons used to wrap onto three lines)
+  const keys = $("cvkeys");
+  if(keys) keys.innerHTML =
+    `<span class="o">EMA ${d.ema_fast_len||20}<i class="key" style="display:inline-block;`
   + `margin-left:5px;background:${C.fast}"></i></span>`
   + `<span class="o">EMA ${d.ema_slow_len||50}<i class="key" style="display:inline-block;`
   + `margin-left:5px;background:${C.slow}"></i></span>`
@@ -8748,8 +8767,7 @@ function chartDraw(){
   + (d.adx ? `<span class="o">ADX ${d.adx_len||14}<i class="key" style="display:inline-block;`
              + `margin-left:5px;background:${C.adx}"></i></span>` : "")
   + (d.supertrend ? `<span class="o">Supertrend ${d.supertrend_len||10},${d.supertrend_mult||2.5}`
-             + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.supertrend}"></i></span>` : "")
-  + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
+             + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.supertrend}"></i></span>` : "");
 }
 
 // ---- interaction --------------------------------------------------------
@@ -9120,9 +9138,13 @@ function render(s){
       tr.displacement_atr!=null ? "moved "+tr.displacement_atr+" ATR in the last 14 bars" : null
     ].filter(Boolean).join(" · ");
   if(tr.stalled) $("trend").style.color = "var(--warn)";
+  const rp = tr.range_pos_pct;
   $("trendtiles").innerHTML =
     tile("Day range", tr.day_low==null?"—":num(tr.day_low,0)+" – "+num(tr.day_high,0),
          tr.range_pos_pct==null?"":"now "+tr.range_pos_pct+"% up the range") +
+    tile("Where it is now", rp == null ? "—"
+           : `<span class="rngbar"><i style="left:${Math.max(0, Math.min(100, rp))}%"></i></span>`,
+         rp == null ? "" : `low ${num(tr.day_low,0)} · ${rp}% of the way up · high ${num(tr.day_high,0)}`) +
     tile("Versus VWAP", r.vwap_gap==null?"—":(r.vwap_gap>0?"+":"")+num(r.vwap_gap,0),
          "points from today's average price",
          r.vwap_gap>0?"var(--up)":r.vwap_gap<0?"var(--down)":"");
