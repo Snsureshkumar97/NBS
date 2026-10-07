@@ -1,0 +1,32 @@
+Replaying the live entries under 6 stop rules, side by side...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, real expiries, after costs. Live entry checks, live exit (T1 -> stop to T1, Supertrend trail, out at T2, 2-hour breakeven priced as it fills), one position per index, cooldown waiver.
+ columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ today                                           2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+ 1 stop on the Supertrend line                   1872   39% ₹  +397,045 PF 1.25 DD ₹  68,485 day ₹ -18,864  | 1106   34% ₹  +115,672 PF 1.12 DD ₹  90,117 day ₹ -13,502
+ 2 ...only when the line is on the trade's side  1746   39% ₹  +408,267 PF 1.27 DD ₹  65,116 day ₹ -21,854  | 1042   34% ₹  +124,540 PF 1.14 DD ₹  83,285 day ₹ -13,284
+ 3 the line only when tighter than today         2021   39% ₹  +416,038 PF 1.24 DD ₹  89,820 day ₹ -16,860  | 1176   35% ₹  +118,994 PF 1.11 DD ₹ 100,239 day ₹ -20,572
+ 4 stop on the line, following it from entry     1874   39% ₹  +397,225 PF 1.25 DD ₹  68,168 day ₹ -18,831  | 1106   35% ₹  +114,393 PF 1.12 DD ₹  91,794 day ₹ -13,502
+ 5 today's stop, following the line from entry   2009   39% ₹  +430,350 PF 1.25 DD ₹  94,686 day ₹ -16,860  | 1167   36% ₹  +117,239 PF 1.11 DD ₹ 101,366 day ₹ -20,572
+
+ VERDICT - KEEP only if more profit than today in BOTH periods (worst drop / worst day: minus = better)
+   drop  1 stop on the Supertrend line                profit: in-sample   -40,464  held-out    -9,555   worst drop:  -23,289 /  -11,960   worst day:   -2,004 /   +7,070
+   drop  2 ...only when the line is on the trade's side profit: in-sample   -29,242  held-out      -686   worst drop:  -26,658 /  -18,791   worst day:   -4,994 /   +7,289
+   drop  3 the line only when tighter than today      profit: in-sample   -21,471  held-out    -6,233   worst drop:   -1,954 /   -1,838   worst day:       +0 /       +0
+   drop  4 stop on the line, following it from entry  profit: in-sample   -40,284  held-out   -10,834   worst drop:  -23,605 /  -10,283   worst day:   -1,971 /   +7,070
+   drop  5 today's stop, following the line from entry profit: in-sample    -7,159  held-out    -7,987   worst drop:   +2,912 /     -711   worst day:       +0 /       +0
+
+ THE STOPS THEMSELVES (all periods): how far from the entry, how often hit
+   today                                            stop 2.00 ATR away (median), 1.97 (mean);  closed at the stop 18.8% of trades
+   1 stop on the Supertrend line                    stop 2.58 ATR away (median), 2.58 (mean);  closed at the stop 13.4% of trades
+   2 ...only when the line is on the trade's side   stop 2.66 ATR away (median), 2.65 (mean);  closed at the stop 12.1% of trades
+   3 the line only when tighter than today          stop 2.00 ATR away (median), 1.93 (mean);  closed at the stop 20.1% of trades
+   4 stop on the line, following it from entry      stop 2.58 ATR away (median), 2.58 (mean);  closed at the stop  7.3% of trades
+   5 today's stop, following the line from entry    stop 2.00 ATR away (median), 1.97 (mean);  closed at the stop 16.2% of trades
+
+ TODAY'S TRADES BY WHERE THE LINE WAS AT ENTRY: on the trade's side 2906 of 3172 (92%), on the wrong side 266
+   line on the trade's side       in-sample 1829 trades ₹  +448,797 (₹ +245/trade)   held-out 1077 trades ₹  +105,659 (₹  +98/trade)
+   line on the wrong side         in-sample  176 trades ₹   -11,288 (₹  -64/trade)   held-out   90 trades ₹   +19,568 (₹ +217/trade)

@@ -988,6 +988,20 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         index_targets = [round(spot - risk_points * m, 2) for m in config.RR_MULTS]
         target_basis = "risk_multiple"
 
+    # SL_MODE (config.py) - backtest-only as of 7 Oct 2026 ("what will be the result if we make stop loss at
+    # supertrend in indian market"). "swing" (default) touches nothing. "supertrend": the stop is the index
+    # Supertrend line when it sits on the trade's side of the price (below a call, above a put), else the stop
+    # above stays. "tighter": the line only when it is closer than the stop above. Placed BEFORE the room-to-run
+    # check so that check, the ticket's reward:risk gate and the premium stop all use the stop actually set.
+    sl_mode = getattr(config, "SL_MODE", "swing")
+    st_line = tech.get("supertrend")
+    if option_type and sl_mode in ("supertrend", "tighter") and st_line is not None:
+        sign = 1 if option_type == "CE" else -1
+        st_risk = round(sign * (spot - st_line), 2)
+        if st_risk > 0 and (sl_mode == "supertrend" or st_risk < risk_points):
+            index_sl, risk_points, sl_basis = round(float(st_line), 2), st_risk, "supertrend"
+            index_targets = [round(spot + sign * risk_points * m, 2) for m in config.RR_MULTS]
+
     # ---------------------------------------------------------------------
     # MARKET-BASED TARGETS
     # ---------------------------------------------------------------------

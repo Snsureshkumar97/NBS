@@ -277,6 +277,7 @@ def tech_at(df, pre, i):
         "trend_score": trend, "macd_score": macd_s, "macd_hist": round(h, 2),
         "rsi_score": rsi_s, "vwap_score": vwap_s, "di_score": di_s,
         "st_score": st_s, "vol_score": vol_s,
+        "supertrend": round(st, 2) if st == st else None,     # the line itself, as live (config.SL_MODE reads it)
         "adx": round(a, 1), "adx_ok": bool(a >= config.ADX_TREND_THRESHOLD),
         "vwap": round(v, 2), "vwap_gap": round(c - v, 1),
         "last_swing_low": round(float(pre["swing_low"].iloc[i]), 2),
@@ -297,7 +298,7 @@ def verify_precompute(df, pre, samples=25, index_key=None):
         real = se.compute_technical_signal(df.iloc[:i + 1], index_key)
         fast = tech_at(df, pre, i)
         for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "st_score", "vol_score", "adx",
-                  "last_close", "vwap", "last_swing_low", "last_swing_high"):
+                  "last_close", "vwap", "last_swing_low", "last_swing_high", "supertrend"):
             rv, fv = real[k], fast[k]
             if isinstance(rv, float) and abs(rv - fv) > 0.02:
                 bad.append((i, k, rv, fv))

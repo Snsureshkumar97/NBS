@@ -1667,6 +1667,12 @@ MACD_MUST_AGREE = True
 # same as PCR already does when the chain is unavailable.
 VOLUME_VOTE_MODE = "off"
 
+# Where the stop goes (signal_engine.build_recommendation). "swing" = today: beyond the last swing high/low plus a
+# buffer, an ATR fallback, capped at MAX_RISK_ATR_MULT. "supertrend" = the index Supertrend line
+# (supertrend_params) when it is on the trade's side of the price, else the swing stop. "tighter" = the line only
+# when it is closer than the swing stop. Backtest-only (stop_supertrend_study.py, 7 Oct 2026).
+SL_MODE = "swing"
+
 # +DI/-DI as a core-signal vote - backtest-only as of 2 Oct 2026, same shape
 # as VOLUME_VOTE_MODE above. The user, quoting an Investopedia guide: ADX is
 # usually paired with +DI/-DI to know which way price is moving. Here ADX has
