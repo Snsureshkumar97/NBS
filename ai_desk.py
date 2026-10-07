@@ -227,7 +227,7 @@ class AIDesk:
                 s = json.load(fh)
         except Exception:
             return
-        names = self.feed.instruments()
+        names = self._names()
         self.enabled = {k: bool(v) for k, v in (s.get("enabled") or {}).items() if k in names}
         if s.get("on") and "enabled" not in s:            # one switch for the whole market, before 18 Sep 2026
             self.enabled = {k: True for k in names}
@@ -285,7 +285,7 @@ class AIDesk:
 
     def set_on(self, on, index=None):
         """Switch one index on or off - or every index in the market when none is named."""
-        names = self.feed.instruments()
+        names = self._names()
         if index is not None and index not in names:
             raise ValueError(f"{index} is not in this market.")
         with self.lock:
@@ -354,7 +354,7 @@ class AIDesk:
         now = self.now()
         self._event_reviews(client)
         self._event_entries(client)
-        for name in self.feed.instruments():
+        for name in self._names():
             if not self.enabled.get(name):
                 continue
             if not is_market_open(now, name):
@@ -501,6 +501,11 @@ class AIDesk:
         return bool(live_at) and time.time() - live_at <= STALE_S
 
     # ------------------------------------------------------------ limits
+    def _names(self):
+        """The instruments the desk asks about: the market's, less config.AI_DESK_SKIP (Midcap Select, paper only,
+        7 Oct 2026 - no model calls billed for it)."""
+        return [n for n in self.feed.instruments() if n not in getattr(config, "AI_DESK_SKIP", ())]
+
     def _open_trade(self, name):
         with self.book.lock:
             b = self.book.books.get(name)
@@ -510,6 +515,8 @@ class AIDesk:
     def _sync_rules(self):
         rules = self.feed.tickets
         self.book.lots = self.lots
+        # Following the rule tickets (no lots of the desk's own): each index's own lots too (7 Oct 2026).
+        self.book.lots_by = dict(getattr(rules, "lots_by", {}) or {}) if self._lots is None else {}
         self.book.capital = rules.capital
         self.book.risk_pct = rules.risk_pct
 
@@ -610,7 +617,8 @@ class AIDesk:
         with self.feed.lock:
             pub = (self.feed.state["indices"].get(name) or {}).get("public") or {}
         try:
-            need = float(pub.get("ltp")) * int(pub.get("lot_size")) * float(self.lots or 1)
+            lots = self.book.lots_for(name) if hasattr(self.book, "lots_for") else self.lots
+            need = float(pub.get("ltp")) * int(pub.get("lot_size")) * float(lots or 1)
         except (TypeError, ValueError):
             need = None
         return {"on": True, "funds_for_one_ticket_at_the_suggested_premium":
@@ -662,7 +670,7 @@ class AIDesk:
 
     def _desk_info(self, name):
         tickets = {}
-        for k in self.feed.instruments():
+        for k in self._names():
             if self._open_trade(k):
                 t = self.book.public(k).get("ticket")
                 if isinstance(t, dict):
@@ -1073,7 +1081,7 @@ class AIDesk:
         fired = self.watch.observe(name, trade.get("trade_id"), pub, idx,
                                    config.strictness().get("adx"), self.clock())
         self.watch.forget_except({t.get("trade_id") for t in
-                                  (self._open_trade(k) for k in self.feed.instruments()) if t})
+                                  (self._open_trade(k) for k in self._names()) if t})
         if fired:
             with self.lock:
                 self.pending.setdefault(name, [])
@@ -1081,7 +1089,7 @@ class AIDesk:
 
     def price_tick(self):
         """The AI ticket's own contract, off the stream, on every tick."""
-        for name in self.feed.instruments():
+        for name in self._names():
             trade = self._open_trade(name)
             if trade is None:
                 continue
@@ -1151,7 +1159,7 @@ class AIDesk:
             except Exception:
                 pass
             today = self.now().strftime("%Y-%m-%d")
-            names = self.feed.instruments()
+            names = self._names()
 
             def summary(sel):
                 pnl = [float(r["pnl"]) for r in sel if r.get("pnl") not in (None, "")]

@@ -192,6 +192,9 @@ class TicketBook:
         # The smallest size the market allows: one lot of an index option,
         # 0.1 of a BTC contract.
         self.lots = config.lot_choices(self.market)[0]
+        # Each instrument's own lots (the user, 7 Oct 2026: "make lot selects separate for markets each market i
+        # should select different lots may you can add one in dashboard"). An instrument not in here takes `lots`.
+        self.lots_by = {}
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
@@ -232,6 +235,10 @@ class TicketBook:
                 choices = config.lot_choices(self.market)
                 saved = self._from_contracts(float(s["lots"]), choices)
                 self.lots = min(choices, key=lambda c: abs(c - saved))
+            names = set(config.instruments_in(self.market))
+            for k, v in (s.get("lots_by") or {}).items():
+                if k in names and v not in (None, ""):
+                    self.lots_by[k] = self._snap_lots(v)
         except Exception:
             pass
 
@@ -245,6 +252,16 @@ class TicketBook:
             return lots * 0.001
         return lots
 
+    def _snap_lots(self, lots):
+        """The nearest size this market offers - a stale page asking for "3" on crypto or "0.3" on Nifty still gets a
+        real one."""
+        choices = config.lot_choices(self.market)
+        return min(choices, key=lambda c: abs(c - self._from_contracts(float(lots), choices)))
+
+    def lots_for(self, index):
+        """How many lots a ticket on this instrument is issued for: its own choice, else the market's."""
+        return self.lots_by.get(index, self.lots)
+
     def _save_settings(self):
         p = self._settings_path()
         if not p:
@@ -253,7 +270,8 @@ class TicketBook:
             import json, os
             tmp = p + ".tmp"
             with open(tmp, "w") as fh:
-                json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots}, fh)
+                json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots,
+                           "lots_by": self.lots_by}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -395,7 +413,7 @@ class TicketBook:
     # settings
     # =====================================================================
     def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
-                  capital=None, risk_pct=None):
+                  capital=None, risk_pct=None, lots_index=None):
         with self.lock:
             if capital is not None:
                 # 0 or blank clears it, which also switches the loss limit off.
@@ -405,10 +423,14 @@ class TicketBook:
                 self.risk_pct = float(risk_pct)
                 self._save_settings()
             if lots is not None:
-                choices = config.lot_choices(self.market)
-                # Snap to the nearest size the market offers, so a stale page
-                # asking for "3" on crypto or "0.3" on Nifty still gets a real one.
-                self.lots = min(choices, key=lambda c: abs(c - self._from_contracts(float(lots), choices)))
+                # One instrument's lots when `lots_index` names one of this market's; with none named (a page from
+                # before 7 Oct 2026), every instrument's, as the one selector always meant.
+                if lots_index:
+                    if lots_index in config.instruments_in(self.market):     # an unknown name changes nothing
+                        self.lots_by[lots_index] = self._snap_lots(lots)
+                else:
+                    self.lots = self._snap_lots(lots)
+                    self.lots_by = {}
                 self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
@@ -1414,7 +1436,7 @@ class TicketBook:
             "entry_ltp": rec.get("live_ltp"),
             "use_premium": use_premium,
             "lot_size": meta.get("lot_size"),
-            "lots": self.lots,          # frozen on purpose
+            "lots": self.lots_for(book.name),          # frozen on purpose - this instrument's own lots
             # A CFD (Exness): the ticket is the instrument itself, and the spread
             # paid to get in and out is its cost - frozen with the entry.
             "cfd": cfd,
@@ -1813,6 +1835,7 @@ class TicketBook:
                 "limits": self.limits,
                 "recent": self.closed[:8],
                 "lots": self.lots,
+                "lots_by": {k: self.lots_for(k) for k in config.instruments_in(self.market)},
                 "lot_choices": config.lot_choices(self.market),
                 "capital": self.capital,
                 "risk_pct": self.risk_pct,

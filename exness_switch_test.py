@@ -49,7 +49,7 @@ check("the Delta settings are kept for a rollback", btc["delta_perpetual"] == "B
 nifty = config.INSTRUMENTS["NIFTY"]
 check("NIFTY unchanged: kite, 65 lot, no cfd, its own market",
       config.MARKETS["nse_index"]["market_provider"] == "kite" and nifty["lot_size"] == 65
-      and not config.is_cfd("NIFTY") and config.instruments_in("nse_index") == ["NIFTY", "BANKNIFTY", "SENSEX"])
+      and not config.is_cfd("NIFTY") and config.instruments_in("nse_index") == ["NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"])   # Midcap paper-only since 7 Oct 2026
 check("the Indian indices keep the 2h breakeven; crypto still has none",
       config.time_breakeven_minutes("NIFTY") == 120 and config.time_breakeven_minutes("BTC") == 0
       and config.time_breakeven_minutes("GOLD") == 0)

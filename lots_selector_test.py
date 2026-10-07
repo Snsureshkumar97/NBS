@@ -93,7 +93,7 @@ const reset = () => { ALERTS.length = 0; FETCHES.length = 0; LOTS_HOLD = 0; sel(
   assert.strictEqual(FETCHES.length, 1);
   assert.strictEqual(FETCHES[0].url, "/api/ticket");
   assert.strictEqual(FETCHES[0].method, "POST");
-  assert.strictEqual(FETCHES[0].body, "lots=4", "the size is sent to the server");
+  assert.strictEqual(FETCHES[0].body, "lots=4&lots_index=NIFTY", "the size is sent to the server - for the index on screen (7 Oct 2026)");
   assert.strictEqual(LOTS, 4);
   assert.strictEqual(LAST.session.lots, 4, "the page's copy of the server's session is updated from the reply");
   assert.strictEqual(sel().disabled, false, "the selector is usable again");

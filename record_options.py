@@ -39,7 +39,7 @@ import config            # noqa: E402
 import user_kite         # noqa: E402
 
 OUT_DIR = os.path.join(os.path.expanduser("~"), "trading-tool-logs", "option_history")
-INDICES = ["NIFTY", "BANKNIFTY", "SENSEX"]
+INDICES = ["NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"]   # Midcap Select from 7 Oct 2026: its real premiums, to check the backtest
 MARGIN_STEPS = 5          # strikes beyond the day's range on each side
 EXPIRIES = 2              # nearest N expiries per index
 REQ_SLEEP = 0.36          # Kite's historical API allows 3 requests a second

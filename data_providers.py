@@ -632,7 +632,9 @@ class KiteDataProvider:
     def _all_option_instruments(self, index_key: str):
         meta = INSTRUMENTS[index_key]
         exchange = "BFO" if meta["kite_exchange"] == "BSE" else "NFO"
-        underlying_prefix = {"NIFTY": "NIFTY", "BANKNIFTY": "BANKNIFTY", "SENSEX": "SENSEX"}[index_key]
+        # The options' underlying name on NFO/BFO: NIFTY, BANKNIFTY, MIDCPNIFTY (nse_symbol), SENSEX (its own key).
+        # Was a fixed three-entry map, which raised for any index added to INSTRUMENTS (MIDCPNIFTY, 7 Oct 2026).
+        underlying_prefix = meta.get("nse_symbol") or index_key
         # The full instrument dump is a multi-megabyte download and the list
         # only changes when contracts are added — cache it for the session
         # rather than re-fetching on every option-token lookup.

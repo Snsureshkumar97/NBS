@@ -116,7 +116,7 @@ else:
     helpers = SRC[SRC.index("function livePnl(s){"):SRC.index("function kiteSide(s){")]
     prog = ("const assert = require('assert');\n" + SRC[n0:n1] + 'let CCY = "INR";\n' + grab("function ccySym(){", "\n")
             + grab("function ccyLocale(){", "\n") + grab("function money(v, signed){") + grab("function fundsLabel(f){")
-            + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\n" + helpers
+            + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\nconst lotsDash = s => {};   // per_index_lots_test.py\n" + helpers
             + grab("function kiteSide(s){") + grab("function posTable(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
             + r'''
 const els = {};

@@ -30,9 +30,10 @@ check("gold is off in the shipped config, and its definition is still there to t
       config.INSTRUMENTS["GOLD"]["enabled"] is False and config.INSTRUMENTS["GOLD"]["delta_asset"] == "XAUT"
       and config.INSTRUMENTS["GOLD"]["max_spread_pct"] == 8.0)
 check("the crypto market lists Bitcoin alone, and so does everything the server runs",
-      config.instruments_in("crypto") == ["BTC"] and config.active_instruments() == ["NIFTY", "BANKNIFTY", "SENSEX", "BTC"],
+      config.instruments_in("crypto") == ["BTC"] and config.active_instruments() == ["NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY", "BTC"],
       (config.instruments_in("crypto"), config.active_instruments()))
-check("the Indian market is untouched", config.instruments_in("nse_index") == ["NIFTY", "BANKNIFTY", "SENSEX"])
+check("the Indian market is untouched (Midcap Select added, paper only, 7 Oct 2026)",
+      config.instruments_in("nse_index") == ["NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"])
 config.INSTRUMENTS["GOLD"]["enabled"] = True
 check("turning it back on is that one line", config.instruments_in("crypto") == ["BTC", "GOLD"])
 del config.INSTRUMENTS["GOLD"]["enabled"]

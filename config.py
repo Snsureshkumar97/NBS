@@ -166,6 +166,21 @@ INSTRUMENTS = {
         "lot_size": 20,                   # verify current lot size on Zerodha before trading
         "has_free_option_chain": False,
     },
+    # PAPER ONLY (7 Oct 2026). The user, after index_candidates_study.py: "add midcap i will check paper trades".
+    # It beat Bank Nifty in both periods on 3 years - but its options are thin (~5k lots a day at the money against
+    # Bank Nifty's ~110k) and its edge is gone by 0.75% slippage a side, so it is watched on paper first. It is NOT in
+    # live_orders.INDICES, so no live order can be placed for it (Executor.set_enabled refuses it and the page shows no
+    # live switch). Monthly options only. Lot and strike step from Kite's instrument list, 7 Oct 2026.
+    "MIDCPNIFTY": {
+        "yahoo_ticker": "NIFTY_MID_SELECT.NS",
+        "nse_symbol": "MIDCPNIFTY",       # the options' underlying name on NFO
+        "kite_exchange": "NSE",
+        "kite_tradingsymbol": "NIFTY MID SELECT",
+        "market": "nse_index",
+        "strike_step": 25,
+        "lot_size": 120,
+        "has_free_option_chain": False,
+    },
     # ---- crypto -----------------------------------------------------------
     # Priced and charted off Deribit, which carries the perpetual for candles,
     # a published index for spot, and the only BTC/ETH option chain with enough
@@ -583,6 +598,9 @@ DAILY_LOSS_LIMIT_PER_INSTRUMENT = ("crypto",)
 # 2% = Rs 12,000, tripped by two PAPER losses.) Crypto keeps its per-instrument limit. The live-order hard cap
 # (live_orders.MAX_ENTRIES_PER_DAY) and the AI desk's own entry caps are separate and unchanged.
 DAILY_LOSS_LIMIT_OFF = ("nse_index",)
+# Instruments the AI desk does not ask the model about. Midcap Select, added PAPER-ONLY on 7 Oct 2026 for the user to watch
+# the rule tickets: every AI entry question is a model call billed to the user's key, so it stays out until asked for.
+AI_DESK_SKIP = ("MIDCPNIFTY",)
 
 # How a live Zerodha entry is priced (live_orders.py). "ltp_buffer" (unchanged, the default): one limit at the live price
 # + 2%, which fills at the ask. "mid_chase": start at the middle of the best bid and ask, step toward the ask every 5 s,

@@ -2373,7 +2373,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             book.configure(lots=lots, reentry=as_bool("reentry"),
                            auto_rearm=as_bool("auto_rearm"),
                            limits=as_bool("limits"),
-                           capital=as_num("capital"), risk_pct=as_num("risk_pct"))
+                           capital=as_num("capital"), risk_pct=as_num("risk_pct"),
+                           lots_index=(form.get("lots_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -3440,6 +3441,12 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 /* The lots selector. Nothing here places an order, so this only scales the
    rupee column — it is a "what would that be worth to me" dial, not a size. */
 .lots{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
+.kdlots{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:4px 0 18px;font-size:13px;color:var(--ink-2)}
+.kdlots .kdl-h{font-weight:600;color:var(--ink-1, var(--ink));margin-right:4px}
+.kdlots label{display:flex;align-items:center;gap:7px}
+.kdlots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);border-radius:6px;padding:3px 6px;font:inherit}
+.kdlots .kdl-u{font-size:12px;color:var(--ink-3)}
+.kdlots .kdl-msg{font-size:12px;color:var(--ink-3);flex-basis:100%}
 .lotqty{font-size:12px;color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
   border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
@@ -4647,6 +4654,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
+  :root[data-look="kite"] .kdlots{order:2}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#htoday){display:none}
   :root[data-look="kite"]:has(.pane[data-pane="home"].on) .kside :is(.kb-today,.kb-funds){display:none}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
@@ -4968,6 +4976,7 @@ button.mgroup:hover{color:var(--ink-2)}
 
  <section class="pane on" data-pane="home">
   <div class="kdash" id="kdash"></div>
+  <div class="kdlots" id="kdlots"></div>
   <div class="dashbulk" id="dashbulk">
    <button class="lbtn dashlive" id="dashlive" type="button" aria-pressed="false"
    hidden>Turn on live trades</button>
@@ -5761,6 +5770,65 @@ let LOTS_SYNCED = false;
 // the OLD size and would flip the selector back for a moment; after this the
 // server's own figure wins again - see the sync in ladder().
 let LOTS_HOLD = 0;
+// Each index's own lots (the user, 7 Oct 2026: "make lot selects separate for markets each market i should select
+// different lots may you can add one in dashboard"): the session's lots_by, else the market's one figure (a server from
+// before this).
+const lotsOf = (sess, k) => !sess ? null : (sess.lots_by && sess.lots_by[k] != null ? sess.lots_by[k] : sess.lots);
+// Saved on the server for ONE index - a ticket is issued with the lots it holds then. The session it answers with is
+// merged into the page's; an answer without this index's figure is an error, never a silent "it worked".
+async function saveLots(index, lots){
+  const r = await fetch("/api/ticket", {method:"POST", cache:"no-store",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({lots: String(lots), lots_index: index})});
+  const j = await r.json();
+  if(!j || !j.ok || !j.session || lotsOf(j.session, index) == null) throw new Error("not taken");
+  if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+  return j.session;
+}
+// The Dashboard's lots, one selector per index. Its own box, built once per set of indices and choices and only
+// re-valued when not in use: the summary above it is rewritten on every change, and a select rebuilt mid-click drops
+// the click.
+let KDLOTS_HOLD = 0;
+function lotsDash(s){
+  const el = $("kdlots");
+  if(!el || !s) return;
+  const sess = s.session || {}, order = s.order || Object.keys(s.indices || {});
+  const choices = sess.lot_choices || [1, 2, 3, 4, 5];
+  if(!order.length || !sess.lots_by && sess.lots == null){ el.innerHTML = ""; el.dataset.sig = ""; return; }
+  const live = s.live && s.live.enabled ? Object.keys(s.live.enabled) : null;
+  const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",");
+  if(el.dataset.sig !== sig){
+    el.dataset.sig = sig;
+    el.innerHTML = `<span class="kdl-h">Lots</span>` + order.map(k =>
+      `<label><span>${esc(k)}</span><select data-k="${esc(k)}">`
+      + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select>`
+      + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</label>`).join("")
+      + `<span class="kdl-msg" id="kdlmsg"></span>`;
+    el.onchange = async e => {
+      const sel = e.target.closest("select[data-k]"); if(!sel) return;
+      const k = sel.dataset.k, want = parseFloat(sel.value);
+      KDLOTS_HOLD = Date.now() + 5000;
+      sel.disabled = true;
+      const msg = $("kdlmsg");
+      try{
+        const ses = await saveLots(k, want);
+        sel.value = String(lotsOf(ses, k));
+        if(k === CUR){ LOTS = lotsOf(ses, k); LOTS_HOLD = Date.now() + 5000; }
+        if(msg) msg.textContent = `${k}: the next ticket is ${lotsOf(ses, k)} lot${lotsOf(ses, k) === 1 ? "" : "s"}. An open ticket keeps the lots it opened with.`;
+        if(LAST) render(LAST);
+      }catch(err){
+        const was = LAST && lotsOf(LAST.session, k);
+        if(was != null) sel.value = String(was);
+        if(msg) msg.textContent = `${k}: the lots could not be saved (are you still signed in?) - still ${was}.`;
+      }finally{ sel.disabled = false; }
+    };
+  }
+  if(Date.now() < KDLOTS_HOLD) return;
+  el.querySelectorAll("select[data-k]").forEach(sel => {
+    const v = lotsOf(sess, sel.dataset.k);
+    if(v != null && document.activeElement !== sel && sel.value !== String(v)) sel.value = String(v);
+  });
+}
 
 // A Delta Exchange contract is 0.001 BTC and is counted in contracts, so "5 lots of 1" is a unit that does not
 // exist; index options are genuinely sold in lots of 65 or 30. Set here rather
@@ -5804,7 +5872,8 @@ function lotsSync(){
   // under a selector that said otherwise). Only a change made here a moment
   // ago is held against it (LOTS_HOLD), so a poll already in flight cannot
   // flip the selector back.
-  if(sess.lots != null && (!LOTS_SYNCED || Date.now() >= LOTS_HOLD)){ LOTS = sess.lots; LOTS_SYNCED = true; }
+  const mine = lotsOf(sess, CUR);       // the index on screen: each has its own lots (7 Oct 2026)
+  if(mine != null && (!LOTS_SYNCED || Date.now() >= LOTS_HOLD)){ LOTS = mine; LOTS_SYNCED = true; }
   const sig = choices.join(",");
   if(sel.dataset.sig !== sig){
     sel.innerHTML = "";
@@ -6716,17 +6785,13 @@ $("lots").onchange = async e => {
   if(LAST) render(LAST);
   sel.disabled = true;
   try{
-    const r = await fetch("/api/ticket", {method:"POST", cache:"no-store",
-      headers:{"Content-Type":"application/x-www-form-urlencoded"},
-      body:new URLSearchParams({lots:String(LOTS)})});
-    const j = await r.json();
-    if(!j || !j.ok || !j.session || j.session.lots == null) throw new Error("not taken");
-    LOTS = j.session.lots;
+    const ses = await saveLots(CUR, LOTS);
+    LOTS = lotsOf(ses, CUR);
     LOTS_SYNCED = true;
-    if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
     if(LAST) render(LAST);
   }catch(err){
-    LOTS = (LAST && LAST.session && LAST.session.lots != null) ? LAST.session.lots : before;
+    const was = LAST && lotsOf(LAST.session, CUR);
+    LOTS = was != null ? was : before;
     LOTS_HOLD = 0;
     if(LAST) render(LAST);
     alert(`The lot size could not be saved on the server (are you still signed in?). It is still ${LOTS}.`);
@@ -9619,6 +9684,7 @@ function kiteDash(s){
 
 function homeDraw(s){
   kiteDash(s);
+  lotsDash(s);
   const g = $("gmk");
   if(g && MKT_ROWS){
     g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {
@@ -10615,7 +10681,7 @@ function overnightWarn(s){
   const n = o.calendar_nights;
   const span = n > 1 ? `${n} nights - the market is shut until ${esc(o.next_open)}`
                      : `the night, until ${esc(o.next_open)}`;
-  const idxName = {NIFTY: "Nifty", BANKNIFTY: "Bank Nifty", SENSEX: "Sensex"}[tk.index] || tk.index;
+  const idxName = {NIFTY: "Nifty", BANKNIFTY: "Bank Nifty", SENSEX: "Sensex", MIDCPNIFTY: "Midcap Select"}[tk.index] || tk.index;
   const parts = [];
   if(o.expires_today){
     parts.push(`<b>This contract expires today at 15:30.</b> It cannot be held overnight - it settles at the close.`);
@@ -11052,7 +11118,7 @@ setInterval(() => { if(TAB === "gann" && !document.hidden) gannFetch(); }, 15000
 // ============================================================ TradingView
 // TradingView's own chart page in a frame - the official embed that needs no
 // script of theirs. Rebuilt only when the symbol or theme changes.
-const TV_SYMBOL = {NIFTY: "NSE:NIFTY", BANKNIFTY: "NSE:BANKNIFTY", SENSEX: "BSE:SENSEX", BTC: "BITSTAMP:BTCUSD",
+const TV_SYMBOL = {NIFTY: "NSE:NIFTY", BANKNIFTY: "NSE:BANKNIFTY", SENSEX: "BSE:SENSEX", MIDCPNIFTY: "NSE:NIFTY_MID_SELECT", BTC: "BITSTAMP:BTCUSD",
                    GOLD: "TVC:GOLD"};   // spot gold; the tool trades XAUT, the gold token, which tracks it
 let TV_LAST = "";
 function tvPaint(){
