@@ -304,20 +304,34 @@ ASKED.clear()
 d.step()
 check("nor before the opening wait ends (the rule book's own gate)", not ASKED)
 
-f, d = desk()
-d.set_on(True)
-f.tickets.capital = 100000.0
-at(10, 0, 50)
-SCRIPT[:] = [enter(target=250, stop=40)]
-d.step()
-d.book.tick_price("NIFTY", 39.0)
-d._after("NIFTY", [{"kind": "closed"}])
-ASKED.clear()
-at(12, 0, 50)
-T["clock"] += 3 * 3600
-d.step()
-check("the daily loss limit, on the rule book's capital, stops AI entries too",
-      not ASKED and "LOSS LIMIT" in str(d.entry_block("BANKNIFTY")), d.entry_block("BANKNIFTY"))
+def losing_morning():
+    """A losing AI trade closed on a book with capital set; then: (asked anything?, the entry block)."""
+    f, d = desk()
+    d.set_on(True)
+    f.tickets.capital = 100000.0
+    at(10, 0, 50)
+    SCRIPT[:] = [enter(target=250, stop=40)]
+    d.step()
+    d.book.tick_price("NIFTY", 39.0)
+    d._after("NIFTY", [{"kind": "closed"}])
+    ASKED.clear()
+    at(12, 0, 50)
+    T["clock"] += 3 * 3600
+    d.step()
+    return bool(ASKED), d.entry_block("BANKNIFTY")
+
+import config as _config
+_off = _config.DAILY_LOSS_LIMIT_OFF
+_config.DAILY_LOSS_LIMIT_OFF = ()                    # a market that HAS a loss limit (crypto; the Indian one before 7 Oct)
+try:
+    asked, block = losing_morning()
+finally:
+    _config.DAILY_LOSS_LIMIT_OFF = _off
+check("where a daily loss limit exists, on the rule book's capital, it stops AI entries too",
+      not asked and "LOSS LIMIT" in str(block), block)
+asked, block = losing_morning()
+check("the Indian indices have no daily loss limit since 7 Oct 2026 - not for the AI desk either",
+      "LOSS LIMIT" not in str(block), block)
 
 f, d = desk()
 d.set_on(True)

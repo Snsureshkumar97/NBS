@@ -1,0 +1,11 @@
+THE DAILY LOSS LIMIT ON 3 YEARS (per lot; your account's Rs 12,000 at 3 lots = Rs 4,000 a lot)
+ no limit                                        2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+ limit Rs 2,000 a lot                            1637   38% ₹  +362,436 PF 1.26 DD ₹  74,855 day ₹ -10,656  |  932   36% ₹  +142,343 PF 1.18 DD ₹  70,882 day ₹ -16,440
+   drop  limit Rs 2,000 vs no limit                   profit: in-sample   -75,073  held-out   +17,116   worst drop:  -16,919 /  -31,195   worst day:   +6,204 /   +4,133
+ limit Rs 4,000 a lot  <- yours                  1788   38% ₹  +300,864 PF 1.19 DD ₹  76,221 day ₹ -12,191  | 1037   35% ₹  +123,486 PF 1.13 DD ₹  74,989 day ₹ -16,440
+   drop  limit Rs 4,000 vs no limit                   profit: in-sample  -136,645  held-out    -1,741   worst drop:  -15,552 /  -27,088   worst day:   +4,670 /   +4,133
+ limit Rs 6,000 a lot                            1898   39% ₹  +371,827 PF 1.22 DD ₹  81,567 day ₹ -12,191  | 1118   35% ₹  +122,293 PF 1.12 DD ₹  92,724 day ₹ -16,440
+   drop  limit Rs 6,000 vs no limit                   profit: in-sample   -65,682  held-out    -2,934   worst drop:  -10,206 /   -9,353   worst day:   +4,670 /   +4,133
+ limit Rs 8,000 a lot                            1960   39% ₹  +429,440 PF 1.25 DD ₹  83,534 day ₹ -13,968  | 1142   35% ₹  +118,805 PF 1.12 DD ₹ 101,840 day ₹ -16,440
+   drop  limit Rs 8,000 vs no limit                   profit: in-sample    -8,069  held-out    -6,422   worst drop:   -8,240 /     -236   worst day:   +2,892 /   +4,133
+days the Rs 4,000 limit skipped a trade: 131 of 723 trading days

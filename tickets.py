@@ -266,7 +266,9 @@ class TicketBook:
         return round(self.capital * pct / 100.0, 2)
 
     def loss_limit_pct(self):
-        """DAILY_LOSS_LIMIT_R full-risk losses, as a share of capital."""
+        """DAILY_LOSS_LIMIT_R full-risk losses, as a share of capital - 0 (no limit) on a DAILY_LOSS_LIMIT_OFF market."""
+        if self.market in _cfg("DAILY_LOSS_LIMIT_OFF", ()):
+            return 0.0
         return round(float(_cfg("DAILY_LOSS_LIMIT_R", 0)) * self.risk_pct, 2)
 
     def booked_net_today(self, index=None):

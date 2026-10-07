@@ -577,6 +577,12 @@ DAILY_LOSS_LIMIT_R = 3
 # btc loss and let gold take the trade"). Now BTC's loss stops BTC; gold answers to its own. The Indian
 # indices keep one limit for the day across all three (not listed here).
 DAILY_LOSS_LIMIT_PER_INSTRUMENT = ("crypto",)
+# Markets with NO daily loss limit. The Indian indices since 7 Oct 2026 - the user, after three stops tripped it at
+# 10:18: "does indian market have loss limit remove it because if there is room no recover the loss it can". (Their
+# capital box left the screen on 25 Sep, but the figure stored behind it kept the limit on, unseen: Rs 2,00,000 at
+# 2% = Rs 12,000, tripped by two PAPER losses.) Crypto keeps its per-instrument limit. The live-order hard cap
+# (live_orders.MAX_ENTRIES_PER_DAY) and the AI desk's own entry caps are separate and unchanged.
+DAILY_LOSS_LIMIT_OFF = ("nse_index",)
 
 # How a live Zerodha entry is priced (live_orders.py). "ltp_buffer" (unchanged, the default): one limit at the live price
 # + 2%, which fills at the ask. "mid_chase": start at the middle of the best bid and ask, step toward the ask every 5 s,
