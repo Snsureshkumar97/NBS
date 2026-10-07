@@ -199,6 +199,15 @@ const gold = Object.assign({}, s, {indices: {GOLD: {spot: 4130, bias: "BEARISH",
 posPane(gold);
 const g = els.kpos.innerHTML.split('class="kd-tab kd-pos"')[1];
 assert.ok(g.includes("0.10 lot") && g.includes(">Sell<") && !g.includes("4140 PE"), "a CFD: lots, and its side where a strike would be");
+// an open Exness trade is named by its side on the Dashboard and in the side column, never "83200 PE" (7 Oct 2026)
+const btc = Object.assign({}, s, {indices: {BTC: {spot: 83080.92, bias: "BEARISH", cfd: true}}, order: ["BTC"],
+  tickets: {BTC: tk({strike: 83200, option_type: "PE", cfd: true, lots: 0.1, lot_size: 1, entry: 83083.72, now: 83080.92, pnl: -0.28, entry_real: true})},
+  positions_today: {closed: [], ai_open: []}});
+CUR = "BTC"; kiteDash(btc); kiteSide(btc);
+const brow = els.kdash.innerHTML.split('data-k="BTC"')[1].split("</tr>")[0];
+assert.ok(brow.includes("<td>Sell") && !brow.includes("83200"), "the Dashboard's open trade: its side - " + brow);
+assert.ok(els.kside.innerHTML.includes("BTC \u00b7 Sell") && !els.kside.innerHTML.includes("83200"), "the side column's heading: its side");
+CUR = "NIFTY";
 const none = Object.assign({}, s, {live_pnl: null, tickets: {SENSEX: tk({pnl: -3017})}});
 kiteDash(none);
 assert.ok(els.kdash.innerHTML.includes("No live order today"), "a day with no live order says so, at zero");
@@ -211,6 +220,9 @@ check("Positions is a tab of its own, right after the Dashboard, and redrawn on 
       '<section class="pane" data-pane="positions">' in SRC and 'const TABS = ["home", "positions",' in SRC
       and SRC.index('data-tab="home" role="tab"') < SRC.index('data-tab="positions" role="tab"') < SRC.index('data-tab="signal" role="tab"')
       and 'if(TAB === "positions") posPane(s);' in SRC and 'if(name === "positions" && LAST) posPane(LAST);' in SRC)
+check("on a phone Positions sits in the bottom bar after Home, and More does not light up for it",
+      SRC.index('<nav class="botnav"') < SRC.index('data-tab="positions" type="button"') < SRC.index('<button id="bnmore"')
+      and '!["home", "positions", "signal", "chart", "chain"].includes(name)' in SRC)
 check("the trade settings (lots and system per index) sit above the Dashboard's summary",
       SRC.index('<div class="kdlots" id="kdlots"></div>') < SRC.index('<div class="kdash" id="kdash"></div>'))
 

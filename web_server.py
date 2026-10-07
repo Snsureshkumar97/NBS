@@ -4802,7 +4802,9 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#gmk){order:5}
   :root[data-look="kite"] .kd-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:36px;padding:8px 0 22px;border-bottom:1px solid var(--bd-soft)}
-  :root[data-look="kite"] .kd-sumw{grid-column:span 2;min-width:0}
+  :root[data-look="kite"] .kd-sumw{grid-column:1 / -1;min-width:0}
+  :root[data-look="kite"] .kd-sum td:first-child b{white-space:nowrap}
+  :root[data-look="kite"] .kd-sum td:first-child small{display:inline;margin-left:8px}
   :root[data-look="kite"] .kd-tab td,:root[data-look="kite"] .kd-tab th{font-variant-numeric:tabular-nums}
   :root[data-look="kite"] .kd-m{font-size:22px;font-weight:400;line-height:1.3;margin-top:8px}
   /* a real button, not link text - as a 13px link beside the 44px figures it was easy to miss (4 Oct 2026) */
@@ -5026,6 +5028,7 @@ button.mgroup:hover{color:var(--ink-2)}
 <div class="navscrim" id="navscrim"></div>
 <nav class="botnav" id="botnav" aria-label="Main sections">
  <button class="tab" data-tab="home" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i><span>Home</span></button>
+ <button class="tab" data-tab="positions" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 13h18"/></svg></i><span>Positions</span></button>
  <button class="tab" data-tab="signal" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i><span>Signal</span></button>
  <button class="tab" data-tab="chart" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i><span>Chart</span></button>
  <button class="tab" data-tab="chain" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 10h16M4 15h16"/></svg></i><span>Chain</span></button>
@@ -5963,8 +5966,9 @@ function kdlQty(el){
   el.querySelectorAll("small[data-q]").forEach(q => {
     if(!q.dataset || !q.dataset.q) return;
     const sel = el.querySelector(`select[data-k="${q.dataset.q}"]`), ls = parseFloat(q.dataset.ls), lots = sel ? parseFloat(sel.value) : NaN;
+    const units = v => Number(v.toFixed(4)).toLocaleString("en-IN", {maximumFractionDigits: 3});   // 0.1, 10 - no trailing zeros
     q.textContent = isNaN(lots) ? "" : q.dataset.cfd
-      ? `= ${num(lots * (ls || 1), 2)} ${q.dataset.q === "GOLD" ? "oz" : q.dataset.q}`
+      ? `= ${units(lots * (ls || 1))} ${q.dataset.q === "GOLD" ? "oz" : q.dataset.q}`
       : ls ? `= ${num(lots * ls, 0)} qty` : "";
   });
 }
@@ -5987,7 +5991,7 @@ function lotsDash(s){
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<div class="kdl-head"><span class="kdl-h">Trade settings</span>`
       + `<span class="kdl-sub">per index &middot; for the next ticket; an open one keeps what it opened with</span></div>`
-      + `<table class="ntab kdl-tab"><thead><tr><th>Index</th><th>Lots</th>${sysChoices.length ? "<th>System</th>" : ""}</tr></thead><tbody>`
+      + `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>${sysChoices.length ? "<th>System</th>" : ""}</tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -9778,7 +9782,7 @@ function showTab(name, push){
     const g = act && act.closest(".mgrp");
     if(g) navGroup(g, true); }
   { const nt = $("navtitle"); if(nt) nt.textContent = TAB_LABEL[name] || "Menu"; }
-  { const bm = $("bnmore"); if(bm) bm.classList.toggle("on", !["home", "signal", "chart", "chain"].includes(name)); }
+  { const bm = $("bnmore"); if(bm) bm.classList.toggle("on", !["home", "positions", "signal", "chart", "chain"].includes(name)); }
   navClose();
   try{ localStorage.setItem("nbs.tab.v1", name); }catch(e){}
   if(push !== false && location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
@@ -9941,7 +9945,9 @@ function kiteSide(s){
       + `<button type="button" class="klive${on ? " on" : ""}" data-kact="live" role="switch" aria-checked="${on}">${on ? "ON" : "OFF"}</button></div></div>`;
   }
   if(open){
-    const name = `${CUR} ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`.trim();
+    // an Exness trade (BTC, gold) has no strike - its side; an option its strike and type
+    const name = tk.cfd ? `${CUR} · ${tk.option_type === "CE" ? "Buy" : "Sell"}`
+                        : `${CUR} ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`.trim();
     let b = `<div class="knum" style="color:${col(tk.pnl)}">${tk.pnl == null ? "—" : money(tk.pnl)}</div>`
       + row(tk.entry_real ? "Entry (filled)" : "Entry", num(tk.entry)) + row("Now", num(tk.now)) + row("Stop", num(tk.stop));
     const T = tk.targets || [], hit = tk.hit || {};
@@ -10087,7 +10093,8 @@ function kiteDash(s){
     const conf = r.confidence && r.confidence !== "N/A" ? ` <small>${esc(r.confidence)}</small>` : "";
     return `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r">${num(r.spot)}</td>`
       + `<td style="color:${bull ? "var(--up)" : bear ? "var(--down)" : "var(--ink-3)"}">${r.cfd ? (bull ? "Buy" : bear ? "Sell" : "No trade") : (bull ? "Buy CE" : bear ? "Buy PE" : "No trade")}${conf}</td>`
-      + `<td>${open ? esc(`${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) + tradeTag(tk) : "—"}</td>`
+      + `<td>${open ? esc(r.cfd || tk.cfd ? (tk.option_type === "CE" ? "Buy" : "Sell")
+                                         : `${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) + tradeTag(tk) : "—"}</td>`
       + `<td class="r" style="color:${open ? col(tk.pnl) : "var(--ink-3)"}">${open ? money(tk.pnl || 0) : "—"}</td></tr>`;
   }).join("");
   // Exness: the connected accounts' own free margin (the side column's Funds box reads them too) - it
