@@ -325,15 +325,30 @@ def _fill_is_whole(f, close):
 def live_booked_today(date_str=None, path=None):
     """(net, how many) of today's closed trades that were LIVE orders - the real money, before charges. Read through the fills
     overlay, so a row is live exactly when it reads as filled."""
+    return booked_split_today(date_str, path)["live"]
+
+
+def booked_split_today(date_str=None, path=None):
+    """Today's closed trades in one read, split the way the page shows them (the user, 7 Oct 2026: "can you make in the
+    dashboard live trades and paper trades separate it shows in same"):
+        live      (net, how many) - LIVE orders, at the prices the broker filled (the fills overlay)
+        paper     (net, how many) - every other closed trade, at the tool's own prices
+        live_ids  the trade_ids of the live ones, so a list of closed trades can be tagged
+    A close with no price (the tool stopped while it was open) counts in neither - it has no result."""
     date_str = date_str or dt.date.today().isoformat()
-    total, n = 0.0, 0
+    live, paper, ids = [0.0, 0], [0.0, 0], set()
     for r in _read_rows(path):
-        if r.get("event") == "CLOSE" and r.get("date") == date_str and r.get("filled"):
-            p = _f(r.get("pnl"))
-            if p is not None:
-                total += p
-                n += 1
-    return round(total, 2), n
+        if r.get("event") != "CLOSE" or r.get("date") != date_str:
+            continue
+        if r.get("filled"):
+            ids.add(r.get("trade_id"))
+        p = _f(r.get("pnl"))
+        if p is None:
+            continue
+        side = live if r.get("filled") else paper
+        side[0] += p
+        side[1] += 1
+    return {"live": (round(live[0], 2), live[1]), "paper": (round(paper[0], 2), paper[1]), "live_ids": ids}
 
 
 def _apply_fills(rows, path):

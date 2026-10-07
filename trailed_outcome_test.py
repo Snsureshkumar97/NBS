@@ -269,6 +269,7 @@ const EL = {};
 const $ = id => EL[id] || (EL[id] = {innerHTML: "", textContent: ""});
 const esc = s => String(s), money = v => "R" + v, num = v => String(v);
 let CUR = "NIFTY";
+const livePnl = s => null, paperPnl = s => null, tradeTag = t => "";     // the live/paper split: live_paper_split_test.py
 """ + src[a:b] + r'''
 recapDraw({session: {issued: 6, wins: 1, stops: 2, locked: 3, booked: 100, open: 0, net: 100}, indices: {NIFTY: {trend: {}}}});
 let h = $("recap").innerHTML;

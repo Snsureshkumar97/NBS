@@ -744,6 +744,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "session": snap.get("session") or {},
             # What the live orders have made today - the real money, from the fills - apart from the tool's tickets as a whole
             "live_pnl": snap.get("live_pnl"),
+            # ...and the paper trades as their own figure, never added to it (7 Oct 2026)
+            "paper_pnl": snap.get("paper_pnl"),
             "events": snap.get("events") or [],
             # Only whether it is on and a counter - the page fetches the updates
             # themselves from /api/marketbot when the counter moves.
@@ -9418,6 +9420,24 @@ function livePnl(s){
   return {booked: L.booked || 0, closed: L.closed || 0, open, open_n: n, net: (L.booked || 0) + open, venue: L.venue};
 }
 const liveNote = lv => `${lv.closed} closed &middot; ${lv.open_n} open &middot; booked ${money(lv.booked)} &middot; open ${money(lv.open)}`;
+// The PAPER trades as their own figure - never added to the real money (the user, 7 Oct 2026: "can you make in the dashboard
+// live trades and paper trades separate it shows in same"). Same shape as livePnl: the server gives what closed today and the
+// AI desk's open part; the rule tickets' open part is summed here from the tickets with no real position.
+function paperPnl(s){
+  const P = s && s.paper_pnl;
+  if(!P) return null;
+  let open = P.ai_open || 0, n = P.ai_open_n || 0;
+  for(const pub of Object.values((s && s.tickets) || {})){
+    const t = pub && pub.ticket;
+    if(t && (t.open || t.status === "OPEN") && !t.entry_real){ open += t.pnl || 0; n += 1; }
+  }
+  return {booked: P.booked || 0, closed: P.closed || 0, open, open_n: n, net: (P.booked || 0) + open};
+}
+const paperNote = pp => `${pp.closed} closed &middot; ${pp.open_n} open &middot; booked ${money(pp.booked)} &middot; open ${money(pp.open)}`;
+// Which kind a trade is, on every line that shows one: the Journal's own badges.
+const tradeTag = t => t && (t.entry_real || t.live)
+  ? ' <span class="jbadge live" title="A real order: placed at the broker">Live</span>'
+  : ' <span class="jbadge" title="Paper: no order was placed">Paper</span>';
 function kiteSide(s){
   const el = $("kside");
   if(!el || !s) return;
@@ -9445,15 +9465,15 @@ function kiteSide(s){
       return `<span class="${hh ? "hit" : ""}">T${i + 1} ${num(v)}${hh ? " ✓" : ""}</span>`; }).join("")}</div>`;
     const tc = $("tclear");
     if(tc && tc.style.display !== "none") b += `<button type="button" class="lbtn kclear" data-kact="clear">Clear ticket</button>`;
-    h += box(`Open trade &middot; ${esc(name)}`, b);
+    h += box(`Open trade &middot; ${esc(name)}${tradeTag(tk)}`, b);
   } else {
     h += box("Open trade", `<div class="kmuted">No open trade on ${esc(CUR)}. ${esc(($("bias") && $("bias").textContent) || "")}.</div>`);
   }
-  const net = ses.net || 0, lv = livePnl(s);
-  h += box("Today", `<div class="knum" style="color:${col(net)}">${money(net)}</div>`
-    + row("Booked", money(ses.booked || 0)) + row("Open", money(ses.open || 0))
-    + (lv ? row("Live orders", `<span style="color:${col(lv.net)}">${money(lv.net)}</span>`)
-          + `<div class="kmuted">real fills &middot; ${liveNote(lv)}</div>` : "")
+  const lv = livePnl(s), pp = paperPnl(s), lvn = lv ? lv.net : 0;
+  h += box("Today", row("Live trades · real money", `<span style="color:${col(lvn)}">${money(lvn)}</span>`)
+    + `<div class="kmuted">${lv ? "real fills &middot; " + liveNote(lv) : "no live order today"}</div>`
+    + row("Paper trades", pp ? `<span style="color:${col(pp.net)}">${money(pp.net)}</span>` : "—")
+    + (pp ? `<div class="kmuted">${paperNote(pp)}</div>` : "")
     + `<div class="kmuted">${ses.issued == null ? 0 : ses.issued} tickets &middot; ${ses.wins || 0} ran to target &middot; ${ses.stops || 0} stopped out</div>`, "kb-today");
   let f = "";
   if(br.accounts && br.accounts.length)
@@ -9486,7 +9506,7 @@ function kiteDash(s){
   const el = $("kdash");
   if(!el || !s) return;
   const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
-  const ses = s.session || {}, br = s.broker || {}, net = ses.net || 0, lv = livePnl(s);
+  const br = s.broker || {}, lv = livePnl(s), pp = paperPnl(s);
   const order = s.order || Object.keys(s.indices || {});
   const rows = order.map(k => {
     const r = (s.indices || {})[k]; if(!r) return "";
@@ -9495,7 +9515,7 @@ function kiteDash(s){
     const conf = r.confidence && r.confidence !== "N/A" ? ` <small>${esc(r.confidence)}</small>` : "";
     return `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r">${num(r.spot)}</td>`
       + `<td style="color:${bull ? "var(--up)" : bear ? "var(--down)" : "var(--ink-3)"}">${r.cfd ? (bull ? "Buy" : bear ? "Sell" : "No trade") : (bull ? "Buy CE" : bear ? "Buy PE" : "No trade")}${conf}</td>`
-      + `<td>${open ? esc(`${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) : "—"}</td>`
+      + `<td>${open ? esc(`${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`) + tradeTag(tk) : "—"}</td>`
       + `<td class="r" style="color:${open ? col(tk.pnl) : "var(--ink-3)"}">${open ? money(tk.pnl || 0) : "—"}</td></tr>`;
   }).join("");
   // Exness: the connected accounts' own free margin (the side column's Funds box reads them too) - it
@@ -9521,9 +9541,13 @@ function kiteDash(s){
          : `<div class="kd-s">This server runs one market</div>`) + `</div>`
     : "";
   const cfd = order.some(k => ((s.indices || {})[k] || {}).cfd);
-  const h = `<div class="kd-top"><div><div class="kd-l">Today's result</div><div class="kd-n" style="color:${col(net)}">${money(net)}</div>`
-    + `<div class="kd-s">booked ${money(ses.booked || 0)} &middot; open ${money(ses.open || 0)}</div>`
-    + (lv ? `<div class="kd-s">live orders <b style="color:${col(lv.net)}">${money(lv.net)}</b> &middot; ${liveNote(lv)}</div>` : "") + `</div>`
+  const lvn = lv ? lv.net : 0;
+  const h = `<div class="kd-top"><div><div class="kd-l">Live trades &middot; real money</div>`
+    + `<div class="kd-n" style="color:${col(lvn)}">${money(lvn)}</div>`
+    + `<div class="kd-s">${lv ? "real fills &middot; " + liveNote(lv) : "No live order today"}</div></div>`
+    + `<div><div class="kd-l">Paper trades</div>`
+    + `<div class="kd-n" style="color:${col(pp ? pp.net : 0)}">${pp ? money(pp.net) : "—"}</div>`
+    + `<div class="kd-s">${pp ? paperNote(pp) : ""}</div></div>`
     + `<div><div class="kd-l">Funds available</div>${funds}</div>${market}</div>`
     + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`;
@@ -9558,14 +9582,13 @@ function homeDraw(s){
   if(t){
     const cell = (l, v, col) => `<div class="r"><div class="l">${esc(l)}</div>`
       + `<div class="v"${col ? ` style="color:${col}"` : ""}>${v}</div></div>`;
-    const n = ses.net;
+    const lv = livePnl(s), pp = paperPnl(s), lvn = lv ? lv.net : 0;
     t.innerHTML = cell("Market", s && s.market_open ? "Open" : "Closed",
                        s && s.market_open ? "var(--up)" : "var(--ink-3)")
       + cell("Tickets today", ses.issued == null ? "—" : ses.issued)
-      + cell("Net", n == null ? "—" : money(n),
-             (n || 0) > 0 ? "var(--up)" : (n || 0) < 0 ? "var(--down)" : "")
-      + (livePnl(s) ? cell("Live orders", money(livePnl(s).net),
-             livePnl(s).net > 0 ? "var(--up)" : livePnl(s).net < 0 ? "var(--down)" : "") : "")
+      + cell("Live trades", money(lvn), lvn > 0 ? "var(--up)" : lvn < 0 ? "var(--down)" : "")
+      + cell("Paper trades", pp ? money(pp.net) : "—",
+             pp && pp.net > 0 ? "var(--up)" : pp && pp.net < 0 ? "var(--down)" : "")
       + cell("Watching", (s && (s.order || []).length) || "—");
   }
   const d = $("dgrid");
@@ -11600,25 +11623,22 @@ function recapDraw(s){
   const ses = s.session || {}, r = (s.indices || {})[CUR] || {}, tr = r.trend || {};
   const cell = (l, v, col) => `<div class="r"><div class="l">${esc(l)}</div>`
     + `<div class="v"${col ? ` style="color:${col}"` : ""}>${v}</div></div>`;
-  const net = ses.net == null ? null : ses.net;
+  const lv = livePnl(s), pp = paperPnl(s), lvn = lv ? lv.net : 0;
+  const tone = v => (v || 0) > 0 ? "var(--up)" : (v || 0) < 0 ? "var(--down)" : "";
   box.innerHTML =
       cell("Tickets today", ses.issued == null ? "—" : ses.issued)
     + cell("Ran to target", ses.wins == null ? "—" : ses.wins, "var(--up)")
     + (ses.locked ? cell("Trailed out in profit", ses.locked, "var(--up)") : "")
     + cell("Stopped out", ses.stops == null ? "—" : ses.stops, "var(--down)")
-    + cell("Booked", ses.booked == null ? "—" : money(ses.booked),
-           (ses.booked || 0) > 0 ? "var(--up)" : (ses.booked || 0) < 0 ? "var(--down)" : "")
-    + cell("Open", ses.open == null ? "—" : money(ses.open),
-           (ses.open || 0) > 0 ? "var(--up)" : (ses.open || 0) < 0 ? "var(--down)" : "")
-    + cell("Net", net == null ? "—" : money(net),
-           (net || 0) > 0 ? "var(--up)" : (net || 0) < 0 ? "var(--down)" : "")
+    + cell("Live trades", money(lvn), tone(lvn))
+    + cell("Paper trades", pp ? money(pp.net) : "—", tone(pp && pp.net))
     + cell(CUR + " today", tr.day_change == null ? "—"
            : (tr.day_change > 0 ? "+" : "") + num(tr.day_change, 0),
            tr.day_change > 0 ? "var(--up)" : tr.day_change < 0 ? "var(--down)" : "");
   const recent = (ses.recent || []).slice(0, 4);
   $("recaplist").innerHTML = recent.length
     ? recent.map(t => `<div>${esc(t.index)} ${esc(String(t.strike || ""))} `
-        + `${esc(t.option_type || "")} &middot; ${esc(t.exit_time || "")} &middot; `
+        + `${esc(t.option_type || "")}${tradeTag(t)} &middot; ${esc(t.exit_time || "")} &middot; `
         + `<span style="color:${(t.pnl||0) >= 0 ? "var(--up)" : "var(--down)"}">`
         + `${t.pnl == null ? "no price" : money(t.pnl)}</span></div>`).join("")
     : `<div>Nothing has closed yet today.</div>`;

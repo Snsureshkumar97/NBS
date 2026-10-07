@@ -2497,49 +2497,69 @@ class Feed:
         return out
 
     def _live_pnl(self, pubs):
-        """What the LIVE orders have made today, apart from the tool's tickets as a whole: the real money, from the fills.
+        return self._pnl_split(pubs)[0]
 
-        booked: today's closed live trades (rule tickets and the AI desk's), worked from the prices the broker filled at;
-        open: every open ticket that has a real position, worked from its fill. None when there was no live order today, so a
-        page with none shows nothing. `open` is the RULE tickets' part and `ai_open` the AI desk's, so the page can keep the
-        first moving with its own fast tick and add the second.
+    def _pnl_split(self, pubs):
+        """(live, paper): today's real-money trades and paper trades as two figures, never one (the user, 7 Oct 2026: "can
+        you make in the dashboard live trades and paper trades separate it shows in same"). One read of each log and one
+        look at the AI desk's tickets serve both.
+
+        live (None when there was no live order today, so a page with none shows nothing): what the LIVE orders have
+        made - booked: today's closed live trades (rule tickets and the AI desk's), worked from the prices the broker
+        filled at; open: every open ticket that has a real position, worked from its fill. `open` is the RULE tickets'
+        part and `ai_open` the AI desk's, so the page can keep the first moving with its own fast tick and add the second.
+        paper (always given, so the page can say "no paper trade" too): every other trade of the rule book and the AI
+        desk, at the tool's own prices, in the same shape - plus live_ids, the trade_ids that closed live today.
         """
-        if self.live is None:
-            return None
         today = now_ist().strftime("%Y-%m-%d")
-        booked, closed = 0.0, 0
         book = getattr(self.ai, "book", None)
+        lb, lc, pb, pc, ids = 0.0, 0, 0.0, 0, set()
         for path in (self.tickets.path, getattr(book, "path", None)):
-            if path:
-                try:
-                    b, n = trade_log.live_booked_today(today, path)
-                except Exception:
-                    b, n = 0.0, 0
-                booked += b
-                closed += n
-        open_pnl, open_n, venue = 0.0, 0, None
+            if not path:
+                continue
+            try:
+                sp = trade_log.booked_split_today(today, path)
+            except Exception:
+                continue
+            lb += sp["live"][0]; lc += sp["live"][1]
+            pb += sp["paper"][0]; pc += sp["paper"][1]
+            ids |= sp["live_ids"]
+        lo, lo_n, po, po_n, venue = 0.0, 0, 0.0, 0, None
         for pub in pubs.values():
             t = (pub or {}).get("ticket")
-            if t and t.get("open") and t.get("entry_real"):
-                open_pnl += t.get("pnl") or 0.0
-                open_n += 1
+            if not (t and t.get("open")):
+                continue
+            if t.get("entry_real"):
+                lo += t.get("pnl") or 0.0
+                lo_n += 1
                 venue = t.get("entry_venue")
-        ai_open, ai_open_n = 0.0, 0
+            else:
+                po += t.get("pnl") or 0.0
+                po_n += 1
+        la, la_n, pa, pa_n = 0.0, 0, 0.0, 0
         if book is not None:
             for name in self.instruments():
                 try:
                     t = book.public(name).get("ticket")
                 except Exception:
                     t = None
-                if t and t.get("open") and real_entry.apply(self.live, t):
-                    ai_open += t.get("pnl") or 0.0
-                    ai_open_n += 1
+                if not (t and t.get("open")):
+                    continue
+                if self.live is not None and real_entry.apply(self.live, t):
+                    la += t.get("pnl") or 0.0
+                    la_n += 1
                     venue = venue or t.get("entry_venue")
-        if not closed and not open_n and not ai_open_n:
-            return None
-        return {"booked": round(booked, 2), "closed": closed, "open": round(open_pnl, 2), "open_n": open_n,
-                "ai_open": round(ai_open, 2), "ai_open_n": ai_open_n, "venue": venue,
-                "net": round(booked + open_pnl + ai_open, 2)}
+                else:
+                    pa += t.get("pnl") or 0.0
+                    pa_n += 1
+        live = None
+        if self.live is not None and (lc or lo_n or la_n):
+            live = {"booked": round(lb, 2), "closed": lc, "open": round(lo, 2), "open_n": lo_n,
+                    "ai_open": round(la, 2), "ai_open_n": la_n, "venue": venue, "net": round(lb + lo + la, 2)}
+        paper = {"booked": round(pb, 2), "closed": pc, "open": round(po, 2), "open_n": po_n,
+                 "ai_open": round(pa, 2), "ai_open_n": pa_n, "net": round(pb + po + pa, 2),
+                 "live_ids": sorted(i for i in ids if i)}
+        return live, paper
 
     def _fii_dii(self):
         """FII/DII net cash flow (fii_dii.py), Indian indices only - the module
@@ -2577,7 +2597,12 @@ class Feed:
                 "fii_dii": fd,
             }
         # off the feed lock: it reads the trade logs and asks the AI desk's book (which has a lock of its own)
-        snap["live_pnl"] = self._live_pnl(pubs)
+        snap["live_pnl"], snap["paper_pnl"] = self._pnl_split(pubs)
+        # Each of the session's recently closed tickets says whether it was a real order.
+        live_ids = set(snap["paper_pnl"].get("live_ids") or ())
+        ses = snap.get("session")
+        if isinstance(ses, dict) and ses.get("recent"):
+            ses["recent"] = [dict(r, live=r.get("trade_id") in live_ids) for r in ses["recent"]]
         return snap
 
     def candles(self, name):

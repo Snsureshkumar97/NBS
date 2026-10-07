@@ -99,9 +99,10 @@ print("4. THE PAGE")
 SRC = open(os.path.join(HERE, "web_server.py")).read()
 check("the state carries it, and the Journal API accepts the new filter",
       '"live_pnl": snap.get("live_pnl")' in SRC and 'source not in ("all", "mine", "tool", "ai", "live")' in SRC)
-check("the Journal has the filter and a Live tag; the Today box, the Dashboard and Home show the figure",
-      'data-src="live">Live orders</button>' in SRC and 'class="jbadge live"' in SRC and 'row("Live orders",' in SRC
-      and "live orders <b" in SRC and 'cell("Live orders", money(livePnl(s).net)' in SRC)
+check("the Journal has the filter and a Live tag; the Today box, the Dashboard and Home show the figure (as its own "
+      "headline since 7 Oct 2026 - live_paper_split_test.py runs those)",
+      'data-src="live">Live orders</button>' in SRC and 'class="jbadge live"' in SRC and 'row("Live trades · real money",' in SRC
+      and "Live trades &middot; real money" in SRC and 'cell("Live trades", money(lvn)' in SRC)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if NODE:
     a = SRC.index("function livePnl(s){"); b = SRC.index("function kiteSide(s){")

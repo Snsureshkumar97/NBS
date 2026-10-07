@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Live trades and paper trades as two figures, never one (the user, 7 Oct 2026: "can you make in the dashboard live trades
+and paper trades separate it shows in same"). The Dashboard's headline used to be "Today's result" - paper tickets and real
+fills added together - with the real money as a small line under it. Now: the log's split in one read, the feed's two
+figures, and the page's own functions (run in node): two headline figures, every open trade tagged Live or Paper, the side
+column's Today box, Home's strip and the Record recap the same. Fakes only: temp logs, temp fills, a fake executor."""
+import csv, json, os, shutil, subprocess, sys, tempfile
+
+os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import feeds, trade_log
+
+fails = []
+def check(name, cond, extra=""):
+    print(f"  {'ok  ' if cond else 'FAIL'} {name}  {extra}")
+    if not cond:
+        fails.append(name)
+
+TODAY = feeds.now_ist().strftime("%Y-%m-%d")
+def row(tid, event, entry, exit=None, pnl=None, date=TODAY):
+    r = {k: "" for k in trade_log.FIELDS}
+    r.update(trade_id=tid, event=event, date=date, time_ist="10:00:00", index="NIFTY", strike="22600", option_type="PE",
+             entry=str(entry), lot_size="65", lots="1", status="OPEN")
+    if event == "CLOSE":
+        r.update(exit="" if exit is None else str(exit), pnl="" if pnl is None else str(pnl), status="CLOSED - stop hit")
+    return r
+def write(path, rows):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=trade_log.FIELDS); w.writeheader(); w.writerows(rows)
+def fills(path, rows):
+    with open(path, "w") as f:
+        for r in rows: f.write(json.dumps(r) + "\n")
+def fill(tid, entry, exit, qty=65):
+    return {"trade_id": tid, "index": "NIFTY", "source": "rule", "qty": qty, "entry_avg": entry, "paper_entry": None,
+            "exit_avg": exit, "exit_qty_priced": qty, "sold_outside_qty": 0, "gross_pnl": round((exit - entry) * qty, 2)}
+
+print("1. THE LOG, SPLIT IN ONE READ")
+LOG = os.path.join(tempfile.mkdtemp(), "trades.csv")
+write(LOG, [row("L1", "OPEN", 151.7), row("L1", "CLOSE", 151.7, 107.8, -2853.5),       # live: real fill 150.6 -> 108.95
+            row("P1", "OPEN", 694.0), row("P1", "CLOSE", 694.0, 571.0, -3690.0),        # paper (Bank Nifty's switch off)
+            row("P2", "OPEN", 328.25), row("P2", "CLOSE", 328.25, 197.25, -8515.0),     # paper (short of funds)
+            row("S1", "OPEN", 100.0), row("S1", "CLOSE", 100.0),                        # "the tool stopped": no price
+            row("Y1", "OPEN", 90.0, date="2020-01-01"), row("Y1", "CLOSE", 90.0, 95.0, 325.0, date="2020-01-01")])
+fills(LOG + ".live.fills.jsonl", [fill("L1", 150.6, 108.95)])
+sp = trade_log.booked_split_today(TODAY, LOG)
+check("live: the real fill's result, (108.95 - 150.6) x 65", sp["live"] == (round((108.95 - 150.6) * 65, 2), 1), sp["live"])
+check("paper: the two trades that placed no order, at the tool's prices", sp["paper"] == (-12205.0, 2), sp["paper"])
+check("a close with no price counts in neither; another day's in neither", sp["live"][1] + sp["paper"][1] == 3)
+check("the live trade's id, so a list of closed trades can be tagged", sp["live_ids"] == {"L1"}, sp["live_ids"])
+check("live_booked_today is the same live figure (one source)", trade_log.live_booked_today(TODAY, LOG) == sp["live"])
+
+print("2. THE FEED'S TWO FIGURES")
+class Ex:
+    def __init__(self, fills): self.fills = fills
+    def real_entry(self, tid): return self.fills.get(tid)
+f = feeds.Feed("t:lps", "lps@example.invalid", "nse_index")
+write(f.tickets.path, [row("L1", "OPEN", 151.7), row("L1", "CLOSE", 151.7, 107.8, -2853.5),
+                       row("P1", "OPEN", 694.0), row("P1", "CLOSE", 694.0, 571.0, -3690.0)])
+fills(f.tickets.path + ".live.fills.jsonl", [fill("L1", 150.6, 108.95)])
+def tpub(tid, pnl, real):
+    t = {"open": True, "trade_id": tid, "tracked_on": "premium", "entry": 130.0, "now": 120.0, "lots": 1, "lot_size": 65, "pnl": pnl}
+    if real: t.update(entry_real=True, entry_venue="Zerodha")
+    return {"ticket": t}
+ai_live = {"open": True, "trade_id": "AI-L", "tracked_on": "premium", "entry": 90.0, "now": 100.0, "lots": 1, "lot_size": 65, "pnl": 650.0}
+ai_paper = {"open": True, "trade_id": "AI-P", "tracked_on": "premium", "entry": 50.0, "now": 40.0, "lots": 1, "lot_size": 65, "pnl": -650.0}
+f.live = Ex({"AI-L": (92.0, "Zerodha")})
+f.ai = type("A", (), {"book": type("B", (), {"path": os.path.join(os.path.dirname(f.tickets.path), "ai_trades.csv"),
+                                              "public": staticmethod(lambda name: {"ticket": dict(ai_live if name == "NIFTY" else ai_paper)}
+                                                                     if name in ("NIFTY", "SENSEX") else {"ticket": None})})()})()
+live, paper = f._pnl_split({"NIFTY": tpub("R-L", -1414.0, True), "SENSEX": tpub("R-P", -3017.0, False), "BANKNIFTY": {"ticket": None}})
+check("live: booked from the fill + the rule ticket WITH a real position + the AI desk's real one (from its fill, 8 x 65)",
+      live["booked"] == round((108.95 - 150.6) * 65, 2) and live["open"] == -1414.0 and live["ai_open"] == 520.0
+      and live["net"] == round(live["booked"] - 1414.0 + 520.0, 2), live)
+check("paper: booked from the paper close + the rule ticket with NO real position + the AI desk's paper one",
+      paper["booked"] == -3690.0 and paper["closed"] == 1 and paper["open"] == -3017.0 and paper["open_n"] == 1
+      and paper["ai_open"] == -650.0 and paper["net"] == round(-3690.0 - 3017.0 - 650.0, 2), paper)
+check("no trade is in both", live["open_n"] + paper["open_n"] == 2 and live["ai_open_n"] + paper["ai_open_n"] == 2)
+check("the paper figure names today's live trade ids", paper["live_ids"] == ["L1"], paper["live_ids"])
+check("_live_pnl is still the live figure (its callers unchanged)", f._live_pnl({"NIFTY": tpub("R-L", -1414.0, True)})["open"] == -1414.0)
+g = feeds.Feed("t:lps2", "lps2@example.invalid", "nse_index")
+g.live, g.ai = None, None
+gl, gp = g._pnl_split({"NIFTY": tpub("R-P", 500.0, False)})
+check("an account with no live orders: no live figure, and every trade is paper", gl is None and gp["open"] == 500.0, (gl, gp))
+f.tickets.closed[:] = [{"trade_id": "L1", "index": "NIFTY", "strike": 22600, "option_type": "PE", "pnl": -2715.0, "exit_time": "10:29:40"},
+                       {"trade_id": "P1", "index": "BANKNIFTY", "strike": 54600, "option_type": "PE", "pnl": -3690.0, "exit_time": "10:06:10"}]
+snap = f.snapshot()
+rec = {r["trade_id"]: r.get("live") for r in snap["session"]["recent"]}
+check("the snapshot carries both figures", snap.get("live_pnl") and snap.get("paper_pnl") is not None, list(snap)[-3:])
+check("each recently closed ticket says whether it was live", rec == {"L1": True, "P1": False}, rec)
+check("...without changing the book's own rows", "live" not in f.tickets.closed[0])
+
+print("3. THE PAGE")
+SRC0 = open(os.path.join(HERE, "web_server.py")).read()
+check("the state payload hands the page both figures (the browser check caught it missing)",
+      '"live_pnl": snap.get("live_pnl")' in SRC0 and '"paper_pnl": snap.get("paper_pnl")' in SRC0)
+NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
+SRC = open(os.path.join(HERE, "web_server.py")).read()
+def grab(start, end="\n}\n"):
+    a = SRC.index(start)
+    return SRC[a:SRC.index(end, a) + len(end)]
+if not NODE:
+    check("node is available to run the page's own functions", False, "install node to run this section")
+else:
+    n0 = SRC.index("const num=(v,d=2)")
+    n1 = SRC.index("\n", SRC.index("const esc=s=>", n0)) + 1
+    helpers = SRC[SRC.index("function livePnl(s){"):SRC.index("function kiteSide(s){")]
+    prog = ("const assert = require('assert');\n" + SRC[n0:n1] + 'let CCY = "INR";\n' + grab("function ccySym(){", "\n")
+            + grab("function ccyLocale(){", "\n") + grab("function money(v, signed){") + grab("function fundsLabel(f){")
+            + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\n" + helpers
+            + grab("function kiteSide(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
+            + r'''
+const els = {};
+const $ = id => els[id] || (els[id] = {id, innerHTML: "", textContent: "", dataset: {}, style: {}, className: "",
+  getAttribute(){ return null; }, addEventListener(){} });
+function switchMarketShortcut(){} function selectIndex(){} function showTab(){}
+const tk = (o) => ({ticket: Object.assign({open: true, status: "OPEN", strike: 22550, option_type: "PE", entry: 133.8, now: 126.55,
+  stop: 91.05, targets: [151.4, 164.4, 177.4], hit: {}}, o)});
+const s = {
+  session: {issued: 5, wins: 0, stops: 3, booked: -9999, open: -9999, net: -19998,      // the old mixed figure - must not show
+            recent: [{trade_id: "L1", index: "NIFTY", strike: 22600, option_type: "PE", exit_time: "10:29:40", pnl: -8122, live: true},
+                     {trade_id: "P1", index: "BANKNIFTY", strike: 54600, option_type: "PE", exit_time: "10:06:10", pnl: -11070, live: false}]},
+  tickets: {NIFTY: tk({entry_real: true, pnl: -1414}), SENSEX: tk({strike: 72600, pnl: -3017}), BANKNIFTY: {ticket: null}},
+  live_pnl: {booked: -8122, closed: 1, open: -1414, open_n: 1, ai_open: 0, ai_open_n: 0, venue: "Zerodha", net: -9536},
+  paper_pnl: {booked: -18930, closed: 2, open: -3017, open_n: 1, ai_open: 0, ai_open_n: 0, net: -21947, live_ids: ["L1"]},
+  order: ["NIFTY", "BANKNIFTY", "SENSEX"],
+  indices: {NIFTY: {spot: 22592, bias: "BEARISH"}, BANKNIFTY: {spot: 54949, bias: "NEUTRAL"}, SENSEX: {spot: 72618, bias: "BEARISH"}},
+  broker: {}, market_open: true,
+};
+const lv = livePnl(s), pp = paperPnl(s);
+assert.strictEqual(lv.net, -8122 - 1414, "live: booked + the live ticket's open, from the tickets");
+assert.strictEqual(pp.net, -18930 - 3017, "paper: booked + the paper ticket's open, from the tickets - not the live one");
+assert.strictEqual(pp.open_n, 1);
+kiteDash(s);
+const d = els.kdash.innerHTML;
+assert.ok(d.includes("Live trades &middot; real money") && d.includes("Paper trades"), "two headline figures");
+assert.ok(!d.includes("Today's result"), "the mixed headline is gone");
+assert.ok(d.includes(money(-9536)) && d.includes(money(-21947)), "each figure is its own total");
+assert.ok(!d.includes(money(-19998)), "the old mixed net is not shown");
+const nifty = d.split('data-k="NIFTY"')[1].split("</tr>")[0], sensex = d.split('data-k="SENSEX"')[1].split("</tr>")[0];
+assert.ok(nifty.includes('jbadge live') && nifty.includes(">Live<"), "the Nifty trade (a real order) is tagged Live");
+assert.ok(sensex.includes(">Paper<") && !sensex.includes("jbadge live"), "the Sensex trade (no order) is tagged Paper");
+kiteSide(s);
+const k = els.kside.innerHTML;
+assert.ok(k.includes("Live trades · real money") && k.includes("Paper trades") && k.includes("jbadge live"), "the side column too");
+assert.ok(!k.includes("&amp;middot;"), "no escaped entity shown as text (the side column's labels are escaped)");
+assert.ok(!k.includes(money(-19998)), "...without the mixed figure");
+homeDraw(s);
+assert.ok(els.htoday.innerHTML.includes("Live trades") && els.htoday.innerHTML.includes("Paper trades") && !els.htoday.innerHTML.includes(">Net<"), "Home's strip");
+recapDraw(s);
+assert.ok(els.recap.innerHTML.includes("Live trades") && els.recap.innerHTML.includes("Paper trades") && !els.recap.innerHTML.includes(">Net<"), "the Record recap");
+const lines = els.recaplist.innerHTML.split("</div>");
+assert.ok(lines[0].includes(">Live<") && lines[1].includes(">Paper<"), "each closed trade in the recap is tagged");
+const none = Object.assign({}, s, {live_pnl: null, tickets: {SENSEX: tk({pnl: -3017})}});
+kiteDash(none);
+assert.ok(els.kdash.innerHTML.includes("No live order today"), "a day with no live order says so, at zero");
+console.log("ok:page");
+''')
+    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    out = (r.stdout or "") + (r.stderr or "")
+    check("the page's own functions: two figures everywhere, every trade tagged Live or Paper", "ok:page" in r.stdout and r.returncode == 0, out[-900:])
+
+print()
+print("LIVE PAPER SPLIT TEST PASSED" if not fails else f"LIVE PAPER SPLIT TEST FAILED: {fails}")
+sys.exit(1 if fails else 0)

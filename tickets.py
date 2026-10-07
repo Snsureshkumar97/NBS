@@ -1507,6 +1507,7 @@ class TicketBook:
                                    else "other")
         book.last_close_adx = (rec or {}).get("adx")
         row = {
+            "trade_id": trade.get("trade_id"),                # so the page can say whether it was a live order
             "index": trade["index"], "strike": trade["strike"],
             "expiry": trade.get("expiry"),
             "option_type": trade["option_type"], "entry": entry,
