@@ -2034,7 +2034,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # to a crypto session - the same leak fixed elsewhere on 12 Sep.
         if self._current_market() != "nse_index":
             return self._send(json.dumps({
-                "rows": [], "days": [],
+                "rows": [], "days": [], "unsupported": True,
                 "note": "The option recorder keeps Nifty, Bank Nifty and "
                         "Sensex. There is no recorded open interest for this "
                         "market, so there is nothing to show."}),
@@ -4331,6 +4331,21 @@ table.watch td b{color:var(--ink)}
 table.watch .acts{display:flex;gap:6px;justify-content:flex-end}
 table.watch .werr{color:var(--warn);text-align:left;white-space:normal}
 .chainbar{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);margin-top:10px}
+/* the chain's key figures over the table, in the money tinted, open interest as a bar (7 Oct 2026) */
+.psum.chainkpi{grid-template-columns:repeat(5,minmax(0,1fr));margin:10px 0 12px}
+.psum.chainkpi small{display:block;font-size:12px;color:var(--ink-3);margin-top:4px}
+.psum.chainkpi:empty{display:none}
+table.chain td.itm{background:color-mix(in srgb,var(--warn) 7%,transparent)}
+table.chain td.oi{position:relative}
+table.chain td.oi .oib{position:absolute;right:2px;top:4px;bottom:4px;border-radius:2px;opacity:.22;pointer-events:none}
+table.chain td.oi .oib.ce{background:var(--down)}
+table.chain td.oi .oib.pe{background:var(--up)}
+table.chain td.oi .oiv{position:relative}
+@media (min-width:901px){.chainwrap{max-height:max(420px,calc(100vh - 340px))}}
+@media (max-width:760px){
+  .psum.chainkpi{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}
+  .psum.chainkpi > div:nth-child(4){border-left:0;padding-left:0}
+}
 .chainbar b{color:var(--ink-2)}
 
 /* ---------- the command palette ---------- */
@@ -5345,6 +5360,7 @@ button.mgroup:hover{color:var(--ink-2)}
   </div>
   <div class="card" data-panel="chain" id="chaincard">
   <p class="eyebrow" role="heading" aria-level="2">Option chain &middot; <span id="chainhead">&mdash;</span></p>
+  <div class="psum chainkpi" id="chainkpi"></div>
   <div class="chainwrap"><table class="chain" id="chain"></table></div>
   <div class="chainbar" id="chainbar"></div>
   </div>
@@ -9715,10 +9731,14 @@ function chainDraw(d){
   if(!d || !d.rows || !d.rows.length){
     t.innerHTML = "";
     $("chainhead").textContent = "—";
+    if($("chainkpi")) $("chainkpi").innerHTML = "";
     bar.innerHTML = "No chain from the broker right now.";
     return;
   }
   $("chainhead").textContent = (d.index || "") + " · expiry " + (d.expiry || "—");
+  // the biggest open interest on either side sets the scale of every OI bar (the user, 7 Oct 2026: "check the option
+  // chain tab layout as well")
+  const oiMax = Math.max(1, ...d.rows.map(r => Math.max((r.ce && r.ce.oi) || 0, (r.pe && r.pe.oi) || 0)));
   const cell = (o, kind, strike) => {
     const mine = d.suggested && d.suggested.strike === strike
               && (d.suggested.type === (kind === "ce" ? "CE" : "PE"));
@@ -9730,11 +9750,14 @@ function chainDraw(d){
       + ` data-k="${esc(String(d.index))}" data-exp="${esc(String(d.expiry || ""))}" data-strike="${strike}"`
       + ` data-side="${side}" data-px="${o.ltp == null ? "" : o.ltp}" aria-pressed="${watched}"`
       + ` aria-label="Watch ${esc(String(d.index))} ${strike} ${side}">${WSTAR}</button>`;
-    return `<td class="px${mine?" mine":""}">${star}${o.ltp == null ? "—" : num(o.ltp,2)}</td>`
-         + `<td>${o.bid == null ? "—" : num(o.bid,2)}</td>`
-         + `<td>${o.ask == null ? "—" : num(o.ask,2)}</td>`
-         + `<td class="${wide?"wide":""}">${o.spread == null ? "—" : o.spread.toFixed(1)+"%"}</td>`
-         + `<td class="${wall?"wall":""}">${oiFmt(o.oi)}</td>`;
+    // in the money: a call below the spot, a put above it - tinted, as a broker's chain does
+    const itm = d.spot != null && (kind === "ce" ? strike < d.spot : strike > d.spot) ? " itm" : "";
+    const oiw = o.oi ? Math.round(100 * o.oi / oiMax) : 0;
+    return `<td class="px${mine?" mine":""}${itm}">${star}${o.ltp == null ? "—" : num(o.ltp,2)}</td>`
+         + `<td class="${itm.trim()}">${o.bid == null ? "—" : num(o.bid,2)}</td>`
+         + `<td class="${itm.trim()}">${o.ask == null ? "—" : num(o.ask,2)}</td>`
+         + `<td class="${wide?"wide":""}${itm}">${o.spread == null ? "—" : o.spread.toFixed(1)+"%"}</td>`
+         + `<td class="oi${wall?" wall":""}${itm}"><span class="oib ${kind}" style="width:${oiw}%"></span><span class="oiv">${oiFmt(o.oi)}</span></td>`;
   };
   t.innerHTML =
     `<thead><tr><th colspan="5" class="ce" style="text-align:center"><span class="grp">Calls &middot; CE</span></th>`
@@ -9752,13 +9775,15 @@ function chainDraw(d){
   { const h1 = t.querySelector("thead tr");
     if(h1) t.style.setProperty("--chead", h1.getBoundingClientRect().height + "px"); }
   const sym = d.currency === "USD" ? "$" : "₹";
+  const fig = (l, v, sub, c) => `<div><span>${l}</span><b${c ? ` style="color:${c}"` : ""}>${v}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  if($("chainkpi")) $("chainkpi").innerHTML =
+      fig(d.currency === "USD" ? "Price" : "Index price", d.spot == null ? "—" : num(d.spot, 2), "")
+    + fig("PCR", d.pcr == null ? "—" : Number(d.pcr).toFixed(2), d.pcr_live ? "live, around the money" : "last snapshot")
+    + fig("Max pain", d.max_pain == null ? "—" : num(d.max_pain, 0), "")
+    + fig("Call wall", d.call_wall == null ? "—" : num(d.call_wall, 0), "the most call open interest", "var(--down)")
+    + fig("Put wall", d.put_wall == null ? "—" : num(d.put_wall, 0), "the most put open interest", "var(--up)");
   bar.innerHTML =
-    `<span>Spot <b>${d.spot == null ? "—" : num(d.spot,2)}</b></span>`
-    + `<span title="${d.pcr_live ? "Recomputed every second from the streamed open interest around the money, with the snapshot for the far strikes." : "From the last option-chain snapshot."}">PCR <b>${d.pcr == null ? "—" : d.pcr}</b>${d.pcr_live ? " · live" : ""}</span>`
-    + (d.max_pain != null ? `<span>Max pain <b>${num(d.max_pain,0)}</b></span>` : "")
-    + (d.call_wall != null ? `<span>Call wall <b>${num(d.call_wall,0)}</b></span>` : "")
-    + (d.put_wall != null ? `<span>Put wall <b>${num(d.put_wall,0)}</b></span>` : "")
-    + `<span>Prices in ${sym}, per unit of the contract. Spr = the bid-ask gap; `
+    `<span>Prices in ${sym}, per unit of the contract. Spr = the bid-ask gap; `
     + `over 3% and the tool holds the ticket.</span>`
     + (d.live ? `<span><b style="color:var(--up)">Live</b> - LTP, bid, ask and OI stream on `
         + `${d.live} contracts` + (d.live_at ? `, last tick ${esc(d.live_at)} IST` : "")
@@ -12089,6 +12114,8 @@ function spikePaint(){
 function clockDraw(d){
   const box = $("clock2");
   if(!box) return;
+  // a market the option recorder does not keep (crypto): no clock at all, rather than a card saying so twice
+  { const card = $("clockcard"); if(card) card.hidden = !!(d && d.unsupported); }
   const oiBar = document.querySelector("#clockcard .clockbar");
   if(oiBar) oiBar.hidden = !(d && d.days && d.days.length);
   if(d && d.days) oiFill("oiday", d.days, d.day);
@@ -12117,8 +12144,8 @@ function clockDraw(d){
   });
   const moved = adds.filter(a => Math.abs(a.v) > 0);
   if(!moved.length){
-    box.innerHTML = `<p style="color:var(--ink-3);font-size:13px;margin:0">`
-      + `${d && d.note ? esc(d.note) : "No open-interest change in this window."}</p>`;
+    // the note is already the heading above: said once
+    box.innerHTML = d && d.note ? "" : `<p style="color:var(--ink-3);font-size:13px;margin:0">No open-interest change in this window.</p>`;
     $("clocknote").textContent = "";
     return;
   }

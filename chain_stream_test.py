@@ -370,8 +370,9 @@ g.chain_toks["BTC"] = {"expiry": "2026-11-27", "map": {(78000.0, "CE"): "C78", (
 ds.books = {"C78": {"mark": 0.04, "oi": 100.0, "at": time.time()}, "P78": {"mark": 0.04, "oi": 40.0, "at": time.time()}}
 check("Bitcoin: PCR from Deribit's streamed open interest too",
       g.live_chain("BTC")["pcr"] == round((40 + 10) / (100 + 50), 3), g.live_chain("BTC")["pcr"])
+# since 7 Oct 2026 the PCR is one of the figures over the chain, its line under it saying it is live
 check("the page marks a live PCR", "pcr_live" in open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-      "web_server.py")).read() and '" · live"' in page)
+      "web_server.py")).read() and 'd.pcr_live ? "live, around the money" : "last snapshot"' in page)
 
 print("CHAIN STREAM TEST PASSED" if not fails else f"CHAIN STREAM TEST FAILED: {fails}")
 # It used to end here, so a failure still exited 0 and a test-suite run counted it as passed
