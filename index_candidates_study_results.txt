@@ -1,0 +1,50 @@
+Replaying the live system on 15 index / expiry / slippage combinations, side by side...
+============================================================================================================================================================================
+ EACH INDEX ON ITS OWN, per lot, after costs - the live system unchanged.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+ Nifty (weekly)                                   658   40% ₹  +154,936 PF 1.30 DD ₹  26,870 day ₹  -8,555  |  388   35% ₹   +30,386 PF 1.09 DD ₹  39,151 day ₹  -7,734
+ Sensex (weekly)                                  662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+ Bank Nifty (its real calendar) - TODAY           685   39% ₹  +172,293 PF 1.26 DD ₹  45,450 day ₹  -8,498  |  392   37% ₹    -5,376 PF 0.99 DD ₹  57,190 day ₹  -8,181
+ Bank Nifty (monthly)                             686   40% ₹   +77,383 PF 1.11 DD ₹  51,411 day ₹  -9,631  |  392   37% ₹    -5,376 PF 0.99 DD ₹  57,190 day ₹  -8,181
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Fin Nifty                                        673   40% ₹   +42,663 PF 1.07 DD ₹  67,021 day ₹  -8,102  |  389   40% ₹  +100,418 PF 1.28 DD ₹  22,402 day ₹  -7,820
+ Midcap Select                                    715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+ Nifty Next 50                                    677   42% ₹  +141,321 PF 1.17 DD ₹  60,630 day ₹ -10,167  |  406   37% ₹   -32,290 PF 0.94 DD ₹  60,103 day ₹ -12,392
+ Bankex                                           695   37% ₹    +1,478 PF 1.00 DD ₹  65,219 day ₹ -10,866  |  402   38% ₹   +46,759 PF 1.10 DD ₹  73,870 day ₹  -9,193
+ Fin Nifty, 0.5% slippage                         673   40% ₹   -15,750 PF 0.98 DD ₹  80,098 day ₹  -8,219  |  389   40% ₹   +61,390 PF 1.16 DD ₹  27,756 day ₹  -8,291
+ Midcap Select, 0.5% slippage                     715   42% ₹   +66,515 PF 1.08 DD ₹  38,910 day ₹ -11,542  |  388   38% ₹   +41,018 PF 1.09 DD ₹  45,559 day ₹ -12,833
+ Midcap Select, 0.75% slippage                    715   41% ₹    -8,915 PF 0.99 DD ₹  72,311 day ₹ -11,924  |  388   37% ₹    -4,416 PF 0.99 DD ₹  54,881 day ₹ -13,392
+ Bank Nifty (monthly), 0.5% slippage              686   39% ₹   +11,568 PF 1.02 DD ₹  66,296 day ₹  -9,896  |  392   36% ₹   -45,645 PF 0.90 DD ₹  71,059 day ₹  -8,563
+ Fin Nifty, 1% slippage                           673   38% ₹  -132,574 PF 0.82 DD ₹ 138,858 day ₹  -8,452  |  389   38% ₹   -16,665 PF 0.96 DD ₹  38,814 day ₹  -9,551
+ Midcap Select, 1% slippage                       715   40% ₹   -84,345 PF 0.91 DD ₹ 113,624 day ₹ -12,305  |  388   36% ₹   -49,850 PF 0.91 DD ₹  69,492 day ₹ -13,950
+ Bank Nifty (monthly), 1% slippage                686   38% ₹  -120,063 PF 0.85 DD ₹ 130,641 day ₹ -10,427  |  392   35% ₹  -126,183 PF 0.74 DD ₹ 127,241 day ₹  -9,368
+
+ PER TRADE (avg Rs per lot, after costs): in-sample / held-out
+   Nifty           real calendar  slip 0.25%      +235 /     +78   (658 / 388 trades)
+   Sensex          real calendar  slip 0.25%      +167 /    +259   (662 / 387 trades)
+   Bank Nifty      real calendar  slip 0.25%      +252 /     -14   (685 / 392 trades)
+   Bank Nifty      monthly        slip 0.25%      +113 /     -14   (686 / 392 trades)
+   Fin Nifty       monthly        slip 0.25%       +63 /    +258   (673 / 389 trades)
+   Midcap Select   monthly        slip 0.25%      +199 /    +223   (715 / 388 trades)
+   Nifty Next 50   monthly        slip 0.25%      +209 /     -80   (677 / 406 trades)
+   Bankex          monthly        slip 0.25%        +2 /    +116   (695 / 402 trades)
+   Fin Nifty       monthly        slip 0.50%       -23 /    +158   (673 / 389 trades)
+   Midcap Select   monthly        slip 0.50%       +93 /    +106   (715 / 388 trades)
+   Midcap Select   monthly        slip 0.75%       -12 /     -11   (715 / 388 trades)
+   Bank Nifty      monthly        slip 0.50%       +17 /    -116   (686 / 392 trades)
+   Fin Nifty       monthly        slip 1.00%      -197 /     -43   (673 / 389 trades)
+   Midcap Select   monthly        slip 1.00%      -118 /    -128   (715 / 388 trades)
+   Bank Nifty      monthly        slip 1.00%      -175 /    -322   (686 / 392 trades)
+
+ THE SWAP: Nifty + Sensex + the third index (per lot, totals added - each index runs on its own)
+   + Bank Nifty                                 in-sample   +437,509   held-out   +125,227
+   + Bank Nifty (monthly)                       in-sample   +342,599   held-out   +125,227
+   + Fin Nifty (monthly)                        in-sample   +307,879   held-out   +231,021
+   + Fin Nifty (monthly), 0.5% slip             in-sample   +249,467   held-out   +191,993
+   + Fin Nifty (monthly), 1% slip               in-sample   +132,642   held-out   +113,937
+   + Midcap Select (monthly)                    in-sample   +407,161   held-out   +217,054
+   + Midcap Select (monthly), 0.5% slip         in-sample   +331,731   held-out   +171,621
+   + Midcap Select (monthly), 0.75% slip        in-sample   +256,301   held-out   +126,187
+   + Midcap Select (monthly), 1% slip           in-sample   +180,871   held-out    +80,753
+   Nifty + Sensex only (drop Bank Nifty)        in-sample   +265,216   held-out   +130,603
