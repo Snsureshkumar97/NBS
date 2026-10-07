@@ -1,0 +1,44 @@
+Replaying the live entries on all three indices, side by side...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, real expiries, after costs. Live entry checks, live exit, one position per index, cooldown waiver.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ A. THE EXIT TARGET, as a share of the room to run (today: T2 = 70%)
+    out at 40% of the room                       2174   40% ₹  +179,097 PF 1.10 DD ₹ 111,446 day ₹ -16,860  | 1252   35% ₹   -52,034 PF 0.95 DD ₹ 148,162 day ₹ -20,572
+    out at 50% of the room                       2064   40% ₹  +397,873 PF 1.22 DD ₹  97,384 day ₹ -16,860  | 1198   35% ₹   +78,007 PF 1.07 DD ₹ 110,876 day ₹ -20,572
+    out at 60% of the room                       2027   39% ₹  +393,757 PF 1.22 DD ₹  94,412 day ₹ -16,860  | 1179   35% ₹   +99,228 PF 1.09 DD ₹ 107,097 day ₹ -20,572
+    out at 70% of the room   <- TODAY            2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+    out at 85% of the room                       1980   39% ₹  +459,638 PF 1.27 DD ₹  86,213 day ₹ -16,860  | 1157   36% ₹  +174,839 PF 1.17 DD ₹  96,206 day ₹ -20,572
+    out at 100% of the room                      1967   39% ₹  +486,866 PF 1.29 DD ₹  80,300 day ₹ -16,860  | 1152   35% ₹  +149,452 PF 1.15 DD ₹  94,845 day ₹ -20,572
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ B. A HIGHER REWARD:RISK FOR A TRADE THAT IS NOT THE DAY'S FIRST (today: 1.0 for every trade)
+    2nd+ trade on that index, needs 1.25         1916   39% ₹  +428,511 PF 1.26 DD ₹  90,408 day ₹ -16,860  | 1136   35% ₹  +115,600 PF 1.11 DD ₹ 101,122 day ₹ -16,440
+    2nd+ trade on that index, needs 1.50         1852   38% ₹  +403,210 PF 1.25 DD ₹  77,433 day ₹ -15,195  | 1100   34% ₹  +104,015 PF 1.10 DD ₹ 104,667 day ₹ -16,440
+    2nd+ trade on that index, needs 2.00         1731   38% ₹  +372,102 PF 1.24 DD ₹  82,589 day ₹ -13,411  | 1032   34% ₹  +107,588 PF 1.12 DD ₹  96,316 day ₹ -16,440
+    any trade after the day's first, needs 1.25  1858   38% ₹  +428,654 PF 1.27 DD ₹  95,787 day ₹ -16,860  | 1105   34% ₹  +107,994 PF 1.11 DD ₹  98,731 day ₹ -16,440
+    any trade after the day's first, needs 1.50  1724   38% ₹  +446,088 PF 1.31 DD ₹  72,894 day ₹ -15,195  | 1040   33% ₹  +105,106 PF 1.11 DD ₹ 102,282 day ₹ -16,440
+    any trade after the day's first, needs 2.00  1484   37% ₹  +376,795 PF 1.30 DD ₹  80,642 day ₹ -13,411  |  918   33% ₹  +141,430 PF 1.18 DD ₹  79,555 day ₹ -13,361
+    after a loss on that index, needs 1.25       1954   39% ₹  +433,818 PF 1.26 DD ₹  92,355 day ₹ -16,860  | 1144   35% ₹  +127,027 PF 1.12 DD ₹ 101,122 day ₹ -16,440
+    after a loss on that index, needs 1.50       1910   39% ₹  +445,911 PF 1.27 DD ₹  78,108 day ₹ -15,195  | 1120   35% ₹  +124,009 PF 1.12 DD ₹ 103,307 day ₹ -16,440
+    after a loss on that index, needs 2.00       1839   38% ₹  +424,516 PF 1.26 DD ₹  80,695 day ₹ -13,411  | 1072   35% ₹  +126,485 PF 1.13 DD ₹  94,955 day ₹ -16,440
+
+ VERDICT - KEEP only if more profit than today in BOTH periods (worst drop / worst day: minus = better)
+   drop  out at 40% of the room                       profit: in-sample  -258,412  held-out  -177,261   worst drop:  +19,672 /  +46,085   worst day:       +0 /       +0
+   drop  out at 50% of the room                       profit: in-sample   -39,636  held-out   -47,220   worst drop:   +5,610 /   +8,799   worst day:       +0 /       +0
+   drop  out at 60% of the room                       profit: in-sample   -43,752  held-out   -25,999   worst drop:   +2,638 /   +5,021   worst day:       +0 /       +0
+   KEEP  out at 85% of the room                       profit: in-sample   +22,129  held-out   +49,612   worst drop:   -5,561 /   -5,870   worst day:       +0 /       +0
+   KEEP  out at 100% of the room                      profit: in-sample   +49,357  held-out   +24,225   worst drop:  -11,474 /   -7,231   worst day:       +0 /       +0
+   drop  index: later trades need 1.25                profit: in-sample    -8,998  held-out    -9,626   worst drop:   -1,366 /     -955   worst day:       +0 /   +4,133
+   drop  index: later trades need 1.50                profit: in-sample   -34,299  held-out   -21,212   worst drop:  -14,341 /   +2,590   worst day:   +1,665 /   +4,133
+   drop  index: later trades need 2.00                profit: in-sample   -65,407  held-out   -17,639   worst drop:   -9,185 /   -5,761   worst day:   +3,450 /   +4,133
+   drop  any: later trades need 1.25                  profit: in-sample    -8,855  held-out   -17,233   worst drop:   +4,013 /   -3,345   worst day:       +0 /   +4,133
+   drop  any: later trades need 1.50                  profit: in-sample    +8,579  held-out   -20,121   worst drop:  -18,880 /     +205   worst day:   +1,665 /   +4,133
+   drop  any: later trades need 2.00                  profit: in-sample   -60,714  held-out   +16,204   worst drop:  -11,132 /  -22,522   worst day:   +3,450 /   +7,211
+   drop  loss: later trades need 1.25                 profit: in-sample    -3,691  held-out    +1,800   worst drop:     +581 /     -955   worst day:       +0 /   +4,133
+   drop  loss: later trades need 1.50                 profit: in-sample    +8,402  held-out    -1,218   worst drop:  -13,666 /   +1,230   worst day:   +1,665 /   +4,133
+   drop  loss: later trades need 2.00                 profit: in-sample   -12,993  held-out    +1,258   worst drop:  -11,079 /   -7,121   worst day:   +3,450 /   +4,133
+
+ TODAY'S TRADES: THE DAY'S FIRST ON AN INDEX vs ITS LATER ONES (today's rules)
+   first trade of the day on the index    in-sample 1228 trades ₹  +166,012 (₹ +135/trade)   held-out  727 trades ₹  +105,584 (₹ +145/trade)
+   2nd+ trade of the day on the index     in-sample  777 trades ₹  +271,497 (₹ +349/trade)   held-out  440 trades ₹   +19,643 (₹  +45/trade)
