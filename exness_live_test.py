@@ -341,9 +341,11 @@ check("enabled per index, venue Exness, the account kind per switch",
       and pubx["accounts"]["GOLD"]["rule"]["kind"] == "real")
 check("no token in anything the page gets", TOKEN not in json.dumps(pubx))
 src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "exness_orders.py")).read()
-check("the executor only ever sends the documented trade actions",
-      set(__import__("re").findall(r'"(ORDER_TYPE_\w+|POSITION_\w+)"', src)) ==
-      {"ORDER_TYPE_BUY", "ORDER_TYPE_SELL", "POSITION_MODIFY", "POSITION_CLOSE_ID"})
+check("the executor only ever sends the documented trade actions (POSITION_TYPE_* are only read back, to recognise "
+      "an order MetaApi answered late - 7 Oct 2026)",
+      set(a for a in __import__("re").findall(r'"(ORDER_TYPE_\w+|POSITION_\w+)"', src) if not a.startswith("POSITION_TYPE_")) ==
+      {"ORDER_TYPE_BUY", "ORDER_TYPE_SELL", "POSITION_MODIFY", "POSITION_CLOSE_ID"}
+      and all('"actionType": "POSITION_TYPE' not in line for line in src.splitlines()))
 
 print("8b. THE PAGE'S SWITCH (/api/live) - AN ACCOUNT MUST BE CHOSEN, REAL MONEY CONFIRMED")
 import feeds

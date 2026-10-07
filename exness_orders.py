@@ -45,6 +45,36 @@ INDICES = ("BTC", "GOLD")
 POLL_S = 10
 MAX_ENTRIES_PER_DAY = 20
 DONE_CODES = (10008, 10009, 10010)     # placed / done / done partially
+# MetaApi's London servers timed out all afternoon on 7 Oct 2026 and a gold order was lost to it ("why did gold didnt
+# take live order" -> "yes fix it"). A READ that fails that way is tried once more; an ORDER is never sent twice on a
+# timeout - it is looked for at Exness instead, and watched for this long in case it arrives late.
+RETRY_PAUSE_S = 1.5
+UNCONFIRMED_WATCH_S = 180
+
+
+def _transient(exc):
+    """Worth one more try: no answer in time, a dropped connection, or MetaApi's own server error (500 / 502 / 503 /
+    504 - its "not connected to broker yet", "Failed to execute a callable")."""
+    if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
+        return True
+    return isinstance(exc, ExnessOrderError) and any(f"MetaApi HTTP {c}" in str(exc) for c in (500, 502, 503, 504))
+
+
+def _answered(exc):
+    """MetaApi DID answer (an HTTP error): the order was turned down, not lost. A timeout says nothing about whether
+    it was carried out, so only this kind of failure may be sent again."""
+    return isinstance(exc, ExnessOrderError) and "MetaApi HTTP" in str(exc)
+
+
+def _opened_since(p, since):
+    """Was this Exness position opened at or after `since` (epoch seconds), allowing a minute of clock difference?"""
+    t = p.get("time")
+    if not t:
+        return True
+    try:
+        return dt.datetime.fromisoformat(str(t).replace("Z", "+00:00")).timestamp() >= since - 60
+    except ValueError:
+        return True
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 _executors = {}
 _lock = threading.Lock()
@@ -116,6 +146,9 @@ class Client:
     def position(self, pid):
         return self._req("GET", f"/positions/{pid}")
 
+    def positions(self):
+        return self._req("GET", "/positions") or []
+
     def deals(self, pid):
         return self._req("GET", f"/history-deals/position/{pid}") or []
 
@@ -146,6 +179,7 @@ class Executor:
         self.close_ticket = close_ticket
         self.make_client = client_factory or _client_factory(email)
         self.clock = clock or time.time
+        self.sleep = time.sleep
         self.lock = threading.RLock()
         self.enabled, self.enabled_ai = {k: False for k in INDICES}, {k: False for k in INDICES}
         self.acct_for = {"rule": {}, "ai": {}}           # source -> index -> account id
@@ -256,6 +290,71 @@ class Executor:
                 self._exit(trade)
             self._save()
 
+    def _again(self, fn):
+        """A READ, once more after a short pause when it failed transiently - a read changes nothing, so a second try
+        is always safe. Anything else, or a second failure, is raised as before."""
+        try:
+            return fn()
+        except Exception as exc:
+            if not _transient(exc):
+                raise
+            self.sleep(RETRY_PAUSE_S)
+            return fn()
+
+    def _find_arrived(self, c, sym, side, vol, sent_at, tries=2):
+        """An order MetaApi did not answer: is it at Exness after all? A position on this symbol, side and size, opened
+        since the order went out, carrying the tool's comment (or none), that the tool does not already track."""
+        want = "POSITION_TYPE_BUY" if side > 0 else "POSITION_TYPE_SELL"
+        known = {str(p.get("position_id")) for p in self.positions.values() if p.get("position_id")}
+        for k in range(tries):
+            if k:
+                self.sleep(RETRY_PAUSE_S)
+            try:
+                rows = c.positions()
+            except Exception:
+                continue
+            for p in rows:
+                if (str(p.get("id")) not in known and p.get("symbol") == sym and p.get("type") == want
+                        and abs(float(p.get("volume") or 0) - float(vol)) < 1e-9
+                        and p.get("comment") in (None, "", "TradePicker") and _opened_since(p, sent_at)):
+                    return p
+        return None
+
+    def _watch_unconfirmed(self):
+        """Orders MetaApi never answered: adopt one that turns up at Exness (closing it at once if its ticket closed
+        meanwhile), and give up on it after UNCONFIRMED_WATCH_S."""
+        with self.lock:
+            waiting = [p for p in self.positions.values() if p.get("state") == "unconfirmed"]
+        for pos in waiting:
+            acct = user_exness.account(self.email, pos["account"])
+            if acct is None:
+                continue
+            c = self._client(acct)
+            found = self._find_arrived(c, pos.get("symbol"), 1 if pos.get("side") == "BUY" else -1, pos.get("qty") or 0,
+                                       pos.get("sent_at") or 0, tries=1)
+            with self.lock:
+                if found is not None:
+                    pos.update(state="open", position_id=str(found.get("id")), avg_price=found.get("openPrice"),
+                               profit=found.get("profit"))
+                    self.entries_today += 1
+                    self._note(pos["index"], f"The {pos['side']} {pos.get('qty')} {pos.get('symbol')} order MetaApi did "
+                                             f"not answer arrived at Exness after all (at {found.get('openPrice')}) - "
+                                             "tracked now.", "warn")
+                    if pos.get("ticket_closed"):
+                        try:
+                            r = c.trade({"actionType": "POSITION_CLOSE_ID", "positionId": pos["position_id"]})
+                            if r.get("numericCode") not in DONE_CODES:
+                                raise ExnessOrderError(f"{r.get('stringCode') or r.get('numericCode')}")
+                            self._bank(c, pos, "closed at once: its ticket had already closed")
+                        except Exception as exc:
+                            pos["state"] = "attention"
+                            self._note(pos["index"], f"Could not close it at Exness - CHECK EXNESS NOW: {exc}", "error")
+                elif self.clock() - float(pos.get("sent_at") or 0) > UNCONFIRMED_WATCH_S:
+                    pos["state"] = "failed"
+                    self._note(pos["index"], f"The {pos['side']} {pos.get('qty')} {pos.get('symbol')} order never arrived "
+                                             f"at Exness ({UNCONFIRMED_WATCH_S // 60} minutes) - nothing was placed.", "error")
+                self._save()
+
     def _client(self, acct):
         c = self._clients.get(acct["id"])
         if c is None:
@@ -275,8 +374,8 @@ class Executor:
         # closes the book's ticket ("the tool stopped while this was open") while its position stays open
         # at Exness under its own stop and target - a new signal must not stack a second one on top
         # (4 Oct 2026, deploying with a demo BTC position open).
-        held = next((p for p in self.positions.values() if p.get("index") == index and p.get("state") == "open"
-                     and p.get("account") == acct["id"]), None)
+        held = next((p for p in self.positions.values() if p.get("index") == index
+                     and p.get("state") in ("open", "unconfirmed") and p.get("account") == acct["id"]), None)
         if held is not None:
             self._note(index, f"{held.get('trade_id')} is still open at Exness on this account - one position "
                               "at a time, nothing sent.", "error")
@@ -306,16 +405,16 @@ class Executor:
         try:
             c = self._client(acct)
             base = (config.INSTRUMENTS.get(index) or {}).get("exness_symbol")
-            sym = c.symbol(base)
-            spec = c.spec(sym)
+            sym = self._again(lambda: c.symbol(base))
+            spec = self._again(lambda: c.spec(sym))
             step = float(spec.get("volumeStep") or 0.01)
             vmin, vmax = float(spec.get("minVolume") or 0.01), float(spec.get("maxVolume") or 1.0)
             vol = round(_round_step(min(float(trade.get("lots") or 0), vmax), step), 2)
             if vol < vmin:
                 raise ExnessOrderError(f"{trade.get('lots')} lots is under Exness's minimum {vmin:g}.")
             digits = int(spec.get("digits") or 2)
-            info = c.info()
-            q = c.price(sym)
+            info = self._again(c.info)
+            q = self._again(lambda: c.price(sym))
             px = float(q.get("ask") if side > 0 else q.get("bid"))
             lev = float(info.get("leverage") or 1) or 1.0
             need = px * float(spec.get("contractSize") or 1) * vol / lev
@@ -333,19 +432,43 @@ class Executor:
                 body["stopLoss"] = round(float(sl), digits)
             if tp is not None:
                 body["takeProfit"] = round(float(tp), digits)
-            r = c.trade(body)
+            sent_at = self.clock()
+            late = False
+            try:
+                r = c.trade(body)
+            except Exception as exc:
+                if not _transient(exc):
+                    raise
+                found = self._find_arrived(c, sym, side, vol, sent_at)
+                if found is not None:                     # it went through; MetaApi only answered late
+                    r, late = {"numericCode": DONE_CODES[1], "positionId": found.get("id")}, True
+                elif _answered(exc):                      # turned down, not lost: once more
+                    self.sleep(RETRY_PAUSE_S)
+                    r = c.trade(body)
+                else:                                     # no answer at all: never sent twice - watched for instead
+                    pos.update(state="unconfirmed", sent_at=sent_at, error=str(exc)[:200])
+                    self._note(index, f"MetaApi did not answer the {pos['side']} {vol:g} {sym} order in time ({exc}). "
+                                      f"Nothing is sent again; Exness is watched for {UNCONFIRMED_WATCH_S // 60} minutes "
+                                      "in case it arrives late, and it is tracked if it does.", "warn")
+                    return
             if r.get("numericCode") not in DONE_CODES or not r.get("positionId"):
                 raise ExnessOrderError(f"Exness refused: {r.get('stringCode') or r.get('numericCode')} "
                                        f"{r.get('message') or ''}".strip())
             pos.update(state="open", position_id=str(r["positionId"]), order_id=str(r.get("orderId") or ""))
             self.entries_today += 1
-            p = c.position(pos["position_id"]) or {}
+            # Placed: whatever this read does, the position is open at Exness and stays tracked (a timeout here used
+            # to mark a live position "failed").
+            try:
+                p = self._again(lambda: c.position(pos["position_id"])) or {}
+            except Exception:
+                p = {}
             if p.get("openPrice") is not None:
                 pos.update(avg_price=float(p["openPrice"]), profit=p.get("profit"))
             self._note(index, f"{pos['side']} {vol:g} {sym} on your {acct.get('kind', '').upper()} Exness account"
                               + (f" at {pos.get('avg_price')}" if pos.get("avg_price") else "")
                               + (f", stop {body.get('stopLoss')} and target {body.get('takeProfit')} at Exness"
-                                 if sl is not None or tp is not None else ""))
+                                 if sl is not None or tp is not None else "")
+                              + (" - MetaApi answered late, found at Exness" if late else ""))
         except Exception as exc:
             pos.update(state="failed", error=str(exc)[:200])
             self._note(index, f"Live order NOT placed: {exc}", "error")
@@ -376,6 +499,9 @@ class Executor:
     # ---------------------------------------------------------------- exit
     def _exit(self, trade):
         pos = self.positions.get(trade.get("trade_id"))
+        if pos and pos.get("state") == "unconfirmed":
+            pos["ticket_closed"] = True                  # if it turns up, _watch_unconfirmed closes it at once
+            return
         if not pos or pos.get("state") != "open":
             return
         acct = user_exness.account(self.email, pos["account"])
@@ -469,6 +595,7 @@ class Executor:
 
     # ---------------------------------------------------------------- Exness closed it first
     def poll(self):
+        self._watch_unconfirmed()
         with self.lock:
             open_ = [p for p in self.positions.values() if p.get("state") == "open"]
         for pos in open_:
