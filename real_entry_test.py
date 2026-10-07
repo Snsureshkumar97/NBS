@@ -163,8 +163,8 @@ check("the AI desk's open ticket, the option chart's Entry line and the snapshot
       "real_entry.apply(getattr(self.feed, \"live\", None), t)" in AI and "real_entry.apply(getattr(feed, \"live\", None), t)" in SRC
       and "real_entry.apply(getattr(self, \"live\", None), t)" in open(os.path.join(HERE, "feeds.py")).read())
 check("the Signal ticket row, the left column and the AI card say 'filled' when it is",
-      'cell(entryLabel(tk), num(tk.entry,dp))' in SRC and 'row(tk.entry_real ? "Entry (filled)" : "Entry", num(tk.entry))' in SRC
-      and 'cell(entryLabel(t), num(t.entry, dp))' in SRC and "entryNote(tk, " in SRC and "entryNote(t, dp)" in SRC)
+      '[entryLabel(tk), num(tk.entry, dp)]' in SRC and 'row(tk.entry_real ? "Entry (filled)" : "Entry", num(tk.entry))' in SRC
+      and '[entryLabel(t), num(t.entry, dp)]' in SRC and "entryNote(tk, " in SRC and "entryNote(t, dp)" in SRC)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if NODE:
     a = SRC.index("const entryLabel = t =>"); b = SRC.index("function ticketBox(r, state){")

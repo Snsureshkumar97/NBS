@@ -845,7 +845,7 @@ const casesRows = () => "";
 // the page's own contractName lives outside the slice copied below (web_server.py, since 3 Oct 2026)
 const contractName = (index, strike, side, cfd) => cfd ? String(index) : `${index} ${strike} ${side}`;
 const LAST = {};
-""" + SRC[fa:fb] + r'''
+""" + SRC[SRC.index("function posPanel("):SRC.index("\n}\n", SRC.index("function posPanel(")) + 3] + SRC[fa:fb] + r'''
 function ticket(exit_at, hit, sl_hit){
   return {option_type: "CE", tracked_on: "premium", exit_at, targets: [145.0, 154.0, 160.0],
           stop: 110.0, entry: 130.0, now: 132.0, pnl: null, lots: 1, lot_size: 65,
@@ -979,9 +979,9 @@ check("the AI tab has the AI live-orders switch, and it names real money",
 
 check("the page has the lots selector, posts it to the same endpoint, and shows the cost",
       'id="ailots"' in SRC and "body: new URLSearchParams({lots: sel.value})" in SRC
-      and 'cell("Cost"' in SRC and "<th>Cost</th><th>Exit</th>" in SRC)
+      and '["Cost", ' in SRC and "<th>Cost</th><th>Exit</th>" in SRC)
 check("the Signal card shows the cost too: a Cost cell on the open ticket and a cost line on the suggestion, both markets",
-      SRC.count('cell("Cost"') >= 2 and "rrow(`Cost of ${what}`" in SRC and "the premium paid" in SRC)
+      SRC.count('["Cost", ') >= 2 and "rrow(`Cost of ${what}`" in SRC and "the premium paid" in SRC)
 check("the journal offers the AI desk's trades and badges them",
       'data-src="ai">AI trades' in SRC and 'jbadge ai">AI' in SRC and "<th>Lots</th><th>Cost</th>" in SRC)
 print("AI DESK TEST PASSED" if not fails else f"AI DESK TEST FAILED: {fails}")

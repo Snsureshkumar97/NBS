@@ -3417,8 +3417,73 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .jbadge.ai{color:#b07d15;border-color:rgba(176,125,21,.45)}
 .jbadge.live{color:var(--up);border-color:rgba(76,175,80,.45)}
 .tvframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:0;border-radius:12px;background:#0b0e14}
-#jdaytbl td:nth-child(-n+5),#jdaytbl th:nth-child(-n+5),#jdaytbl td:nth-last-child(2),#jdaytbl th:nth-last-child(2){text-align:left}
-#jdaytbl td.jnote{white-space:normal;min-width:180px;max-width:320px;color:var(--ink-2)}
+#jdaytbl td:nth-child(-n+5),#jdaytbl th:nth-child(-n+5){text-align:left}
+#jdaytbl td,#jdaytbl th{padding-left:6px;padding-right:6px}
+#jdaytbl small{display:block;font-size:12px;color:var(--ink-3);font-weight:400;white-space:normal;max-width:280px}
+#jdaytbl tfoot td{border-top:1px solid var(--bd);font-weight:700;color:var(--ink-2)}
+#jdaytbl .jacts{display:flex;gap:4px;margin-top:4px}
+#jdaytbl .jacts .lbtn{padding:3px 8px;font-size:12px}
+/* The Journal (the user, 7 Oct 2026: "work on journal the numbers over there all too messy make it look good you use
+   tables charts design like different kind for the data"): the period at a glance - headline figures and the running
+   total drawn as a chart - then the statistics as bars and rows, where the result came from as tables and bars, the
+   calendar full width, risk as figures and a range. */
+.jhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.jhead .eyebrow{margin:0}
+.psum.jkpi{grid-template-columns:repeat(5,minmax(0,1fr));margin-top:14px}
+.jkpi small{display:block;font-size:12px;color:var(--ink-3);margin-top:4px}
+.jmini{display:block;height:4px;border-radius:2px;background:var(--bd-soft);margin-top:8px;overflow:hidden}
+.jmini i{display:block;height:100%;background:var(--up)}
+.psum.jkpi3{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:4px}
+.jeq{margin-top:4px;padding-top:12px;border-top:1px solid var(--bd-soft)}
+.jeqtop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px;color:var(--ink-3);margin-bottom:8px}
+.jeqtop b{font-size:15px;font-variant-numeric:tabular-nums}
+.jplot{position:relative;height:150px}
+.jbars{position:relative;height:56px;margin-top:6px}
+.jplot svg,.jbars svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.jbars rect{cursor:pointer}
+.jx{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink-3);margin-top:6px;font-variant-numeric:tabular-nums}
+.jsplitbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--bd-soft);margin-top:4px}
+.jsplitbar i{display:block;height:100%}
+:is(.jsplitbar,.jtrack,.jhb) .up{background:var(--up)}
+:is(.jsplitbar,.jtrack,.jhb) .dn{background:var(--down)}
+.jsplitlbl{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink-3);margin-top:6px}
+.jsplitlbl b{font-weight:700}
+.jpair{display:grid;gap:8px;margin:16px 0 10px}
+.jpr{display:grid;grid-template-columns:100px minmax(0,1fr) auto;align-items:center;gap:10px;font-size:12px;color:var(--ink-3)}
+.jtrack{height:8px;border-radius:4px;background:var(--bd-soft);overflow:hidden}
+.jtrack i{display:block;height:100%;border-radius:4px}
+.jpr b{font-size:13px;font-variant-numeric:tabular-nums;min-width:76px;text-align:right}
+.ntab.jkv td{padding:7px 0}
+.ntab.jkv td:first-child{color:var(--ink-2)}
+.ntab.jkv th{padding-left:0;padding-right:0}
+.jhb{display:inline-block;width:56px;height:6px;border-radius:3px;background:var(--bd-soft);margin-right:8px;vertical-align:middle;
+  overflow:hidden}
+.jhb i{display:block;height:100%}
+.jsub{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);font-weight:700;margin:16px 0 6px}
+.jsub:first-child{margin-top:4px}
+.jhours{display:flex;gap:6px}
+.jhours > div{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
+.jhours .pos,.jhours .neg{height:48px;width:100%;display:flex;justify-content:center}
+.jhours .pos{align-items:flex-end;border-bottom:1px solid var(--bd)}
+.jhours .neg{align-items:flex-start}
+.jhours i{display:block;width:70%;max-width:26px;border-radius:3px 3px 0 0}
+.jhours .neg i{border-radius:0 0 3px 3px}
+.jhours span{font-size:12px;color:var(--ink-3);margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.jrange{margin:14px 0 6px}
+.jrtrack{position:relative;height:12px;border-radius:6px;background:var(--bd-soft);margin:10px 0 8px}
+.jrtrack .band{position:absolute;top:0;bottom:0;opacity:.5}
+.jrtrack .band.dn{background:var(--down);border-radius:6px 0 0 6px}
+.jrtrack .band.up{background:var(--up);border-radius:0 6px 6px 0}
+.jrtrack .zero{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--ink-3)}
+.jrtrack .mid{position:absolute;top:-3px;width:4px;height:18px;margin-left:-2px;border-radius:2px;background:var(--ink)}
+.jrlbl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:12px;color:var(--ink-3)}
+.jrlbl b{display:block;font-size:14px;font-variant-numeric:tabular-nums;margin-top:2px}
+.jrlbl span:nth-child(2){text-align:center}
+.jrlbl span:last-child{text-align:right}
+@media (max-width:760px){
+  .psum.jkpi{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:14px}
+  .psum.jkpi > div:nth-child(4){border-left:0;padding-left:0}
+}
 .rrcard{margin-top:12px;border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
 .rrcard:empty{display:none}
 .rrsum{font-size:12.5px;color:var(--ink-2);line-height:1.65;margin:4px 0 10px}
@@ -3464,6 +3529,45 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-u{font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-msg{font-size:12px;color:var(--ink-3);flex-basis:100%}
 .kdlots .kdl-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;flex-basis:100%}
+/* the trade settings: a row per index (7 Oct 2026) */
+.kdlots{display:block;margin:6px 0 14px;padding:12px 14px;border:1px solid var(--bd-soft);border-radius:10px;background:var(--surface, transparent)}
+.kdlots .kdl-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:6px}
+.kdlots .kdl-sub{font-size:12px;color:var(--ink-3)}
+.kdlots .kdl-tab{max-width:620px}
+.kdlots .kdl-tab td{vertical-align:middle;padding:6px 10px 6px 0}
+.kdlots .kdl-tab label{display:inline-flex}
+.kdlots .kdl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.kdlots .kdl-q{display:inline;margin-left:8px;font-size:12px;color:var(--ink-3)}
+.kdlots .kdl-u{margin-left:8px}
+.kdlots .kdl-msg{display:block;margin-top:6px}
+/* the Positions page */
+.kposcard .kposn{font-size:12px;color:var(--ink-3)}
+.scrwrap.kposwrap{max-height:none}      /* a page of its own: every position shows, no inner scroll */
+.psum.kpossum{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0 6px}
+.psum.kpossum small{display:block;font-size:12px;color:var(--ink-3);margin-top:4px}
+.kposwrap table.kd-pos{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;margin-top:8px}
+.kposwrap .kd-pos th{text-align:left;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);
+  padding:8px 10px;border-bottom:1px solid var(--bd);background:var(--raised)}
+.kposwrap .kd-pos td{padding:11px 10px;border-bottom:1px solid var(--bd-soft)}
+.kposwrap .kd-pos .r{text-align:right;white-space:nowrap}
+.kposwrap .kd-pos .kd-closed td{color:var(--ink-2)}
+.kposwrap .kd-pos .kd-when{font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:400}
+.kposwrap .kd-pos tfoot td{padding:8px 10px;font-weight:600;border-bottom:0}
+.kposwrap .kd-pos .jbadge{margin-left:6px;vertical-align:1px}
+.kposwrap .kd-posnone{margin-top:8px;font-size:13px;color:var(--ink-3)}
+.kposwrap .kd-pos .kd-strk{display:none}
+/* a phone: the strike under the index rather than a column of its own, so the result stays on screen */
+@media (max-width:560px){
+  .kposwrap table.kd-pos{font-size:13px}
+  .kposwrap .kd-pos th,.kposwrap .kd-pos td{padding:9px 5px}
+  .kposwrap .kd-pos th:nth-child(2),.kposwrap .kd-pos tbody td:nth-child(2),.kposwrap .kd-pos .kd-tfs{display:none}
+  .kposwrap .kd-pos .kd-strk{display:block;margin-top:3px}
+  .kposwrap .kd-pos .jbadge{margin-left:4px}
+}
+@media (max-width:760px){
+  .psum.kpossum{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
+  .psum.kpossum > div:nth-child(3){border-left:0;padding-left:0}
+}
 .jbadge.tr{color:#7a5af8;border-color:rgba(122,90,248,.45)}
 .lotqty{font-size:12px;color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
@@ -3619,9 +3723,26 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .contract{font-size:13px;color:var(--ink-2);margin-top:4px}
 .contract b{color:var(--ink)}
 .issued{font-size:12px;color:var(--ink-3);margin-top:3px}
-.tstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
-  gap:14px;margin-top:14px;padding:13px 0;border-top:1px solid var(--bd-soft);
+/* An open ticket's figures as a position panel, not a wall of boxes (the user, 7 Oct 2026: "reward risk entry ...
+   they are all boxes it should look good"): entry, now and the result large and unboxed on one line, the rest as
+   label / value rows - two columns wide, one on a phone. */
+.tstats{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd-soft)}
+.psum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;padding-bottom:12px}
+.psum > div + div{border-left:1px solid var(--bd-soft);padding-left:16px}
+.psum span,.pdet span{font-size:12px;color:var(--ink-3)}
+.psum span{display:block;letter-spacing:.6px;text-transform:uppercase;font-weight:700}
+.psum b{display:block;font-size:22px;font-weight:700;letter-spacing:-.4px;margin-top:4px;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.pdet{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;border-top:1px solid var(--bd-soft)}
+.pdet > div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;
   border-bottom:1px solid var(--bd-soft)}
+.pdet b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+@media (max-width:560px){
+  .pdet{grid-template-columns:minmax(0,1fr)}
+  .psum{column-gap:10px}
+  .psum > div + div{padding-left:10px}
+  .psum b{font-size:18px}
+}
 .tstat .l{font-size:12px;letter-spacing:.6px;text-transform:uppercase;
   color:var(--ink-3);font-weight:700}
 .tstat .v{font-size:19px;font-weight:700;letter-spacing:-.4px;margin-top:3px;
@@ -4674,7 +4795,8 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
-  :root[data-look="kite"] .kdlots{order:2}
+  :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
+  :root[data-look="kite"] .kd-poslink{margin-top:16px}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#htoday){display:none}
   :root[data-look="kite"]:has(.pane[data-pane="home"].on) .kside :is(.kb-today,.kb-funds){display:none}
   :root[data-look="kite"] .pane[data-pane="home"] .hsec:has(#dgrid){order:4}
@@ -4850,6 +4972,7 @@ button.mgroup:hover{color:var(--ink-2)}
  </div>
  <nav class="menu" id="tabs" role="tablist" aria-label="Sections">
   <button class="tab on" data-tab="home" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></i>Home</button>
+  <button class="tab" data-tab="positions" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 13h18"/></svg></i>Positions</button>
   <p class="mgroup">Desk</p>
   <button class="tab" data-tab="signal" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></i>Signal</button>
   <button class="tab" data-tab="chart" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/></svg></i>Chart</button>
@@ -4997,8 +5120,8 @@ button.mgroup:hover{color:var(--ink-2)}
  <div class="panes">
 
  <section class="pane on" data-pane="home">
-  <div class="kdash" id="kdash"></div>
   <div class="kdlots" id="kdlots"></div>
+  <div class="kdash" id="kdash"></div>
   <div class="dashbulk" id="dashbulk">
    <button class="lbtn dashlive" id="dashlive" type="button" aria-pressed="false"
    hidden>Turn on live trades</button>
@@ -5511,6 +5634,18 @@ button.mgroup:hover{color:var(--ink-2)}
   </div>
  </section>
 
+ <!-- Today's positions, a page of their own (the user, 7 Oct 2026: "and postions can you give a separate tab") -->
+ <section class="pane" data-pane="positions">
+  <div class="card kposcard" data-panel="kpos" id="kposcard">
+   <div class="jhead">
+    <p class="eyebrow" role="heading" aria-level="2">Positions &middot; today</p>
+    <span class="kposn" id="kposn"></span>
+   </div>
+   <div class="psum kpossum" id="kpossum"></div>
+   <div class="scrwrap kposwrap" id="kpos"></div>
+  </div>
+ </section>
+
  <section class="pane" data-pane="journal">
   <div class="jbar">
    <div class="jsrc" id="jsrc" role="group" aria-label="Which trades">
@@ -5545,28 +5680,34 @@ button.mgroup:hover{color:var(--ink-2)}
     <span class="jmsg" id="jf_msg"></span>
    </div>
   </div>
-  <div class="card" data-panel="jbook" id="jbookcard">
-   <p class="eyebrow" role="heading" aria-level="2">Tradebook &middot; <span id="jbookrange">the last twelve months</span></p>
-   <div class="jheatwrap"><div class="jheat" id="jheat"></div></div>
-   <div class="jlegend" id="jlegend"></div>
-  </div>
-  <div class="grid2">
-   <div class="card" data-panel="jcal" id="jcalcard">
-    <div class="jcalhead">
-     <button class="lbtn" type="button" id="jprev" aria-label="Previous month">&lsaquo;</button>
-     <p class="jmonth" id="jmonth">&mdash;</p>
-     <button class="lbtn" type="button" id="jnext" aria-label="Next month">&rsaquo;</button>
-    </div>
-    <div class="jcal" id="jcal"></div>
-   </div>
-   <div class="card" data-panel="jstats" id="jstatscard">
-    <p class="eyebrow" role="heading" aria-level="2">Statistics &middot; <span id="jstatscope">this month</span></p>
+  <div class="card" data-panel="jover" id="jovercard">
+   <div class="jhead">
+    <p class="eyebrow" role="heading" aria-level="2">Overview &middot; <span id="jstatscope">this month</span></p>
     <div class="jscope" id="jscope" role="group" aria-label="Period">
      <button class="lbtn on" type="button" data-scope="month">This month</button>
      <button class="lbtn" type="button" data-scope="all">All time</button>
     </div>
-    <div class="pulse" id="jstats"></div>
    </div>
+   <div class="psum jkpi" id="jkpi"></div>
+   <div class="jeq" id="jeq"></div>
+  </div>
+  <div class="grid2">
+   <div class="card" data-panel="jstats" id="jstatscard">
+    <p class="eyebrow" role="heading" aria-level="2">Statistics &middot; <span class="jscopelbl">this month</span></p>
+    <div id="jstats"></div>
+   </div>
+   <div class="card" data-panel="jbreak" id="jbreakcard">
+    <p class="eyebrow" role="heading" aria-level="2">Where it came from &middot; <span class="jscopelbl">this month</span></p>
+    <div id="jbreak"></div>
+   </div>
+  </div>
+  <div class="card" data-panel="jcal" id="jcalcard">
+   <div class="jcalhead">
+    <button class="lbtn" type="button" id="jprev" aria-label="Previous month">&lsaquo;</button>
+    <p class="jmonth" id="jmonth">&mdash;</p>
+    <button class="lbtn" type="button" id="jnext" aria-label="Next month">&rsaquo;</button>
+   </div>
+   <div class="jcal" id="jcal"></div>
   </div>
   <div class="card" data-panel="jday" id="jdaycard" style="display:none">
    <p class="eyebrow" role="heading" aria-level="2" id="jdaytitle">&mdash;</p>
@@ -5579,9 +5720,14 @@ button.mgroup:hover{color:var(--ink-2)}
     <span class="jmsg" id="jnotemsg"></span>
    </div>
   </div>
+  <div class="card" data-panel="jbook" id="jbookcard">
+   <p class="eyebrow" role="heading" aria-level="2">Tradebook &middot; <span id="jbookrange">the last twelve months</span></p>
+   <div class="jheatwrap"><div class="jheat" id="jheat"></div></div>
+   <div class="jlegend" id="jlegend"></div>
+  </div>
   <div class="card" data-panel="jrisk" id="jriskcard">
    <p class="eyebrow" role="heading" aria-level="2">Risk &middot; from your own trades</p>
-   <div class="pulse" id="jrisk"></div>
+   <div id="jrisk"></div>
    <div class="gnote" id="jrisknote"></div>
   </div>
   <div class="card" data-panel="jreview" id="jreviewcard">
@@ -5811,6 +5957,17 @@ async function saveLots(index, lots){
 // re-valued when not in use: the summary above it is rewritten on every change, and a select rebuilt mid-click drops
 // the click.
 let KDLOTS_HOLD = 0;
+// What each index's lots come to: "= 130 qty" for an option, "= 0.10 BTC" / "= 10 oz" for an Exness lot.
+function kdlQty(el){
+  if(!el || !el.querySelector || !el.querySelectorAll) return;
+  el.querySelectorAll("small[data-q]").forEach(q => {
+    if(!q.dataset || !q.dataset.q) return;
+    const sel = el.querySelector(`select[data-k="${q.dataset.q}"]`), ls = parseFloat(q.dataset.ls), lots = sel ? parseFloat(sel.value) : NaN;
+    q.textContent = isNaN(lots) ? "" : q.dataset.cfd
+      ? `= ${num(lots * (ls || 1), 2)} ${q.dataset.q === "GOLD" ? "oz" : q.dataset.q}`
+      : ls ? `= ${num(lots * ls, 0)} qty` : "";
+  });
+}
 function lotsDash(s){
   const el = $("kdlots");
   if(!el || !s) return;
@@ -5825,15 +5982,21 @@ function lotsDash(s){
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
-    el.innerHTML = `<span class="kdl-h">Lots</span>` + order.map(k =>
-      `<label><span>${esc(k)}</span><select data-k="${esc(k)}">`
-      + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select>`
-      + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</label>`).join("")
-      + (sysChoices.length ? `<span class="kdl-row"><span class="kdl-h">System</span>` + order.map(k =>
-          `<label><span>${esc(k)}</span><select data-sys="${esc(k)}">`
-          + sysChoices.map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label>`).join("")
-          + `</span>` : "")
-      + `<span class="kdl-msg" id="kdlmsg"></span>`;
+    // A row per index, its lots and the system that trades it side by side, at the top of the Dashboard (the user,
+    // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
+    const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
+    el.innerHTML = `<div class="kdl-head"><span class="kdl-h">Trade settings</span>`
+      + `<span class="kdl-sub">per index &middot; for the next ticket; an open one keeps what it opened with</span></div>`
+      + `<table class="ntab kdl-tab"><thead><tr><th>Index</th><th>Lots</th>${sysChoices.length ? "<th>System</th>" : ""}</tr></thead><tbody>`
+      + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
+          + `<td><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
+          + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
+          + `<small class="kdl-q" data-q="${esc(k)}" data-ls="${esc(String(lotSize(k) || ""))}" data-cfd="${isCfd(k) ? 1 : ""}"></small>`
+          + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</td>`
+          + (sysChoices.length ? `<td><label><span class="kdl-sr">${esc(k)} system</span><select data-sys="${esc(k)}">`
+              + sysChoices.map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+          + `</tr>`).join("")
+      + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
       const ss = e.target.closest("select[data-sys]");
       if(ss){
@@ -5849,6 +6012,7 @@ function lotsDash(s){
           if(!got) throw new Error("not taken");
           if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
           ss.value = got;
+          kdlQty(el);
           if(msg) msg.textContent = `${k}: traded by ${SYSNAME[got] || got} from its next signal. An open ticket keeps `
             + `the exit it opened with.`;
           if(LAST) render(LAST);
@@ -5867,6 +6031,7 @@ function lotsDash(s){
       try{
         const ses = await saveLots(k, want);
         sel.value = String(lotsOf(ses, k));
+        kdlQty(el);
         if(k === CUR){ LOTS = lotsOf(ses, k); LOTS_HOLD = Date.now() + 5000; }
         if(msg) msg.textContent = `${k}: the next ticket is ${lotsOf(ses, k)} lot${lotsOf(ses, k) === 1 ? "" : "s"}. An open ticket keeps the lots it opened with.`;
         if(LAST) render(LAST);
@@ -5877,11 +6042,12 @@ function lotsDash(s){
       }finally{ sel.disabled = false; }
     };
   }
-  if(Date.now() < KDLOTS_HOLD) return;
+  if(Date.now() < KDLOTS_HOLD){ kdlQty(el); return; }
   el.querySelectorAll("select[data-k]").forEach(sel => {
     const v = lotsOf(sess, sel.dataset.k);
     if(v != null && document.activeElement !== sel && sel.value !== String(v)) sel.value = String(v);
   });
+  kdlQty(el);
   el.querySelectorAll("select[data-sys]").forEach(sel => {
     const v = sys[sel.dataset.sys];
     if(v && document.activeElement !== sel && sel.value !== v) sel.value = v;
@@ -6391,6 +6557,7 @@ function jcalPaint(d, today){
   const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const inMonth = Object.entries(days).filter(([k]) => k.startsWith(JN_MONTH));
   const maxAbs = Math.max(1, ...inMonth.map(([, v]) => Math.abs(v.gross)));
+  const wide = (($("jcalcard") || {}).clientWidth || 0) >= 640;     // a full-width month has room for the whole figure
   let html = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(w => `<div class="wd">${w}</div>`).join("");
   for(let i = 0; i < lead; i++) html += `<div class="jd empty"></div>`;
   for(let dd = 1; dd <= count; dd++){
@@ -6399,33 +6566,160 @@ function jcalPaint(d, today){
     const note = d.notes && d.notes[iso] ? " ✎" : "";
     html += `<div class="${cls}" data-day="${iso}" style="${v ? `background:${jshade(v.gross, maxAbs)};--jink:${jink(v.gross, maxAbs)}` : ""}">`
       + `<span class="n">${dd}${note}</span>`
-      + (v ? `<span class="v">${jshort(v.gross, innerWidth <= 600)}</span><span class="c">${v.trades} trade${v.trades === 1 ? "" : "s"}</span>` : "")
+      + (v ? `<span class="v">${wide ? money(v.gross) : jshort(v.gross, innerWidth <= 600)}</span><span class="c">${v.trades} trade${v.trades === 1 ? "" : "s"}</span>` : "")
       + `</div>`;
   }
   $("jcal").innerHTML = html;
 }
-function jstatsPaint(d){
+// A headline figure (label, value, colour, extra markup after the value) and a label / value row - every text escaped.
+function jkc(l, v, c, extra){
+  return `<div><span>${esc(l)}</span><b${c ? ` style="color:${c}"` : ""}>${esc(v)}</b>${extra || ""}</div>`;
+}
+function jkv(l, v, c, sub){
+  return `<tr><td>${esc(l)}</td><td class="r"><b${c ? ` style="color:${c}"` : ""}>${esc(v)}</b>`
+    + (sub ? `<small>${esc(sub)}</small>` : "") + `</td></tr>`;
+}
+// The period's trades - this month, or all time. The overview, the statistics and the breakdown all read these.
+function jlines(d){
   const all = d.entries || [];
-  const lines = JN_SCOPE === "month" ? all.filter(e => e.date.startsWith(JN_MONTH)) : all;
+  return JN_SCOPE === "month" ? all.filter(e => e.date.startsWith(JN_MONTH)) : all;
+}
+function jstatsPaint(d){
+  const lines = jlines(d);
   const [y, m] = JN_MONTH.split("-").map(Number);
-  $("jstatscope").textContent = JN_SCOPE === "month" ? `${JN_MONTHS[m - 1]} ${y}` : "all time";
+  const label = JN_SCOPE === "month" ? `${JN_MONTHS[m - 1]} ${y}` : "all time";
+  $("jstatscope").textContent = label;
+  document.querySelectorAll(".jscopelbl").forEach(x => { x.textContent = label; });
   const s = jstats(lines), box = $("jstats");
-  if(!s.n){ box.innerHTML = `<p class="jmuted">No trades ${JN_SCOPE === "month" ? "this month" : "yet"}. Add one, or they appear here as the tool's tickets close.</p>`; return; }
+  if(!s.n){
+    const msg = `<p class="jmuted">No trades ${JN_SCOPE === "month" ? "this month" : "yet"}. Add one, or they appear here as the tool's tickets close.</p>`;
+    box.innerHTML = msg; $("jbreak").innerHTML = msg; $("jkpi").innerHTML = ""; $("jeq").innerHTML = msg;
+    return;
+  }
   const pct = v => v == null ? "—" : v.toFixed(0) + "%";
+  const res = s.net != null ? s.net : s.gross;
+  $("jkpi").innerHTML =
+      jkc(s.net != null ? "Net P&L" : "P&L before costs", money(res), jcol(res),
+          s.net != null ? `<small>${esc(money(s.gross))} before costs</small>` : "")
+    + jkc("Win rate", pct(s.winRate), "",
+          s.winRate == null ? "" : `<i class="jmini"><i style="width:${Math.round(s.winRate)}%"></i></i>`)
+    + jkc("Profit factor", s.pf == null ? (s.wins ? "no losses" : "—") : s.pf.toFixed(2),
+          s.pf == null ? "" : s.pf >= 1 ? "var(--up)" : "var(--down)")
+    + jkc("Trades", String(s.n), "", `<small>${s.wins} won · ${s.losses} lost</small>`)
+    + jkc("Per trade", money(s.exp), jcol(s.exp));
+  jeqPaint(lines);
+  // won and lost as one split bar; the average win against the average loss on one scale; the rest as rows
+  const wl = (s.wins + s.losses) || 1, flat = s.n - s.wins - s.losses;
+  const big = Math.max(Math.abs(s.avgWin || 0), Math.abs(s.avgLoss || 0)) || 1;
+  const pair = (l, v, cls) => `<div class="jpr"><span>${esc(l)}</span><div class="jtrack"><i class="${cls}" `
+    + `style="width:${v == null ? 0 : Math.round(100 * Math.abs(v) / big)}%"></i></div>`
+    + `<b style="color:${v == null ? "var(--ink-3)" : jcol(v)}">${esc(v == null ? "—" : money(v))}</b></div>`;
   box.innerHTML =
-      statRow("Trades", `${s.n} &middot; ${s.wins} won, ${s.losses} lost`)
-    + statRow("P&L before costs", money(s.gross), jcol(s.gross))
-    + statRow("After charges", s.net != null ? money(s.net)
-        : s.netKnown ? `charges known for ${s.netKnown} of ${s.n}` : "—", s.net != null ? jcol(s.net) : "")
-    + statRow("Win rate", pct(s.winRate))
-    + statRow("Profit factor", s.pf == null ? (s.wins ? "no losses" : "—") : s.pf.toFixed(2))
-    + statRow("Average win / loss", `${s.avgWin == null ? "—" : money(s.avgWin)} / ${s.avgLoss == null ? "—" : money(s.avgLoss)}`)
-    + statRow("Per trade", money(s.exp), jcol(s.exp))
-    + statRow("Best day", s.best ? `${money(s.best[1])} &middot; ${jdate(s.best[0])}` : "—", s.best ? jcol(s.best[1]) : "")
-    + statRow("Worst day", s.worst ? `${money(s.worst[1])} &middot; ${jdate(s.worst[0])}` : "—", s.worst ? jcol(s.worst[1]) : "")
-    + statRow("Green / red days", `${s.green} / ${s.red}`)
-    + statRow("Deepest drawdown", s.dd ? money(-s.dd) : "none", s.dd ? "var(--down)" : "")
-    + statRow("Longest streak", `${s.bw} won &middot; ${s.bl} lost`);
+      `<div class="jsplitbar"><i class="up" style="width:${(100 * s.wins / wl).toFixed(1)}%"></i>`
+    + `<i class="dn" style="width:${(100 * s.losses / wl).toFixed(1)}%"></i></div>`
+    + `<div class="jsplitlbl"><span><b style="color:var(--up)">${s.wins} won</b></span>`
+    + `<span>${pct(s.winRate)} of ${s.n} trade${s.n === 1 ? "" : "s"}${flat ? ` · ${flat} flat` : ""}</span>`
+    + `<span><b style="color:var(--down)">${s.losses} lost</b></span></div>`
+    + `<div class="jpair">${pair("Average win", s.avgWin, "up")}${pair("Average loss", s.avgLoss, "dn")}</div>`
+    + `<table class="ntab jkv"><tbody>`
+    + jkv("P&L before costs", money(s.gross), jcol(s.gross))
+    + jkv("After charges", s.net != null ? money(s.net) : s.netKnown ? `known for ${s.netKnown} of ${s.n}` : "—",
+          s.net != null ? jcol(s.net) : "")
+    + jkv("Best day", s.best ? money(s.best[1]) : "—", s.best ? jcol(s.best[1]) : "", s.best ? jdate(s.best[0]) : "")
+    + jkv("Worst day", s.worst ? money(s.worst[1]) : "—", s.worst ? jcol(s.worst[1]) : "", s.worst ? jdate(s.worst[0]) : "")
+    + jkv("Green / red days", `${s.green} / ${s.red}`)
+    + jkv("Deepest drawdown", s.dd ? money(-s.dd) : "none", s.dd ? "var(--down)" : "")
+    + jkv("Longest streak", `${s.bw} won · ${s.bl} lost`)
+    + `</tbody></table>`;
+  jbreakPaint(lines, d.market);
+}
+// The running total before costs, day by day - green above zero, red below - with each day's own result as a bar
+// under it (a click opens that day). Drawn to the width it is given; the labels are HTML, so they stay readable.
+function jeqPaint(lines){
+  const box = $("jeq"), byDay = {};
+  lines.forEach(e => { byDay[e.date] = (byDay[e.date] || 0) + (e.gross || 0); });
+  const days = Object.keys(byDay).sort(), n = days.length;
+  if(n < 2){ box.innerHTML = n ? `<p class="jmuted">One trading day so far - the chart starts with the second.</p>` : ""; return; }
+  let run = 0;
+  const eq = days.map(k => (run += byDay[k])), dv = days.map(k => byDay[k]);
+  const hi = Math.max(0, ...eq), lo = Math.min(0, ...eq), span = (hi - lo) || 1;
+  const W = 1000, H = 100, x = i => ((i + 0.5) / n * W).toFixed(1), y = v => (H - (v - lo) / span * H).toFixed(2);
+  const pts = eq.map((v, i) => `${x(i)},${y(v)}`).join("L"), y0 = y(0);
+  const area = `M${x(0)},${y0}L${pts}L${x(n - 1)},${y0}Z`, line = `M${pts}`;
+  const ns = 'vector-effect="non-scaling-stroke"';
+  const plot = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`
+    + `<defs><clipPath id="jeqUp"><rect x="0" y="-5" width="${W}" height="${(+y0 + 5).toFixed(2)}"/></clipPath>`
+    + `<clipPath id="jeqDn"><rect x="0" y="${y0}" width="${W}" height="${(H - y0 + 5).toFixed(2)}"/></clipPath></defs>`
+    + `<path d="${area}" clip-path="url(#jeqUp)" style="fill:var(--up);opacity:.14"/>`
+    + `<path d="${area}" clip-path="url(#jeqDn)" style="fill:var(--down);opacity:.14"/>`
+    + `<line x1="0" x2="${W}" y1="${y0}" y2="${y0}" style="stroke:var(--ink-3);stroke-dasharray:4 4" ${ns}/>`
+    + `<path d="${line}" clip-path="url(#jeqUp)" style="fill:none;stroke:var(--up);stroke-width:2" ${ns}/>`
+    + `<path d="${line}" clip-path="url(#jeqDn)" style="fill:none;stroke:var(--down);stroke-width:2" ${ns}/></svg>`;
+  const bHi = Math.max(0, ...dv), bLo = Math.min(0, ...dv), bSpan = (bHi - bLo) || 1, BH = 60;
+  const by = v => (BH - (v - bLo) / bSpan * BH), bw = Math.max(1, W / n * 0.62);
+  const bars = `<svg viewBox="0 0 ${W} ${BH}" preserveAspectRatio="none">`
+    + dv.map((v, i) => {
+        const top = Math.min(by(v), by(0)), h = Math.max(0.6, Math.abs(by(v) - by(0)));
+        return `<rect data-day="${days[i]}" x="${(x(i) - bw / 2).toFixed(1)}" y="${top.toFixed(2)}" width="${bw.toFixed(1)}" height="${h.toFixed(2)}" `
+          + `style="fill:${v >= 0 ? "var(--up)" : "var(--down)"};opacity:${days[i] === JN_DAY ? 1 : 0.75}">`
+          + `<title>${esc(jdate(days[i]))} · ${esc(money(v))}</title></rect>`;
+      }).join("") + `</svg>`;
+  box.innerHTML = `<div class="jeqtop"><span>Running total before costs, day by day</span>`
+    + `<b style="color:${jcol(run)}">${esc(money(run))}</b></div>`
+    + `<div class="jplot">${plot}</div><div class="jbars" title="Each day's result - click a day to open it">${bars}</div>`
+    + `<div class="jx"><span>${esc(jdate(days[0]))}</span><span>low ${esc(money(lo))} · high ${esc(money(hi))}</span>`
+    + `<span>${esc(jdate(days[n - 1]))}</span></div>`;
+}
+// Where the result came from: by instrument, by side, and by the hour the trade was entered.
+function jbreakPaint(lines, market){
+  const crypto = market === "crypto";
+  const group = key => {
+    const g = {};
+    lines.forEach(e => { const k = key(e); if(k != null && k !== "") (g[k] = g[k] || []).push(e.gross || 0); });
+    return g;
+  };
+  const table = (title, g, name) => {
+    const rows = Object.entries(g).map(([k, ps]) => ({k, n: ps.length, won: ps.filter(v => v > 0).length,
+                                                      tot: ps.reduce((a, b) => a + b, 0)})).sort((a, b) => b.tot - a.tot);
+    if(!rows.length) return "";
+    const big = Math.max(1, ...rows.map(r => Math.abs(r.tot)));
+    return `<p class="jsub">${esc(title)}</p><table class="ntab jkv"><thead><tr><th></th><th class="r">Trades</th>`
+      + `<th class="r">Won</th><th class="r">P&amp;L</th></tr></thead><tbody>`
+      + rows.map(r => `<tr><td>${esc(name ? name(r.k) : r.k)}</td><td class="r">${r.n}</td>`
+          + `<td class="r">${Math.round(100 * r.won / r.n)}%</td><td class="r"><span class="jhb"><i class="${r.tot >= 0 ? "up" : "dn"}" `
+          + `style="width:${Math.round(100 * Math.abs(r.tot) / big)}%"></i></span>`
+          + `<b style="color:${jcol(r.tot)}">${esc(money(r.tot))}</b></td></tr>`).join("")
+      + `</tbody></table>`;
+  };
+  const sides = crypto ? {CE: "Long (buy)", PE: "Short (sell)"} : {CE: "Calls (CE)", PE: "Puts (PE)", FUT: "Futures"};
+  let html = table("By instrument", group(e => e.instrument || "Other"))
+           + table(crypto ? "Long and short" : "Calls and puts", group(e => e.side), k => sides[k] || k);
+  // by the hour of entry; a market open day and night is read in three-hour blocks
+  const hrs = {};
+  lines.forEach(e => {
+    const h = parseInt(String(e.entry_time || e.time || "").slice(0, 2), 10);
+    if(!isNaN(h)) (hrs[h] = hrs[h] || []).push(e.gross || 0);
+  });
+  const hk = Object.keys(hrs).map(Number).sort((a, b) => a - b);
+  if(hk.length){
+    const block = hk[hk.length - 1] - hk[0] >= 10 ? 3 : 1, first = Math.floor(hk[0] / block) * block;
+    const cols = [];
+    for(let b = first; b <= hk[hk.length - 1]; b += block){
+      const ps = [];
+      for(let h = b; h < b + block; h++) ps.push(...(hrs[h] || []));
+      cols.push([b, ps, ps.reduce((a, v) => a + v, 0)]);
+    }
+    const big = Math.max(1, ...cols.map(c => Math.abs(c[2])));
+    const hh = v => String(v).padStart(2, "0");
+    html += `<p class="jsub">By hour of entry</p><div class="jhours">` + cols.map(([b, ps, t]) => {
+      const lbl = hh(b) + (block > 1 ? "–" + hh(b + block - 1) : ""), px = Math.max(2, Math.round(48 * Math.abs(t) / big));
+      const tip = `${lbl}:00 · ${ps.length} trade${ps.length === 1 ? "" : "s"}` + (ps.length ? ` · ${money(t)}` : "");
+      return `<div title="${esc(tip)}"><div class="pos">${ps.length && t > 0 ? `<i style="height:${px}px;background:var(--up)"></i>` : ""}</div>`
+        + `<div class="neg">${ps.length && t < 0 ? `<i style="height:${px}px;background:var(--down)"></i>` : ""}</div>`
+        + `<span>${lbl}</span></div>`;
+    }).join("") + `</div>`;
+  }
+  $("jbreak").innerHTML = html || `<p class="jmuted">Nothing to break down yet.</p>`;
 }
 function jdayPaint(d){
   const card = $("jdaycard");
@@ -6441,20 +6735,31 @@ function jdayPaint(d){
   // before its own job runs after the close).
   const srange = e => e.strike_day_high == null || e.strike_day_low == null ? "—"
     : `${num(e.strike_day_low, 2)} – ${num(e.strike_day_high, 2)}`;
+  // Charges sit under the result after them, and why a trade closed (or your note) under its contract - fourteen
+  // columns ran off the screen (the user, 7 Oct 2026: "the numbers over there all too messy").
+  const nets = lines.filter(e => e.net != null), netTot = nets.reduce((t, e) => t + e.net, 0);
   $("jdaytbl").innerHTML = lines.length
-    ? `<thead><tr><th>Source</th><th>Entered</th><th>Closed</th><th>Contract</th><th>Strike range</th><th>Lots</th><th>Cost</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Charges</th><th>After</th><th>Note</th><th></th></tr></thead><tbody>`
-      + lines.map(e => `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : e.source === "ai" ? '<span class="jbadge ai">AI</span>' : '<span class="jbadge">Tool</span>'}${e.live ? ' <span class="jbadge live" title="A real order: the entry, exit and result are what ' + esc(e.live === "delta" ? "Delta" : "Zerodha") + ' filled at">Live</span>' : ""}</td>`
-        + `<td>${esc(e.entry_time || "")}</td>`
-        + `<td>${esc(e.time || "")}</td>`
-        + `<td class="sym">${esc(e.instrument || "")} ${e.strike != null ? esc(String(e.strike)) : ""} ${esc(e.side || "")}${e.dir === "sell" ? " sold" : ""}</td>`
-        + `<td>${srange(e)}</td>`
-        + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${e.cost == null ? "—" : num(e.cost, 0)}</td><td>${dp(e.entry)}</td><td>${dp(e.exit)}</td>`
-        + `<td style="color:${jcol(e.gross)}">${money(e.gross)}</td>`
-        + `<td>${e.charges == null ? "—" : money(e.charges, false) + (e.charges_estimated ? " est." : "")}</td>`
-        + `<td style="color:${e.net == null ? "" : jcol(e.net)}">${e.net == null ? "—" : money(e.net)}</td>`
-        + `<td class="jnote">${esc(e.source === "mine" ? (e.notes || "") : (e.status || "").replace(/^CLOSED\s*[—-]\s*/, ""))}</td>`
-        + `<td>${e.source === "mine" ? `<button class="lbtn" type="button" data-jedit="${esc(e.id)}">Edit</button> <button class="lbtn" type="button" data-jdel="${esc(e.id)}">Delete</button>` : ""}</td></tr>`).join("")
+    ? `<thead><tr><th>Source</th><th>Entered</th><th>Closed</th><th>Contract</th><th>Strike range</th><th>Lots</th><th>Cost</th><th>Entry &rarr; exit</th><th>P&amp;L</th><th title="after charges">Net</th></tr></thead><tbody>`
+      + lines.map(e => {
+          const why = e.source === "mine" ? (e.notes || "") : (e.status || "").replace(/^CLOSED\s*[—-]\s*/, "");
+          return `<tr><td>${e.source === "mine" ? '<span class="jbadge mine">You</span>' : e.source === "ai" ? '<span class="jbadge ai">AI</span>' : '<span class="jbadge">Tool</span>'}${e.live ? ' <span class="jbadge live" title="A real order: the entry, exit and result are what ' + esc(e.live === "delta" ? "Delta" : "Zerodha") + ' filled at">Live</span>' : ""}</td>`
+            + `<td>${esc(e.entry_time || "")}</td>`
+            + `<td>${esc(e.time || "")}</td>`
+            + `<td class="sym">${esc(e.instrument || "")} ${e.strike != null ? esc(String(e.strike)) : ""} ${esc(e.side || "")}${e.dir === "sell" ? " sold" : ""}`
+            + (why ? `<small>${esc(why)}</small>` : "")
+            + (e.source === "mine" ? `<span class="jacts"><button class="lbtn" type="button" data-jedit="${esc(e.id)}">Edit</button><button class="lbtn" type="button" data-jdel="${esc(e.id)}">Delete</button></span>` : "") + `</td>`
+            + `<td>${srange(e)}</td>`
+            + `<td>${num(e.lots, e.lots % 1 ? 2 : 0)}</td><td>${e.cost == null ? "—" : num(e.cost, 0)}</td><td>${dp(e.entry)} &rarr; ${dp(e.exit)}</td>`
+            + `<td style="color:${jcol(e.gross)}"><b>${money(e.gross)}</b></td>`
+            + `<td>${e.net == null ? "—" : `<span style="color:${jcol(e.net)}">${money(e.net)}</span>`}`
+            + (e.charges == null ? "" : e.charges_estimated
+                ? `<small title="charges estimated at Zerodha's published rates">${money(e.charges, false)} est.</small>`
+                : `<small title="the charges you entered">${money(e.charges, false)} paid</small>`) + `</td></tr>`;
+        }).join("")
       + `</tbody>`
+      + (lines.length > 1 ? `<tfoot><tr><td colspan="8">Day total &middot; ${lines.length} trades</td>`
+          + `<td style="color:${jcol(tot)}">${money(tot)}</td>`
+          + `<td>${nets.length === lines.length ? `<span style="color:${jcol(netTot)}">${money(netTot)}</span>` : "—"}</td></tr></tfoot>` : "")
     : `<tbody><tr><td class="jmuted" style="text-align:left">Nothing traded this day.</td></tr></tbody>`;
   const note = $("jdaynote");
   if(document.activeElement !== note) note.value = (d.notes || {})[JN_DAY] || "";
@@ -6470,16 +6775,30 @@ function jriskPaint(r){
     note.textContent = ""; return;
   }
   const mc = r.monte_carlo || {};
-  const ratio = v => v == null ? "\u2014" : v.toFixed(2);
+  const ratio = v => v == null ? "—" : v.toFixed(2);
+  // the likely range of the next trades on one line, with zero and the middle outcome marked on it
+  const lo = Math.min(0, mc.total_p5), hi = Math.max(0, mc.total_p95), pad = (hi - lo) * 0.06 || 1;
+  const at = v => 100 * (v - (lo - pad)) / ((hi + pad) - (lo - pad));
+  const end = (l, v) => `<span>${esc(l)}<b style="color:${jcol(v)}">${esc(money(v))}</b></span>`;
   box.innerHTML =
-      statRow("Sharpe ratio", ratio(r.sharpe), r.sharpe == null ? "" : jcol(r.sharpe))
-    + statRow("Sortino ratio", ratio(r.sortino), r.sortino == null ? "" : jcol(r.sortino))
-    + statRow("1 day in 20 loses at least", money(r.var95_day), jcol(r.var95_day))
-    + statRow("Those worst days average", money(r.es95_day), jcol(r.es95_day))
-    + statRow(`Next ${mc.trades} trades, likely range`, `${money(mc.total_p5)} to ${money(mc.total_p95)}`)
-    + statRow("Middle outcome", money(mc.total_median), jcol(mc.total_median))
-    + statRow("Chance of ending down", `${mc.chance_down}%`, mc.chance_down > 50 ? "var(--down)" : "")
-    + statRow("Drawdown along the way", `${money(-mc.drawdown_median)} typical &middot; ${money(-mc.drawdown_p95)} bad case`, "var(--down)");
+      `<div class="psum jkpi3">`
+    + jkc("Sharpe ratio", ratio(r.sharpe), r.sharpe == null ? "" : jcol(r.sharpe))
+    + jkc("Sortino ratio", ratio(r.sortino), r.sortino == null ? "" : jcol(r.sortino))
+    + jkc("Chance of ending down", `${mc.chance_down}%`, mc.chance_down > 50 ? "var(--down)" : "")
+    + `</div><div class="jrange"><p class="jsub">Next ${esc(mc.trades)} trades, likely range</p>`
+    // the range in two parts: below zero in red, above it in green
+    + `<div class="jrtrack">`
+    + (mc.total_p5 < 0 ? `<i class="band dn" style="left:${at(mc.total_p5).toFixed(1)}%;width:${(at(Math.min(0, mc.total_p95)) - at(mc.total_p5)).toFixed(1)}%"></i>` : "")
+    + (mc.total_p95 > 0 ? `<i class="band up" style="left:${at(Math.max(0, mc.total_p5)).toFixed(1)}%;width:${(at(mc.total_p95) - at(Math.max(0, mc.total_p5))).toFixed(1)}%"></i>` : "")
+    + `<i class="zero" style="left:${at(0).toFixed(1)}%" title="zero"></i>`
+    + `<i class="mid" style="left:${at(mc.total_median).toFixed(1)}%" title="the middle outcome"></i></div>`
+    + `<div class="jrlbl">${end("Bad case", mc.total_p5)}${end("Middle", mc.total_median)}${end("Good case", mc.total_p95)}</div></div>`
+    + `<table class="ntab jkv"><tbody>`
+    + jkv("1 day in 20 loses at least", money(r.var95_day), jcol(r.var95_day))
+    + jkv("Those worst days average", money(r.es95_day), jcol(r.es95_day))
+    + jkv("Drawdown along the way, typical", money(-mc.drawdown_median), "var(--down)")
+    + jkv("Drawdown along the way, bad case", money(-mc.drawdown_p95), "var(--down)")
+    + `</tbody></table>`;
   note.textContent = `From ${r.trades} trades over ${r.days} trading days, before costs. Sharpe and Sortino are the `
     + `average day against its swings (Sortino counts only the losing swings), scaled to a year. The range re-draws `
     + `your next ${mc.trades} trades at random from the ${r.trades} you have taken, ${mc.runs} times; it assumes the `
@@ -6995,13 +7314,20 @@ async function exnessLive(index, source, btn, enabledNow){
   }catch(e){ alert("Could not reach this tool's own server."); }
   finally{ if(btn) btn.disabled = false; }
 }
+// An open ticket's figures (the Signal card and the AI desk's tickets): the headline figures large on one line, the
+// rest as label / value rows. Each is [label, text, colour?]; every label and text is escaped here.
+function posPanel(head, rows){
+  const cell = ([l, v, c]) => `<div><span>${esc(l)}</span><b${c ? ` style="color:${c}"` : ""}>${esc(v)}</b></div>`;
+  return `<div class="psum">${head.map(cell).join("")}</div><div class="pdet">${rows.map(cell).join("")}</div>`;
+}
 // An OPEN live position as a few labelled rows, not a sentence (the user, 7 Oct 2026: "check the whole tool for
 // messy numbers ... show it in a good way"); every other state stays the one sentence liveStateText /
 // exnessStateText give, escaped. Used under the Signal card's live switch and on the AI tab.
 function liveStatusHTML(p, venue, text){
   if(!p || p.state !== "open") return text ? `<div>${esc(text)}</div>` : "";
   const onDelta = (venue || "").indexOf("Delta") === 0, ex = venue === "Exness";
-  const v = x => x == null ? "—" : String(x);
+  const v = x => x == null || x === "" ? "—" : isNaN(Number(x)) ? String(x)
+                : Number(x).toLocaleString("en-IN", {maximumFractionDigits: 3});
   const rows = ex
     ? [["Position", `${p.side || ""} ${p.qty || ""} ${p.symbol || ""} · ${(p.kind || "").toUpperCase()}`],
        ["Filled at", v(p.avg_price)], ["Stop at Exness", v(p.sl)], ["Target at Exness", v(p.tp)]]
@@ -7253,9 +7579,9 @@ function ticketBox(r, state){
     c.style.display = "none"; $("tissued").style.display = "none";
   }
 
-  // The stats row. Entry and Now are the two numbers a held position is
-  // actually about; the rupee figure is what the difference is worth at the
-  // lots this ticket was issued for — frozen with it, not with the selector.
+  // The position panel. Entry and Now are the two numbers a held position is
+  // actually about; the result is what the difference is worth at the lots this
+  // ticket was issued for — frozen with it, not with the selector.
   const st = $("tstats");
   if(open){
     st.style.display = "";
@@ -7269,35 +7595,34 @@ function ticketBox(r, state){
     const lev = cfd ? (((LAST && LAST.broker && LAST.broker.accounts) || []).find(a => a.ok && a.leverage) || {}).leverage : null;
     const pc = pnl == null ? "var(--ink-3)" : pnl > 0 ? "var(--up)"
              : pnl < 0 ? "var(--down)" : "var(--ink-2)";
-    const cell = (l,v,col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
-               + `<div class="v"${col?` style="color:${col}"`:""}>${v}</div></div>`;
+    const lotTxt = cfd ? `${tk.lots} lot` : `${tk.lots} lot${tk.lots !== 1 ? "s" : ""}`;
     // A rule's ticket froze its own (target over stop); any other reads the live signal's.
     const tkRR = tk.reward_risk != null ? tk.reward_risk : r.reach_to_risk;
-    st.innerHTML =
-        cell("Reward : risk", tkRR==null?"—":tkRR+" : 1")
-      + cell(entryLabel(tk), num(tk.entry,dp))
+    const rows = [["Reward : risk", tkRR == null ? "—" : tkRR + " : 1"]];
+    if(cfd){
+      rows.push(["Size", `${lotTxt} = ${unitTxt}${tk.entry_real ? " · Exness" : ""}`],
+                ["Value", tk.entry != null ? "$" + num(tk.entry * units, 2) : "—"],
+                [lev ? `Margin (1:${lev})` : "Margin", (lev && tk.entry != null) ? "$" + num(tk.entry * units / lev, 2) : "—"],
+                ["Spread paid", tk.entry_spread != null ? "$" + num(tk.entry_spread * units, 2) : "—"]);
+      // the instrument's price only when it says something Now does not
+      if(num(r.spot, 2) !== num(tk.now, 2)) rows.push(["Price", num(r.spot, 2)]);
+    } else {
       // What the premium cost to buy - entry x lot size x lots - the money at
       // risk in full; asked for on 20 Sep 2026, for both markets.
-      + (cfd
-         ? cell("Value", tk.entry != null ? "$" + num(tk.entry * units, 2) : "—")
-           + cell(lev ? `Margin (1:${lev})` : "Margin", (lev && tk.entry != null) ? "$" + num(tk.entry * units / lev, 2) : "—")
-           + cell("Spread paid", tk.entry_spread != null ? "$" + num(tk.entry_spread * units, 2) : "—")
-         : cell("Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
-               ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—"))
-      + cell("Now", num(tk.now,dp))
+      rows.push(["Size", tk.lot_size ? `${lotTxt} · ${num(tk.lot_size * (tk.lots || 1), 0)} qty` : lotTxt],
+                ["Cost", (tk.tracked_on === "premium" && tk.entry != null && tk.lot_size)
+                         ? money(tk.entry * tk.lot_size * (tk.lots || 1), false) : "—"]);
       // The strike's own high and low so far today, live (the user, 29 Sep 2026: "the tool
       // does not show me the given strike high and low ltp of the day when the signal
       // fires") - only for a premium-tracked ticket, where a strike's own range means
       // something; an index-tracked one has no premium to range.
-      + (tk.tracked_on === "premium"
-         ? cell("Today's range", tk.strike_day_high == null || tk.strike_day_low == null ? "—"
-                : `${num(tk.strike_day_low,2)} – ${num(tk.strike_day_high,2)}`)
-         : "")
-      + (cfd ? cell("Price", num(r.spot, 2)) : cell("Index price", num(r.spot,0)))
-      + cell(cfd ? `${tk.lots} lot = ${unitTxt}${tk.entry_real ? " · Exness" : ""}` : `${tk.lots} lot${tk.lots!==1?"s":""}`,
-             pnl==null ? "—"
-               : money(pnl),
-             pc);
+      if(tk.tracked_on === "premium")
+        rows.push(["Today's range", tk.strike_day_high == null || tk.strike_day_low == null ? "—"
+                   : `${num(tk.strike_day_low,2)} – ${num(tk.strike_day_high,2)}`]);
+      rows.push(["Index price", num(r.spot, 0)]);
+    }
+    st.innerHTML = posPanel([[entryLabel(tk), num(tk.entry, dp)], ["Now", num(tk.now, dp)],
+                             [`P&L · ${lotTxt}`, pnl == null ? "—" : money(pnl), pc]], rows);
   } else st.style.display = "none";
 
   // Why nothing was issued. Shown only when there is a real rule holding it,
@@ -8729,6 +9054,7 @@ function render(s){
   if(TAB === "news") newsFetch();
   recapDraw(s);
   if(TAB === "home") homeDraw(s);
+  if(TAB === "positions") posPane(s);
 
   $("trend").textContent = tr.label||"—";
   $("trend").style.color = tr.direction==="UP"?"var(--up)":tr.direction==="DOWN"?"var(--down)":"var(--ink-2)";
@@ -9084,8 +9410,14 @@ let CCY = "INR";
 function ccySym(){ return CCY === "USD" ? "$" : "\u20b9"; }
 function ccyLocale(){ return CCY === "USD" ? "en-US" : "en-IN"; }
 function money(v, signed){
-  const n = Math.abs(Math.round(v)).toLocaleString(ccyLocale());
-  const sign = signed === false ? "" : (v >= 0 ? "+" : "\u2212");
+  // A figure that rounds to nothing is "$0", never "-$0" or "+$0"; dollars under 10 go to the cent, or an Exness
+  // ticket's few dollars read "-$0" (the user, 7 Oct 2026: "check the whole tool for messy numbers").
+  const a = Math.abs(v);
+  const cents = CCY === "USD" && a < 10 && Math.round(a * 100) > 0;
+  const n = cents ? a.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                  : Math.round(a).toLocaleString(ccyLocale());
+  const zero = !cents && Math.round(a) === 0;
+  const sign = signed === false || zero ? "" : (v >= 0 ? "+" : "\u2212");
   return sign + ccySym() + n;
 }
 // Dollars to the cent - an Exness ticket at 0.01 lot moves a few dollars, which whole-dollar
@@ -9383,10 +9715,10 @@ function chainDraw(d){
 // rebuilt and nothing is re-fetched for a section you already opened; what a
 // pane needs on first sight (a chart to size itself, a map to lay out) is
 // drawn when it becomes visible, because an element with no box cannot.
-const TABS = ["home", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
+const TABS = ["home", "positions", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
               "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk"];
-const TAB_LABEL = {home:"Home", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
+const TAB_LABEL = {home:"Home", positions:"Positions", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels", gann:"Gann levels", tradingview:"TradingView",
@@ -9466,6 +9798,7 @@ function showTab(name, push){
   if(name === "greeks") gkFetch();
   if(name === "admin") adminFetch();
   if(name === "journal") journalFetch();
+  if(name === "positions" && LAST) posPane(LAST);
   if(name === "screener") scFetch();
   if(name === "record"){
     const ses = (LAST && LAST.session) || {}, cap = $("c_cap");
@@ -9691,15 +10024,54 @@ function posTable(s){
       : esc(t.option_type === "CE" ? "Buy" : t.option_type === "PE" ? "Sell" : (t.option_type || "—"));
     const tag = (ai ? ' <span class="jbadge ai" title="The AI desk\'s trade">AI</span>' : "") + trTag(t) + tradeTag({entry_real: real});
     const when = open ? "open" : `closed ${esc(String(t.closed || "").slice(0, 5))}`;
-    return `<tr class="${open ? "" : "kd-closed"}"><td><b>${esc(k)}</b>${tag}<div class="kd-when">${when}</div></td>`
+    return `<tr class="${open ? "" : "kd-closed"}"><td><b>${esc(k)}</b>${tag}<div class="kd-strk"><b>${strike}</b></div><div class="kd-when">${when}</div></td>`
       + `<td><b>${strike}</b></td><td class="r">${qty(k, t)}</td><td class="r">${num(t.entry)}</td>`
       + `<td class="r">${open ? num(t.now) : `${num(t.exit)}<div class="kd-when">exit</div>`}</td>`
       + `<td class="r" style="color:${col(p || 0)}">${p == null ? "no price" : money(p)}</td></tr>`;
   }).join("");
   return `<table class="kd-tab kd-pos"><thead><tr><th>Position</th><th>Strike</th><th class="r">Qty</th><th class="r">Entry</th>`
     + `<th class="r">LTP / exit</th><th class="r">P&amp;L</th></tr></thead><tbody>${body}</tbody>`
-    + `<tfoot><tr><td colspan="5" class="r">Live trades &middot; real money</td><td class="r" style="color:${col(live)}">${money(live)}</td></tr>`
-    + `<tr><td colspan="5" class="r">Paper trades</td><td class="r" style="color:${col(paper)}">${money(paper)}</td></tr></tfoot></table>`;
+    // the totals' first cell stands under the strike column, and goes with it on a phone
+    + `<tfoot><tr><td class="kd-tfs"></td><td colspan="4" class="r">Live trades &middot; real money</td><td class="r" style="color:${col(live)}">${money(live)}</td></tr>`
+    + `<tr><td class="kd-tfs"></td><td colspan="4" class="r">Paper trades</td><td class="r" style="color:${col(paper)}">${money(paper)}</td></tr></tfoot></table>`;
+}
+// How many positions today: the open ones (the rule tickets and the AI desk's) and the closed ones.
+function posCount(s){
+  const P = (s && s.positions_today) || {};
+  let open = (P.ai_open || []).length;
+  for(const k of (s.order || Object.keys(s.indices || {}))){
+    const t = (((s.tickets || {})[k]) || {}).ticket;
+    if(t && (t.open || t.status === "OPEN")) open++;
+  }
+  const closed = (P.closed || []).length;
+  return {open, closed, n: open + closed};
+}
+// The Positions page: what is open now and what is booked, live and paper apart, as headline figures over the table.
+let KPOS_HTML = "";
+function posPane(s){
+  const box = $("kpos");
+  if(!box || !s) return;
+  const P = s.positions_today || {}, c = posCount(s), lv = livePnl(s), pp = paperPnl(s);
+  let openPnl = 0;
+  for(const k of (s.order || Object.keys(s.indices || {}))){
+    const t = (((s.tickets || {})[k]) || {}).ticket;
+    if(t && (t.open || t.status === "OPEN") && t.pnl != null) openPnl += Number(t.pnl);
+  }
+  for(const t of (P.ai_open || [])) if(t.pnl != null) openPnl += Number(t.pnl);
+  const booked = (P.closed || []).reduce((a, t) => a + (t.pnl == null ? 0 : Number(t.pnl)), 0);
+  const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+  const cell = (l, v, c2, sub) => `<div><span>${esc(l)}</span><b style="color:${c2}">${esc(v)}</b>`
+    + (sub ? `<small>${esc(sub)}</small>` : "") + `</div>`;
+  const sum = cell("Open now", money(openPnl), col(openPnl), `${c.open} position${c.open === 1 ? "" : "s"}`)
+    + cell("Booked today", money(booked), col(booked), `${c.closed} closed`)
+    + cell("Live · real money", lv ? money(lv.net) : money(0), lv ? col(lv.net) : "var(--ink-3)", lv ? "the broker's own fills" : "no live order today")
+    + cell("Paper", pp ? money(pp.net) : money(0), pp ? col(pp.net) : "var(--ink-3)", "no order placed");
+  const html = sum + "\u0000" + posTable(s);
+  if(html === KPOS_HTML) return;
+  KPOS_HTML = html;
+  $("kpossum").innerHTML = sum;
+  $("kposn").textContent = c.n ? `${c.open} open · ${c.closed} closed` : "";
+  box.innerHTML = posTable(s);
 }
 // The Dashboard's summary: today's result and the funds as the two big figures, then every index in a row.
 function kiteDash(s){
@@ -9741,6 +10113,7 @@ function kiteDash(s){
          : `<div class="kd-s">This server runs one market</div>`) + `</div>`
     : "";
   const cfd = order.some(k => ((s.indices || {})[k] || {}).cfd);
+  const pos = posCount(s);
   // Today as a table: live (real money) and paper apart, each with its result, what has closed and what is open.
   const sumRow = (name, sub, x) => !x
     ? `<tr><td><b>${name}</b><small>${sub}</small></td><td class="r big" style="color:var(--ink-3)">${money(0)}</td>`
@@ -9756,13 +10129,15 @@ function kiteDash(s){
     + `<div><div class="kd-l">Funds available</div>${funds}</div>${market}</div>`
     + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`
-    + `<div class="kd-l kd-posh">Positions &middot; today</div>${posTable(s)}`;
+    + (pos.n ? `<button class="lbtn kd-sw kd-poslink" type="button" data-kact="positions">Positions &middot; ${pos.open} open, `
+               + `${pos.closed} closed today &rarr;</button>` : "");
   if(h !== KDASH_HTML){ KDASH_HTML = h; el.innerHTML = h; }
   if(!el.dataset.wired){
     el.dataset.wired = "1";
     el.addEventListener("click", e => {
       const b = e.target.closest("[data-kact]");
       if(b && b.dataset && b.dataset.kact === "switchmarket"){ switchMarketShortcut(); return; }
+      if(b && b.dataset && b.dataset.kact === "positions"){ showTab("positions"); return; }
       const tr = e.target.closest("tr[data-k]"); if(!tr) return;
       selectIndex(tr.dataset.k); showTab("signal");
     });
@@ -10018,8 +10393,6 @@ function aiTicketCard(k, t){
   const rr = (target != null && t.stop != null && t.entry != null && t.entry > t.stop)
     ? ((target - t.entry) / (t.entry - t.stop)).toFixed(2) + " : 1" : "—";
   const idx = (LAST && LAST.indices && LAST.indices[k]) || {};
-  const cell = (l, v, col) => `<div class="tstat"><div class="l">${esc(l)}</div>`
-    + `<div class="v"${col ? ` style="color:${col}"` : ""}>${esc(v)}</div></div>`;
   const per = t.lot_size ? t.lot_size * (t.lots || 1) : 0;
   // The stop shown is already wherever it has trailed to (tickets.py updates
   // it in place), so the ladder needs no extra work to reflect that - only a
@@ -10054,10 +10427,11 @@ function aiTicketCard(k, t){
     + ` &middot; tracked on ${t.cfd ? "the live price" : t.tracked_on === "index" ? "the index" : "live premium"}</div>`
     + `<div class="issued">Issued ${esc(t.entry_time)} IST &middot; levels frozen at entry${esc(entryNote(t, dp))}</div>`
     + `<div class="tstats">`
-    + cell("Reward : risk", rr) + cell(entryLabel(t), num(t.entry, dp))
-    + cell("Cost", (per && t.entry != null) ? num(t.entry * per, 0) : "—") + cell("Now", num(t.now, dp))
-    + cell("Index price", num(idx.spot, 0))
-    + cell(`${t.lots} lot${t.lots !== 1 ? "s" : ""}`, pnl == null ? "—" : money(pnl), pc)
+    + posPanel([[entryLabel(t), num(t.entry, dp)], ["Now", num(t.now, dp)],
+                [`P&L · ${t.lots} lot${t.lots !== 1 && !t.cfd ? "s" : ""}`, pnl == null ? "—" : money(pnl), pc]],
+               [["Reward : risk", rr],
+                ["Cost", (per && t.entry != null) ? (t.cfd ? "$" + num(t.entry * per, 2) : money(t.entry * per, false)) : "—"],
+                [t.cfd ? "Price" : "Index price", num(idx.spot, t.cfd ? 2 : 0)]])
     + `</div>`
     + `<div class="ladder">${ladder}</div>`
     + `<div class="lnote">Closes at its target or its stop, checked on every tick - or earlier, whenever the `

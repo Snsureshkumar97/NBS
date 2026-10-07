@@ -98,7 +98,7 @@ TEST = r'''
   out.qty_nifty2 = document.getElementById("lotqty").textContent;
   // The open ticket's Reward : risk cell. A rule's ticket froze its own (0.75); the reading has
   // since gone quiet (no reward:risk) - the cell keeps the ticket's. Any other ticket: the live one.
-  const rrCell = () => (document.getElementById("tstats").innerHTML.match(/Reward : risk<\/div><div class="v"[^>]*>([^<]*)</) || [])[1];
+  const rrCell = () => (document.getElementById("tstats").innerHTML.match(/Reward : risk<\/span><b[^>]*>([^<]*)</) || [])[1];
   LAST = {market: "crypto", currency: "USD", session: {lot_choices: [0.01, 0.25], lots: 0.25}, broker: {accounts: []}, tickets: {}};
   const rtk = {open: true, cfd: true, index: "BTC", option_type: "CE", tracked_on: "index", entry: 84732.39, now: 84740,
                lot_size: 1, lots: 0.25, entry_spread: 18, reward_risk: 0.75, targets: [84796.13, 84859.88, 84923.62],

@@ -605,8 +605,8 @@ pos = [SRC.index(f'id="{k}"', i_hero) for k in ("twhy", "tstats", "tiles", "tcon
 check("in the markup (so on a phone too) the hold text and the tiles come straight after the verdict, before the contract and the ticket lines",
       pos == sorted(pos), pos)
 check("the underlying's level is called 'Index price' on the Signal page (tile and ticket row), the Dashboard's table, and the Gann and option-clock panels - never 'Spot' (the user, 25 Sep 2026)",
-      'tile("Index price", num(r.spot), CUR)' in SRC and 'cell("Index price", num(r.spot,0))' in SRC and '<th class="r">Index price</th>' in SRC
-      and 'cell("Index price", num(idx.spot, 0))' in SRC and '["Index price", num(d.spot, dp)]' in SRC
+      'tile("Index price", num(r.spot), CUR)' in SRC and '["Index price", num(r.spot, 0)]' in SRC and '<th class="r">Index price</th>' in SRC
+      and '[t.cfd ? "Price" : "Index price", num(idx.spot, t.cfd ? 2 : 0)]' in SRC and '["Index price", num(d.spot, dp)]' in SRC
       and "<span>Index price</span>" in SRC and not re.search(r'>Spot<|"Spot"', SRC))
 check("an open ticket's own row of figures (which already holds Index price and Reward : risk) replaces the two signal tiles, not repeats them",
       '$("tiles").style.display = open ? "none" : "";' in SRC)

@@ -117,7 +117,8 @@ else:
     prog = ("const assert = require('assert');\n" + SRC[n0:n1] + 'let CCY = "INR";\n' + grab("function ccySym(){", "\n")
             + grab("function ccyLocale(){", "\n") + grab("function money(v, signed){") + grab("function fundsLabel(f){")
             + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\nconst lotsDash = s => {};   // per_index_lots_test.py\n" + helpers
-            + grab("function kiteSide(s){") + grab("function posTable(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
+            + grab("function kiteSide(s){") + grab("function posTable(s){") + grab("function posCount(s){") + "let KPOS_HTML = '';\n"
+            + grab("function posPane(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
             + r'''
 const els = {};
 const $ = id => els[id] || (els[id] = {id, innerHTML: "", textContent: "", dataset: {}, style: {}, className: "",
@@ -168,8 +169,17 @@ const ps = Object.assign({}, s, {
   positions_today: {ai_open: [], closed: [
     {index: "NIFTY", strike: 22600, option_type: "PE", lots: 3, lot_size: 65, qty: 195, entry: 150.6, exit: 108.95, pnl: -8121.75, live: "zerodha", closed: "10:29:40", source: "rule"},
     {index: "BANKNIFTY", strike: 54600, option_type: "PE", lots: 3, lot_size: 30, qty: 90, entry: 694, exit: 571, pnl: -11070, live: null, closed: "10:06:10", source: "ai"}]}});
+// ...on a page of its own since 7 Oct 2026 ("and postions can you give a separate tab"); the Dashboard links to it
 kiteDash(ps);
-const pt = els.kdash.innerHTML.split('class="kd-tab kd-pos"')[1] || "";
+assert.ok(!els.kdash.innerHTML.includes('class="kd-tab kd-pos"') && els.kdash.innerHTML.includes('data-kact="positions"')
+          && els.kdash.innerHTML.includes("2 open, 2 closed today"), "the Dashboard links to Positions instead of holding it");
+posPane(ps);
+const sm = els.kpossum.innerHTML;
+assert.ok(sm.includes("<span>Open now</span>") && sm.includes(money(-1414 - 4338)) && sm.includes("2 positions")
+          && sm.includes("<span>Booked today</span>") && sm.includes(money(-8121.75 - 11070)) && sm.includes("2 closed")
+          && sm.includes("Live \u00b7 real money") && sm.includes("<span>Paper</span>"), "the page's headline figures: " + sm);
+assert.strictEqual(els.kposn.textContent, "2 open \u00b7 2 closed");
+const pt = els.kpos.innerHTML.split('class="kd-tab kd-pos"')[1] || "";
 const prow = pt.split("<tbody>")[1].split("</tbody>")[0].split("</tr>").filter(r => r.includes("<td"));
 assert.strictEqual(prow.length, 4, "two open trades and two closed ones");
 assert.ok(prow[0].includes(">NIFTY<") && prow[0].includes("22550 PE") && prow[0].includes(">195<") && prow[0].includes("133.80")
@@ -182,12 +192,12 @@ assert.ok(prow[3].includes(">AI<") && prow[3].includes(">Paper<") && prow[3].inc
 const foot = pt.split("<tfoot>")[1];
 assert.ok(foot.includes(money(-1414 - 8121.75)) && foot.includes(money(-4338 - 11070)), "the table's totals: live and paper apart");
 assert.ok(pt.includes("<th>Strike</th>") && pt.includes(">Qty<") && pt.includes(">Entry<") && pt.includes("LTP / exit"), "the columns");
-kiteDash(Object.assign({}, s, {tickets: {}, positions_today: {closed: [], ai_open: []}}));
-assert.ok(els.kdash.innerHTML.includes("No trade yet today."), "an empty day says so");
+posPane(Object.assign({}, s, {tickets: {}, positions_today: {closed: [], ai_open: []}}));
+assert.ok(els.kpos.innerHTML.includes("No trade yet today."), "an empty day says so");
 const gold = Object.assign({}, s, {indices: {GOLD: {spot: 4130, bias: "BEARISH", cfd: true}}, order: ["GOLD"],
   tickets: {GOLD: tk({strike: 4140, option_type: "PE", lots: 0.1, lot_size: 100, cfd: true, entry: 4136.6, now: 4130.2, pnl: 64})}, positions_today: {closed: [], ai_open: []}});
-kiteDash(gold);
-const g = els.kdash.innerHTML.split('class="kd-tab kd-pos"')[1];
+posPane(gold);
+const g = els.kpos.innerHTML.split('class="kd-tab kd-pos"')[1];
 assert.ok(g.includes("0.10 lot") && g.includes(">Sell<") && !g.includes("4140 PE"), "a CFD: lots, and its side where a strike would be");
 const none = Object.assign({}, s, {live_pnl: null, tickets: {SENSEX: tk({pnl: -3017})}});
 kiteDash(none);
@@ -197,6 +207,12 @@ console.log("ok:page");
     r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
     out = (r.stdout or "") + (r.stderr or "")
     check("the page's own functions: two figures everywhere, every trade tagged Live or Paper", "ok:page" in r.stdout and r.returncode == 0, out[-900:])
+check("Positions is a tab of its own, right after the Dashboard, and redrawn on every poll while open (7 Oct 2026)",
+      '<section class="pane" data-pane="positions">' in SRC and 'const TABS = ["home", "positions",' in SRC
+      and SRC.index('data-tab="home" role="tab"') < SRC.index('data-tab="positions" role="tab"') < SRC.index('data-tab="signal" role="tab"')
+      and 'if(TAB === "positions") posPane(s);' in SRC and 'if(name === "positions" && LAST) posPane(LAST);' in SRC)
+check("the trade settings (lots and system per index) sit above the Dashboard's summary",
+      SRC.index('<div class="kdlots" id="kdlots"></div>') < SRC.index('<div class="kdash" id="kdash"></div>'))
 
 print()
 print("LIVE PAPER SPLIT TEST PASSED" if not fails else f"LIVE PAPER SPLIT TEST FAILED: {fails}")
