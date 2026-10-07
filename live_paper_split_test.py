@@ -69,7 +69,7 @@ f.live = Ex({"AI-L": (92.0, "Zerodha")})
 f.ai = type("A", (), {"book": type("B", (), {"path": os.path.join(os.path.dirname(f.tickets.path), "ai_trades.csv"),
                                               "public": staticmethod(lambda name: {"ticket": dict(ai_live if name == "NIFTY" else ai_paper)}
                                                                      if name in ("NIFTY", "SENSEX") else {"ticket": None})})()})()
-live, paper = f._pnl_split({"NIFTY": tpub("R-L", -1414.0, True), "SENSEX": tpub("R-P", -3017.0, False), "BANKNIFTY": {"ticket": None}})
+live, paper, _today = f._pnl_split({"NIFTY": tpub("R-L", -1414.0, True), "SENSEX": tpub("R-P", -3017.0, False), "BANKNIFTY": {"ticket": None}})
 check("live: booked from the fill + the rule ticket WITH a real position + the AI desk's real one (from its fill, 8 x 65)",
       live["booked"] == round((108.95 - 150.6) * 65, 2) and live["open"] == -1414.0 and live["ai_open"] == 520.0
       and live["net"] == round(live["booked"] - 1414.0 + 520.0, 2), live)
@@ -77,11 +77,19 @@ check("paper: booked from the paper close + the rule ticket with NO real positio
       paper["booked"] == -3690.0 and paper["closed"] == 1 and paper["open"] == -3017.0 and paper["open_n"] == 1
       and paper["ai_open"] == -650.0 and paper["net"] == round(-3690.0 - 3017.0 - 650.0, 2), paper)
 check("no trade is in both", live["open_n"] + paper["open_n"] == 2 and live["ai_open_n"] + paper["ai_open_n"] == 2)
+cl = {c["trade_id"]: c for c in _today["closed"]}
+check("the Positions table's closed rows: each with its qty (lots x lot size) and the LIVE one at its real fill prices",
+      cl["L1"]["qty"] == 65 and cl["L1"]["entry"] == 150.6 and cl["L1"]["exit"] == 108.95 and cl["L1"]["live"]
+      and cl["L1"]["strike"] == 22600 and cl["P1"]["live"] is None and cl["P1"]["entry"] == 694.0 and cl["L1"]["source"] == "rule",
+      _today["closed"])
+check("...newest first, with its close time", [c["trade_id"] for c in _today["closed"]] == sorted(cl, key=lambda i: cl[i]["closed"], reverse=True))
+ai = {r["entry_real"]: r for r in _today["ai_open"]}
+check("the AI desk's open trades, each saying whether it is a real order", set(ai) == {True, False} and ai[True]["entry"] == 92.0, _today["ai_open"])
 check("the paper figure names today's live trade ids", paper["live_ids"] == ["L1"], paper["live_ids"])
 check("_live_pnl is still the live figure (its callers unchanged)", f._live_pnl({"NIFTY": tpub("R-L", -1414.0, True)})["open"] == -1414.0)
 g = feeds.Feed("t:lps2", "lps2@example.invalid", "nse_index")
 g.live, g.ai = None, None
-gl, gp = g._pnl_split({"NIFTY": tpub("R-P", 500.0, False)})
+gl, gp, _ = g._pnl_split({"NIFTY": tpub("R-P", 500.0, False)})
 check("an account with no live orders: no live figure, and every trade is paper", gl is None and gp["open"] == 500.0, (gl, gp))
 f.tickets.closed[:] = [{"trade_id": "L1", "index": "NIFTY", "strike": 22600, "option_type": "PE", "pnl": -2715.0, "exit_time": "10:29:40"},
                        {"trade_id": "P1", "index": "BANKNIFTY", "strike": 54600, "option_type": "PE", "pnl": -3690.0, "exit_time": "10:06:10"}]
@@ -109,7 +117,7 @@ else:
     prog = ("const assert = require('assert');\n" + SRC[n0:n1] + 'let CCY = "INR";\n' + grab("function ccySym(){", "\n")
             + grab("function ccyLocale(){", "\n") + grab("function money(v, signed){") + grab("function fundsLabel(f){")
             + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\n" + helpers
-            + grab("function kiteSide(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
+            + grab("function kiteSide(s){") + grab("function posTable(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
             + r'''
 const els = {};
 const $ = id => els[id] || (els[id] = {id, innerHTML: "", textContent: "", dataset: {}, style: {}, className: "",
@@ -152,6 +160,34 @@ recapDraw(s);
 assert.ok(els.recap.innerHTML.includes("Live trades") && els.recap.innerHTML.includes("Paper trades") && !els.recap.innerHTML.includes(">Net<"), "the Record recap");
 const lines = els.recaplist.innerHTML.split("</div>");
 assert.ok(lines[0].includes(">Live<") && lines[1].includes(">Paper<"), "each closed trade in the recap is tagged");
+// THE POSITIONS TABLE (the user, 7 Oct 2026, with Kite's Positions page: "make the dash board with qty enter ltp and now.
+// ltp as well add it" ... "with the strike value as well")
+const ps = Object.assign({}, s, {
+  tickets: {NIFTY: tk({entry_real: true, pnl: -1414, lots: 3, lot_size: 65}), SENSEX: tk({strike: 72600, entry: 315.4, now: 291.3, pnl: -4338, lots: 3, lot_size: 20}), BANKNIFTY: {ticket: null}},
+  positions_today: {ai_open: [], closed: [
+    {index: "NIFTY", strike: 22600, option_type: "PE", lots: 3, lot_size: 65, qty: 195, entry: 150.6, exit: 108.95, pnl: -8121.75, live: "zerodha", closed: "10:29:40", source: "rule"},
+    {index: "BANKNIFTY", strike: 54600, option_type: "PE", lots: 3, lot_size: 30, qty: 90, entry: 694, exit: 571, pnl: -11070, live: null, closed: "10:06:10", source: "ai"}]}});
+kiteDash(ps);
+const pt = els.kdash.innerHTML.split('class="kd-tab kd-pos"')[1] || "";
+const prow = pt.split("<tbody>")[1].split("</tbody>")[0].split("</tr>").filter(r => r.includes("<td"));
+assert.strictEqual(prow.length, 4, "two open trades and two closed ones");
+assert.ok(prow[0].includes(">NIFTY<") && prow[0].includes("22550 PE") && prow[0].includes(">195<") && prow[0].includes("133.80")
+          && prow[0].includes("126.55") && prow[0].includes(">Live<") && prow[0].includes(">open<"),
+          "an open live trade: its own strike column, qty (3 lots x 65), entry, LTP now, Live - " + prow[0]);
+assert.ok(prow[1].includes("72600 PE") && prow[1].includes(">60<") && prow[1].includes(">Paper<"), "an open paper trade: qty 3 x 20, Paper");
+assert.ok(prow[2].includes("22600 PE") && prow[2].includes("150.60") && prow[2].includes("108.95") && prow[2].includes(">exit<")
+          && prow[2].includes("closed 10:29") && prow[2].includes(">Live<") && prow[2].includes(money(-8121.75)), "a closed live trade: the fill prices, its exit");
+assert.ok(prow[3].includes(">AI<") && prow[3].includes(">Paper<") && prow[3].includes(">90<"), "the AI desk's trade is badged AI");
+const foot = pt.split("<tfoot>")[1];
+assert.ok(foot.includes(money(-1414 - 8121.75)) && foot.includes(money(-4338 - 11070)), "the table's totals: live and paper apart");
+assert.ok(pt.includes("<th>Strike</th>") && pt.includes(">Qty<") && pt.includes(">Entry<") && pt.includes("LTP / exit"), "the columns");
+kiteDash(Object.assign({}, s, {tickets: {}, positions_today: {closed: [], ai_open: []}}));
+assert.ok(els.kdash.innerHTML.includes("No trade yet today."), "an empty day says so");
+const gold = Object.assign({}, s, {indices: {GOLD: {spot: 4130, bias: "BEARISH", cfd: true}}, order: ["GOLD"],
+  tickets: {GOLD: tk({strike: 4140, option_type: "PE", lots: 0.1, lot_size: 100, cfd: true, entry: 4136.6, now: 4130.2, pnl: 64})}, positions_today: {closed: [], ai_open: []}});
+kiteDash(gold);
+const g = els.kdash.innerHTML.split('class="kd-tab kd-pos"')[1];
+assert.ok(g.includes("0.10 lot") && g.includes(">Sell<") && !g.includes("4140 PE"), "a CFD: lots, and its side where a strike would be");
 const none = Object.assign({}, s, {live_pnl: null, tickets: {SENSEX: tk({pnl: -3017})}});
 kiteDash(none);
 assert.ok(els.kdash.innerHTML.includes("No live order today"), "a day with no live order says so, at zero");

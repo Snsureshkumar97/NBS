@@ -746,6 +746,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "live_pnl": snap.get("live_pnl"),
             # ...and the paper trades as their own figure, never added to it (7 Oct 2026)
             "paper_pnl": snap.get("paper_pnl"),
+            # today's closed trades and the AI desk's open ones, for the Dashboard's Positions table
+            "positions_today": snap.get("positions_today"),
             "events": snap.get("events") or [],
             # Only whether it is on and a counter - the page fetches the updates
             # themselves from /api/marketbot when the counter moves.
@@ -4664,6 +4666,14 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .kd-tab tbody tr{cursor:pointer}
   :root[data-look="kite"] .kd-tab tbody tr:hover{background:var(--raised)}
   :root[data-look="kite"] .kd-tab small{color:var(--ink-3)}
+  :root[data-look="kite"] .kd-posh{margin-top:26px}
+  :root[data-look="kite"] table.kd-pos{margin-top:8px}
+  :root[data-look="kite"] .kd-pos tbody tr{cursor:default}
+  :root[data-look="kite"] .kd-pos .kd-closed td{color:var(--ink-2)}
+  :root[data-look="kite"] .kd-pos .kd-when{font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:400}
+  :root[data-look="kite"] .kd-pos tfoot td{padding:8px 10px;font-weight:600;border-bottom:0}
+  :root[data-look="kite"] .kd-pos .jbadge{margin-left:6px;vertical-align:1px}
+  :root[data-look="kite"] .kd-posnone{margin-top:8px}
 }
 /* in the half-width column the room-to-run rows take the phone's form: name, points and level, the note under them */
 @media (min-width:901px) and (max-width:1499px){
@@ -9501,6 +9511,49 @@ function kiteSide(s){
     });
   }
 }
+// Today's positions, the way Kite's own Positions page lists them (the user, 7 Oct 2026, with a screenshot of it: "make the
+// dash board with qty enter ltp and now. ltp as well add it"): every trade of the day - the open ones first - with its
+// quantity, its entry (on a live order, the broker's average fill), the price now (a closed one: its exit) and its result,
+// each badged Live or Paper. The rule tickets' open rows come from the tickets, which the fast tick keeps moving; the
+// closed ones and the AI desk's open ones from the server (positions_today).
+function posTable(s){
+  const P = (s && s.positions_today) || {}, rows = [];
+  const cfdOf = k => !!(((s.indices || {})[k] || {}).cfd);
+  for(const k of (s.order || Object.keys(s.indices || {}))){
+    const t = (((s.tickets || {})[k]) || {}).ticket;
+    if(t && (t.open || t.status === "OPEN")) rows.push({k, t, open: true});
+  }
+  for(const t of (P.ai_open || [])) rows.push({k: t.index, t, open: true, ai: true});
+  for(const t of (P.closed || [])) rows.push({k: t.index, t, open: false, ai: t.source === "ai"});
+  if(!rows.length) return `<p class="kd-s kd-posnone">No trade yet today.</p>`;
+  const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+  const qty = (k, t) => {
+    const lots = t.lots == null ? 1 : t.lots;
+    if(cfdOf(k) || t.cfd) return `${num(lots, 2)} lot`;
+    const q = t.qty != null ? t.qty : lots * (t.lot_size || 1);
+    return num(q, 0);
+  };
+  let live = 0, paper = 0;
+  const body = rows.map(({k, t, open, ai}) => {
+    const real = open ? !!t.entry_real : !!t.live, p = t.pnl == null ? null : Number(t.pnl);
+    if(p != null){ if(real) live += p; else paper += p; }
+    // The strike in its own column, as the user asked ("with the strike value as well"): a CFD (gold, BTC) has none -
+    // its side (Buy / Sell) stands there instead.
+    const strike = t.strike != null && !(cfdOf(k) || t.cfd)
+      ? `${esc(String(Math.round(t.strike)))} ${esc(t.option_type || "")}`
+      : esc(t.option_type === "CE" ? "Buy" : t.option_type === "PE" ? "Sell" : (t.option_type || "—"));
+    const tag = (ai ? ' <span class="jbadge ai" title="The AI desk\'s trade">AI</span>' : "") + tradeTag({entry_real: real});
+    const when = open ? "open" : `closed ${esc(String(t.closed || "").slice(0, 5))}`;
+    return `<tr class="${open ? "" : "kd-closed"}"><td><b>${esc(k)}</b>${tag}<div class="kd-when">${when}</div></td>`
+      + `<td><b>${strike}</b></td><td class="r">${qty(k, t)}</td><td class="r">${num(t.entry)}</td>`
+      + `<td class="r">${open ? num(t.now) : `${num(t.exit)}<div class="kd-when">exit</div>`}</td>`
+      + `<td class="r" style="color:${col(p || 0)}">${p == null ? "no price" : money(p)}</td></tr>`;
+  }).join("");
+  return `<table class="kd-tab kd-pos"><thead><tr><th>Position</th><th>Strike</th><th class="r">Qty</th><th class="r">Entry</th>`
+    + `<th class="r">LTP / exit</th><th class="r">P&amp;L</th></tr></thead><tbody>${body}</tbody>`
+    + `<tfoot><tr><td colspan="5" class="r">Live trades &middot; real money</td><td class="r" style="color:${col(live)}">${money(live)}</td></tr>`
+    + `<tr><td colspan="5" class="r">Paper trades</td><td class="r" style="color:${col(paper)}">${money(paper)}</td></tr></tfoot></table>`;
+}
 // The Dashboard's summary: today's result and the funds as the two big figures, then every index in a row.
 function kiteDash(s){
   const el = $("kdash");
@@ -9550,7 +9603,8 @@ function kiteDash(s){
     + `<div class="kd-s">${pp ? paperNote(pp) : ""}</div></div>`
     + `<div><div class="kd-l">Funds available</div>${funds}</div>${market}</div>`
     + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
-    + `<tbody>${rows}</tbody></table>`;
+    + `<tbody>${rows}</tbody></table>`
+    + `<div class="kd-l kd-posh">Positions &middot; today</div>${posTable(s)}`;
   if(h !== KDASH_HTML){ KDASH_HTML = h; el.innerHTML = h; }
   if(!el.dataset.wired){
     el.dataset.wired = "1";

@@ -2500,7 +2500,7 @@ class Feed:
         return self._pnl_split(pubs)[0]
 
     def _pnl_split(self, pubs):
-        """(live, paper): today's real-money trades and paper trades as two figures, never one (the user, 7 Oct 2026: "can
+        """(live, paper, positions): today's real-money trades and paper trades as two figures, never one (the user, 7 Oct 2026: "can
         you make in the dashboard live trades and paper trades separate it shows in same"). One read of each log and one
         look at the AI desk's tickets serve both.
 
@@ -2513,8 +2513,8 @@ class Feed:
         """
         today = now_ist().strftime("%Y-%m-%d")
         book = getattr(self.ai, "book", None)
-        lb, lc, pb, pc, ids = 0.0, 0, 0.0, 0, set()
-        for path in (self.tickets.path, getattr(book, "path", None)):
+        lb, lc, pb, pc, ids, closed = 0.0, 0, 0.0, 0, set(), []
+        for source, path in (("rule", self.tickets.path), ("ai", getattr(book, "path", None))):
             if not path:
                 continue
             try:
@@ -2524,6 +2524,7 @@ class Feed:
             lb += sp["live"][0]; lc += sp["live"][1]
             pb += sp["paper"][0]; pc += sp["paper"][1]
             ids |= sp["live_ids"]
+            closed += [dict(c, source=source) for c in sp.get("closed", [])]
         lo, lo_n, po, po_n, venue = 0.0, 0, 0.0, 0, None
         for pub in pubs.values():
             t = (pub or {}).get("ticket")
@@ -2536,7 +2537,7 @@ class Feed:
             else:
                 po += t.get("pnl") or 0.0
                 po_n += 1
-        la, la_n, pa, pa_n = 0.0, 0, 0.0, 0
+        la, la_n, pa, pa_n, ai_rows = 0.0, 0, 0.0, 0, []
         if book is not None:
             for name in self.instruments():
                 try:
@@ -2545,13 +2546,17 @@ class Feed:
                     t = None
                 if not (t and t.get("open")):
                     continue
-                if self.live is not None and real_entry.apply(self.live, t):
+                real = self.live is not None and real_entry.apply(self.live, t)
+                if real:
                     la += t.get("pnl") or 0.0
                     la_n += 1
                     venue = venue or t.get("entry_venue")
                 else:
                     pa += t.get("pnl") or 0.0
                     pa_n += 1
+                ai_rows.append({"index": t.get("index") or name, "strike": t.get("strike"), "option_type": t.get("option_type"),
+                                "lots": t.get("lots"), "lot_size": t.get("lot_size"), "cfd": t.get("cfd"),
+                                "entry": t.get("entry"), "now": t.get("now"), "pnl": t.get("pnl"), "entry_real": bool(real)})
         live = None
         if self.live is not None and (lc or lo_n or la_n):
             live = {"booked": round(lb, 2), "closed": lc, "open": round(lo, 2), "open_n": lo_n,
@@ -2559,7 +2564,10 @@ class Feed:
         paper = {"booked": round(pb, 2), "closed": pc, "open": round(po, 2), "open_n": po_n,
                  "ai_open": round(pa, 2), "ai_open_n": pa_n, "net": round(pb + po + pa, 2),
                  "live_ids": sorted(i for i in ids if i)}
-        return live, paper
+        # The Dashboard's Positions table: today's closed trades (newest first) and the AI desk's open ones - the rule
+        # tickets' open ones the page takes from the tickets themselves, which its fast tick keeps moving.
+        closed.sort(key=lambda c: c.get("closed") or "", reverse=True)
+        return live, paper, {"closed": closed, "ai_open": ai_rows}
 
     def _fii_dii(self):
         """FII/DII net cash flow (fii_dii.py), Indian indices only - the module
@@ -2597,7 +2605,7 @@ class Feed:
                 "fii_dii": fd,
             }
         # off the feed lock: it reads the trade logs and asks the AI desk's book (which has a lock of its own)
-        snap["live_pnl"], snap["paper_pnl"] = self._pnl_split(pubs)
+        snap["live_pnl"], snap["paper_pnl"], snap["positions_today"] = self._pnl_split(pubs)
         # Each of the session's recently closed tickets says whether it was a real order.
         live_ids = set(snap["paper_pnl"].get("live_ids") or ())
         ses = snap.get("session")

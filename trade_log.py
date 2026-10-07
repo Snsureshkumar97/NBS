@@ -334,21 +334,37 @@ def booked_split_today(date_str=None, path=None):
         live      (net, how many) - LIVE orders, at the prices the broker filled (the fills overlay)
         paper     (net, how many) - every other closed trade, at the tool's own prices
         live_ids  the trade_ids of the live ones, so a list of closed trades can be tagged
+        closed    every one of today's closed trades, for the Dashboard's Positions table
     A close with no price (the tool stopped while it was open) counts in neither - it has no result."""
     date_str = date_str or dt.date.today().isoformat()
-    live, paper, ids = [0.0, 0], [0.0, 0], set()
+    live, paper, ids, closed, opened = [0.0, 0], [0.0, 0], set(), [], {}
     for r in _read_rows(path):
-        if r.get("event") != "CLOSE" or r.get("date") != date_str:
+        if r.get("date") != date_str:
+            continue
+        if r.get("event") == "OPEN":
+            opened[r.get("trade_id")] = r
+            continue
+        if r.get("event") != "CLOSE":
             continue
         if r.get("filled"):
             ids.add(r.get("trade_id"))
         p = _f(r.get("pnl"))
+        o = opened.get(r.get("trade_id")) or {}
+        lots, size = _f(r.get("lots")) or _f(o.get("lots")), _f(r.get("lot_size")) or _f(o.get("lot_size"))
+        # Each closed trade as the Dashboard's Positions table lists it (the user, 7 Oct 2026: "make the dash board with
+        # qty enter ltp and now. ltp as well add it") - a live one at the broker's own fill prices (the overlay).
+        closed.append({"trade_id": r.get("trade_id"), "index": r.get("index"), "strike": _f(r.get("strike")),
+                       "option_type": r.get("option_type"), "lots": lots, "lot_size": size,
+                       "qty": round(lots * size, 4) if lots and size else None,
+                       "entry": _f(r.get("entry")), "exit": _f(r.get("exit")), "pnl": p, "live": r.get("filled") or None,
+                       "opened": o.get("time_ist"), "closed": r.get("time_ist")})
         if p is None:
             continue
         side = live if r.get("filled") else paper
         side[0] += p
         side[1] += 1
-    return {"live": (round(live[0], 2), live[1]), "paper": (round(paper[0], 2), paper[1]), "live_ids": ids}
+    return {"live": (round(live[0], 2), live[1]), "paper": (round(paper[0], 2), paper[1]), "live_ids": ids,
+            "closed": closed}
 
 
 def _apply_fills(rows, path):
