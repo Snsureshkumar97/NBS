@@ -1,0 +1,44 @@
+Replaying the live entries under 11 entry rules, side by side...
+============================================================================================================================================================================
+ NIFTY + Bank Nifty + Sensex, per lot, real expiries, after costs. Live entry checks, live exit (2-hour breakeven priced as it fills), one position per index, cooldown waiver.
+ columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ today                                           2005   39% ₹  +437,509 PF 1.25 DD ₹  91,774 day ₹ -16,860  | 1167   35% ₹  +125,227 PF 1.12 DD ₹ 102,077 day ₹ -20,572
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ A. one bet, not three: at most N open trades in the same direction across the indices
+    at most 1 at once                            1097   40% ₹  +204,382 PF 1.21 DD ₹  66,578 day ₹ -11,167  |  609   38% ₹   +81,991 PF 1.15 DD ₹  51,427 day ₹  -8,673
+    at most 2 at once                            1725   40% ₹  +342,346 PF 1.23 DD ₹  82,960 day ₹ -16,860  |  977   36% ₹  +125,679 PF 1.15 DD ₹  72,293 day ₹ -16,777
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ B. don't chase a big opening move: no entry in its direction before the cutoff
+    move 0.30%+, before 09:45                    1923   39% ₹  +388,741 PF 1.23 DD ₹  73,056 day ₹ -16,860  | 1116   35% ₹   +74,919 PF 1.08 DD ₹ 107,762 day ₹ -14,905
+    move 0.30%+, before 10:15                    1851   39% ₹  +392,029 PF 1.25 DD ₹  73,437 day ₹ -16,860  | 1080   35% ₹   +33,710 PF 1.03 DD ₹ 129,722 day ₹ -14,862
+    move 0.30%+, before 10:45                    1792   39% ₹  +347,016 PF 1.23 DD ₹  71,027 day ₹ -16,860  | 1045   33% ₹   -60,265 PF 0.94 DD ₹ 142,481 day ₹ -14,691
+    move 0.50%+, before 09:45                    1962   39% ₹  +372,918 PF 1.22 DD ₹  89,664 day ₹ -16,860  | 1132   35% ₹   +73,949 PF 1.07 DD ₹  97,073 day ₹ -14,905
+    move 0.50%+, before 10:15                    1918   39% ₹  +395,147 PF 1.24 DD ₹  83,541 day ₹ -16,860  | 1108   34% ₹   +21,513 PF 1.02 DD ₹ 134,091 day ₹ -14,862
+    move 0.50%+, before 10:45                    1876   39% ₹  +366,347 PF 1.23 DD ₹  79,164 day ₹ -16,860  | 1087   33% ₹   -31,069 PF 0.97 DD ₹ 147,270 day ₹ -16,039
+    move 0.75%+, before 09:45                    1988   38% ₹  +363,067 PF 1.21 DD ₹  88,599 day ₹ -16,860  | 1145   35% ₹   +90,841 PF 1.09 DD ₹  96,370 day ₹ -14,905
+    move 0.75%+, before 10:15                    1972   39% ₹  +396,714 PF 1.23 DD ₹  86,167 day ₹ -16,860  | 1134   35% ₹   +68,406 PF 1.07 DD ₹ 124,804 day ₹ -14,862
+    move 0.75%+, before 10:45                    1955   39% ₹  +365,870 PF 1.22 DD ₹  81,705 day ₹ -16,860  | 1124   35% ₹   +49,917 PF 1.05 DD ₹ 133,953 day ₹ -14,336
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ C. ADX must be rising at entry
+    ADX higher than one candle earlier           1735   40% ₹  +371,354 PF 1.25 DD ₹  86,647 day ₹ -13,411  | 1013   35% ₹   +95,504 PF 1.11 DD ₹  95,730 day ₹ -14,139
+
+ VERDICT - KEEP only if more profit than today in BOTH periods (worst drop / worst day: minus = better)
+   drop  A cap 1                                      profit: in-sample  -233,127  held-out   -43,235   worst drop:  -25,196 /  -50,650   worst day:   +5,694 /  +11,899
+   drop  A cap 2                                      profit: in-sample   -95,163  held-out      +453   worst drop:   -8,814 /  -29,784   worst day:       +0 /   +3,796
+   drop  B move 0.30%+, before 09:45                  profit: in-sample   -48,768  held-out   -50,307   worst drop:  -18,718 /   +5,685   worst day:       +0 /   +5,667
+   drop  B move 0.30%+, before 10:15                  profit: in-sample   -45,480  held-out   -91,517   worst drop:  -18,337 /  +27,645   worst day:       +0 /   +5,711
+   drop  B move 0.30%+, before 10:45                  profit: in-sample   -90,493  held-out  -185,492   worst drop:  -20,747 /  +40,404   worst day:       +0 /   +5,882
+   drop  B move 0.50%+, before 09:45                  profit: in-sample   -64,591  held-out   -51,278   worst drop:   -2,110 /   -5,004   worst day:       +0 /   +5,667
+   drop  B move 0.50%+, before 10:15                  profit: in-sample   -42,362  held-out  -103,714   worst drop:   -8,232 /  +32,015   worst day:       +0 /   +5,711
+   drop  B move 0.50%+, before 10:45                  profit: in-sample   -71,162  held-out  -156,296   worst drop:  -12,610 /  +45,193   worst day:       +0 /   +4,534
+   drop  B move 0.75%+, before 09:45                  profit: in-sample   -74,442  held-out   -34,386   worst drop:   -3,175 /   -5,706   worst day:       +0 /   +5,667
+   drop  B move 0.75%+, before 10:15                  profit: in-sample   -40,795  held-out   -56,821   worst drop:   -5,607 /  +22,727   worst day:       +0 /   +5,711
+   drop  B move 0.75%+, before 10:45                  profit: in-sample   -71,639  held-out   -75,309   worst drop:  -10,069 /  +31,876   worst day:       +0 /   +6,237
+   drop  C ADX rising                                 profit: in-sample   -66,155  held-out   -29,723   worst drop:   -5,127 /   -6,347   worst day:   +3,450 /   +6,433
+
+ HOW OFTEN: 2231 of 3172 of today's trades opened while another index held the same direction; days with a 0.5%+ opening move: NIFTY 172 of 740, BANKNIFTY 210 of 740, SENSEX 177 of 740
+   opened alongside a same-direction trade    in-sample 1387 trades ₹   +205/trade   held-out  844 trades ₹    +60/trade
+   opened alone                               in-sample  618 trades ₹   +248/trade   held-out  323 trades ₹   +231/trade
