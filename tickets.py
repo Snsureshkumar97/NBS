@@ -801,6 +801,12 @@ class TicketBook:
         events = []
         opt = trade["option_type"]
         sl_field = "premium_sl" if trade["use_premium"] else "index_sl"
+        # Which way is TIGHTER. The stop sits below what the ticket tracks - a premium (a call's or a put's: both are
+        # bought, both gain as they rise) or the index for a call - and above the index for a put. Until 8 Oct 2026 the
+        # breakeven and the Supertrend trail below asked only "CE or PE", so on a premium-tracked PUT the trail could
+        # move the stop DOWN from T1 and the breakeven never applied.
+        below = trade["use_premium"] or opt == "CE"
+        tighten = lambda cur, lvl: (max(cur, lvl) if below else min(cur, lvl)) if cur is not None else lvl
 
         if trade["use_premium"]:
             targets = trade["premium_targets"]
@@ -845,6 +851,28 @@ class TicketBook:
                     trade[sl_field] = tv
                     ratcheted = True
 
+        # NEAR-TARGET STEPS (config.NEAR_TARGET_STEPS, per system - the Trend Rider's): close to T2 the stop moves to
+        # T1, close to T3 to T2, so a trade that nearly reaches its target closes in profit if it turns (the user,
+        # 8 Oct 2026). Measured on the ticket's own frozen levels and units (premium or index), from its entry.
+        plan = (_cfg("NEAR_TARGET_STEPS", {}) or {}).get(trade.get("system"))
+        if plan and not trade["sl_hit"] and targets:
+            ref = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
+            done = trade.setdefault("near_steps", [])
+            for n, (share, toward, to) in enumerate(plan):
+                if n in done or toward not in TARGET_KEYS or to not in TARGET_KEYS:
+                    continue
+                tv = targets[TARGET_KEYS.index(toward)] if len(targets) > TARGET_KEYS.index(toward) else None
+                sv = targets[TARGET_KEYS.index(to)] if len(targets) > TARGET_KEYS.index(to) else None
+                if ref is None or tv is None or sv is None or not hit_t(price, ref + share * (tv - ref)):
+                    continue
+                done.append(n)
+                new = tighten(trade[sl_field], sv)
+                if new != trade[sl_field]:
+                    trade[sl_field] = new
+                    ratcheted = True
+                    events.append({"kind": "stop_stepped", "index": book.name, "price": price, "level": sv,
+                                   "to": to, "near": toward})
+
         # TIME-BASED BREAKEVEN (config.TIME_BREAKEVEN_MINUTES, 0 disables) — tested via
         # time_breakeven_study.py, 29 Sep 2026: KEEP, and robustly so — every wait time from
         # 30 minutes to 10 hours beat the live exit both in-sample and held-out on identical
@@ -858,7 +886,7 @@ class TicketBook:
         # Indian indices unchanged.
         wait_min = config.time_breakeven_minutes(trade.get("index") or book.name)
         if trade.get("plain_exit"):
-            wait_min = 0          # one fixed stop and target, as tested (an entry rule, the Trend Rider): never moved
+            wait_min = 0          # one stop and target, as tested (an entry rule, the Trend Rider): no breakeven
         if (wait_min and not trade["sl_hit"] and not trade["hit"]["T1"]
                 and not trade["time_breakeven_done"]):
             elapsed_min = (now_ist() - trade["entry_ts"]).total_seconds() / 60.0
@@ -866,7 +894,7 @@ class TicketBook:
                 be = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
                 if be is not None:
                     current = trade[sl_field]
-                    tightened = max(current, be) if opt == "CE" else min(current, be)
+                    tightened = tighten(current, be)
                     if tightened != current:
                         trade[sl_field] = tightened
                         ratcheted = True
@@ -894,7 +922,7 @@ class TicketBook:
             else:
                 st_level = st
             current = trade[sl_field]
-            tightened = max(current, st_level) if opt == "CE" else min(current, st_level)
+            tightened = tighten(current, st_level)
             if tightened != current:
                 trade[sl_field] = tightened
                 ratcheted = True
@@ -1468,8 +1496,9 @@ class TicketBook:
             # paid to get in and out is its cost - frozen with the entry.
             "cfd": cfd,
             "entry_spread": rec.get("cfd_spread") if cfd else None,
-            # A CFD exit plan (config.cfd_exit_plan) or an entry rule (config.CFD_RULES): ONE target,
-            # nothing moves the stop on the way; a rule's ticket has no reversal exit either.
+            # A CFD exit plan (config.cfd_exit_plan) or an entry rule (config.CFD_RULES, the Trend Rider): ONE
+            # target, no T1 step-up or trail (the Trend Rider's own near-target steps aside - NEAR_TARGET_STEPS); a
+            # rule's ticket has no reversal exit either.
             "plain_exit": rec.get("target_basis") in ("plain_r", "rule"),
             "rule_strategy": rec.get("target_basis") == "rule",
             # Which system issued it: "trend_rider" (trend_rider.py), else the tool's own rules - the page's TR badge.

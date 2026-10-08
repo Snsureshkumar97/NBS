@@ -10,6 +10,10 @@ over -DI (mirrored for a put), entered on the first such close; stop at the last
 2.75 x the risk; out by 15:15; one position at a time. Nothing moves between entry and exit (tickets.py: a plain-exit
 ticket skips the T1 step-up, the Supertrend trail and the 2-hour breakeven).
 
+Added 8 Oct 2026 (the user: "after it getting close to t2 make stop loss as t1"): when the price gets close to the
+ticket's own T2 (two thirds of the target, 1.83R) the stop moves to its T1 (a third, 0.92R) - "close" read as T2 itself,
+90% and 80% of the way there.
+
 THE T1 TRAILING STOP, as the tool's own rules do it: when T1 is touched the stop moves up to T1 (never down again), and
 with the trail on it then follows the index's 15-minute Supertrend (config.supertrend_params) once that is tighter. The
 Trend Rider has no T1 of its own, so T1 is swept: 1.0, 1.1 (the tool's own share - T1 is 40% of the way to its target,
@@ -52,7 +56,17 @@ VARIANTS = [("live: no T1 trail", None, None, False),
             ("T1 at 1.1R, stop to T1 + Supertrend", 1.1, "t1", True),
             ("T1 at 1.5R, stop to T1", 1.5, "t1", False),
             ("T1 at 1.5R, stop to T1 + Supertrend", 1.5, "t1", True),
-            ("at 1.0R, stop to breakeven", 1.0, "be", False)]
+            ("at 1.0R, stop to breakeven", 1.0, "be", False),
+            # the user, 8 Oct 2026: "after it getting close to t2 make stop loss as t1" - the ticket's own T1 and T2 are a
+            # third and two thirds of the 2.75R target (0.92R and 1.83R); "close to T2" read three ways
+            ("near T2: at T2 (1.83R), stop to T1 (0.92R)", RR * 2 / 3, RR / 3, False),
+            ("near T2: 90% to T2 (1.65R), stop to T1", RR * 2 / 3 * 0.9, RR / 3, False),
+            ("near T2: 80% to T2 (1.47R), stop to T1", RR * 2 / 3 * 0.8, RR / 3, False),
+            # ...and then (the same day): "when it get close to t3 make stop loss at t2 if it reach t3 it will exit if not it
+            # will touch the t2 stop loss in profit" - a ladder: near T2 the stop to T1, near T3 the stop to T2
+            ("ladder: 90% to T2 -> T1, 90% to T3 -> T2", [(RR * 2 / 3 * 0.9, RR / 3), (RR * 0.9, RR * 2 / 3)], "ladder", False),
+            ("ladder: at T2 -> T1, 90% to T3 -> T2", [(RR * 2 / 3, RR / 3), (RR * 0.9, RR * 2 / 3)], "ladder", False),
+            ("ladder: 80% to T2 -> T1, 80% to T3 -> T2", [(RR * 2 / 3 * 0.8, RR / 3), (RR * 0.8, RR * 2 / 3)], "ladder", False)]
 OUT_BY = pc.OUT_BY
 BAR15, BAR5 = pd.Timedelta(minutes=15), pd.Timedelta(minutes=5)
 
@@ -85,7 +99,11 @@ def walk(bars, start, side, entry, stop, risk, t1_r, mode, trail, st_at, cutoff)
     o, h, l, c, day = bars
     ce = side == "CE"
     tgt = entry + RR * risk if ce else entry - RR * risk
-    t1 = None if t1_r is None else (entry + t1_r * risk if ce else entry - t1_r * risk)
+    # a ladder: [(trigger in R, the stop it moves to in R)], each step once; anything else one step
+    steps = (t1_r if mode == "ladder" else [] if t1_r is None else [(t1_r, None)])
+    lv = lambda r: entry + r * risk if ce else entry - r * risk
+    done = [False] * len(steps)
+    t1 = lv(steps[0][0]) if steps else None
     t1_done = False
     d0 = day[start]
     j = start
@@ -96,9 +114,20 @@ def walk(bars, start, side, entry, stop, risk, t1_r, mode, trail, st_at, cutoff)
             return (min(o[j], stop) if ce else max(o[j], stop)), j, "stop"
         if (h[j] >= tgt) if ce else (l[j] <= tgt):
             return (max(o[j], tgt) if ce else min(o[j], tgt)), j, "target"
-        if t1 is not None and not t1_done and ((h[j] >= t1) if ce else (l[j] <= t1)):
+        for n, (trig_r, to_r) in enumerate(steps):
+            trig = lv(trig_r)
+            if done[n] or not ((h[j] >= trig) if ce else (l[j] <= trig)):
+                continue
+            done[n] = True
             t1_done = True
-            new = t1 if mode == "t1" else entry
+            if mode == "ladder":
+                new = lv(to_r)
+            elif mode == "t1":
+                new = trig
+            elif mode == "be":
+                new = entry
+            else:                                   # a number: the stop to entry +/- that many R (the ticket's own T1)
+                new = lv(mode)
             stop = max(stop, new) if ce else min(stop, new)
         if t1_done and trail:
             s = st_at(j)

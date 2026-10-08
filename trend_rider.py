@@ -10,9 +10,10 @@ THE RULES - exactly those measured (pasted_combos_study.signals / run, combinati
   short (buy PE): the close below EMA 50 AND below VWAP, ADX(14) > adx_min AND rising, -DI above +DI
   entered on the FIRST closed candle where all of it holds (a fresh signal - not again while it stays true), decided
   only in the first ENTRY_WINDOW_S after that close (the test entered at the close)
-  stop: the lowest low (highest high) of the last `swing` closed candles; ONE target at target_r x the risk; nothing
-  moves the stop on the way (no T1 step-up, no Supertrend trail, no 2-hour breakeven, no reversal exit); out at the
-  day's close. config.TREND_RIDER holds adx_min 20, swing 5, target_r 2.75 - the middle of the 12-of-60 block of
+  stop: the lowest low (highest high) of the last `swing` closed candles; ONE target at target_r x the risk; no T1
+  step-up, Supertrend trail, 2-hour breakeven or reversal exit - but since 8 Oct 2026 the stop steps up near the target
+  (config.NEAR_TARGET_STEPS: 90% of the way to T2 -> stop to T1, 90% of the way to T3 -> stop to T2, T1/T2/T3 being a
+  third, two thirds and all of the target; trend_rider_t1_study.py); out at the day's close. config.TREND_RIDER holds adx_min 20, swing 5, target_r 2.75 - the middle of the 12-of-60 block of
   settings that beat the tool's own system in both test periods (trend_rider_sweep.py).
 
 It reaches the ticket book through the entry-rule path built for the Exness rules (tickets._consider_rule): one decision
@@ -138,7 +139,7 @@ def apply(rec, ev, index_key, avoid_strikes=None):
             "note": (f"Trend Rider: a trade on the FIRST 15-minute close where price is above EMA 50 and VWAP, ADX is over "
                      f"{p['adx_min']:g} and rising, and +DI is over -DI (the mirror image for a put) - decided once, at "
                      f"that close. Stop at the last {p['swing']} candles' low (high), one target at {p['target_r']:g} x "
-                     "the risk; nothing moves the stop on the way.")}
+                     "the risk; near T2 the stop moves to T1, near T3 to T2.")}
     rec["rule"] = info
     side = (ev or {}).get("side", 0) if info["ready"] else 0
     spot, stop = rec.get("spot"), (ev or {}).get("stop")

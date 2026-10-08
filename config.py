@@ -614,6 +614,16 @@ SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX":
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
 TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}
 
+# THE STOP STEPS UP NEAR A TARGET, per system (the user, 8 Oct 2026: "after it getting close to t2 make stop loss as t1" and
+# "when it get close to t3 make stop loss at t2 if it reach t3 it will exit if not it will touch the t2 stop loss in
+# profit"). Each step: (share of the way from the entry to `toward`, the target it is measured to, the target the stop
+# moves to) - once, and only ever tightening. The Trend Rider's own T1/T2/T3 are a third, two thirds and all of its
+# 2.75R target. trend_rider_t1_study.py: Nifty + Bank Nifty, per lot after costs, 5-minute candles - 90%/90% +9,797
+# in-sample, +21,051 held-out against the plain Trend Rider (+329,283 / +93,981); "near" read as T2 itself or 80% also
+# better in both periods, and on 15-minute candles too. The tool's own rules need none: their stop already moves to T1
+# AT T1 (earlier than near T2) and they exit at T2.
+NEAR_TARGET_STEPS = {"trend_rider": [(0.9, "T2", "T1"), (0.9, "T3", "T2")]}
+
 # How a live Zerodha entry is priced (live_orders.py). "ltp_buffer" (unchanged, the default): one limit at the live price
 # + 2%, which fills at the ask. "mid_chase": start at the middle of the best bid and ask, step toward the ask every 5 s,
 # never above that same limit, cancelled at 20 s as before - may save part of the spread, may miss a fast entry. The

@@ -339,7 +339,8 @@ def _rule_explain(rec):
     side = info.get("side") if info.get("ready") else 0
     tr = info.get("system") == "trend_rider"
     tail = ((f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
-             f"{info.get('target_r'):g} x the risk; nothing moves the stop on the way, out at the day's close.") if tr else
+             f"{info.get('target_r'):g} x the risk; close to T2 the stop moves up to T1, close to T3 up to T2; out at the "
+             f"day's close.") if tr else
             (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
              "distance; nothing moves the stop on the way, out after 24 hours."))
     if not info.get("ready"):
