@@ -1840,6 +1840,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             try:
                 d = series(key, "1d", 60)
                 if d is None or len(d) < 15: continue
+                # During the session the broker's daily candles end with TODAY's, still forming: pivots built on it
+                # would move all day and are not "the previous session's". Use the last finished one.
+                ist_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=5, minutes=30)))
+                live_px = float(d["Close"].iloc[-1])
+                if (d.index[-1].date() == ist_now.date()
+                        and (ist_now.hour, ist_now.minute) < (15, 30)):
+                    d = d.iloc[:-1]
                 H, L, C = (float(d["High"].iloc[-1]), float(d["Low"].iloc[-1]),
                            float(d["Close"].iloc[-1]))
                 pivot = (H + L + C) / 3
@@ -1859,6 +1866,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                        "atr_hi": round(C + atr, 2), "session": str(d.index[-1].date()),
                        **{f"fib{k}": v for k, v in fib_retracements(H, L).items()}}
                 m = series(key, "5m", 5)
+                # the price now, for the table's "Now" column: the latest 5-minute close, else the daily one
+                row["now"] = round(float(m["Close"].iloc[-1]) if m is not None and len(m) else live_px, 2)
                 if m is not None and len(m) > 3:
                     day = m.index[-1].date()
                     sess = m[[ix.date() == day for ix in m.index]]
@@ -3925,6 +3934,25 @@ table.scr td{padding:6px 8px;text-align:right;border-top:1px solid var(--bd-soft
   color:var(--ink-2);white-space:nowrap}
 table.scr td.sym{color:var(--ink);font-weight:650}
 table.scr td.sec{color:var(--ink-3);font-size:12px}
+/* range bars in a table (8 Oct 2026): the volatility cone's windows on one scale, seasonality's averages either side
+   of zero, today's weekday marked */
+table.scr td.rbar{min-width:150px;width:30%}
+table.scr th.rbar{text-align:left}
+table.scr .rb{position:relative;display:block;height:14px}
+table.scr .rb i{position:absolute;top:50%;transform:translateY(-50%)}
+table.scr .rb .rb-rng{height:2px;background:var(--bd)}
+table.scr .rb .rb-iqr{height:8px;border-radius:2px;background:color-mix(in srgb,var(--ink-3) 35%,transparent)}
+table.scr .rb .rb-med{width:2px;height:12px;margin-left:-1px;background:var(--ink-2)}
+table.scr .rb .rb-now{width:10px;height:10px;margin-left:-5px;border-radius:50%;box-shadow:0 0 0 2px var(--surface)}
+table.scr td.zone{white-space:nowrap}
+table.scr td.dbar{min-width:110px;width:22%}
+table.scr .db{position:relative;display:block;height:10px}
+table.scr .db::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--bd)}
+table.scr .db i{position:absolute;top:1px;bottom:1px;border-radius:2px}
+table.scr .db i.up{left:50%;background:var(--up)}
+table.scr .db i.dn{right:50%;background:var(--down)}
+table.scr tr.today td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+table.scr .todaytag{font-size:12px;font-weight:500;color:var(--accent);margin-left:6px}
 .sect{display:grid;gap:7px}
 .sectrow{display:grid;grid-template-columns:104px 1fr 62px;gap:10px;align-items:center;
   font-size:12.5px;color:var(--ink-2)}
@@ -3933,8 +3961,19 @@ table.scr td.sec{color:var(--ink-3);font-size:12px}
 .sectbar i{position:absolute;top:0;height:100%;border-radius:5px}
 .sectbar u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--bd)}
 .sectval{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
-.recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
-.recap .r{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+/* the session recap: figures (the design system, 8 Oct 2026) - unboxed, a hairline between */
+.recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0;padding:12px 0;
+  border-top:1px solid var(--bd-soft);border-bottom:1px solid var(--bd-soft)}
+.recap .r{padding:0 16px;min-width:0}
+.recap .r:first-child{padding-left:0}
+.recap .r + .r{border-left:1px solid var(--bd-soft)}
+@media (max-width:760px){
+  .recap{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:14px}
+  .recap .r:nth-child(3n+1){border-left:0;padding-left:0}
+}
+/* the position calculator's answer as figures, its working in a line under them */
+.calcout .aistats{margin-top:12px}
+.calcout .cw{font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.5}
 .recap .r .l{font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
 .recap .r .v{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
 .recaplist{margin-top:10px;font-size:12.5px;color:var(--ink-3)}
@@ -3998,6 +4037,41 @@ table.scr td.sec{color:var(--ink-3);font-size:12px}
   font-weight:700;margin-top:6px}
 .pulse .pr{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
   color:var(--ink-2);padding:3px 0;font-variant-numeric:tabular-nums}
+/* THE DESIGN SYSTEM'S THREE DATA FORMS (the user, 8 Oct 2026: "if you are a senior UI/UX designer for this tool ... go
+   through all the tab ... i need a final good system design"). A number is one of:
+     1. a FIGURE  - .psum / .aistats: label above, the value large, a line under it; unboxed, a hairline between
+     2. a ROW     - .pulse > .pr: label and value side by side, flowing in columns so a value never sits a screen's
+                    width from its label; a hairline under each
+     3. a TABLE   - .ntab / .scr / .kd-tab: right-aligned tabular figures
+   and an explanation longer than a line or two folds into "How this works" (details.about), closed by default. */
+.pulse{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));column-gap:32px;row-gap:0;align-items:start}
+.pulse > :not(.pr){grid-column:1 / -1}
+.pulse .pr{padding:7px 0;border-bottom:1px solid var(--bd-soft);align-items:baseline}
+.pulse .pr b{text-align:right}
+.pulse .ph{margin-top:12px;padding-bottom:2px}
+.pulse .ph:first-child{margin-top:0}
+/* 1. figures: the older boxed .aistats tiles (AI trades, Gann) drawn as the rest - label on top, no box */
+.aistats{gap:0;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:10px 0 6px;padding:12px 0;
+  border-top:1px solid var(--bd-soft);border-bottom:1px solid var(--bd-soft)}
+.aistats .st{background:transparent;border:0;border-radius:0;padding:0 16px;display:flex;flex-direction:column-reverse;
+  justify-content:flex-end;gap:5px;min-width:0}
+.aistats .st:first-child{padding-left:0}
+.aistats .st + .st{border-left:1px solid var(--bd-soft)}
+.aistats .st span{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.aistats .st b{font-size:20px;font-weight:600}
+@media (max-width:760px){
+  .aistats{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
+  .aistats .st:nth-child(odd){border-left:0;padding-left:0}
+}
+/* the fold for an explanation: closed, one line saying what is inside */
+details.about{margin-top:12px;border-top:1px solid var(--bd-soft);padding-top:8px}
+details.about > summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--ink-3);display:inline-flex;align-items:center;gap:6px;min-height:28px}
+details.about > summary::-webkit-details-marker{display:none}
+details.about > summary::before{content:"+";display:inline-block;width:14px;text-align:center;font-size:14px}
+details.about[open] > summary::before{content:"\2212"}
+details.about > summary:hover{color:var(--ink-2)}
+details.about > :not(summary){font-size:13px;line-height:1.6;color:var(--ink-2);margin:8px 0 0}
 .calcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .calcgrid label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-3)}
 .calcgrid input{background:var(--raised);border:1px solid var(--bd);border-radius:9px;
@@ -4240,6 +4314,9 @@ table.chain .wide{color:var(--down)}
   padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.4}
 .botrow textarea:focus{outline:none;border-color:var(--accent)}
 .botrow .lbtn{flex:none}
+.botstart{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0}
+.botstart[hidden]{display:none}
+.botstart .lbtn{font-size:13px;min-height:36px}
 .botnote{color:var(--ink-3);font-size:12px;margin-top:8px;line-height:1.5}
 .botnote.warn{color:var(--warn)}
 .botcap{font-size:12px;color:var(--ink-3);margin-top:4px}
@@ -4256,10 +4333,8 @@ table.chain .wide{color:var(--down)}
 .aispot{margin-top:4px}
 .aispot .v{font-variant-numeric:tabular-nums}
 .aispotlbl{font-size:12px;color:var(--ink-3);letter-spacing:.5px;text-transform:uppercase}
-.aistats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:6px}
-.aistats .st{background:var(--raised);border:1px solid var(--bd);border-radius:10px;padding:9px 12px}
-.aistats .st b{display:block;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
-.aistats .st span{font-size:12px;color:var(--ink-3)}
+.aistats{display:grid}
+.aistats .st b{display:block;color:var(--ink);font-variant-numeric:tabular-nums}
 /* The decision log: newest day first, each day's decisions numbered from its
    first. Asked for by the user on 21 Sep 2026 - the old flat list ran the time,
    the action and the reason into one paragraph with nothing to refer to. */
@@ -5386,6 +5461,12 @@ button.mgroup:hover{color:var(--ink-2)}
    </div>
    <div class="botwrap">
     <div class="botlog" id="botlog"></div>
+    <div class="botstart" id="botstart" aria-label="Starter questions">
+     <button class="lbtn" type="button">Why is there no ticket right now?</button>
+     <button class="lbtn" type="button">Explain the signal in plain words</button>
+     <button class="lbtn" type="button">How is my open ticket doing?</button>
+     <button class="lbtn" type="button">Where are today's key levels?</button>
+    </div>
     <div class="botrow">
      <textarea id="botq" placeholder="Ask about this market, the signal, or your open ticket&hellip;"
        rows="1" maxlength="800"></textarea>
@@ -5423,7 +5504,8 @@ button.mgroup:hover{color:var(--ink-2)}
    <p class="eyebrow" role="heading" aria-level="3" style="margin-top:18px">Closed AI trades on <span id="aiidx3">&mdash;</span></p>
    <div class="watchwrap"><table class="watch" id="aiclosed"></table></div>
    <div class="gnote" id="ainote"></div>
-   <div class="botwatchnote" style="margin-top:14px">Each index has its own switch. When it is on, Ask TradePicker
+   <details class="about"><summary>How the AI desk works</summary>
+   <div class="botwatchnote">Each index has its own switch. When it is on, Ask TradePicker
     picks its own entries, targets and stops for that index from every section of the tool - at each 15-minute
     close, and again the instant a real trigger fires between closes (an ADX crossing, momentum turning, a VWAP
     cross, an opening-range break) - on paper - nothing is ever sent to Zerodha. A free check runs before either
@@ -5434,6 +5516,7 @@ button.mgroup:hover{color:var(--ink-2)}
     no contract twice in a day. Once a trade is open its stop only ever moves up, in stages, as it nears its
     target, and the bot is asked to review as soon as it turns - halfway to its stop, ADX below the gate, MACD
     against it, or no progress for 30 minutes. Each decision is billed to your Anthropic key.</div>
+   </details>
   </div>
   <!-- The BTC option SELLER - paper only (btc_seller.py). Bitcoin market only; filled by sellerFetch(). -->
   <div class="card" data-panel="btcseller" id="sellercard" hidden style="margin-top:14px">
@@ -5441,13 +5524,15 @@ button.mgroup:hover{color:var(--ink-2)}
     <p class="eyebrow" role="heading" aria-level="2">BTC option seller &middot; paper only</p>
    </div>
    <div id="sellerbody"><div class="gnote">Loading&hellip;</div></div>
-   <div class="botwatchnote" style="margin-top:14px">A separate strategy from the tickets above, recorded on paper -
+   <details class="about"><summary>How the option seller works</summary>
+   <div class="botwatchnote">A separate strategy from the tickets above, recorded on paper -
     nothing is ever sent to Delta. At 17:30 IST each day, when Delta's daily options settle, it SELLS the next day's
     at-the-money call and put, but only when their implied volatility is above how much Bitcoin actually moved over
     the last 7 days - options are expensive that day. It holds to settlement the next day. Paper fills are at the bids
     (the spread is paid) with Delta's fees and GST. Backtested over 3 years at Delta's real spreads: profitable in both
     the test periods, with a worst day of about -$1,700 at 0.25 BTC. A sold option's loss is not capped at the premium
     - a crash bigger than any in the test could cost far more. Watch this record before any real money.</div>
+   </details>
   </div>
  </section>
 
@@ -5890,7 +5975,7 @@ button.mgroup:hover{color:var(--ink-2)}
   P&amp;L, the session total and the Record are the premium move times the lot size,
   <b>before</b> brokerage, STT, exchange charges, GST and slippage, all of which come off
   what you actually keep. Figures marked &ldquo;after charges&rdquo; include Zerodha&rsquo;s
-  charges but not slippage. Crypto figures are in dollars, before Delta Exchange&rsquo;s fees.
+  charges but not slippage. Crypto and gold figures are in dollars, after the Exness spread paid at entry but before any overnight swap.
   For an order the tool placed live, the entry, the exit and the result are the prices your broker
   actually filled at; for a ticket that placed nothing, the tool&rsquo;s own premium. Past behaviour of a rule set does not predict its future behaviour. Options can lose
   their entire value. Verify every number with your own broker before risking money.
@@ -6196,8 +6281,9 @@ function lotQty(r){
   const ls = r && r.lot_size;
   if(!ls || LOTS == null){ el.textContent = ""; return; }
   const q = LOTS * ls;
-  el.textContent = r.cfd ? `= ${Number(q.toFixed(2)).toLocaleString("en-US")} ${r.index === "GOLD" ? "oz" : String(r.index || "")}`
-                         : `= ${Math.round(q).toLocaleString("en-IN")} qty`;
+  // a contract under one unit (Delta: 0.001 BTC) shows the BTC it comes to, never "= 0 qty"
+  el.textContent = r.cfd || ls < 1 ? `= ${Number(q.toFixed(3)).toLocaleString("en-US")} ${r.index === "GOLD" ? "oz" : String(r.index || "")}`
+                                   : `= ${Math.round(q).toLocaleString("en-IN")} qty`;
 }
 
 function ladder(r, tk){
@@ -7702,6 +7788,11 @@ function ticketBox(r, state){
                    : `${num(tk.strike_day_low,2)} – ${num(tk.strike_day_high,2)}`]);
       rows.push(["Index price", num(r.spot, 0)]);
     }
+    // the Trend Rider's stop ladder (config.NEAR_TARGET_STEPS): near T2 the stop goes to T1, near T3 to T2
+    for(const sp of (tk.stop_steps || []))
+      rows.push([`Near ${sp.near}`, sp.done ? `stop moved to ${sp.to} · ${num(sp.stop, dp)}`
+                                            : `at ${num(sp.at, dp)} the stop goes to ${sp.to} · ${num(sp.stop, dp)}`,
+                 sp.done ? "var(--up)" : ""]);
     st.innerHTML = posPanel([[entryLabel(tk), num(tk.entry, dp)], ["Now", num(tk.now, dp)],
                              [`P&L · ${lotTxt}`, pnl == null ? "—" : money(pnl), pc]], rows);
   } else st.style.display = "none";
@@ -8423,7 +8514,12 @@ function chartDraw(){
   // Each sub-pane gets a modest, roughly fixed height regardless of the
   // canvas's own height (the way Kite/TradingView keep them) - the price
   // pane, the one that matters most, gets whatever is left over.
-  const hasRsi = !!d.rsi, hasMacd = !!(d.macd_line || d.macd_hist), hasAdx = !!d.adx;
+  // Beside the Signal card (a wide screen) the chart is the PRICE alone - candles, EMAs, VWAP, Supertrend and the
+  // ticket's own entry, stop and targets - so it reads at a glance next to the trade; RSI, MACD and ADX have the Chart
+  // tab, which has the room for them (the user, 8 Oct 2026: "if the chart doest look in the signal section you can
+  // remove or disign it in more good looking way").
+  const beside = TAB === "signal";
+  const hasRsi = !beside && !!d.rsi, hasMacd = !beside && !!(d.macd_line || d.macd_hist), hasAdx = !beside && !!d.adx;
   const subCount = (hasRsi?1:0) + (hasMacd?1:0) + (hasAdx?1:0);
   const paneGap = 10;
   const subH = subCount ? Math.max(50, Math.min(90, plotH * 0.16)) : 0;
@@ -8774,13 +8870,13 @@ function chartDraw(){
   + `<span class="o">EMA ${d.ema_slow_len||50}<i class="key" style="display:inline-block;`
   + `margin-left:5px;background:${C.slow}"></i></span>`
   + `<span class="o">VWAP<i class="key dash" style="display:inline-block;margin-left:5px"></i></span>`
-  + (d.rsi ? `<span class="o">RSI ${d.rsi_len||14}<i class="key" style="display:inline-block;`
+  + (d.rsi && TAB !== "signal" ? `<span class="o">RSI ${d.rsi_len||14}<i class="key" style="display:inline-block;`
              + `margin-left:5px;background:${C.rsi}"></i></span>` : "")
-  + ((d.macd_line || d.macd_hist)
+  + ((d.macd_line || d.macd_hist) && TAB !== "signal"
      ? `<span class="o">MACD ${d.macd_fast||12},${d.macd_slow||26},${d.macd_sig_len||9}`
        + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.macdLine}"></i></span>`
      : "")
-  + (d.adx ? `<span class="o">ADX ${d.adx_len||14}<i class="key" style="display:inline-block;`
+  + (d.adx && TAB !== "signal" ? `<span class="o">ADX ${d.adx_len||14}<i class="key" style="display:inline-block;`
              + `margin-left:5px;background:${C.adx}"></i></span>` : "")
   + (d.supertrend ? `<span class="o">Supertrend ${d.supertrend_len||10},${d.supertrend_mult||2.5}`
              + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.supertrend}"></i></span>` : "");
@@ -10387,7 +10483,9 @@ function watchDraw(d){
   if(d.error){ t.innerHTML = ""; note.textContent = d.error; return; }
   if(!items.length){
     t.innerHTML = "";
-    note.textContent = "Nothing here yet. Open the option chain and tap the star beside any price to watch that contract.";
+    // an empty state that leads somewhere: the one place a contract can be starred from
+    note.innerHTML = `Nothing here yet. Tap the star beside any price in the option chain to watch that contract. `
+      + `<button class="lbtn" type="button" onclick="showTab('chain')">Open the option chain</button>`;
     return;
   }
   const f = v => v == null ? "—" : num(v, 2);
@@ -10901,28 +10999,33 @@ function sellerRender(d){
   const usd = v => v == null ? "—" : (v < 0 ? "−$" : "$") + num(Math.abs(v), 2);
   const pct = v => v == null ? "—" : (v * 100).toFixed(1) + "%";
   const dec = d.last_decision, op = d.open, rec = d.record || {};
-  let h = "";
-  if(dec){
-    const sold = dec.sell;
-    h += `<div class="gnote" style="margin:0 0 8px"><b>Last decision</b> ${esc(dec.date_ist || "")} ${esc((dec.time_ist || "").slice(0, 5))} IST`
-       + (dec.expiry ? ` &middot; ${esc(dec.expiry)} expiry, strike ${num(dec.strike, 0)}` : "")
-       + ` &middot; implied ${pct(dec.iv)} vs realised ${pct(dec.rv7)} &middot; `
-       + `<b style="color:${sold ? "var(--up)" : "var(--ink-3)"}">${sold ? "SOLD" : "skipped"}</b>`
-       + ` &mdash; ${esc(dec.reason || "")}</div>`;
-  } else {
-    h += `<div class="gnote" style="margin:0 0 8px">No decision yet - the first comes at 17:30 IST.</div>`;
-  }
+  // Figures over rows over the history (the design system's three forms - 8 Oct 2026), the numbers no longer inside
+  // sentences: today's call, the open position's result now and the record.
+  const n = rec.trades || 0, col = v => v == null ? "" : v >= 0 ? "var(--up)" : "var(--down)";
+  const st = (label, value, c) => `<div class="st"><b${c ? ` style="color:${c}"` : ""}>${value}</b><span>${esc(label)}</span></div>`;
+  let h = `<div class="aistats">`
+    + st(dec ? `Last call · ${dec.date_ist || ""} ${(dec.time_ist || "").slice(0, 5)}` : "Last call",
+         dec ? (dec.sell ? "Sold" : "Skipped") : "—", dec ? (dec.sell ? "var(--up)" : "var(--ink-3)") : "")
+    + st("Implied vs realised (7 days)", dec ? `${pct(dec.iv)} / ${pct(dec.rv7)}` : "—")
+    + st(op ? "Open now · unrealised" : "Open now", op && op.unrealised_usd != null ? esc(usd(op.unrealised_usd)) : op ? "open" : "none",
+         op && op.unrealised_usd != null ? col(op.unrealised_usd) : "var(--ink-3)")
+    + st(`Paper record · ${n} settled, ${rec.wins || 0} won`, esc(usd(rec.total_usd || 0)), col(rec.total_usd || 0))
+    + `</div>`;
+  h += dec ? `<div class="gnote" style="margin:0 0 8px">${esc(dec.reason || "")}`
+             + (dec.expiry ? ` &middot; ${esc(dec.expiry)} expiry, strike ${num(dec.strike, 0)}` : "") + `</div>`
+           : `<div class="gnote" style="margin:0 0 8px">No decision yet - the first comes at 17:30 IST.</div>`;
   if(op){
-    h += `<div class="gnote" style="margin:0 0 8px"><b>Open (paper)</b>: short ${num(op.strike, 0)} call + put, `
-       + `${esc(op.expiry)} expiry, ${op.lots} contracts (${(op.lots * 0.001).toFixed(3)} BTC). `
-       + `Credit ${usd(op.credit)} per BTC at the bids (${usd(op.bid_call)} + ${usd(op.bid_put)}), fees ${usd(op.fees_in)}.`
-       + (op.buyback_now != null ? ` Buying back now: ${usd(op.buyback_now)} per BTC &rarr; <b style="color:${op.unrealised_usd >= 0 ? "var(--up)" : "var(--down)"}">${usd(op.unrealised_usd)}</b> unrealised.` : "")
-       + ` Settles 17:30 IST on ${esc(op.expiry)}.</div>`;
+    h += `<div class="pulse" style="margin:6px 0 10px">`
+       + statRow("Position (paper)", `short ${num(op.strike, 0)} call + put`)
+       + statRow("Expiry", esc(op.expiry))
+       + statRow("Size", `${op.lots} contracts &middot; ${(op.lots * 0.001).toFixed(3)} BTC`)
+       + statRow("Credit per BTC", usd(op.credit))
+       + statRow("At the bids (call + put)", `${usd(op.bid_call)} + ${usd(op.bid_put)}`)
+       + statRow("Fees", usd(op.fees_in))
+       + (op.buyback_now != null ? statRow("Buying back now, per BTC", usd(op.buyback_now)) : "")
+       + statRow("Settles", `17:30 IST on ${esc(op.expiry)}`)
+       + `</div>`;
   }
-  const n = rec.trades || 0;
-  h += `<div class="gnote" style="margin:0 0 8px"><b>Paper record</b>: ${n} settled, ${rec.wins || 0} won, `
-     + `total <b style="color:${(rec.total_usd || 0) >= 0 ? "var(--up)" : "var(--down)"}">${usd(rec.total_usd || 0)}</b>`
-     + ` at ${d.lots} contracts.</div>`;
   if((rec.last || []).length){
     h += `<div class="watchwrap"><table class="watch"><tr><th>Sold</th><th>Strike</th><th>Credit/BTC</th>`
        + `<th>Settled at</th><th>Result</th></tr>`
@@ -11029,6 +11132,7 @@ async function botWatchToggle(){
 function botAppend(role, text){
   const log = $("botlog");
   if(!log) return;
+  if(role !== "sys"){ const bs = $("botstart"); if(bs) bs.hidden = true; }
   const div = document.createElement("div");
   div.className = "bmsg " + role;
   div.textContent = text;
@@ -11044,6 +11148,7 @@ function botOnIndexChange(){
     BOT.watch.shown = new Set();
     const log = $("botlog");
     if(log) log.innerHTML = "";
+    const bs = $("botstart"); if(bs) bs.hidden = false;
     if(TAB === "marketbot") botSystemNote(`Switched to ${CUR} - new conversation.`);
   }
   BOT.idx = CUR;
@@ -11062,11 +11167,13 @@ async function botStatus(){
       note.classList.add("warn");
       if(send) send.disabled = true;
       if(q) q.disabled = true;
+      document.querySelectorAll("#botstart button").forEach(b => b.disabled = true);
     } else {
       note.textContent = "";
       note.classList.remove("warn");
       if(send) send.disabled = false;
       if(q) q.disabled = false;
+      document.querySelectorAll("#botstart button").forEach(b => b.disabled = false);
     }
   }catch(e){
     const note = $("botnote");
@@ -11135,7 +11242,16 @@ async function botSend(){
   if(clear) clear.addEventListener("click", () => {
     BOT.history = [];
     const log = $("botlog"); if(log) log.innerHTML = "";
+    const bs = $("botstart"); if(bs) bs.hidden = false;
     botSystemNote("New conversation.");
+  });
+  // a starter question: asked as if typed
+  const bs = $("botstart");
+  if(bs) bs.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if(!b || b.disabled || !q) return;
+    q.value = b.textContent;
+    botSend();
   });
 }
 
@@ -11772,8 +11888,17 @@ function anaPaint(){
       + `market has been pricing more movement than it delivered.`;
   }
   const cone = (d.cone || {});
-  scrTable("volcone", cone.rows || [],
+  const crows = cone.rows || [];
+  const cLo = Math.min(...crows.map(r => r.min)), cHi = Math.max(...crows.map(r => r.max));
+  const cX = v => Math.max(0, Math.min(100, (v - cLo) / ((cHi - cLo) || 1) * 100)).toFixed(1) + "%";
+  const rankCol = r => r.rank < 20 ? "var(--up)" : r.rank > 80 ? "var(--down)" : "var(--ink)";
+  scrTable("volcone", crows,
     [["Window", r => `<td class="sym">${r.window} days</td>`],
+     ["Range", r => `<td class="rbar" title="${r.min.toFixed(1)}% to ${r.max.toFixed(1)}%, middle half ${(r.p25 ?? r.min).toFixed(1)}–${(r.p75 ?? r.max).toFixed(1)}%, now ${r.now.toFixed(1)}%">`
+        + `<span class="rb"><i class="rb-rng" style="left:${cX(r.min)};right:calc(100% - ${cX(r.max)})"></i>`
+        + `<i class="rb-iqr" style="left:${cX(r.p25 ?? r.min)};right:calc(100% - ${cX(r.p75 ?? r.max)})"></i>`
+        + `<i class="rb-med" style="left:${cX(r.median)}"></i>`
+        + `<i class="rb-now" style="left:${cX(r.now)};background:${rankCol(r)}"></i></span></td>`, "rbar"],
      ["Now", r => `<td style="color:var(--ink)">${r.now.toFixed(2)}%</td>`],
      ["Quietest", r => `<td>${r.min.toFixed(2)}%</td>`],
      ["Median", r => `<td>${r.median.toFixed(2)}%</td>`],
@@ -11805,8 +11930,22 @@ function anaPaint(){
 
   const L = d.levels || [];
   if(L.length && $("lvlsess")) $("lvlsess").textContent = "from " + L[0].session;
+  // which band of the floor pivots the price sits in, said the way a trader reads it
+  const zone = r => {
+    if(r.now == null) return ["—", "var(--ink-3)"];
+    const p = r.now, steps = [["S2", r.s2], ["S1", r.s1], ["P", r.pivot], ["R1", r.r1], ["R2", r.r2]];
+    const col = p > r.pivot ? "var(--up)" : p < r.pivot ? "var(--down)" : "var(--ink-2)";
+    if(p < r.s2) return ["below S2", col];
+    if(p >= r.r2) return ["above R2", col];
+    for(let i = 0; i < steps.length - 1; i++)
+      if(p >= steps[i][1] && p < steps[i + 1][1]) return [`${steps[i][0]} – ${steps[i + 1][0]}`, col];
+    return ["—", "var(--ink-3)"];
+  };
   scrTable("lvl", L,
     [["Index", r => `<td class="sym">${esc(r.index)}</td>`],
+     ["Now", r => { const [z, c] = zone(r);
+        return `<td style="color:${c}">${r.now == null ? "—" : num(r.now,2)}</td>`; }],
+     ["Zone", r => { const [z, c] = zone(r); return `<td class="zone" style="color:${c}">${esc(z)}</td>`; }],
      ["Close", r => `<td>${num(r.close,2)}</td>`],
      ["S2", r => `<td>${num(r.s2,2)}</td>`], ["S1", r => `<td>${num(r.s1,2)}</td>`],
      ["Pivot", r => `<td style="color:var(--ink)">${num(r.pivot,2)}</td>`],
@@ -11814,7 +11953,8 @@ function anaPaint(){
      ["ATR(14)", r => `<td>${num(r.atr,0)}</td>`]],
     "No levels yet.");
   if($("lvlnote")) $("lvlnote").textContent =
-    "Floor pivots from the previous session's high, low and close. ATR(14) is "
+    "Floor pivots from the previous session's high, low and close; Now is the latest price and Zone the pair of "
+    + "levels it sits between, green above the pivot and red below. ATR(14) is "
     + "the average true range over fourteen sessions - the distance this index "
     + "typically covers in a day, which is what a stop has to survive.";
   scrTable("lvlor", L.filter(r => r.or_hi != null),
@@ -11874,17 +12014,24 @@ function anaPaint(){
 
   const se = d.season || {};
   if($("seasn")) $("seasn").textContent = se.n || "—";
+  const today = new Date().toLocaleDateString("en-US", {weekday: "long", timeZone: "Asia/Kolkata"});
+  // the bars on the scale of a day's ordinary move (the widest spread), not the biggest average: drawn honestly,
+  // a weekday's tilt is a sliver of the noise around it - which is what the note below says
+  const aMax = Math.max(0.01, ...(se.dow || []).map(r => Math.max(Math.abs(r.avg), r.sd || 0)));
   scrTable("sdow", se.dow || [],
-    [["Day", r => `<td class="sym">${esc(r.day)}</td>`],
+    [["Day", r => `<td class="sym">${esc(r.day)}${r.day === today ? ' <span class="todaytag">today</span>' : ""}</td>`],
      ["Average", r => pctCell(r.avg)],
+     ["", r => `<td class="dbar" aria-hidden="true"><span class="db"><i class="${r.avg >= 0 ? "up" : "dn"}" `
+        + `style="width:${(Math.abs(r.avg) / aMax * 50).toFixed(1)}%"></i></span></td>`],
      ["Up days", r => `<td>${r.up}%</td>`],
      ["Spread", r => `<td>${r.sd.toFixed(2)}</td>`],
      ["Sessions", r => `<td>${r.n}</td>`]],
-    "No daily history.");
+    "No daily history.", r => r.day === today ? "today" : "");
   if($("sdownote")) $("sdownote").textContent =
     "Average close-to-close move by weekday. With about fifty samples a day "
     + "these are tendencies, not rules - the spread column is wider than every "
-    + "average in the table, which is the point.";
+    + "average in the table, which is the point. The bars are drawn on the scale of that spread, so a "
+    + "short bar is a small tilt next to an ordinary day's move.";
   if($("sgap") && se.n){
     $("sgap").innerHTML =
       statRow("Gapped up at the open", se.gap_up + " sessions", "var(--up)")
@@ -11937,7 +12084,7 @@ function adDraw(vals){
 // are the index constituents this tool knows, not the whole exchange, and a
 // screener that implies a wider net than it casts is worse than none.
 let SCREEN = null, SCREEN_AT = 0;
-function scrTable(el, rows, cols, empty){
+function scrTable(el, rows, cols, empty, rowCls){
   const t = $(el);
   if(!t) return;
   if(!rows.length){
@@ -11945,8 +12092,9 @@ function scrTable(el, rows, cols, empty){
                 + `${esc(empty)}</td></tr></tbody>`;
     return;
   }
-  t.innerHTML = `<thead><tr>${cols.map(c => `<th>${esc(c[0])}</th>`).join("")}</tr></thead>`
-    + `<tbody>${rows.map(r => `<tr>${cols.map(c => c[1](r)).join("")}</tr>`).join("")}</tbody>`;
+  t.innerHTML = `<thead><tr>${cols.map(c => `<th${c[2] ? ` class="${c[2]}"` : ""}>${esc(c[0])}</th>`).join("")}</tr></thead>`
+    + `<tbody>${rows.map(r => { const k = rowCls ? rowCls(r) : "";
+        return `<tr${k ? ` class="${k}"` : ""}>${cols.map(c => c[1](r)).join("")}</tr>`; }).join("")}</tbody>`;
 }
 const pctCell = v => {
   const col = v == null ? "var(--ink-3)" : v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
@@ -12082,7 +12230,7 @@ async function spikeFetch(force){
 }
 function spikePaint(){
   const d = SPK || {}, rows = d.rows || [], note = $("spknote");
-  if(d.error){ if(note) note.textContent = "Spike error: " + d.error; return; }
+  if(d.error){ if(note) note.textContent = "No spikes to show: " + d.error; return; }
   if(d.kind === "crypto"){ cryptoMovesPaint(d); return; }
   const bar = $("spkbar");
   if(bar){
@@ -12179,18 +12327,21 @@ function calcDraw(){
     return;
   }
   const perLot = (entry - stop) * lot;
-  let txt = `One lot risks <b>${money(perLot, false)}</b> `
-          + `(${num(entry - stop, 2)} of premium × ${num(lot, 0)}).`;
+  // the answer as figures (the design system, 8 Oct 2026); a lot of 0.001 BTC shows as such, never "x 0"
+  const lotTxt = lot < 1 ? String(Number(lot.toFixed(4))) : num(lot, 0);
+  const st = (label, value, c) => `<div class="st"><b${c ? ` style="color:${c}"` : ""}>${value}</b><span>${esc(label)}</span></div>`;
+  let figs = st("Risk per lot", money(perLot, false), "var(--down)"), work = `${num(entry - stop, 2)} of premium × ${lotTxt} per lot.`;
   if(cap > 0 && risk > 0){
     const budget = cap * risk / 100, fit = Math.floor(budget / perLot);
-    txt += ` At ${num(risk, 2)}% of ${money(cap, false)} you can risk `
-        + `<b>${money(budget, false)}</b>, which is `
-        + (fit >= 1 ? `<b>${fit} lot${fit !== 1 ? "s" : ""}</b> `
-                    + `(${money(perLot * fit, false)}, ${num(perLot * fit / cap * 100, 2)}% of capital).`
-                    : `<b>less than one lot</b> - one lot alone is `
-                      + `${num(perLot / cap * 100, 2)}% of capital.`);
+    figs += st(`Budget at ${num(risk, 2)}% of ${money(cap, false)}`, money(budget, false))
+         + st("Lots that fit", fit >= 1 ? String(fit) : "under 1", fit >= 1 ? "var(--up)" : "var(--warn)")
+         + st("Risk if taken", fit >= 1 ? `${money(perLot * fit, false)} · ${num(perLot * fit / cap * 100, 2)}%`
+                                        : `${money(perLot, false)} · ${num(perLot / cap * 100, 2)}%`);
+    if(fit < 1) work += ` One lot alone is ${num(perLot / cap * 100, 2)}% of capital - more than the ${num(risk, 2)}% budget.`;
+  } else {
+    work += " Add your capital and risk % to see how many lots fit.";
   }
-  out.innerHTML = txt;
+  out.innerHTML = `<div class="aistats">${figs}</div><div class="cw">${work}</div>`;
 }
 ["c_cap","c_risk","c_entry","c_stop","c_lot"].forEach(id => {
   const el = $(id);

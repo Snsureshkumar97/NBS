@@ -57,6 +57,28 @@ def _cfg(name, fallback):
     return getattr(config, name, fallback)
 
 
+def stop_steps(trade):
+    """The near-target stop steps planned for this ticket (config.NEAR_TARGET_STEPS, per system - the Trend Rider's), for
+    a page to show: where each one fires, the target it moves the stop to, and whether it has. The same frozen levels, the
+    same units (premium or index) and the same reference (the entry) _check_price() measures them on; [] when the
+    ticket's system has no plan."""
+    plan = (_cfg("NEAR_TARGET_STEPS", {}) or {}).get(trade.get("system")) or []
+    targets = trade["premium_targets"] if trade["use_premium"] else trade["index_targets"]
+    ref = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
+    done = trade.get("near_steps") or []
+    out = []
+    for n, (share, toward, to) in enumerate(plan):
+        if toward not in TARGET_KEYS or to not in TARGET_KEYS or ref is None or not targets:
+            continue
+        ti, si = TARGET_KEYS.index(toward), TARGET_KEYS.index(to)
+        tv = targets[ti] if len(targets) > ti else None
+        sv = targets[si] if len(targets) > si else None
+        if tv is None or sv is None:
+            continue
+        out.append({"near": toward, "to": to, "at": round(ref + share * (tv - ref), 2), "stop": sv, "done": n in done})
+    return out
+
+
 def cfd_pnl(trade, price):
     """Dollars on a CFD ticket (Exness BTCUSD / XAUUSD): the move in the trade's favour,
     less the spread it pays, times lot_size (1 BTC; 100 oz of gold) x lots.
@@ -1788,6 +1810,8 @@ class TicketBook:
                         else trade["index_targets"]),
             "stop": (trade["premium_sl"] if trade["use_premium"]
                      else trade["index_sl"]),
+            # the Trend Rider's near-target stop steps: where each fires, where it moves the stop, done or not
+            "stop_steps": stop_steps(trade),
             "hit": trade["hit"], "hit_time": trade["hit_time"],
             "sl_hit": trade["sl_hit"], "sl_hit_time": trade["sl_hit_time"],
             "exit_at": trade.get("exit_at", "T3"),

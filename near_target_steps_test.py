@@ -129,6 +129,30 @@ b.tick_price("NIFTY", 95.0)                      # above entry, short of T1, pas
 check("a premium-tracked put's 2-hour breakeven now applies: the stop to the entry (90)", bk.trade["premium_sl"] == 90.0,
       bk.trade["premium_sl"])
 
+print("6. THE PAGE SEES THE LADDER: each step's trigger, the stop it moves to, and whether it has fired")
+b = book()
+bk = b.books["NIFTY"]
+bk.trade = mk()
+steps = b.public("NIFTY")["ticket"]["stop_steps"]
+check("a fresh Trend Rider ticket: two steps, near T2 at 108 -> T1 100, near T3 at 117 -> T2 110, neither done",
+      steps == [{"near": "T2", "to": "T1", "at": 108.0, "stop": 100.0, "done": False},
+                {"near": "T3", "to": "T2", "at": 117.0, "stop": 110.0, "done": False}], steps)
+b.tick_price("NIFTY", 108.0)
+steps = b.public("NIFTY")["ticket"]["stop_steps"]
+check("...after 108 the first is done, the second still waiting", [x["done"] for x in steps] == [True, False], steps)
+bk.trade = mk(option_type="PE", use_premium=False, targets=(24900.0, 24800.0, 24700.0), stop=25100.0)
+steps = b.public("NIFTY")["ticket"]["stop_steps"]
+check("an index-tracked put: the triggers in index points, below the entry (24,820 and 24,730)",
+      [x["at"] for x in steps] == [24820.0, 24730.0] and [x["stop"] for x in steps] == [24900.0, 24800.0], steps)
+bk.trade = mk(system="rules", plain=False)
+check("a rules ticket: no ladder to show", b.public("NIFTY")["ticket"]["stop_steps"] == [])
+bk.trade = mk()
+was = config.NEAR_TARGET_STEPS
+config.NEAR_TARGET_STEPS = {}
+check("the setting emptied: nothing shown (the page reads the same setting the stop does)",
+      b.public("NIFTY")["ticket"]["stop_steps"] == [])
+config.NEAR_TARGET_STEPS = was
+
 print()
 print("NEAR TARGET STEPS TEST PASSED" if not fails else f"NEAR TARGET STEPS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

@@ -211,7 +211,9 @@ print("9. THE FRONTEND: STRUCTURE (chart_label_test.py's own approach to this fu
 SRC = open("web_server.py").read()
 start = SRC.index("function chartDraw()")
 chart = SRC[start:SRC.index("function chartZoom(", start)]
-check("a third sub-pane joins RSI/MACD, sized and stacked the same way", "hasAdx = !!d.adx" in chart and "subCount = (hasRsi?1:0) + (hasMacd?1:0) + (hasAdx?1:0)" in chart)
+# (8 Oct 2026 design pass: beside the Signal card the chart is price-only - the sub-panes are the Chart tab's)
+check("a third sub-pane joins RSI/MACD, sized and stacked the same way", "hasAdx = !beside && !!d.adx" in chart
+      and "subCount = (hasRsi?1:0) + (hasMacd?1:0) + (hasAdx?1:0)" in chart and 'const beside = TAB === "signal"' in chart)
 check("it gets its own top offset in the same stacking chain as rsiTop/macdTop", "adxTop = null" in chart and "if(hasAdx){ nextTop += paneGap; adxTop = nextTop;" in chart)
 check("the pane is labelled with the live length, same convention as 'RSI 14' / 'MACD 12,26,9'", 'paneLabel(adxTop, `ADX ${d.adx_len' in chart)
 check("the gate is a reference line at the THRESHOLD, not at a hard-coded 20 - it reads d.adx_gate, matching the value the backend actually sent",
@@ -240,7 +242,7 @@ themes = [ln for ln in SRC.splitlines() if "--rsi:" in ln]
 check("every theme block that declares --rsi also declares --adx - dark, kite light, kite dark",
       len(themes) >= 3 and all("--adx:" in ln for ln in themes), themes)
 check("the canvas palette actually reads it (not just declared in CSS and never used)", "adx: css(\"--adx\")" in chart)
-check("the legend names it too, the same way RSI/MACD already do", 'd.adx ? `<span class="o">ADX' in chart)
+check("the legend names it too, the same way RSI/MACD already do", 'd.adx && TAB !== "signal" ? `<span class="o">ADX' in chart)
 
 print("CHART ROOM+ADX TEST PASSED" if not fails else f"CHART ROOM+ADX TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
