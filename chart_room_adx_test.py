@@ -207,41 +207,43 @@ finally:
 
 feeds.for_user = _real_for_user
 
-print("9. THE FRONTEND: STRUCTURE (chart_label_test.py's own approach to this function - it draws on a real <canvas>, not something a Python test executes)")
+print("9. THE FRONTEND: STRUCTURE (since 8 Oct 2026 the chart is TradingView's Lightweight Charts: panes and series)")
 SRC = open("web_server.py").read()
-start = SRC.index("function chartDraw()")
-chart = SRC[start:SRC.index("function chartZoom(", start)]
-# (8 Oct 2026 design pass: beside the Signal card the chart is price-only - the sub-panes are the Chart tab's)
-check("a third sub-pane joins RSI/MACD, sized and stacked the same way", "hasAdx = !beside && !!d.adx" in chart
-      and "subCount = (hasRsi?1:0) + (hasMacd?1:0) + (hasAdx?1:0)" in chart and 'const beside = TAB === "signal"' in chart)
-check("it gets its own top offset in the same stacking chain as rsiTop/macdTop", "adxTop = null" in chart and "if(hasAdx){ nextTop += paneGap; adxTop = nextTop;" in chart)
-check("the pane is labelled with the live length, same convention as 'RSI 14' / 'MACD 12,26,9'", 'paneLabel(adxTop, `ADX ${d.adx_len' in chart)
+start = SRC.index("// THE CHART")
+chart = SRC[start:SRC.index('cv.addEventListener("dblclick"', start)]
+check("a third sub-pane joins RSI/MACD, stacked under them - on the Chart tab; beside the Signal card the chart is price-only",
+      "}), 1);" in chart and "}), 2);" in chart and "}), 3);" in chart and 's.adx = chart.addSeries(LW.LineSeries' in chart
+      and 'if(mode === "full"){' in chart and 'const mode = TAB === "signal" ? "price" : "full";' in chart)
+check("each indicator pane sized the same, the price pane most of the height",
+      "pn.setStretchFactor(i === 0 ? 5 : 1)" in chart)
+check("the pane's value is labelled, same convention as RSI / MACD", 'color: C.adx, title: "ADX"' in chart
+      and 'title: "RSI"' in chart and 'title: "MACD"' in chart)
 check("the gate is a reference line at the THRESHOLD, not at a hard-coded 20 - it reads d.adx_gate, matching the value the backend actually sent",
-      "adxY(d.adx_gate)" in chart and "d.adx_gate" in chart)
-adx_block = chart.split("if(adxTop")[1].split("line(d.adx, C.adx, null, adxY);")[0]
-check("the gate line and its number use the warning colour, not the ADX line's own colour - two different meanings, two different colours",
-      "cx.strokeStyle = C.warn" in adx_block and "cx.fillStyle = C.warn" in adx_block, adx_block)
-check("the ADX line itself is drawn in its own colour, not reused from another series", "line(d.adx, C.adx, null, adxY)" in chart)
+      "createPriceLine({price: d.adx_gate, color: C.warn" in chart)
+check("the gate line uses the warning colour, the ADX line its own - two different meanings, two different colours",
+      "color: C.warn" in chart.split("LWC.gate = d.adx_gate")[1][:300] and "color: C.adx" in chart)
 check("the floor under the gate keeps it on screen even on a dead-quiet day, rather than the pane's scale collapsing to whatever ADX happens to be",
-      "aMax = Math.max((d.adx_gate||20) * 1.5" in chart)
+      "Math.max(g * 1.5," in chart and "minValue: 0, maxValue: hi" in chart)
 
 print("10. THE FRONTEND: ROOM TO RUN ON THE PRICE PANE")
+lv = chart[chart.index("function chLevels("):]
+lv = lv[:lv.index("\n}\n")]
 check("room reads live off d.room, not frozen to an open ticket like L (T1/T2/T3/stop) is",
-      "const R = d.room || {};" in chart)
-r_line = [ln for ln in chart.splitlines() if "const R = d.room" in ln][0]
+      "const R = (d && d.room) || {};" in lv)
+r_line = [ln for ln in lv.splitlines() if "const R = (d && d.room)" in ln][0]
 check("...and that line does not reference the open-ticket object at all", "TK" not in r_line, r_line)
-check("both reach prices are pulled into the auto-range calc, same squash-guard as T1/T2/T3/stop/entry already use",
-      "R.up_to,R.down_to" in chart.replace(" ", ""))
-check("both directions are added to the SAME tag-drawing array T1/T2/T3/SL/Entry already use - one placement algorithm, not a second one",
-      '"Room ↑", C.up, [2,3]' in chart and '"Room ↓", C.down, [2,3]' in chart)
+check("both reach prices are pulled into the auto-range, with the same squash-guard as T1/T2/T3/stop/entry",
+      "LWC.levelVals = lv.map(a => a.v);" in chart and "chWiden(original(), LWC.levelVals)" in chart)
+check("both directions are in the SAME level list T1/T2/T3/SL/Entry are - one way of drawing them, not a second one",
+      '[R.up_to, "Room ↑", C.up, "dot"]' in lv and '[R.down_to, "Room ↓", C.down, "dot"]' in lv)
 check("room's line style is visually distinct from a trade level's - a finer dotted line, not just a different colour of the same dash",
-      "dash: a[3]||[5,4]" in chart and "cx.setLineDash(a.dash)" in chart)
+      'lineStyle: a.style === "dot" ? LS.SparseDotted : LS.Dashed' in chart)
 
 print("11. THE FRONTEND: A FOURTH THEME COLOUR, DECLARED EVERYWHERE THE OTHERS ARE")
 themes = [ln for ln in SRC.splitlines() if "--rsi:" in ln]
 check("every theme block that declares --rsi also declares --adx - dark, kite light, kite dark",
       len(themes) >= 3 and all("--adx:" in ln for ln in themes), themes)
-check("the canvas palette actually reads it (not just declared in CSS and never used)", "adx: css(\"--adx\")" in chart)
+check("the chart's palette actually reads it (not just declared in CSS and never used)", "adx: css(\"--adx\")" in chart)
 check("the legend names it too, the same way RSI/MACD already do", 'd.adx && TAB !== "signal" ? `<span class="o">ADX' in chart)
 
 print("CHART ROOM+ADX TEST PASSED" if not fails else f"CHART ROOM+ADX TEST FAILED: {fails}")

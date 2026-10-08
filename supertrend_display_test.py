@@ -72,13 +72,16 @@ check("coloured by where price sits relative to the line - up when spot is above
       and "var(--down)" in tiles_block)
 
 print("4. THE CHART: A LINE ON THE PRICE PANE (LIKE EMA/VWAP), NOT A NEW SUB-PANE (LIKE ADX)")
-draw_start = SRC.index("function chartDraw(")
-draw = SRC[draw_start:draw_start + 20000]
-check("drawn with the price pane's own line() helper, same call shape as the EMA lines beside it",
-      "line(d.supertrend,C.supertrend)" in draw.replace(" ", "").replace("\n", ""))
-check("included in the price-range autoscale, same as the other overlays - otherwise the line could run "
-      "off the top/bottom of the pane unnoticed",
-      "[d.ema_fast,d.ema_slow,d.vwap,d.supertrend]" in draw.replace(" ", ""))
+draw_start = SRC.index("// THE CHART")
+draw = SRC[draw_start:SRC.index('cv.addEventListener("dblclick"', draw_start)]
+# (8 Oct 2026: the chart is TradingView's Lightweight Charts - each overlay is a line series on the price pane)
+check("drawn as a line on the price pane, the same way as the EMA lines beside it",
+      "s.st = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.supertrend}));" in draw
+      and "s.fast = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.fast}));" in draw
+      and "s.st.setData(chLine(d.supertrend, bars));" in draw)
+check("included in the price-range autoscale, same as the other overlays - a series on the price scale with no "
+      "autoscale override of its own is fitted with the candles; otherwise it could run off the pane unnoticed",
+      "{color: C.supertrend}));" in draw and "{color: C.supertrend, autoscale" not in draw)
 check("the legend names it with its own (length, multiplier), only when a reading exists",
       '(d.supertrend?' in draw.replace(" ", "") and "d.supertrend_len" in draw and "d.supertrend_mult" in draw)
 

@@ -43,16 +43,67 @@ check("where the index was at entry, even for a premium ticket", pub["entry_spot
 check("the live P&L the signal card shows", pub["pnl"] == round((134.5 - 120.0) * 75, 2), pub["pnl"])
 
 print("2. THE INDEX CHART")
+# (8 Oct 2026: the chart is TradingView's Lightweight Charts now - the levels are price lines, the badge sits over it.)
 check("reads the open ticket from the live state, like the signal card",
-      "function openTicketFor(key){" in SRC and "const TK = openTicketFor(CH.key);" in SRC)
+      "function openTicketFor(key){" in SRC and "chLevels(d, openTicketFor(CH.key), C)" in SRC
+      and "chBadge(openTicketFor(CH.key));" in SRC)
 check("draws the ticket's frozen levels while it is open, the live signal's otherwise",
-      "stop: TK.index_stop, entry: TK.entry_spot}" in SRC and ": ((d.levels)||{});" in SRC)
-check("an Entry line among the levels", '[L.entry, "Entry", C.warn]' in SRC)
-check("the entry is inside the price range the chart scales to", "for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry,R.up_to,R.down_to]){" in SRC)
-check("the P&L badge only while a ticket is open", "if(TK) pnlBadge(cx, PAD.l + 8, PAD.t + 6, TK);" in SRC)
+      "stop: TK.index_stop, entry: TK.entry_spot}" in SRC and ": ((d && d.levels) || {});" in SRC)
+check("an Entry line among the levels", '[L.entry, "Entry", C.warn, "dash"]' in SRC)
+check("the levels are inside the price range the chart scales to",
+      "autoscaleInfoProvider: original => chWiden(original(), LWC.levelVals)" in SRC)
+check("the P&L badge only while a ticket is open",
+      "const p = t ? ticketPnl(t) : null;\n  if(!p){ el.hidden = true; return; }" in SRC)
+
+import shutil, subprocess
+NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
+def fn(name):
+    a = SRC.index(f"function {name}(")
+    return SRC[a:SRC.index("\n}\n", a) + 3]
+if not NODE:
+    check("node is available", False, "install node to run the chart's own functions")
+else:
+    lines = SRC.splitlines()
+    pick = lambda start: next(l for l in lines if l.startswith(start))
+    prog = "\n".join([pick("const esc=s=>"), pick("const num=(v,d=2)=>"), lines[lines.index(pick("const num=(v,d=2)=>")) + 1],
+                      'let CCY = "INR";', fn("ccySym"), fn("ccyLocale"), fn("money"), fn("chLevels"), fn("chWiden"),
+                      fn("onColour"), fn("ticketPnl"), fn("chBadge")]) + r"""
+const assert = require("assert");
+const C = {up: "#0a0", down: "#a00", warn: "#fa0"};
+const d = {levels: {t1: 101, t2: 102, t3: 103, stop: 98}, room: {up_to: 110, down_to: 90}};
+// no ticket: the live signal's levels, room to run dotted
+let lv = chLevels(d, null, C);
+assert.deepStrictEqual(lv.map(a => a.label), ["T1", "T2", "T3", "SL", "Room ↑", "Room ↓"]);
+assert.deepStrictEqual(lv.filter(a => a.style === "dot").map(a => a.label), ["Room ↑", "Room ↓"]);
+// an open ticket: ITS frozen levels and its entry, whatever the live signal says now
+const TK = {index_targets: [201, 202, 203], index_stop: 198, entry_spot: 200};
+lv = chLevels(d, TK, C);
+assert.deepStrictEqual(lv.slice(0, 5).map(a => [a.label, a.v]), [["T1", 201], ["T2", 202], ["T3", 203], ["SL", 198], ["Entry", 200]]);
+assert.strictEqual(lv.find(a => a.label === "Entry").colour, C.warn);
+// the axis: candles 100-104 take in a level just outside (106) but not a far stale one (120, more than 0.9 of the span away)
+const r = chWiden({priceRange: {minValue: 100, maxValue: 104}, margins: {above: 1}}, [106, 120, 97]);
+assert.deepStrictEqual(r.priceRange, {minValue: 97, maxValue: 106});
+assert.deepStrictEqual(r.margins, {above: 1});
+assert.strictEqual(chWiden(null, [1]), null, "no candles in view: nothing to widen");
+// the badge: shown with the ticket's P&L, hidden without
+const EL = {hidden: true, style: {}, textContent: ""};
+const $ = id => EL;
+const css = v => ({"--up": "#2fbf71", "--down": "#e5534b"})[v];
+const contractName = (i, k, o) => `${i} ${k} ${o}`;
+let LAST = {indices: {}};
+chBadge({index: "NIFTY", strike: 23200, option_type: "CE", entry: 120, now: 134.5, pnl: 1087.5});
+assert.ok(!EL.hidden && EL.textContent === "NIFTY 23200 CE · P&L +₹1,088 (+12.1%)" && EL.style.background === "#2fbf71", JSON.stringify(EL));
+chBadge(null);
+assert.ok(EL.hidden, "no ticket, no badge");
+console.log("ok:levels");
+"""
+    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    check("in node: the ticket's frozen levels over the live signal's; the axis takes in near levels only; the badge "
+          "shows the ticket's P&L and hides without one", "ok:levels" in r.stdout and r.returncode == 0,
+          ((r.stdout or "") + (r.stderr or ""))[-900:])
 
 print("3. THE P&L ITSELF")
-body = SRC[SRC.index("function ticketPnl(t){"):SRC.index("function pnlBadge(")]
+body = SRC[SRC.index("function ticketPnl(t){"):SRC.index("function chBadge(")]
 check("a premium ticket: money and % of the premium paid",
       "money(t.pnl)" in body and "(t.now - t.entry) / t.entry * 100" in body)
 check("a ticket tracked on the index: points, signed for a put",

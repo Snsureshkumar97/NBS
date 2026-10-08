@@ -254,6 +254,15 @@ def gzip_body(body):
     return out
 
 
+def kite_chart_url(segment, tradingsymbol, token):
+    """Zerodha's own chart page for one instrument - Kite's chart route, /chart/ext/tvc/<segment>/<symbol>/<token>
+    (INDICES/NIFTY 50/256265 for the index; NFO-OPT/<contract>/<token> for an option). A link, opened in a new tab:
+    the user asked for Zerodha's chart inside the tool (8 Oct 2026), but kite.zerodha.com answers every page with
+    X-Frame-Options: SAMEORIGIN, so no other site can show it in a frame."""
+    return ("https://kite.zerodha.com/chart/ext/tvc/" + urllib.parse.quote(str(segment), safe="") + "/"
+            + urllib.parse.quote(str(tradingsymbol), safe="") + "/" + str(int(token)))
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "TradePicker"
 
@@ -2783,8 +2792,42 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "bias": pub.get("bias"),
             "strike": pub.get("strike"),
             "option_type": pub.get("option_type"),
+            # Zerodha's own chart of this index, and of the open ticket's contract, as links (the chart's
+            # "Open in Kite" buttons): None when this market is not on Zerodha.
+            "kite": self._kite_links(feed, key),
         }
         return self._send(json.dumps(payload), "application/json")
+
+    def _kite_links(self, feed, key):
+        """{"index": url, "contract": url, "contract_name": symbol} for Zerodha's own chart (kite_chart_url()), or None
+        off Zerodha - a crypto market, or no Kite session. The index's token is the one the feed already streams; the
+        contract is the OPEN ticket's own strike, side and expiry, looked up in the instrument list the tool caches."""
+        meta = config.INSTRUMENTS.get(key) or {}
+        if meta.get("market") != "nse_index" or not meta.get("kite_tradingsymbol"):
+            return None
+        try:
+            provider = feed._provider()[0]
+        except Exception:
+            provider = None
+        if provider is None or not hasattr(provider, "option_instrument"):
+            return None
+        out = {}
+        try:
+            tok = provider.index_token(key)
+        except Exception:
+            tok = None
+        if tok:
+            out["index"] = kite_chart_url("INDICES", meta["kite_tradingsymbol"], tok)
+        try:
+            t = (feed.tickets.public(key) or {}).get("ticket") or {}
+        except Exception:
+            t = {}
+        if t.get("open") and not t.get("cfd") and t.get("strike") is not None and t.get("option_type") in ("CE", "PE"):
+            inst = provider.option_instrument(key, t["strike"], t["option_type"], t.get("expiry"))
+            if inst:
+                out["contract"] = kite_chart_url(inst["segment"], inst["tradingsymbol"], inst["token"])
+                out["contract_name"] = inst["tradingsymbol"]
+        return out or None
 
     # -------------------------------------------------------- kite, per user
     def _connect(self, user, error=None, notice=None):
@@ -3871,7 +3914,18 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .rngbar{display:block;position:relative;height:6px;border-radius:3px;background:var(--bd);margin:12px 0 9px}
 .rngbar i{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;border-radius:2px;background:var(--ink)}
 .chartctl .lbtn{padding:3px 10px;font-size:12px;line-height:1.5}
-#cv{display:block;width:100%;height:430px;cursor:crosshair;touch-action:none}
+#cv{display:block;width:100%;height:430px}
+/* the chart's box: the library draws inside #cv; the open ticket's P&L and the empty state sit over it (8 Oct 2026) */
+.cvbox{position:relative}
+.cvbadge{position:absolute;left:8px;top:6px;z-index:3;padding:4px 9px;border-radius:7px;font-size:12px;font-weight:600;
+  pointer-events:none;white-space:nowrap;max-width:calc(100% - 90px);overflow:hidden;text-overflow:ellipsis}
+.cvbadge[hidden],.cvwait[hidden]{display:none}
+.cvwait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-3);
+  font-size:13px;pointer-events:none}
+/* Zerodha's own chart, as a link: a pill like the buttons beside it */
+a.lbtn.kitebtn{display:inline-flex;align-items:center;text-decoration:none}
+a.lbtn.kitebtn[hidden]{display:none}
+a.lbtn.kitebtn::after{content:"\2197";margin-left:5px;font-weight:400}
 /* a desktop: the price pane has room, with RSI, MACD and ADX under it (7 Oct 2026: "check the chart tab layout") */
 @media (min-width:901px){#cv{height:clamp(430px,66vh,720px)}}
 @media(max-width:640px){#cv{height:330px}}
@@ -5312,6 +5366,8 @@ button.mgroup:hover{color:var(--ink-2)}
   <span class="tag flat" id="conftag" style="display:none"></span>
   <span class="tag flat" id="exptag" style="display:none"></span>
   <button class="lbtn ocbtn" id="ocopen" type="button" style="display:none">View chart</button>
+  <a class="lbtn ocbtn kitebtn" id="tkite" target="_blank" rel="noopener noreferrer" hidden
+     title="Zerodha's own chart of this strike, in a new tab">Open in Kite</a>
   </div>
   <div class="whyhold" id="twhy" style="display:none"></div>
   <div class="tstats" id="tstats" style="display:none"></div>
@@ -5386,11 +5442,19 @@ button.mgroup:hover{color:var(--ink-2)}
     <button class="lbtn" id="cvout" type="button" title="Zoom out">&minus;</button>
     <button class="lbtn" id="cvin" type="button" title="Zoom in">+</button>
     <button class="lbtn" id="cvreset" type="button">Reset</button>
+    <a class="lbtn kitebtn" id="cvkite" target="_blank" rel="noopener noreferrer" hidden
+       title="Zerodha's own chart of this index, in a new tab">Open in Kite</a>
+    <a class="lbtn kitebtn" id="cvkite2" target="_blank" rel="noopener noreferrer" hidden
+       title="Zerodha's own chart of the open trade's strike, in a new tab">Strike in Kite</a>
     </div>
     </div>
     <div class="chartkeys" id="cvkeys"></div>
-    <canvas id="cv" aria-label="Candlestick chart. Drag to scroll back through
-    earlier candles, scroll to zoom."></canvas>
+    <div class="cvbox">
+    <div id="cv" role="img" aria-label="Candlestick chart. Drag to scroll back through earlier candles, scroll or
+    pinch to zoom, double-click to go back to the latest."></div>
+    <div class="cvbadge" id="cvbadge" hidden></div>
+    <div class="cvwait" id="cvwait">waiting for candles&hellip;</div>
+    </div>
     </div>
     </div>
    </div>
@@ -8075,26 +8139,25 @@ function gauges(r, why){
 // =====================================================================
 // THE CHART
 // =====================================================================
-// Drawn here rather than fetched as a picture, because a picture cannot be
-// scrolled and cannot tell you what the bar under your pointer was. Hand-rolled
-// on a canvas rather than pulled from a charting library: the page's content
-// security policy allows no third-party script, and the rest of this tool has
-// no build step to bundle one into.
+// TradingView's Lightweight Charts (open source, Apache-2.0, served from this server - vendor/ - the library the strike
+// chart below already used) drawing the index's candles from the tool's own feed, ticks and all. The user, 8 Oct 2026:
+// "instead of this chart in signal section and chart section can we use directly zerodhas chart it is way more faster
+// and easy to use". Zerodha's chart cannot be shown inside another site - kite.zerodha.com answers every page with
+// X-Frame-Options: SAMEORIGIN - so this is the same kind of engine Kite's is (smooth drag, wheel and pinch zoom, a
+// crosshair), keeping what Kite's cannot show: the open ticket's levels, room to run, and the signal's own EMA, VWAP and
+// Supertrend; and "Open in Kite" opens Zerodha's chart itself. It replaced a canvas drawn by hand here.
 //
 // The server keeps a deep window of bars (see feeds.py), so dragging left
 // really does walk back through earlier sessions rather than running out after
 // the indicator warm-up.
-const CH = {
-  key:null, data:null, at:0,
-  i0:0, n:130,          // first visible bar, and how many are visible
-  pinned:true,          // stuck to the right edge until the user drags away
-  hover:null, drag:null, pinch:null,
-};
-const CH_MIN_BARS = 20, CH_MAX_BARS = 600;
+const CH = {key:null, data:null, at:0, pinned:true};
+const CH_VIEW = 130;                 // candles in view on first load and on Reset - fewer on a narrow screen (chView)
 try{ CH.tf = localStorage.getItem("nbs.tf.v1") || "15m"; }catch(e){ CH.tf = "15m"; }
-const PAD = {l:0, r:64, t:10, b:24};
-
-const cv = $("cv"), cx = cv.getContext("2d");
+const cv = $("cv");
+// What the library was given: the chart and its series, the levels drawn and their signature, the data object last
+// set in full (a tick changes only its last candle), the view (index + timeframe) it was fitted for.
+const LWC = {chart:null, look:null, s:{}, lines:[], gate:null, lvSig:null, levelVals:[], drawn:null, view:null,
+             keep:null, n:0, hover:null};
 
 // The signal is always computed on the 15-minute series; these are views of
 // the same market, and the levels drawn on them are the signal's own.
@@ -8377,35 +8440,11 @@ function chartWant(key){
     .then(d => {
       if(CH.key !== key) return;          // the user switched index mid-flight
       CH.data = d;
-      const len = (d.candles||[]).length;
-      if(first || CH.pinned){
-        CH.n = Math.min(CH.n, Math.max(CH_MIN_BARS, len));
-        CH.i0 = Math.max(0, len - CH.n);  // newest bars, which is where you look
-        if(first) CH.pinned = true;
-      }
+      if(first) CH.pinned = true;
       chartDraw();
       sparkline();
     })
     .catch(() => {});
-}
-
-function chartSize(){
-  const dpr = window.devicePixelRatio || 1;
-  const w = cv.clientWidth, h = cv.clientHeight;
-  if(cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)){
-    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
-  }
-  cx.setTransform(dpr,0,0,dpr,0,0);
-  return {w, h};
-}
-
-// A gridline step that lands on a number a person would have chosen: 1, 2 or
-// 5 times a power of ten, never 1.37.
-function niceStep(range, want){
-  const raw = range / Math.max(1, want);
-  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-  const norm = raw / mag;
-  return (norm > 5 ? 10 : norm > 2 ? 5 : norm > 1 ? 2 : 1) * mag;
 }
 
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
@@ -8457,398 +8496,223 @@ function ticketPnl(t){
   return {sign: Math.sign(pts), text: `${pts >= 0 ? "+" : "−"}${num(Math.abs(pts), 0)} pts`
     + ` (${pts >= 0 ? "+" : "−"}${Math.abs(pts / e * 100).toFixed(2)}%)`};
 }
-// A badge in the plot's top-left corner: which contract, and what it is worth
+// A badge in the chart's top-left corner: which contract, and what it is worth
 // since entry. Green up, red down, neutral at zero - with the sign in the text
 // too, so colour is never the only thing saying which way it went.
-function pnlBadge(g, x, y, t){
-  const p = ticketPnl(t);
-  if(!p) return;
-  const cs = getComputedStyle(document.documentElement);
-  const bg = p.sign > 0 ? cs.getPropertyValue("--up").trim()
-           : p.sign < 0 ? cs.getPropertyValue("--down").trim() : "#1b1e26";
-  const text = `${contractName(t.index, t.strike, t.option_type, t.cfd)} · P&L ${p.text}`;
-  g.save();
-  g.font = "600 12px -apple-system,sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
-  const tw = g.measureText(text).width + 18;
-  g.fillStyle = bg;
-  g.beginPath();
-  if(g.roundRect) g.roundRect(x, y, tw, 24, 7); else g.rect(x, y, tw, 24);
-  g.fill();
-  g.fillStyle = onColour(bg);
-  g.fillText(text, x + 9, y + 12.5);
-  g.restore();
+function chBadge(t){
+  const el = $("cvbadge");
+  if(!el) return;
+  const p = t ? ticketPnl(t) : null;
+  if(!p){ el.hidden = true; return; }
+  const bg = p.sign > 0 ? css("--up") : p.sign < 0 ? css("--down") : "#1b1e26";
+  el.style.background = bg;
+  el.style.color = onColour(bg);
+  el.textContent = `${contractName(t.index, t.strike, t.option_type, t.cfd)} · P&L ${p.text}`;
+  el.hidden = false;
 }
 
-function chartDraw(){
-  const {w,h} = chartSize();
-  const C = {
-    ink: css("--ink"), ink2: css("--ink-2"), ink3: css("--ink-3"),
-    bd: css("--bd"), bdSoft: css("--bd-soft"), bg: css("--bg"),
-    up: css("--up"), down: css("--down"), warn: css("--warn"),
-    accent: css("--accent"), fast: css("--ema-fast"), slow: css("--ema-slow"),
-    vwap: css("--vwap"), rsi: css("--rsi"), macdLine: css("--macd-line"), macdSignal: css("--macd-signal"),
-    adx: css("--adx"), supertrend: css("--supertrend"),
-  };
-  cx.clearRect(0,0,w,h);
-  cx.fillStyle = C.bg; cx.fillRect(0,0,w,h);
-
-  const d = CH.data, bars = (d && d.candles) || [];
-  if(!bars.length){
-    cx.fillStyle = C.ink3; cx.font = "13px -apple-system,sans-serif";
-    cx.textAlign = "center";
-    cx.fillText("waiting for candles…", w/2, h/2);
-    $("cvlegend").textContent = "";
-    if($("cvkeys")) $("cvkeys").textContent = "";
-    return;
-  }
-
-  CH.n  = Math.max(CH_MIN_BARS, Math.min(CH_MAX_BARS, Math.min(CH.n, bars.length)));
-  CH.i0 = Math.max(0, Math.min(bars.length - CH.n, CH.i0));
-  const i0 = CH.i0, i1 = Math.min(bars.length, i0 + CH.n);
-  const view = bars.slice(i0, i1);
-
-  const plotW = w - PAD.l - PAD.r, plotH = h - PAD.t - PAD.b;
-  const bw = plotW / view.length;
-
-  // ---- price pane vs. the RSI/MACD sub-panes below it -----------------
-  // Each sub-pane gets a modest, roughly fixed height regardless of the
-  // canvas's own height (the way Kite/TradingView keep them) - the price
-  // pane, the one that matters most, gets whatever is left over.
-  // Beside the Signal card (a wide screen) the chart is the PRICE alone - candles, EMAs, VWAP, Supertrend and the
-  // ticket's own entry, stop and targets - so it reads at a glance next to the trade; RSI, MACD and ADX have the Chart
-  // tab, which has the room for them (the user, 8 Oct 2026: "if the chart doest look in the signal section you can
-  // remove or disign it in more good looking way").
-  const beside = TAB === "signal";
-  const hasRsi = !beside && !!d.rsi, hasMacd = !beside && !!(d.macd_line || d.macd_hist), hasAdx = !beside && !!d.adx;
-  const subCount = (hasRsi?1:0) + (hasMacd?1:0) + (hasAdx?1:0);
-  const paneGap = 10;
-  const subH = subCount ? Math.max(50, Math.min(90, plotH * 0.16)) : 0;
-  const priceTop = PAD.t;
-  const priceH = Math.max(60, plotH - subCount * (subH + paneGap));
-  let rsiTop = null, macdTop = null, adxTop = null, nextTop = priceTop + priceH;
-  if(hasRsi){ nextTop += paneGap; rsiTop = nextTop; nextTop += subH; }
-  if(hasMacd){ nextTop += paneGap; macdTop = nextTop; nextTop += subH; }
-  if(hasAdx){ nextTop += paneGap; adxTop = nextTop; nextTop += subH; }
-
-  // ---- price range over what is actually on screen -------------------
-  let lo = Infinity, hi = -Infinity;
-  for(const b of view){ if(b[3] < lo) lo = b[3]; if(b[2] > hi) hi = b[2]; }
-  const overlays = [d.ema_fast, d.ema_slow, d.vwap, d.supertrend];
-  for(const arr of overlays){
-    if(!arr) continue;
-    for(let i=i0;i<i1;i++){ const v=arr[i];
-      if(v!=null){ if(v<lo) lo=v; if(v>hi) hi=v; } }
-  }
-  // Levels are drawn, so they are included — but only when they are near
-  // enough not to squash the candles into a band. An ATR-derived target
-  // always is; a stale one from another session might not be.
-  // While a ticket is open the chart shows THAT ticket: its levels froze at
-  // entry, and the live signal's can drift away from the position actually held.
-  const TK = openTicketFor(CH.key);
+// One server candle [epoch seconds, open, high, low, close, volume] as the library's bar, on the IST-shifted axis
+// (as the strike chart: the axis reads IST wall-clock).
+function chBar(b){ return {time: b[0] + IST_S, open: b[1], high: b[2], low: b[3], close: b[4]}; }
+// An indicator array, aligned bar for bar; a warm-up null is a gap, never a zero.
+function chLine(arr, bars){
+  return bars.map((b, i) => (arr && arr[i] != null) ? {time: b[0] + IST_S, value: arr[i]} : {time: b[0] + IST_S});
+}
+// The levels drawn on the price: while a ticket is open the chart shows THAT ticket - its levels froze at entry, and
+// the live signal's can drift away from the position actually held - else the live signal's. Room to run is live
+// either way (a reading of TODAY, not a term of the trade), on a finer dotted line: a different KIND of line.
+function chLevels(d, TK, C){
   const L = (TK && TK.index_targets)
     ? {t1: TK.index_targets[0], t2: TK.index_targets[1], t3: TK.index_targets[2],
        stop: TK.index_stop, entry: TK.entry_spot}
-    : ((d.levels)||{});
-  // How far the market can plausibly still move today, either way - live,
-  // never frozen to an open ticket's entry the way T1/T2/T3 are: it is a
-  // reading of TODAY, not a term of the trade. Present even with no signal
-  // at all, so a quiet day still shows what "quiet" means in points.
-  const R = d.room || {};
-  const span0 = (hi - lo) || 1;
-  for(const v of [L.t1,L.t2,L.t3,L.stop,L.entry,R.up_to,R.down_to]){
-    if(v==null) continue;
-    if(v > hi && v - hi > span0*0.9) continue;
-    if(v < lo && lo - v > span0*0.9) continue;
-    if(v<lo) lo=v; if(v>hi) hi=v;
+    : ((d && d.levels) || {});
+  const R = (d && d.room) || {};
+  return [[L.t1, "T1", C.up, "dash"], [L.t2, "T2", C.up, "dash"], [L.t3, "T3", C.up, "dash"],
+          [L.stop, "SL", C.down, "dash"], [L.entry, "Entry", C.warn, "dash"],
+          [R.up_to, "Room ↑", C.up, "dot"], [R.down_to, "Room ↓", C.down, "dot"]]
+    .filter(a => a[0] != null && isFinite(a[0]))
+    .map(([v, label, colour, style]) => ({v: Number(v), label, colour, style}));
+}
+// The price axis fitted to the candles, widened to take in the levels - only those near enough not to squash the
+// candles into a band (within 0.9 of the candles' own span): an ATR-derived target always is; a stale one may not be.
+function chWiden(r, vals){
+  if(!r || !r.priceRange) return r;
+  let lo = r.priceRange.minValue, hi = r.priceRange.maxValue;
+  const span = (hi - lo) || 1;
+  for(const v of vals){
+    if(v > hi && v - hi > span * 0.9) continue;
+    if(v < lo && lo - v > span * 0.9) continue;
+    lo = Math.min(lo, v); hi = Math.max(hi, v);
   }
-  const pad = (hi-lo||1) * 0.08; lo -= pad; hi += pad;
-  const span = hi - lo || 1;
-  const Y = v => priceTop + (hi - v) / span * priceH;
-  const X = i => PAD.l + (i - i0 + 0.5) * bw;
+  return {priceRange: {minValue: lo, maxValue: hi}, margins: r.margins};
+}
+function chColours(){
+  return {ink: css("--ink"), ink2: css("--ink-2"), ink3: css("--ink-3"), bd: css("--bd"), bdSoft: css("--bd-soft"),
+          bg: css("--bg"), up: css("--up"), down: css("--down"), warn: css("--warn"), accent: css("--accent"),
+          fast: css("--ema-fast"), slow: css("--ema-slow"), vwap: css("--vwap"), rsi: css("--rsi"),
+          macdLine: css("--macd-line"), macdSignal: css("--macd-signal"), adx: css("--adx"),
+          supertrend: css("--supertrend")};
+}
 
-  // ---- horizontal grid + price axis ----------------------------------
-  cx.font = "11px -apple-system,sans-serif";
-  cx.textBaseline = "middle";
-  const step = niceStep(span, Math.max(3, Math.round(plotH/62)));
-  cx.lineWidth = 1;
-  for(let v = Math.ceil(lo/step)*step; v <= hi; v += step){
-    const y = Math.round(Y(v)) + 0.5;
-    cx.strokeStyle = C.bdSoft;
-    cx.beginPath(); cx.moveTo(PAD.l, y); cx.lineTo(w - PAD.r, y); cx.stroke();
-    cx.fillStyle = C.ink3; cx.textAlign = "left";
-    cx.fillText(v.toLocaleString("en-IN",{maximumFractionDigits: step<1?2:0}),
-                w - PAD.r + 7, y);
+// The chart and its series. Beside the Signal card (a wide screen) it is the PRICE alone - candles, EMAs, VWAP,
+// Supertrend and the ticket's own entry, stop and targets - so it reads at a glance next to the trade; RSI, MACD and ADX
+// have the Chart tab, each in a pane of its own under the price (the user, 8 Oct 2026: "if the chart doest look in the
+// signal section you can remove or disign it in more good looking way"). Rebuilt when that or the theme changes,
+// keeping the view.
+function chBuild(mode, C){
+  const LW = window.LightweightCharts;
+  if(LWC.chart){
+    try{ LWC.keep = LWC.chart.timeScale().getVisibleLogicalRange(); }catch(e){ LWC.keep = null; }
+    LWC.chart.remove();
   }
-
-  // ---- vertical grid + time axis --------------------------------------
-  const fmtT = t => new Date(t*1000).toLocaleTimeString("en-IN",
-                     {hour:"2-digit", minute:"2-digit", hour12:false});
-  const fmtD = t => new Date(t*1000).toLocaleDateString("en-IN",
-                     {day:"2-digit", month:"short"});
-  const everyN = Math.max(1, Math.round(view.length / Math.max(2, Math.floor(plotW/86))));
-  cx.textAlign = "center"; cx.textBaseline = "top";
-  let lastDay = null;
-  const ticks = [];
-  for(let k=0;k<view.length;k++){
-    const t = view[k][0];
-    const day = new Date(t*1000).toDateString();
-    const newDay = lastDay !== null && day !== lastDay;
-    lastDay = day;
-    if(k % everyN !== 0 && !newDay) continue;
-    const x = Math.round(X(i0+k)) + 0.5;
-    cx.strokeStyle = newDay ? C.bd : C.bdSoft;
-    cx.beginPath(); cx.moveTo(x, PAD.t); cx.lineTo(x, PAD.t+plotH); cx.stroke();
-    ticks.push({x, day: newDay, text: newDay ? fmtD(t) : fmtT(t)});
-  }
-  // Labels only where they fit. A day boundary lands wherever the session
-  // starts, usually a bar or two from a regular tick, and the two used to be
-  // printed on top of each other ("09 Sept" over "09:45"). Day labels are
-  // placed first; a time label that would touch any placed label is skipped.
-  cx.fillStyle = C.ink3;
-  const placed = [];
-  const fits = (x, wd) => placed.every(p => x + wd/2 + 8 < p[0] || x - wd/2 - 8 > p[1]);
-  for(const pass of [true, false]){
-    for(const tk of ticks){
-      if(tk.day !== pass) continue;
-      const wd = cx.measureText(tk.text).width;
-      const x = Math.min(Math.max(tk.x, PAD.l + wd/2), w - PAD.r - wd/2);
-      if(!fits(x, wd)) continue;
-      placed.push([x - wd/2, x + wd/2]);
-      cx.fillText(tk.text, x, PAD.t+plotH+6);
-    }
-  }
-
-  // ---- overlays --------------------------------------------------------
-  function line(arr, colour, dash, yFn){
-    if(!arr) return;
-    const Yf = yFn || Y;
-    cx.save(); cx.strokeStyle = colour; cx.lineWidth = 1.4;
-    cx.setLineDash(dash||[]); cx.beginPath();
-    let started = false;
-    for(let i=i0;i<i1;i++){
-      const v = arr[i]; if(v == null){ started = false; continue; }
-      const x = X(i), y = Yf(v);
-      if(!started){ cx.moveTo(x,y); started = true; } else cx.lineTo(x,y);
-    }
-    cx.stroke(); cx.restore();
-  }
-  line(d.vwap, C.vwap, [4,3]);
-  line(d.ema_slow, C.slow);
-  line(d.ema_fast, C.fast);
-  // Not an entry input - config.TRAIL_AFTER_T1_SUPERTREND only ever reads
-  // its CURRENT value, same as every other overlay here; drawing the whole
-  // line is just the chart's usual way of showing where that came from.
-  line(d.supertrend, C.supertrend);
-
-  // ---- RSI / MACD sub-panes --------------------------------------------
-  // Each pane starts with a divider and a small label, then its own
-  // reference lines drawn UNDER the indicator line, the same layering the
-  // price pane's grid + candles already use.
-  function paneLabel(top, label){
-    cx.save();
-    cx.strokeStyle = C.bd; cx.lineWidth = 1;
-    cx.beginPath(); cx.moveTo(PAD.l, Math.round(top)+0.5); cx.lineTo(w-PAD.r, Math.round(top)+0.5); cx.stroke();
-    cx.fillStyle = C.ink3; cx.font = "10px -apple-system,sans-serif";
-    cx.textAlign = "left"; cx.textBaseline = "top";
-    cx.fillText(label, PAD.l+4, top+3);
-    cx.restore();
-  }
-  if(rsiTop != null){
-    paneLabel(rsiTop, `RSI ${d.rsi_len||14}`);
-    const rsiY = v => rsiTop + (100 - v) / 100 * subH;
-    cx.save(); cx.strokeStyle = C.bdSoft; cx.lineWidth = 1; cx.setLineDash([3,3]);
-    for(const lvl of [30,50,70]){
-      const y = Math.round(rsiY(lvl))+0.5;
-      cx.beginPath(); cx.moveTo(PAD.l, y); cx.lineTo(w-PAD.r, y); cx.stroke();
-    }
-    cx.restore();
-    cx.fillStyle = C.ink3; cx.font = "10px -apple-system,sans-serif";
-    cx.textAlign = "left"; cx.textBaseline = "middle";
-    for(const lvl of [30,70]) cx.fillText(String(lvl), w-PAD.r+7, rsiY(lvl));
-    line(d.rsi, C.rsi, null, rsiY);
-  }
-  if(macdTop != null){
-    paneLabel(macdTop, `MACD ${d.macd_fast||12},${d.macd_slow||26},${d.macd_sig_len||9}`);
-    // MACD has no fixed scale like RSI's 0-100 - symmetric around zero, sized
-    // to whatever is actually on screen.
-    let m = 1e-6;
-    for(const arr of [d.macd_line, d.macd_signal, d.macd_hist]){
-      if(!arr) continue;
-      for(let i=i0;i<i1;i++){ const v=arr[i]; if(v!=null) m = Math.max(m, Math.abs(v)); }
-    }
-    m *= 1.15;
-    const macdY = v => macdTop + (m - v) / (2*m) * subH;
-    cx.save(); cx.strokeStyle = C.bdSoft; cx.lineWidth = 1;
-    const zy = Math.round(macdY(0))+0.5;
-    cx.beginPath(); cx.moveTo(PAD.l, zy); cx.lineTo(w-PAD.r, zy); cx.stroke();
-    cx.restore();
-    if(d.macd_hist){
-      const hw = Math.max(1, bw*0.5);
-      for(let i=i0;i<i1;i++){
-        const v = d.macd_hist[i]; if(v==null) continue;
-        const x = X(i), y0 = macdY(0), y1 = macdY(v);
-        cx.fillStyle = v >= 0 ? C.up : C.down;
-        cx.fillRect(x-hw/2, Math.min(y0,y1), hw, Math.max(1, Math.abs(y1-y0)));
-      }
-    }
-    line(d.macd_line, C.macdLine, null, macdY);
-    line(d.macd_signal, C.macdSignal, [4,3], macdY);
-  }
-  if(adxTop != null){
-    paneLabel(adxTop, `ADX ${d.adx_len||14}`);
-    // No fixed scale like RSI's 0-100 - ADX rarely runs much past 40-50 - but
-    // the gate line must always be on screen even on a dead-quiet day when
-    // every reading sits well under it, so the floor is the gate itself.
-    let aMax = Math.max((d.adx_gate||20) * 1.5, 1e-6);
-    for(let i=i0;i<i1;i++){ const v=d.adx[i]; if(v!=null) aMax = Math.max(aMax, v*1.15); }
-    const adxY = v => adxTop + (aMax - v) / aMax * subH;
-    if(d.adx_gate != null){
-      cx.save(); cx.strokeStyle = C.warn; cx.lineWidth = 1; cx.setLineDash([3,3]);
-      const gy = Math.round(adxY(d.adx_gate))+0.5;
-      cx.beginPath(); cx.moveTo(PAD.l, gy); cx.lineTo(w-PAD.r, gy); cx.stroke();
-      cx.restore();
-      cx.fillStyle = C.warn; cx.font = "10px -apple-system,sans-serif";
-      cx.textAlign = "left"; cx.textBaseline = "middle";
-      cx.fillText(`gate ${d.adx_gate}`, w-PAD.r+7, gy);
-    }
-    line(d.adx, C.adx, null, adxY);
-  }
-
-  // ---- candles ---------------------------------------------------------
-  const body = Math.max(1, Math.min(bw*0.68, 14));
-  for(let k=0;k<view.length;k++){
-    const [t,o,hg,lw,c] = view[k];
-    const up = c >= o, colour = up ? C.up : C.down;
-    const x = X(i0+k);
-    cx.strokeStyle = colour; cx.fillStyle = colour; cx.lineWidth = 1;
-    cx.beginPath();
-    cx.moveTo(Math.round(x)+0.5, Y(hg)); cx.lineTo(Math.round(x)+0.5, Y(lw));
-    cx.stroke();
-    const yo = Y(o), yc = Y(c);
-    const top = Math.min(yo,yc), tall = Math.max(1, Math.abs(yc-yo));
-    if(bw < 2.2) { cx.fillRect(Math.round(x), top, 1, tall); }
-    else if(up) { // hollow up candles, the way Kite draws them
-      cx.fillStyle = C.bg;
-      cx.fillRect(x-body/2, top, body, tall);
-      cx.strokeRect(Math.round(x-body/2)+0.5, Math.round(top)+0.5,
-                    Math.round(body), Math.round(tall));
-    } else {
-      cx.fillRect(x-body/2, top, body, tall);
-    }
-  }
-
-  // ---- levels ----------------------------------------------------------
-  // Lines at their true prices; the tags on the right are spread at least a
-  // tag's height apart, because T1, T2 and T3 are often a few points from
-  // each other and their tags used to print one over the next.
-  // Room to run gets its own, finer dotted line - a market reading, not a
-  // trade level, and it needs to read as a different KIND of line at a
-  // glance, not just a different colour.
-  const lv = [[L.t1, "T1", C.up], [L.t2, "T2", C.up], [L.t3, "T3", C.up], [L.stop, "SL", C.down],
-              [L.entry, "Entry", C.warn], [R.up_to, "Room ↑", C.up, [2,3]],
-              [R.down_to, "Room ↓", C.down, [2,3]]]
-    .filter(a => a[0] != null)
-    .map(a => ({v: a[0], label: a[1], colour: a[2], dash: a[3]||[5,4], y: Y(a[0])}))
-    .filter(a => a.y >= priceTop-1 && a.y <= priceTop+priceH+1);
-  lv.forEach(a => {
-    cx.save(); cx.strokeStyle = a.colour; cx.lineWidth = 1; cx.setLineDash(a.dash);
-    cx.beginPath(); cx.moveTo(PAD.l, Math.round(a.y)+0.5);
-    cx.lineTo(w-PAD.r, Math.round(a.y)+0.5); cx.stroke(); cx.restore();
-    a.ty = a.y;
+  const chart = LW.createChart(cv, {
+    autoSize: true,
+    layout: {background: {type: LW.ColorType.Solid, color: C.bg}, textColor: C.ink3, fontSize: 12,
+             panes: {separatorColor: C.bd, separatorHoverColor: C.bdSoft, enableResize: true}},
+    grid: {vertLines: {color: C.bdSoft}, horzLines: {color: C.bdSoft}},
+    rightPriceScale: {borderColor: C.bd},
+    timeScale: {borderColor: C.bd, timeVisible: CH.tf !== "1d", secondsVisible: false, rightOffset: 4},
+    crosshair: {mode: LW.CrosshairMode.Normal},
+    localization: {locale: "en-IN", priceFormatter: v => Number(v).toLocaleString("en-IN", {maximumFractionDigits: 2})},
+    // a vertical swipe over the chart on a phone still scrolls the page; a sideways one moves the chart
+    handleScroll: {vertTouchDrag: false},
   });
-  // The current-price tag is drawn after these at its own height and never
-  // moves, so it takes part as a fixed slot - otherwise it simply covered
-  // whichever target sat nearest the price, which is usually T1.
-  const lastBar = bars[bars.length-1];
-  const slots = lv.slice();
-  if(i1 >= bars.length && lastBar){
-    const py = Y(lastBar[4]);
-    if(py >= priceTop && py <= priceTop+priceH) slots.push({y: py, ty: py, fixed: true});
+  const over = {lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false};
+  const s = {};
+  s.candles = chart.addSeries(LW.CandlestickSeries, {
+    upColor: C.bg, borderUpColor: C.up, wickUpColor: C.up,            // hollow up candles, the way Kite draws them
+    downColor: C.down, borderDownColor: C.down, wickDownColor: C.down, borderVisible: true,
+    priceFormat: {type: "price", precision: 2, minMove: 0.01},
+    autoscaleInfoProvider: original => chWiden(original(), LWC.levelVals)});
+  s.vwap = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.vwap, lineStyle: LW.LineStyle.Dashed}));
+  s.slow = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.slow}));
+  s.fast = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.fast}));
+  // Not an entry input - config.TRAIL_AFTER_T1_SUPERTREND only ever reads its CURRENT value; the whole line is the
+  // chart's usual way of showing where that came from.
+  s.st = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.supertrend}));
+  if(mode === "full"){
+    const sub = {lineWidth: 1, priceLineVisible: false, crosshairMarkerVisible: false};
+    s.rsi = chart.addSeries(LW.LineSeries, Object.assign({}, sub, {color: C.rsi, title: "RSI",
+              autoscaleInfoProvider: () => ({priceRange: {minValue: 0, maxValue: 100}})}), 1);
+    for(const lvl of [30, 50, 70])
+      s.rsi.createPriceLine({price: lvl, color: C.ink3, lineWidth: 1, lineStyle: LW.LineStyle.Dotted,
+                             axisLabelVisible: false, title: ""});
+    s.hist = chart.addSeries(LW.HistogramSeries, {priceLineVisible: false, lastValueVisible: false}, 2);
+    s.macd = chart.addSeries(LW.LineSeries, Object.assign({}, sub, {color: C.macdLine, title: "MACD"}), 2);
+    s.sig = chart.addSeries(LW.LineSeries, Object.assign({}, sub, {color: C.macdSignal, lastValueVisible: false,
+              lineStyle: LW.LineStyle.Dashed}), 2);
+    // ADX rarely runs much past 40-50, but the gate must always be on screen, even on a dead-quiet day when every
+    // reading sits under it: the scale runs from 0 to at least half again the gate
+    s.adx = chart.addSeries(LW.LineSeries, Object.assign({}, sub, {color: C.adx, title: "ADX",
+              autoscaleInfoProvider: original => {
+                const r = original(), g = ((CH.data || {}).adx_gate) || 20;
+                const hi = Math.max(g * 1.5, r && r.priceRange ? r.priceRange.maxValue * 1.1 : 0);
+                return {priceRange: {minValue: 0, maxValue: hi}};
+              }}), 3);
+    // the price pane gets most of the height; each indicator a modest pane, the way Kite and TradingView keep them
+    chart.panes().forEach((pn, i) => pn.setStretchFactor(i === 0 ? 5 : 1));
   }
-  const tagLo = priceTop + 8, tagHi = priceTop + priceH - 8, GAP = 17;
-  for(let pass = 0; pass < 30; pass++){
-    slots.sort((a, b) => a.ty - b.ty);
-    let moved = false;
-    for(let i = 1; i < slots.length; i++){
-      const a = slots[i-1], b = slots[i], d = b.ty - a.ty;
-      if(d >= GAP) continue;
-      const push = GAP - d; moved = true;
-      if(a.fixed){ b.ty += push; }
-      else if(b.fixed){ a.ty -= push; }
-      else { a.ty -= push / 2; b.ty += push / 2; }
-    }
-    slots.forEach(t => { if(!t.fixed) t.ty = Math.min(tagHi, Math.max(tagLo, t.ty)); });
-    if(!moved) break;
-  }
-  lv.forEach(a => {
-    cx.save();
-    cx.font = "10px -apple-system,sans-serif";
-    const txt = a.label + " " + Math.round(a.v).toLocaleString("en-IN");
-    const tw = Math.max(PAD.r, Math.ceil(cx.measureText(txt).width) + 8);   // reaches into the plot only when it must
-    cx.fillStyle = a.colour;
-    cx.fillRect(w-tw, a.ty-8, tw, 16);
-    cx.fillStyle = onColour(a.colour);
-    cx.textAlign = "left"; cx.textBaseline = "middle";
-    cx.fillText(txt, w-tw+4, a.ty);
-    cx.restore();
+  chart.subscribeCrosshairMove(pt => {
+    const b = pt && pt.time != null ? pt.seriesData.get(LWC.s.candles) : null;
+    LWC.hover = b && b.open != null ? [b.time - IST_S, b.open, b.high, b.low, b.close] : null;
+    chLegend(LWC.hover);
   });
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => {
+    const was = CH.pinned;
+    CH.pinned = !r || r.to >= LWC.n - 1.5;       // the newest candle in view
+    if(was !== CH.pinned) chLegend(LWC.hover);
+  });
+  Object.assign(LWC, {chart, s, lines: [], gate: null, lvSig: null, drawn: null});
+}
 
-  if(TK) pnlBadge(cx, PAD.l + 8, PAD.t + 6, TK);
-
-  // ---- last price ------------------------------------------------------
-  const last = bars[bars.length-1];
-  if(i1 >= bars.length){
-    const y = Y(last[4]);
-    cx.save();
-    cx.strokeStyle = C.ink3; cx.setLineDash([2,3]); cx.lineWidth = 1;
-    cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
-    cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
-    cx.setLineDash([]);
-    const lastBg = last[4] >= last[1] ? C.up : C.down;
-    cx.fillStyle = lastBg;
-    cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
-    cx.fillStyle = onColour(lastBg); cx.font = "600 11px -apple-system,sans-serif";
-    cx.textAlign = "left"; cx.textBaseline = "middle";
-    cx.fillText(last[4].toLocaleString("en-IN",{maximumFractionDigits:2}),
-                w-PAD.r+5, y);
-    cx.restore();
+// Everything, in full: a fresh fetch, a new index or timeframe, or a rebuilt chart. The view survives a refresh: on the
+// newest candle it stays there; scrolled back, it stays on the same TIMES (the server's window can gain or drop bars at
+// its start, so the same candle index is not the same candle).
+function chFill(d, bars, C){
+  const s = LWC.s, ts = LWC.chart.timeScale();
+  const view = (d.index || "") + "|" + (d.interval || "");
+  const fresh = LWC.view !== view, wasPinned = CH.pinned;
+  let keepTime = null;
+  if(!fresh && !wasPinned && LWC.drawn){ try{ keepTime = ts.getVisibleRange(); }catch(e){} }
+  LWC.chart.applyOptions({timeScale: {timeVisible: d.interval !== "1d"}});
+  s.candles.setData(bars.map(chBar));
+  s.vwap.setData(chLine(d.vwap, bars));
+  s.slow.setData(chLine(d.ema_slow, bars));
+  s.fast.setData(chLine(d.ema_fast, bars));
+  s.st.setData(chLine(d.supertrend, bars));
+  if(s.rsi){
+    s.rsi.setData(chLine(d.rsi, bars));
+    s.macd.setData(chLine(d.macd_line, bars));
+    s.sig.setData(chLine(d.macd_signal, bars));
+    s.hist.setData(bars.map((b, i) => {
+      const v = d.macd_hist && d.macd_hist[i];
+      return v == null ? {time: b[0] + IST_S} : {time: b[0] + IST_S, value: v, color: v >= 0 ? C.up : C.down};
+    }));
+    s.adx.setData(chLine(d.adx, bars));
+    // the threshold the live gate actually holds ADX to: WHERE weak turns into tradeable
+    if(LWC.gate) s.adx.removePriceLine(LWC.gate);
+    LWC.gate = d.adx_gate == null ? null
+      : s.adx.createPriceLine({price: d.adx_gate, color: C.warn, lineWidth: 1, axisLabelVisible: true,
+                               lineStyle: window.LightweightCharts.LineStyle.Dashed, title: "gate"});
   }
+  LWC.drawn = d; LWC.n = bars.length; LWC.view = view;
+  if(fresh) chView();
+  else if(LWC.keep) ts.setVisibleLogicalRange(LWC.keep);       // a rebuilt chart, the same data: the same candles
+  else if(wasPinned){ ts.scrollToRealTime(); CH.pinned = true; }
+  else if(keepTime) ts.setVisibleRange(keepTime);
+  LWC.keep = null;
+}
 
-  // ---- crosshair -------------------------------------------------------
-  let readout = last, hoverIdx = bars.length-1;
-  if(CH.hover){
-    const k = Math.max(0, Math.min(view.length-1,
-                Math.floor((CH.hover.x - PAD.l) / bw)));
-    hoverIdx = i0 + k; readout = bars[hoverIdx];
-    const x = Math.round(X(hoverIdx)) + 0.5;
-    // The horizontal line and the price it reads stay within the price pane
-    // even when the pointer is actually down over RSI/MACD - there is no
-    // price to read there, so this is the nearest sensible thing to show.
-    const y = Math.max(priceTop, Math.min(priceTop+priceH, CH.hover.y));
-    cx.save();
-    cx.strokeStyle = C.ink3; cx.setLineDash([3,3]); cx.lineWidth = 1;
-    cx.beginPath(); cx.moveTo(x, PAD.t); cx.lineTo(x, PAD.t+plotH); cx.stroke();
-    cx.beginPath(); cx.moveTo(PAD.l, Math.round(y)+0.5);
-    cx.lineTo(w-PAD.r, Math.round(y)+0.5); cx.stroke();
-    cx.setLineDash([]);
-    // price under the pointer, on the axis
-    const pv = hi - (y - priceTop) / priceH * span;
-    cx.fillStyle = C.ink; cx.fillRect(w-PAD.r, y-9, PAD.r, 18);
-    cx.fillStyle = onColour(C.ink); cx.font = "11px -apple-system,sans-serif";
-    cx.textAlign = "left"; cx.textBaseline = "middle";
-    cx.fillText(pv.toLocaleString("en-IN",{maximumFractionDigits:2}), w-PAD.r+5, y);
-    // time under the pointer, on the bottom axis
-    const lbl = fmtD(readout[0]) + " " + fmtT(readout[0]);
-    cx.font = "11px -apple-system,sans-serif"; cx.textAlign = "center";
-    const tw = cx.measureText(lbl).width + 12;
-    cx.fillStyle = C.ink;
-    cx.fillRect(Math.min(w-PAD.r-tw/2, Math.max(tw/2, x))-tw/2, PAD.t+plotH+2, tw, 17);
-    cx.fillStyle = onColour(C.ink); cx.textBaseline = "top";
-    cx.fillText(lbl, Math.min(w-PAD.r-tw/2, Math.max(tw/2, x)), PAD.t+plotH+6);
-    cx.restore();
+// The levels as price lines on the candles - redrawn only when one of them changes, not on every tick.
+function chLevelsApply(d, C){
+  const lv = chLevels(d, openTicketFor(CH.key), C);
+  const sig = JSON.stringify(lv.map(a => [a.v, a.label, a.colour]));
+  if(sig === LWC.lvSig) return;
+  LWC.lvSig = sig;
+  for(const ln of LWC.lines) LWC.s.candles.removePriceLine(ln);
+  LWC.levelVals = lv.map(a => a.v);
+  const LS = window.LightweightCharts.LineStyle;
+  LWC.lines = lv.map(a => LWC.s.candles.createPriceLine({price: a.v, color: a.colour, lineWidth: 1,
+    lineStyle: a.style === "dot" ? LS.SparseDotted : LS.Dashed, axisLabelVisible: true, title: a.label}));
+}
+
+// The newest candles, the latest at the right edge - on first load, on Reset and on a double-click: CH_VIEW of them on a
+// wide chart, about one per 6 pixels on a narrow one (a phone's 350px would otherwise get 130 hairlines).
+function chView(){
+  if(!LWC.chart || !LWC.n) return;
+  const want = Math.max(40, Math.min(CH_VIEW, Math.floor((cv.clientWidth || 800) / 6)));
+  LWC.chart.timeScale().setVisibleLogicalRange({from: Math.max(0, LWC.n - want) - 0.5, to: LWC.n - 1 + 4});
+  CH.pinned = true;
+}
+// The buttons zoom about the right edge, where the price is now; the wheel and a pinch zoom where they point.
+function chartZoom(factor){
+  const ts = LWC.chart && LWC.chart.timeScale(), r = ts && ts.getVisibleLogicalRange();
+  if(!r) return;
+  const w = Math.max(20, Math.min(600, (r.to - r.from) * factor));
+  ts.setVisibleLogicalRange({from: r.to - w, to: r.to});
+}
+function chartReset(){ chView(); chLegend(LWC.hover); }
+
+// Zerodha's own chart, as links: the index on the chart's toolbar; the open ticket's strike there and on the Signal
+// card (the server sends them with the candles - none off Zerodha).
+function chKite(d){
+  const k = (d && d.kite) || {};
+  const tkOpen = !!openTicketFor(CH.key);
+  for(const [id, url] of [["cvkite", k.index], ["cvkite2", tkOpen && k.contract], ["tkite", tkOpen && k.contract]]){
+    const a = $(id);
+    if(!a) continue;
+    if(url){ a.href = url; a.hidden = false; } else { a.removeAttribute("href"); a.hidden = true; }
   }
+  for(const id of ["cvkite2", "tkite"])
+    if($(id) && k.contract_name) $(id).title = `Zerodha's own chart of ${k.contract_name}, in a new tab`;
+}
 
-  // ---- the OHLC readout, in the bar above the canvas -------------------
+// The OHLC readout, in the bar above the chart: the candle under the pointer, else the newest.
+function chLegend(readout){
+  const d = CH.data, bars = (d && d.candles) || [];
+  if(!bars.length){ $("cvlegend").textContent = ""; return; }
+  readout = readout || bars[bars.length - 1];
+  const C = {up: css("--up"), down: css("--down")};
   const f = v => v==null ? "—" : v.toLocaleString("en-IN",{maximumFractionDigits:2});
   const chg = readout[4] - readout[1];
   const pc  = readout[1] ? (chg/readout[1]*100) : 0;
@@ -8861,10 +8725,15 @@ function chartDraw(){
   + `<span>C <b>${f(readout[4])}</b></span>`
   + `<span style="color:${cc}">${chg>=0?"+":""}${f(chg)} (${chg>=0?"+":""}${pc.toFixed(2)}%)</span>`
   + (CH.pinned ? "" : `<span class="o">scrolled back — press Reset</span>`);
-  // the indicator keys on a slim row of their own under the toolbar (7 Oct 2026: the readout, the keys and the
-  // buttons used to wrap onto three lines)
+}
+
+// The indicator keys on a slim row of their own under the toolbar (7 Oct 2026: the readout, the keys and the buttons
+// used to wrap onto three lines); RSI, MACD and ADX only where they are drawn.
+function chKeys(d, C){
   const keys = $("cvkeys");
-  if(keys) keys.innerHTML =
+  if(!keys) return;
+  if(!d){ keys.textContent = ""; return; }
+  keys.innerHTML =
     `<span class="o">EMA ${d.ema_fast_len||20}<i class="key" style="display:inline-block;`
   + `margin-left:5px;background:${C.fast}"></i></span>`
   + `<span class="o">EMA ${d.ema_slow_len||50}<i class="key" style="display:inline-block;`
@@ -8882,102 +8751,47 @@ function chartDraw(){
              + `<i class="key" style="display:inline-block;margin-left:5px;background:${C.supertrend}"></i></span>` : "");
 }
 
-// ---- interaction --------------------------------------------------------
-function chartZoom(factor, anchorX){
-  const bars = ((CH.data||{}).candles)||[];
-  if(!bars.length) return;
-  const plotW = cv.clientWidth - PAD.l - PAD.r;
-  const frac = anchorX == null ? 1 : Math.max(0, Math.min(1, (anchorX-PAD.l)/plotW));
-  const at = CH.i0 + frac * CH.n;                 // keep this bar under the cursor
-  const next = Math.max(CH_MIN_BARS, Math.min(CH_MAX_BARS,
-                 Math.min(bars.length, Math.round(CH.n * factor))));
-  CH.i0 = Math.round(at - frac * next);
-  CH.n = next;
-  CH.i0 = Math.max(0, Math.min(bars.length - CH.n, CH.i0));
-  CH.pinned = (CH.i0 + CH.n >= bars.length);
-  chartDraw();
+// Called whenever the data, the tab, the theme or the open ticket may have changed - and on every streamed tick, when
+// only the newest candle moves: that is one update() to the library, not a redraw of everything.
+function chartDraw(){
+  const d = CH.data, bars = (d && d.candles) || [];
+  chKite(d);
+  if(!window.LightweightCharts){
+    ocLib().then(() => chartDraw())
+      .catch(() => { $("cvwait").hidden = false; $("cvwait").textContent = "The chart library could not be loaded."; });
+    return;
+  }
+  const C = chColours();
+  const mode = TAB === "signal" ? "price" : "full";
+  const look = mode + "|" + [C.bg, C.ink3, C.bd, C.bdSoft, C.up, C.down, C.warn, C.fast, C.slow, C.vwap,
+                             C.supertrend, C.rsi, C.macdLine, C.macdSignal, C.adx].join(",");
+  if(!LWC.chart || LWC.look !== look){ chBuild(mode, C); LWC.look = look; }
+  $("cvwait").hidden = bars.length > 0;
+  if(!bars.length){
+    $("cvwait").textContent = "waiting for candles…";
+    if(LWC.drawn){ Object.values(LWC.s).forEach(x => x.setData([])); LWC.drawn = null; LWC.n = 0; }
+    $("cvlegend").textContent = "";
+    chKeys(null, C);
+    chBadge(null);
+    return;
+  }
+  chLevelsApply(d, C);               // before the data: the price axis reads the levels when it fits itself
+  if(LWC.drawn !== d) chFill(d, bars, C);
+  else {
+    // the poll moved the forming candle, or opened a new one; the library keeps the view on the newest when it was
+    try{ LWC.s.candles.update(chBar(bars[bars.length - 1])); LWC.n = bars.length; }
+    catch(e){ chFill(d, bars, C); }
+  }
+  chBadge(openTicketFor(CH.key));
+  chLegend(LWC.hover);
+  chKeys(d, C);
 }
 
-cv.addEventListener("wheel", e => {
-  e.preventDefault();
-  const r = cv.getBoundingClientRect();
-  chartZoom(e.deltaY > 0 ? 1.15 : 1/1.15, e.clientX - r.left);
-}, {passive:false});
-
-// Two fingers down: pinch to zoom, drag the midpoint to pan while doing it -
-// the way TradingView's own touch chart behaves (the user, 29 Sep 2026).
-// One finger: the drag-to-pan above, unchanged. Pointer Events cover touch
-// as well as mouse (#cv already sets touch-action:none so the page itself
-// never steals a one-finger drag to scroll instead of panning the chart).
-const touchPts = new Map();      // pointerId -> {x,y}, only while 2+ are down
-
-cv.addEventListener("pointerdown", e => {
-  // A capture failure (a stale or already-released pointer id) must not skip
-  // the bookkeeping below - that is what actually drives panning and pinch.
-  try { cv.setPointerCapture(e.pointerId); } catch(err) {}
-  touchPts.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if(touchPts.size >= 2){
-    const pts = [...touchPts.values()];
-    CH.pinch = {dist: Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y)};
-    CH.drag = null;
-  } else {
-    CH.drag = {x:e.clientX, i0:CH.i0};
-    cv.style.cursor = "grabbing";
-  }
-});
-cv.addEventListener("pointermove", e => {
-  const r = cv.getBoundingClientRect();
-  CH.hover = {x: e.clientX - r.left, y: e.clientY - r.top};
-  if(touchPts.has(e.pointerId)) touchPts.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if(touchPts.size >= 2 && CH.pinch){
-    const pts = [...touchPts.values()];
-    const dist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-    const midX = (pts[0].x + pts[1].x) / 2 - r.left;
-    // Each frame's factor is against the PREVIOUS frame's distance, not the
-    // pinch's start - that is what keeps a long, uneven pinch smooth instead
-    // of jumping once the fingers have moved far from where they started.
-    if(CH.pinch.dist > 5 && dist > 5) chartZoom(CH.pinch.dist / dist, midX);
-    CH.pinch.dist = dist;
-    return;               // chartZoom already redrew; the pan path below is for one finger
-  }
-  if(CH.drag){
-    const bars = ((CH.data||{}).candles)||[];
-    const bw = (cv.clientWidth - PAD.l - PAD.r) / Math.max(1, CH.n);
-    const moved = Math.round((e.clientX - CH.drag.x) / bw);
-    CH.i0 = Math.max(0, Math.min(Math.max(0, bars.length - CH.n),
-                                 CH.drag.i0 - moved));
-    CH.pinned = (CH.i0 + CH.n >= bars.length);
-  }
-  chartDraw();
-});
-function endDrag(e){
-  if(e && e.pointerId != null) touchPts.delete(e.pointerId);
-  if(touchPts.size < 2) CH.pinch = null;
-  if(touchPts.size === 1){
-    // lifting one finger out of a pinch keeps panning with the other, rather
-    // than needing a fresh touch-down to resume
-    const p = [...touchPts.values()][0];
-    CH.drag = {x: p.x, i0: CH.i0};
-  } else if(touchPts.size === 0){
-    CH.drag = null; cv.style.cursor = "crosshair";
-  }
-}
-cv.addEventListener("pointerup", endDrag);
-cv.addEventListener("pointercancel", endDrag);
-cv.addEventListener("pointerleave", e => { endDrag(e); CH.hover = null; chartDraw(); });
 cv.addEventListener("dblclick", () => chartReset());
-
-function chartReset(){
-  const bars = ((CH.data||{}).candles)||[];
-  CH.n = Math.min(130, Math.max(CH_MIN_BARS, bars.length || 130));
-  CH.i0 = Math.max(0, bars.length - CH.n);
-  CH.pinned = true;
-  chartDraw();
-}
-$("cvin").onclick    = () => chartZoom(1/1.3, null);
-$("cvout").onclick   = () => chartZoom(1.3, null);
+$("cvin").onclick    = () => chartZoom(1/1.3);
+$("cvout").onclick   = () => chartZoom(1.3);
 $("cvreset").onclick = () => chartReset();
-addEventListener("resize", () => { chartDraw(); sparkline(); heatMap(true); });
+addEventListener("resize", () => { sparkline(); heatMap(true); });
 
 // The same checks as bars, in the Signal section itself, drawn like the
 // indicator gauges: a bar to the right for agrees, to the left for against, none
@@ -9565,7 +9379,6 @@ async function priceTick(){
       last[1]=bar.o; last[2]=bar.h; last[3]=bar.l; last[4]=bar.c;
     } else if(bar.t > last[0]){                  // a new bar has opened
       bars.push([bar.t, bar.o, bar.h, bar.l, bar.c, null]);
-      if(CH.pinned) CH.i0 = Math.max(0, bars.length - CH.n);
     }
     chartDraw();
   }

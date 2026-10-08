@@ -3,7 +3,8 @@
 
 16 Sep 2026: the crosshair price and time tags were painted with --ink - a
 near-white grey - and then written in white, so the number could not be seen at
-all. This checks the four tags ask onColour() for their text, and re-does
+all. This checks the tags painted here ask onColour() for their text (since 8 Oct
+2026 only the P&L badge - the library draws the rest), and re-does
 onColour()'s arithmetic here against the real theme colours: the colour it picks
 must be the higher-contrast of black and white, and must clear WCAG AA (4.5:1).
 """
@@ -39,16 +40,15 @@ DARK = "#0a0d14"
 pick = lambda bg: DARK if contrast(DARK, bg) >= contrast("#ffffff", bg) else "#ffffff"
 
 print("1. THE TAGS ASK FOR A READABLE COLOUR")
-start = SRC.index("function chartDraw()")
-chart = SRC[start:SRC.index("function chartZoom(", start)]   # chartSize is defined ABOVE chartDraw
-check("no tag is hard-coded white any more", 'fillStyle = "#fff"' not in chart,
-      re.findall(r'.*fillStyle = "#fff".*', chart)[:2])
+# Since 8 Oct 2026 the index chart is TradingView's Lightweight Charts: the level, last-price and crosshair tags are the
+# library's own, and it picks each label's text by contrast with the tag. The one tag still painted here is the open
+# ticket's P&L badge over the chart - it asks onColour() as the canvas tags did.
+start = SRC.index("// THE CHART")
+chart = SRC[start:SRC.index('cv.addEventListener("dblclick"', start)]
+check("no tag is hand-painted on a canvas any more - the library draws them", "fillStyle" not in chart and "fillText" not in chart,
+      re.findall(r".*fill(?:Style|Text).*", chart)[:2])
 check("onColour() exists", "function onColour(bg)" in SRC)
-for what, where in (("level tags (T1/T2/T3/SL)", "onColour(a.colour)"),
-                    ("the last price", "onColour(lastBg)"),
-                    ("the crosshair price and time", "onColour(C.ink)")):
-    check(f"{what} take their text from the tag colour", where in chart,
-          f"{chart.count(where)} use(s)")
+check("the P&L badge takes its text from its own background", "el.style.color = onColour(bg);" in chart)
 
 print("2. THE COLOUR IT PICKS IS ACTUALLY READABLE")
 themes = re.findall(r"--ink:(#[0-9a-fA-F]{3,6});.*?\n\s*--up:(#[0-9a-fA-F]{3,6}); --down:(#[0-9a-fA-F]{3,6});", SRC, re.S)

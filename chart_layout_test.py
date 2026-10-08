@@ -20,14 +20,18 @@ pane = SRC[SRC.index('<section class="pane" data-pane="chart">'):]
 pane = pane[:pane.index("</section>")]
 check("one legend: the keys' own row under the toolbar, no fixed legend under the canvas",
       '<div class="chartkeys" id="cvkeys"></div>' in pane and 'class="legend"' not in pane and "Up candle" not in pane)
-draw = SRC[SRC.index("// ---- the OHLC readout, in the bar above the canvas"):]
-draw = draw[:draw.index("\n}\n")]
-readout, keys = draw.split("const keys = $(\"cvkeys\");")
+readout = SRC[SRC.index("function chLegend(readout){"):]
+readout = readout[:readout.index("\n}\n")]
+keys = SRC[SRC.index("function chKeys(d, C){"):]
+keys = keys[:keys.index("\n}\n")]
 check("the readout keeps the prices, the keys row the indicators",
       "O <b>" in readout and "EMA " not in readout and "EMA ${d.ema_fast_len||20}" in keys and "Supertrend" in keys)
-check("a level's tag is as wide as its words, reaching into the plot only when it must",
-      "Math.max(PAD.r, Math.ceil(cx.measureText(txt).width) + 8)" in SRC and "cx.fillRect(w-tw, a.ty-8, tw, 16);" in SRC
-      and "cx.fillRect(w-PAD.r, a.ty-8, PAD.r, 16);" not in SRC)
+# (8 Oct 2026: the tags are the chart library's own price-line labels, sized to their words, kept apart on the axis)
+check("a level's tag is as wide as its words: the library's own label, titled with the level's name",
+      "axisLabelVisible: true, title: a.label}" in SRC and "cx.fillRect(" not in SRC)
+check("Zerodha's own chart is a link on the toolbar, opening in a new tab, hidden until there is one",
+      '<a class="lbtn kitebtn" id="cvkite" target="_blank" rel="noopener noreferrer" hidden' in pane
+      and 'id="cvkite2"' in pane and "a.lbtn.kitebtn[hidden]{display:none}" in SRC)
 check("a taller chart on a desktop", "@media (min-width:901px){#cv{height:clamp(430px,66vh,720px)}}" in SRC)
 check("Today's range shows where the price sits, drawn", 'tile("Where it is now"' in SRC and '<span class="rngbar"><i style="left:' in SRC)
 check("...as an unboxed strip in the Zerodha look", ':root[data-look="kite"] #trendtiles .tile{background:transparent;border:0' in SRC)

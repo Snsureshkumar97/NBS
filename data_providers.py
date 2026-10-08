@@ -595,13 +595,10 @@ class KiteDataProvider:
         return df.rename(columns={"date": "ts"})[
             ["ts", "open", "high", "low", "close", "volume"]]
 
-    def option_token(self, index_key: str, strike, option_type: str, expiry=None):
-        """Instrument token for one specific option contract, so the live
-        feed can stream that exact strike's price tick by tick."""
-        try:
-            _, opts = self._all_option_instruments(index_key)
-        except Exception:
-            return None
+    def _option_pick(self, index_key: str, strike, option_type: str, expiry=None):
+        """One option contract's row from the instrument list: that strike and side, at that expiry when it is
+        listed, else the nearest. None when there is no such contract."""
+        exchange, opts = self._all_option_instruments(index_key)
         cands = [i for i in opts
                  if int(i.get("strike") or 0) == int(strike)
                  and i.get("instrument_type") == option_type]
@@ -612,7 +609,28 @@ class KiteDataProvider:
             if exact:
                 cands = exact
         cands.sort(key=lambda i: str(i.get("expiry")))
-        return cands[0].get("instrument_token")
+        return dict(cands[0], _exchange=exchange)
+
+    def option_token(self, index_key: str, strike, option_type: str, expiry=None):
+        """Instrument token for one specific option contract, so the live
+        feed can stream that exact strike's price tick by tick."""
+        try:
+            inst = self._option_pick(index_key, strike, option_type, expiry)
+        except Exception:
+            return None
+        return inst.get("instrument_token") if inst else None
+
+    def option_instrument(self, index_key: str, strike, option_type: str, expiry=None):
+        """One option contract's segment, trading symbol and token - what a link to Zerodha's own chart of it
+        needs (8 Oct 2026). None when there is no such contract."""
+        try:
+            inst = self._option_pick(index_key, strike, option_type, expiry)
+        except Exception:
+            return None
+        if not inst or not inst.get("tradingsymbol") or not inst.get("instrument_token"):
+            return None
+        return {"segment": inst.get("segment") or f"{inst['_exchange']}-OPT",
+                "tradingsymbol": inst["tradingsymbol"], "token": int(inst["instrument_token"])}
 
     def chain_tokens(self, index_key: str, expiry):
         """Every option contract of one expiry, as {(strike, "CE"/"PE"): token}.
