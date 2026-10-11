@@ -1738,13 +1738,20 @@ DI_VOTE_MODE = "off"
 # An empty dict is today's rules for that market, unchanged. Keys:
 #   "add"         extra votes: "Supertrend" (price above/below its line),
 #                 "Volume" (a 15-minute candle on >= 1.5x the last 20 candles'
-#                 volume votes its own direction, else abstains), "+DI/-DI"
+#                 volume votes its own direction, else abstains), "+DI/-DI",
+#                 "Bollinger" (price above/below the bands' middle - the 20-candle
+#                 average), "Bollinger break" (a close above the upper band +1,
+#                 below the lower -1, inside them abstains) - BOLLINGER_* below
 #   "drop"        votes to remove: "Trend", "MACD", "RSI", "VWAP"
 #   "min_agree", "max_dissent", "adx"   override config.strictness() for this
 #                 market only
 # crypto since 6 Oct 2026 (the user, see CFD_RULES): Trend (EMA 20/50), MACD, VWAP - RSI dropped - all three must
 # agree, and ADX 25 or more.
 VOTE_OVERRIDES = {"nse_index": {}, "crypto": {"drop": ["RSI"], "min_agree": 3, "max_dissent": 0, "adx": 25}}
+# The Bollinger Bands the two "Bollinger" votes read: textbook 20 candles, 2 standard deviations (bollinger_vote_study.py,
+# 11 Oct 2026 - the user asked whether Bollinger Bands as a vote had been checked for the Indian market).
+BOLLINGER_LENGTH = 20
+BOLLINGER_MULT = 2.0
 
 # The BTC option SELLER (btc_seller.py) - PAPER ONLY: it records what it would do
 # and cannot place an order. The user, 2 Oct 2026: "yes build it in paper mode",

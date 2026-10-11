@@ -1,0 +1,77 @@
+Replaying the live system: 4 indices x 3 vote sets, side by side...
+  MIDCPNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  MIDCPNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  BANKNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  SENSEX: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  BANKNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  SENSEX: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  MIDCPNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  BANKNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  SENSEX: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+============================================================================================================================================================================
+ BOLLINGER (20, 2) AS A FIFTH VOTE - per lot, after costs, the live entry checks and exit.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                IN-SAMPLE (to 15 Aug 2025)                                          | HELD-OUT FINAL YEAR
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sensex  <- the votes decide entries here live
+    today (Trend / MACD / RSI / VWAP)             662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+    + Bollinger: above / below the middle band    674   39% ₹  +117,573 PF 1.20 DD ₹  33,585 day ₹  -6,694  |  391   36% ₹  +106,228 PF 1.36 DD ₹  29,319 day ₹  -7,928
+    + Bollinger break: outside a band             670   38% ₹  +114,031 PF 1.20 DD ₹  33,586 day ₹  -6,694  |  389   34% ₹   +87,060 PF 1.29 DD ₹  29,821 day ₹  -7,928
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Midcap Select  <- the votes decide entries here live
+    today (Trend / MACD / RSI / VWAP)             715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+    + Bollinger: above / below the middle band    728   42% ₹  +109,824 PF 1.13 DD ₹  40,126 day ₹ -12,603  |  400   38% ₹   +55,853 PF 1.11 DD ₹  53,146 day ₹ -12,274
+    + Bollinger break: outside a band             724   43% ₹  +131,549 PF 1.16 DD ₹  40,126 day ₹ -12,603  |  397   38% ₹   +66,373 PF 1.14 DD ₹  49,595 day ₹ -12,274
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nifty  (runs the Trend Rider live - for information)
+    today (Trend / MACD / RSI / VWAP)             658   40% ₹  +154,936 PF 1.30 DD ₹  26,870 day ₹  -8,555  |  388   35% ₹   +30,386 PF 1.09 DD ₹  39,151 day ₹  -7,734
+    + Bollinger: above / below the middle band    679   41% ₹  +170,674 PF 1.32 DD ₹  32,614 day ₹  -8,706  |  392   36% ₹   +44,656 PF 1.14 DD ₹  43,298 day ₹  -7,734
+    + Bollinger break: outside a band             669   41% ₹  +161,025 PF 1.31 DD ₹  29,281 day ₹  -9,247  |  389   35% ₹   +37,400 PF 1.11 DD ₹  42,373 day ₹  -7,734
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bank Nifty  (runs the Trend Rider live - for information)
+    today (Trend / MACD / RSI / VWAP)             685   39% ₹  +172,293 PF 1.26 DD ₹  45,450 day ₹  -8,498  |  392   37% ₹    -5,376 PF 0.99 DD ₹  57,190 day ₹  -8,181
+    + Bollinger: above / below the middle band    706   38% ₹  +144,289 PF 1.21 DD ₹  49,310 day ₹ -10,457  |  396   37% ₹    -6,138 PF 0.99 DD ₹  51,664 day ₹  -8,104
+    + Bollinger break: outside a band             698   39% ₹  +155,710 PF 1.23 DD ₹  46,743 day ₹ -10,457  |  395   36% ₹   -12,428 PF 0.97 DD ₹  63,378 day ₹  -8,181
+
+============================================================================================================================================================================
+ SENSEX + MIDCAP SELECT - where the votes decide entries live (the verdict)
+============================================================================================================================================================================
+    today (Trend / MACD / RSI / VWAP)            1377   40% ₹  +252,225 PF 1.18 DD ₹  54,512 day ₹ -16,567  |  775   37% ₹  +186,668 PF 1.25 DD ₹  40,927 day ₹ -20,203
+    + Bollinger: above / below the middle band   1402   41% ₹  +227,398 PF 1.16 DD ₹  55,908 day ₹ -16,567  |  791   37% ₹  +162,081 PF 1.21 DD ₹  57,309 day ₹ -20,203
+    + Bollinger break: outside a band            1394   41% ₹  +245,579 PF 1.17 DD ₹  54,627 day ₹ -16,567  |  786   36% ₹  +153,433 PF 1.20 DD ₹  62,293 day ₹ -20,203
+
+============================================================================================================================================================================
+ ALL FOUR UNDER THE TOOL'S RULES - for information
+============================================================================================================================================================================
+    today (Trend / MACD / RSI / VWAP)            2720   40% ₹  +579,454 PF 1.23 DD ₹  96,540 day ₹ -23,330  | 1555   36% ₹  +211,678 PF 1.14 DD ₹ 105,526 day ₹ -32,847
+    + Bollinger: above / below the middle band   2787   40% ₹  +542,360 PF 1.20 DD ₹ 102,513 day ₹ -25,898  | 1579   36% ₹  +200,600 PF 1.13 DD ₹ 130,005 day ₹ -32,847
+    + Bollinger break: outside a band            2761   40% ₹  +562,314 PF 1.21 DD ₹ 101,995 day ₹ -24,128  | 1570   36% ₹  +178,404 PF 1.12 DD ₹ 139,380 day ₹ -32,847
+
+ VERDICT (Sensex + Midcap Select) - kept only if better than today in BOTH periods
+   drop  + Bollinger: above / below the middle band   in-sample    -24,827  held-out    -24,587   worst drop: in-sample    +1,395  held-out   +16,382   trades   +25 /   +16
+   drop  + Bollinger break: outside a band            in-sample     -6,645  held-out    -33,236   worst drop: in-sample      +114  held-out   +21,367   trades   +17 /   +11
+
+ AGREEMENT WITH THE EMA TREND VOTE, every candle where both voted (+DI/-DI was 85% - mostly a re-vote)
+  SENSEX: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+   Sensex         middle band: 78.6% of 15,840 candles   band break: 91.7% of 1,804 candles
+  MIDCPNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+   Midcap Select  middle band: 79.2% of 15,805 candles   band break: 92.8% of 1,886 candles
+  NIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+   Nifty          middle band: 79.0% of 15,812 candles   band break: 92.2% of 1,747 candles
+  BANKNIFTY: 18,426 candles from cache (2023-09-18 to 2026-09-11)
+   Bank Nifty     middle band: 78.9% of 15,693 candles   band break: 92.9% of 1,753 candles

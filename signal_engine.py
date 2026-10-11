@@ -47,6 +47,7 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     # is switched on; "off" today). Computed always, like every other score
     # here, so a caller flipping the mode needs nothing else.
     plus_di, minus_di = ind.plus_minus_di(df, config.ADX_LENGTH)
+    bb_mid, bb_up, bb_lo = ind.bollinger(close, config.BOLLINGER_LENGTH, config.BOLLINGER_MULT)
 
     last_close = close.iloc[-1]
     last_rsi = rsi.iloc[-1]
@@ -74,6 +75,11 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     # volume votes its own direction; ordinary volume abstains. An index with no
     # volume of its own (all zero) always abstains.
     st_score = 1 if last_close > last_st else (-1 if last_close < last_st else 0)
+    # Bollinger Bands, two ways (votes only where config.VOTE_OVERRIDES adds them - nowhere today): which side of the
+    # bands' middle price closed, and whether it closed outside a band (inside them: abstain). NaN compares False -> 0.
+    last_bb_mid, last_bb_up, last_bb_lo = bb_mid.iloc[-1], bb_up.iloc[-1], bb_lo.iloc[-1]
+    bb_score = 1 if last_close > last_bb_mid else (-1 if last_close < last_bb_mid else 0)
+    bb_break_score = 1 if last_close > last_bb_up else (-1 if last_close < last_bb_lo else 0)
     vol_score = 0
     if "Volume" in df and len(df) > 21:
         v_now = float(df["Volume"].iloc[-1])
@@ -109,6 +115,8 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
         "di_score": di_score,
         "st_score": st_score,
         "vol_score": vol_score,
+        "bb_score": bb_score,
+        "bb_break_score": bb_break_score,
         "plus_di": round(float(last_pdi), 1) if last_pdi == last_pdi else None,
         "minus_di": round(float(last_mdi), 1) if last_mdi == last_mdi else None,
         "adx": round(float(last_adx), 1),
@@ -804,7 +812,8 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
     for name in vo.get("drop", ()):
         votes.pop(name, None)
     for name in vo.get("add", ()):
-        key = {"Supertrend": "st_score", "Volume": "vol_score", "+DI/-DI": "di_score"}.get(name)
+        key = {"Supertrend": "st_score", "Volume": "vol_score", "+DI/-DI": "di_score",
+               "Bollinger": "bb_score", "Bollinger break": "bb_break_score"}.get(name)
         if key and name not in votes:
             votes[name] = tech.get(key, 0)
             max_total += 1

@@ -204,6 +204,15 @@ def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
     return macd_line, signal_line, histogram
 
 
+def bollinger(series: pd.Series, length: int = 20, mult: float = 2.0):
+    """Bollinger Bands: (middle, upper, lower) - the `length`-period simple average, and `mult` standard deviations
+    either side of it. The deviation is the population one (ddof=0), as TradingView and Bollinger's own definition
+    compute it. NaN through the first length-1 bars."""
+    mid = series.rolling(length).mean()
+    sd = series.rolling(length).std(ddof=0)
+    return mid, mid + mult * sd, mid - mult * sd
+
+
 def fib_retracements(high: float, low: float) -> dict:
     """A range cut at 38.2%, 50% and 61.8%, measured up from its low.
 

@@ -220,6 +220,8 @@ def precompute(df, index_key=None):
     # previous 20 candles' average volume.
     out["st_line"] = ind.supertrend(df, *config.supertrend_params(index_key))[0]
     out["vol_avg20"] = df["Volume"].rolling(20).mean().shift(1) if "Volume" in df else np.nan
+    # ...and the Bollinger Bands the two "Bollinger" votes read (config.BOLLINGER_*)
+    out["bb_mid"], out["bb_up"], out["bb_lo"] = ind.bollinger(close, config.BOLLINGER_LENGTH, config.BOLLINGER_MULT)
     out["vwap"] = ind.vwap(df)
     out["swing_low"] = df["Low"].rolling(config.SWING_LOOKBACK, min_periods=1).min()
     out["swing_high"] = df["High"].rolling(config.SWING_LOOKBACK, min_periods=1).max()
@@ -270,13 +272,16 @@ def tech_at(df, pre, i):
         if va > 0 and float(df["Volume"].iloc[i]) >= 1.5 * va:
             o = float(df["Open"].iloc[i])
             vol_s = 1 if c > o else (-1 if c < o else 0)
+    bm, bu, bl = float(pre["bb_mid"].iloc[i]), float(pre["bb_up"].iloc[i]), float(pre["bb_lo"].iloc[i])
+    bb_s = 1 if c > bm else (-1 if c < bm else 0)               # NaN compares False -> 0, as live
+    bbk_s = 1 if c > bu else (-1 if c < bl else 0)
 
     return {
         "last_close": c, "last_rsi": r, "last_atr": float(pre["atr"].iloc[i]),
         "ema_fast": round(ef, 2), "ema_slow": round(es, 2),
         "trend_score": trend, "macd_score": macd_s, "macd_hist": round(h, 2),
         "rsi_score": rsi_s, "vwap_score": vwap_s, "di_score": di_s,
-        "st_score": st_s, "vol_score": vol_s,
+        "st_score": st_s, "vol_score": vol_s, "bb_score": bb_s, "bb_break_score": bbk_s,
         "supertrend": round(st, 2) if st == st else None,     # the line itself, as live (config.SL_MODE reads it)
         "adx": round(a, 1), "adx_ok": bool(a >= config.ADX_TREND_THRESHOLD),
         "vwap": round(v, 2), "vwap_gap": round(c - v, 1),
@@ -297,7 +302,8 @@ def verify_precompute(df, pre, samples=25, index_key=None):
     for i in idxs:
         real = se.compute_technical_signal(df.iloc[:i + 1], index_key)
         fast = tech_at(df, pre, i)
-        for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "st_score", "vol_score", "adx",
+        for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "st_score", "vol_score",
+                  "bb_score", "bb_break_score", "adx",
                   "last_close", "vwap", "last_swing_low", "last_swing_high", "supertrend"):
             rv, fv = real[k], fast[k]
             if isinstance(rv, float) and abs(rv - fv) > 0.02:
