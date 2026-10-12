@@ -258,6 +258,10 @@ def _gann(ctx, args):
     return _page_call(ctx, "_api_gann", ctx.user, _qs(index=_index(ctx, args)))
 
 
+def _kronos(ctx, args):
+    return _page_call(ctx, "_api_kronos", ctx.user)
+
+
 def _news(ctx, args):
     return _page_call(ctx, "_api_news", ctx.user)
 
@@ -357,6 +361,14 @@ SOURCES = [
                     "leads) and Seasonality (how this time of month or year has behaved).",
      "params": {"section": {"type": "string", "enum": ["all", *ANALYTICS_SECTIONS],
                             "description": "One part, or all; default all."}}},
+    {"name": "get_kronos", "tabs": ("kronos",), "routes": ("/api/kronos",), "fn": _kronos,
+     "description": "The Kronos tab: an open-source AI candlestick model's forecast of the next hour for each Indian "
+                    "index (its four forecast candles from the last closed one), and its live record - how often its "
+                    "direction was right an hour later, against the tool's own signal direction on the same calls. "
+                    "RESEARCH ONLY: in the tool's 3-year test it was no better than a coin (49.5-51.2% right in the "
+                    "held-out year) and as a filter it cut most of the profit, so it never decides a trade; say so if "
+                    "asked whether to follow it.",
+     "params": {}},
     {"name": "get_gann", "tabs": ("gann",), "routes": ("/api/gann",), "fn": _gann,
      "description": "The Gann levels tab: Square of Nine levels around the live spot - the 45-degree grid with the "
                     "nearest support and resistance and their distance in ATR, the 90/180/360-degree rungs - and the "
@@ -390,7 +402,7 @@ SOURCES = [
 ]
 
 _BY_NAME = {s["name"]: s for s in SOURCES}
-LABELS = {"get_signal": "Signal", "get_gann": "Gann levels", "get_chart": "Chart", "get_option_chart": "Option chart",
+LABELS = {"get_signal": "Signal", "get_gann": "Gann levels", "get_kronos": "Kronos", "get_chart": "Chart", "get_option_chart": "Option chart",
           "get_option_chain": "Option chain", "get_oi_clock": "OI clock", "get_watchlist": "Watchlist",
           "get_journal": "Journal", "get_market_map": "Market map", "get_constituents": "Constituents",
           "get_momentum_spikes": "Momentum spikes", "run_stock_screener": "Screener",

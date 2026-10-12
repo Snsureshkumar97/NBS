@@ -805,7 +805,8 @@ print("9. THE PAGE AND THE SWITCH")
 import feeds
 import web_server
 SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
-check("an AI trades tab, in the tab list, with a label", 'data-tab="aidesk"' in SRC and '"aidesk"];' in SRC
+_tabs = SRC[SRC.index("const TABS = ["):SRC.index("];", SRC.index("const TABS = ["))]
+check("an AI trades tab, in the tab list, with a label", 'data-tab="aidesk"' in SRC and '"aidesk"' in _tabs
       and 'aidesk:"AI trades"' in SRC)
 check("the model's words reach the page through esc() in element text",
       '<div class="why">${esc(r.reason)}</div>' in SRC and '<div class="whyhold">${esc(t.reason)}</div>' in SRC)

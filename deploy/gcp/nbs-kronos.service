@@ -1,0 +1,38 @@
+# The Kronos tab's worker (kronos_worker.py) - RESEARCH ONLY: it forecasts and records, it never places or decides a
+# trade. Its own environment in ~/kronos (PyTorch CPU-only, the Kronos model code and weights - see kronos_live.py);
+# it shares nothing with the trading server but the files under ~/trading-tool-logs/kronos. Lowest priority, capped,
+# offline (no Hugging Face access at runtime), no secrets.
+#   sed "s/__USER__/$USER/g" deploy/gcp/nbs-kronos.service | sudo tee /etc/systemd/system/nbs-kronos.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now nbs-kronos
+[Unit]
+Description=NBS Kronos research worker (the Kronos tab - never trades)
+After=network-online.target nbs-signal-tool.service
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=/home/__USER__/nbs
+Environment=TZ=Asia/Kolkata
+Environment=PYTHONUNBUFFERED=1
+Environment=NBS_KRONOS_THREADS=2
+Environment=OMP_NUM_THREADS=2
+Environment=HF_HUB_OFFLINE=1
+Environment=HF_HOME=/tmp/hf
+ExecStart=/home/__USER__/kronos/venv/bin/python -I /home/__USER__/nbs/kronos_worker.py
+Nice=19
+CPUWeight=10
+CPUQuota=150%
+MemoryMax=3G
+Restart=always
+RestartSec=30
+StandardOutput=append:/home/__USER__/trading-tool-logs/nbs-kronos.log
+StandardError=append:/home/__USER__/trading-tool-logs/nbs-kronos.log
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/__USER__/trading-tool-logs/kronos
+
+[Install]
+WantedBy=multi-user.target

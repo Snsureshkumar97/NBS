@@ -585,6 +585,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._api_analytics(user, qs)
             if path == "/api/gann":
                 return self._api_gann(user, qs)
+            if path == "/api/kronos":
+                return self._api_kronos(user)
             if path == "/api/journal":
                 return self._api_journal(user, qs)
             if path == "/api/watchlist":
@@ -1690,6 +1692,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception:
             return reply(False, "The journal could not be saved just now.", 500)
         return reply(False, "Unknown action.", 400)
+
+    def _api_kronos(self, user):
+        """The Kronos tab: the open candlestick model's forecast of the next hour for each Indian index, drawn on the
+        real candles, and its live record against the tool's own signal direction (kronos_live.py). RESEARCH ONLY -
+        kronos_study.py found it no better than a coin and nothing here reaches a signal, a ticket or an order."""
+        import kronos_live
+        return self._send(json.dumps(kronos_live.public(self._current_market())), "application/json")
 
     def _api_gann(self, user, qs):
         """Gann Square of Nine levels around the live spot and the volume
@@ -4431,6 +4440,19 @@ table.chain .wide{color:var(--down)}
 .botwatch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
 .botwatch .lbtn{flex:none}
 .botwatchnote{flex:1 1 260px;min-width:0;font-size:12px;color:var(--ink-3);line-height:1.5}
+/* the Kronos tab (12 Oct 2026): one card per index - its call over a small chart */
+.kronosbanner{margin:8px 0 4px}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:12px}
+.kcard{border-top:1px solid var(--bd-soft);padding-top:10px;min-width:0}
+.kcard h3{margin:0;font-size:14px;color:var(--ink)}
+.kcall{font-size:13px;color:var(--ink-2);margin:4px 0 8px;line-height:1.5}
+.kcall b{font-variant-numeric:tabular-nums}
+.kchart{height:220px;position:relative}
+.kdots{font-size:12px;color:var(--ink-3);margin-top:6px;letter-spacing:1px}
+.ktrade{font-size:13px;color:var(--ink-2);margin:0 0 8px;line-height:1.5}
+.ktrade span{display:block;font-size:12px;color:var(--ink-3)}
+.kdots .r{color:var(--up)}
+.kdots .w{color:var(--down)}
 .bmsg.auto{align-self:flex-start;background:var(--raised);border:1px solid rgba(77,148,232,.55);
   color:var(--ink);border-radius:14px 14px 14px 4px}
 .bmsg .bhead{display:block;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;
@@ -5201,6 +5223,7 @@ button.mgroup:hover{color:var(--ink-2)}
    <div class="mgrp-items">
     <button class="tab" data-tab="news" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h8M8 16h5"/></svg></i>News</button>
     <button class="tab" data-tab="record" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg></i>Record</button>
+    <button class="tab" data-tab="kronos" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l4-5 4 3 4-6"/><path d="M15 9l6-3" stroke-dasharray="2 2.5"/><circle cx="15" cy="9" r="1.2"/></svg></i>Kronos</button>
    </div>
   </div>
   <p class="mgroup">Account</p>
@@ -5736,6 +5759,38 @@ button.mgroup:hover{color:var(--ink-2)}
    <p class="eyebrow" role="heading" aria-level="2">Fibonacci &middot; the previous session&rsquo;s range</p>
    <div class="scrwrap"><table class="scr" id="lvlfib"></table></div>
    <div class="gnote" id="lvlfibnote"></div>
+  </div>
+ </section>
+
+ <section class="pane" data-pane="kronos">
+  <div class="card" data-panel="kronos" id="kronoscard">
+   <p class="eyebrow" role="heading" aria-level="2">Kronos &middot; an AI forecast of the next hour, on the real candles</p>
+   <div class="whyhold kronosbanner"><b>Research only.</b> Kronos never decides a trade here. In the 3-year test it
+    called the next hour's direction right about half the time (49.5&ndash;51.2% in the held-out year) - a coin's
+    rate - and as a filter it cut most of the profit. This tab shows it live so you can judge it on real data.</div>
+   <div class="aistats" id="kronosstats"></div>
+   <div class="kgrid" id="kronosgrid"></div>
+   <p class="eyebrow" role="heading" aria-level="2" style="margin-top:18px">Its record &middot; every call checked an hour later</p>
+   <div class="scrwrap"><table class="scr" id="kronosrec"></table></div>
+   <div class="gnote" id="kronosnote"></div>
+   <details class="about"><summary>How this works</summary>
+    <div class="botwatchnote">Kronos (Shi et al., AAAI 2026) is an open-source model trained on billions of
+     candlesticks from 45 exchanges. Each time a 15-minute candle closes, it reads that index's last 400 closed
+     candles - nothing later - and forecasts the next four (one hour); the dotted path on each chart is that forecast.
+     An hour later the call is checked: right if the index really moved the way it said. A call made from a candle
+     whose hour runs past the close is drawn but not scored. The tool's own signal direction at the same moment is
+     checked on the same calls, so the two are compared like for like. The first time it saw each index it also
+     replayed the last two sessions; those are counted separately. It runs in its own process on the server, apart
+     from the trading - if it stops, this tab says so and nothing else changes.<br><br>
+     <b>Its trade.</b> Kronos forecasts candles, not trades, so each forecast is turned into one by fixed rules: up
+     means a call, down a put, at the strike nearest the price; the target is where it says the index will be in an
+     hour; the stop is the worst point it expects on the way (or, if it never expects one against it, the target's
+     distance the other way). The option's premium is its live price from the option chain at that moment, and its
+     target and stop premiums use the tool's own rule (the index distance x 0.5 delta). The trade is played out on
+     the next hour's real candles - stop first if a candle touches both - and its result shown in index points and
+     in rupees a lot, ESTIMATED with that delta (no time decay, no spread). Replayed calls have no option price, so
+     their trades are counted in points only.</div>
+   </details>
   </div>
  </section>
 
@@ -9729,13 +9784,14 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "positions", "tradeset", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk"];
+              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk", "kronos"];
 const TAB_LABEL = {home:"Home", positions:"Positions", tradeset:"Trade settings", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
                    market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels", gann:"Gann levels", tradingview:"TradingView",
                    internals:"Internals", strength:"Relative strength",
-                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal", screener:"Screener", aidesk:"AI trades"};
+                   season:"Seasonality", news:"News", record:"Record", admin:"Admin", journal:"Journal", screener:"Screener", aidesk:"AI trades",
+                   kronos:"Kronos"};
 // The phone menu. A drawer rather than a strip of pills, closed by picking a
 // section, tapping outside it, or Escape.
 function navOpen(){
@@ -9806,6 +9862,7 @@ function showTab(name, push){
   if(name === "spikes") spikeFetch();
   if(["vol","levels","internals","strength","season"].includes(name)) anaFetch();
   if(name === "gann") gannFetch();
+  if(name === "kronos") kronosFetch();
   if(name === "tradingview") tvPaint();
   if(name === "greeks") gkFetch();
   if(name === "admin") adminFetch();
@@ -11517,6 +11574,127 @@ let ANA = null, ANA_AT = 0;
 // A calculator, not a signal: the levels are reference prices around the
 // live spot. Refetched when the tab opens and every 15 s while it is open.
 let GANN = null;
+// ============================================================ Kronos (research only)
+// The open candlestick model's next-hour forecast per Indian index, drawn on the real candles, and its record
+// (kronos_live.py, kronos_worker.py). The user, 12 Oct 2026: "can you add a tab for kronos i want to see on the real
+// data how it works". Nothing here reaches a signal, a ticket or an order.
+const KR = {charts: {}, busy: false};
+async function kronosFetch(){
+  if(KR.busy) return;
+  KR.busy = true;
+  try{
+    const d = await (await fetch("/api/kronos", {cache: "no-store"})).json();
+    kronosDraw(d);
+  }catch(e){
+    if($("kronosnote")) $("kronosnote").textContent = "Could not reach this tool's own server.";
+  }finally{ KR.busy = false; }
+}
+const krPct = v => v == null ? "—" : `${v.toFixed(1)}%`;
+const krTime = t => new Date(t).toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit", hour12: false,
+                                                             timeZone: "Asia/Kolkata"});
+// One index's call in words: which way, how far, by when - and whether the tool's own signal agreed at that moment.
+function kronosCall(ix){
+  const f = ix.forecast;
+  if(!f || !f.path || !f.path.length) return "No forecast yet - the first one comes when the next 15-minute candle closes.";
+  const end = f.path[f.path.length - 1], pts = end[4] - f.close, pc = pts / f.close * 100;
+  const way = pts > 0 ? "up" : pts < 0 ? "down" : "flat";
+  const tool = f.tool_dir == null ? null : f.tool_dir;
+  const toolTxt = tool == null ? "" : tool === 0 ? " · the tool had no direction"
+    : ` · the tool said ${tool > 0 ? "up" : "down"} - ${(tool > 0) === (pts > 0) ? "they agree" : "they disagree"}`;
+  // "by" the time the last forecast candle CLOSES - its start plus 15 minutes
+  const by = new Date(Date.parse(end[0]) + 15 * 60000).toISOString();
+  return `From the ${krTime(f.from)} candle (${num(f.close, 2)}): <b>${way} ${pts >= 0 ? "+" : "−"}${num(Math.abs(pts), 0)} pts`
+    + ` (${pc >= 0 ? "+" : "−"}${Math.abs(pc).toFixed(2)}%)</b> to ${num(end[4], 2)} by ${krTime(by)}${esc(toolTxt)}`;
+}
+// Kronos's own trade, as the tool would write it: the option (when the chain gave a price) with its premium, target and
+// stop - and the index levels they came from.
+function kronosTrade(ix){
+  const f = ix.forecast, t = f && f.trade;
+  if(!t) return "";
+  const lv = `index ${num(t.entry, 0)} → target ${num(t.target, 0)} · stop ${num(t.stop, 0)}`;
+  const name = `${esc(ix.index)} ${t.strike == null ? "" : esc(String(t.strike))} ${t.side}`;
+  return t.premium
+    ? `<div class="ktrade">Its trade: <b>${name}</b> at ₹${num(t.premium, 2)} · target ₹${num(t.premium_target, 2)}`
+      + ` · stop ₹${num(t.premium_stop, 2)}<span>${lv}${t.expiry ? " · expiry " + esc(t.expiry) : ""}</span></div>`
+    : `<div class="ktrade">Its trade: <b>${name}</b><span>${lv} · no option price from the chain at that moment</span></div>`;
+}
+function kronosDraw(d){
+  const grid = $("kronosgrid"), note = $("kronosnote");
+  if(!grid) return;
+  if(d.note){
+    grid.innerHTML = ""; $("kronosstats").innerHTML = ""; $("kronosrec").innerHTML = "";
+    note.textContent = d.note;
+    return;
+  }
+  const w = d.worker || {}, live = (d.score || {}).live || {};
+  const st = (label, v, c) => `<div class="st"><b${c ? ` style="color:${c}"` : ""}>${esc(v)}</b><span>${esc(label)}</span></div>`;
+  $("kronosstats").innerHTML =
+      st("Kronos worker", w.running ? "running" : "not running", w.running ? "var(--up)" : "var(--down)")
+    + st("Live calls checked", String(live.checked || 0))
+    + st("Kronos right", krPct(live.kronos_right))
+    + st("Tool's signal right", krPct(live.tool_right))
+    + st("Agreed with the tool", krPct(live.agree))
+    + st("Its trades · won", live.trades ? `${live.trades} · ${krPct(live.won)}` : "0")
+    + st("Its result · points / ₹ a lot (est.)", live.trades
+        ? `${live.points >= 0 ? "+" : "−"}${num(Math.abs(live.points), 0)} / ${live.rupees == null ? "—" : money(live.rupees)}` : "—",
+         !live.trades ? "" : live.points > 0 ? "var(--up)" : live.points < 0 ? "var(--down)" : "");
+  grid.innerHTML = (d.indices || []).map(ix => {
+    const dots = (ix.recent || []).map(c => {
+      const ok = (c.f4 > c.close) === (c.actual > c.close);
+      return `<span class="${ok ? "r" : "w"}" title="${esc(krTime(c.t))}: ${ok ? "right" : "wrong"}">${ok ? "✓" : "✗"}</span>`;
+    }).join("");
+    return `<div class="kcard"><h3>${esc(ix.index)}</h3><div class="kcall">${kronosCall(ix)}</div>${kronosTrade(ix)}`
+      + `<div class="kchart" id="kchart-${esc(ix.index)}"></div>`
+      + `<div class="kdots">${dots ? "Last checked calls: " + dots : "No live call checked yet."}</div></div>`;
+  }).join("");
+  const rows = d.indices || [];
+  const pts = v => `${v >= 0 ? "+" : "−"}${num(Math.abs(v), 0)}`;
+  $("kronosrec").innerHTML = `<thead><tr><th>Index</th><th>Calls checked</th><th>Kronos right</th>`
+    + `<th>The tool right</th><th>Agreed</th><th>Its trades: target · stop · hour</th><th>Points</th>`
+    + `<th>₹ a lot (est.)</th><th>Replay (last 2 sessions)</th></tr></thead><tbody>`
+    + rows.map(ix => { const L = ix.score.live, R = ix.score.replay;
+        const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "";
+        return `<tr><td class="sym">${esc(ix.index)}</td><td>${L.checked}</td><td>${krPct(L.kronos_right)}</td>`
+          + `<td>${krPct(L.tool_right)}</td><td>${krPct(L.agree)}</td>`
+          + `<td>${L.trades ? `${L.targets} · ${L.stops} · ${L.timed}` : "—"}</td>`
+          + `<td style="color:${col(L.points)}">${L.trades ? pts(L.points) : "—"}</td>`
+          + `<td style="color:${col(L.rupees || 0)}">${L.rupees == null ? "—" : money(L.rupees)}</td>`
+          + `<td>${R.checked ? `${krPct(R.kronos_right)} right · trades ${pts(R.points)} pts` : "—"}</td></tr>`; }).join("")
+    + `</tbody>`;
+  note.textContent = !w.running
+    ? "The Kronos worker is not running right now, so no new forecasts are being made. The trading is unaffected."
+    : "A call is right when the index really moved the way Kronos said over the next hour. Fifty-fifty is a coin; "
+      + "a real edge would have to stay clearly above that over hundreds of calls.";
+  ocLib().then(() => rows.forEach(krChart)).catch(() => {});
+}
+// One index's chart: its last closed candles, and Kronos's next four as a dotted path from the last close.
+function krChart(ix){
+  const el = $("kchart-" + ix.index), LW = window.LightweightCharts;
+  if(!el || !LW) return;
+  const C = {bg: css("--bg"), ink3: css("--ink-3"), bd: css("--bd-soft"), up: css("--up"), down: css("--down"),
+             accent: css("--accent")};
+  const old = KR.charts[ix.index];
+  if(old && old.el === el){ /* same element: just new data */ }
+  else {
+    if(old) try{ old.chart.remove(); }catch(e){}
+    const chart = LW.createChart(el, {autoSize: true, layout: {background: {type: LW.ColorType.Solid, color: C.bg},
+      textColor: C.ink3, fontSize: 11}, grid: {vertLines: {color: C.bd}, horzLines: {color: C.bd}},
+      rightPriceScale: {borderColor: C.bd}, timeScale: {borderColor: C.bd, timeVisible: true, secondsVisible: false},
+      handleScroll: false, handleScale: false});
+    KR.charts[ix.index] = {el, chart,
+      candles: chart.addSeries(LW.CandlestickSeries, {upColor: C.bg, borderUpColor: C.up, wickUpColor: C.up,
+        downColor: C.down, borderDownColor: C.down, wickDownColor: C.down, priceLineVisible: false}),
+      path: chart.addSeries(LW.LineSeries, {color: C.accent, lineWidth: 2, lineStyle: LW.LineStyle.Dashed,
+        priceLineVisible: false, lastValueVisible: true, title: "Kronos"})};
+  }
+  const k = KR.charts[ix.index], T = t => Math.floor(Date.parse(t) / 1000) + IST_S;
+  k.candles.setData((ix.candles || []).map(c => ({time: T(c[0]), open: c[1], high: c[2], low: c[3], close: c[4]})));
+  const f = ix.forecast;
+  k.path.setData(f && f.path ? [{time: T(f.from), value: f.close}].concat(f.path.map(p => ({time: T(p[0]), value: p[4]}))) : []);
+  k.chart.timeScale().fitContent();
+}
+setInterval(() => { if(TAB === "kronos" && !document.hidden) kronosFetch(); }, 30000);
+
 async function gannFetch(){
   try{
     GANN = await (await fetch("/api/gann?index=" + encodeURIComponent(CUR || ""), {cache: "no-store"})).json();
@@ -12565,6 +12743,9 @@ def main():
     # few minutes after they close it. In free mode they all share one, started
     # the same way and on the same terms.
     feeds.configure(args.mode, interval)
+    # The Kronos tab's candles, handed to its own worker process through files (kronos_live.py) - research only.
+    import kronos_live
+    kronos_live.start()
 
     # Kept warm in the background so no page load ever waits on Yahoo.
     market_ticker.start_background(_stop_ticker)
