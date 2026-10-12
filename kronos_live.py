@@ -27,7 +27,8 @@ import trade_log
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 STEP = dt.timedelta(minutes=15)
 KEEP_CANDLES = 600            # what the worker gets: 400 of context and room to replay the last two sessions
-CHART_CANDLES = 40            # what the tab draws before the forecast
+CHART_CANDLES = 80            # what the tab draws before the forecast - two sessions and a half
+CALLS_SHOWN = 30              # the newest calls listed per index on the tab
 MARKET = "nse_index"
 WORKER_STALE_S = 180          # the worker beats every ~20 s; three minutes without one is "not running"
 
@@ -219,12 +220,14 @@ def public(market=None, now=None):
         fc = _read_json(os.path.join(b, "out", f"{key}.json"), None)
         calls = _read_json(os.path.join(b, "calls", f"{key}.json"), []) or []
         every += calls
-        recent = [c for c in calls if c.get("actual") is not None and not c.get("replay")][-12:]
+        # the newest calls first - live ones, and the replays after them (marked) so day one is not empty
+        live = [c for c in calls if not c.get("replay")]
+        shown = (live[::-1] + [c for c in calls if c.get("replay")][::-1])[:CALLS_SHOWN]
         indices.append({"index": key, "candles": (inp.get("candles") or [])[-CHART_CANDLES:], "lot_size": inp.get("lot_size"),
                         "tool": inp.get("tool"), "forecast": fc, "score": scorecard(calls),
-                        "recent": [{"t": c["t"], "close": c["close"], "f4": c["f4"], "actual": c["actual"],
-                                    "tool_dir": c.get("tool_dir"), "result": c.get("result"), "points": c.get("points"),
-                                    "rupees": c.get("rupees"), "trade": c.get("trade")} for c in recent]})
+                        "calls": [{k: c.get(k) for k in ("t", "close", "f4", "actual", "actual_t", "tool_dir", "replay",
+                                                          "result", "points", "rupees", "trade", "skip")}
+                                  for c in shown]})
     return {"market": MARKET, "worker": {"alive_at": hb.get("alive_at"), "age_s": age,
                                          "running": age is not None and age < WORKER_STALE_S,
                                          "device": hb.get("device"), "model": hb.get("model")},

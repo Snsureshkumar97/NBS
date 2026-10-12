@@ -4440,19 +4440,49 @@ table.chain .wide{color:var(--down)}
 .botwatch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
 .botwatch .lbtn{flex:none}
 .botwatchnote{flex:1 1 260px;min-width:0;font-size:12px;color:var(--ink-3);line-height:1.5}
-/* the Kronos tab (12 Oct 2026): one card per index - its call over a small chart */
-.kronosbanner{margin:8px 0 4px}
-.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:12px}
-.kcard{border-top:1px solid var(--bd-soft);padding-top:10px;min-width:0}
-.kcard h3{margin:0;font-size:14px;color:var(--ink)}
-.kcall{font-size:13px;color:var(--ink-2);margin:4px 0 8px;line-height:1.5}
-.kcall b{font-variant-numeric:tabular-nums}
-.kchart{height:220px;position:relative}
-.kdots{font-size:12px;color:var(--ink-3);margin-top:6px;letter-spacing:1px}
-.ktrade{font-size:13px;color:var(--ink-2);margin:0 0 8px;line-height:1.5}
-.ktrade span{display:block;font-size:12px;color:var(--ink-3)}
-.kdots .r{color:var(--up)}
-.kdots .w{color:var(--down)}
+/* the Kronos tab - one index at a time, like the Signal tab (12 Oct 2026; laid out 13 Oct) */
+.kronosbanner{margin:12px 0 0}
+.kidx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.kix{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 12px;min-height:48px;text-align:left;
+  border:1px solid var(--bd);border-radius:var(--r-sm);background:var(--surface);color:var(--ink-2);font:inherit;cursor:pointer}
+.kix b{font-size:14px;color:var(--ink)}
+.kix span{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.kix span.up{color:var(--up)}
+.kix span.dn{color:var(--down)}
+.kix.on{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.kstatus{font-size:12px;color:var(--ink-3);margin-top:10px}
+.kmain{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:1100px){.kmain{grid-template-columns:minmax(0,5fr) minmax(0,7fr)}}
+.khero{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:6px}
+.kdir{font-size:42px;font-weight:700;letter-spacing:-1.2px;line-height:1.05}
+.kmove{font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+.kfrom{font-size:12px;color:var(--ink-3);margin-top:6px}
+.ktags{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ktradebox{margin-top:8px}
+/* its rows one to a line: beside the chart the column is ~340-480px, too narrow for the panel's usual two */
+.ktradebox .pdet{grid-template-columns:minmax(0,1fr)}
+.kopt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.kopt b{font-size:18px;color:var(--ink)}
+.ktradebox .knote{font-size:12px;color:var(--ink-3);margin-top:8px}
+.kchart{height:420px;position:relative}
+/* its record's six figures: three a row, each row starting flush (the shared rule draws a divider before every
+   figure after the first, which indented the second row) */
+#kronosstats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:14px}
+#kronosstats .st:nth-child(3n+1){border-left:0;padding-left:0}
+table.scr td.kok{color:var(--up)}
+table.scr td.kno{color:var(--down)}
+table.scr .krep{font-size:12px;color:var(--ink-3);margin-left:6px}
+@media (max-width:760px){
+  .kidx{gap:6px}
+  .kix{padding:8px;min-height:44px}
+  .kix b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .kix span{font-size:12px}
+  .kchart{height:300px}
+  .kdir{font-size:34px}
+  #kronosstats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #kronosstats .st:nth-child(3n+1){border-left:1px solid var(--bd-soft);padding-left:16px}
+  #kronosstats .st:nth-child(2n+1){border-left:0;padding-left:0}
+}
 .bmsg.auto{align-self:flex-start;background:var(--raised);border:1px solid rgba(77,148,232,.55);
   color:var(--ink);border-radius:14px 14px 14px 4px}
 .bmsg .bhead{display:block;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;
@@ -5763,16 +5793,40 @@ button.mgroup:hover{color:var(--ink-2)}
  </section>
 
  <section class="pane" data-pane="kronos">
+  <!-- one index at a time, like the Signal tab (the user, 13 Oct 2026: "give a separate for all four indices like
+       signal tool so it can have more space to show more data clearly") -->
   <div class="card" data-panel="kronos" id="kronoscard">
    <p class="eyebrow" role="heading" aria-level="2">Kronos &middot; an AI forecast of the next hour, on the real candles</p>
+   <div class="kidx" id="kronosidx" role="group" aria-label="Index"></div>
    <div class="whyhold kronosbanner"><b>Research only.</b> Kronos never decides a trade here. In the 3-year test it
     called the next hour's direction right about half the time (49.5&ndash;51.2% in the held-out year) - a coin's
     rate - and as a filter it cut most of the profit. This tab shows it live so you can judge it on real data.</div>
+   <div class="kstatus" id="kronosstatus"></div>
+  </div>
+  <div class="kmain">
+   <div class="card" data-panel="kronoscall" id="kcallcard">
+    <p class="eyebrow" role="heading" aria-level="2">Its call &middot; <span id="kname">&mdash;</span></p>
+    <div class="khero"><div class="kdir" id="kdir">&mdash;</div><div class="kmove" id="kmove"></div></div>
+    <div class="kfrom" id="kfrom"></div>
+    <div class="ktags" id="ktags"></div>
+    <p class="eyebrow" role="heading" aria-level="2" style="margin-top:22px">Its trade</p>
+    <div class="ktradebox" id="ktrade"></div>
+   </div>
+   <div class="card" data-panel="kronoschart" id="kchartcard">
+    <p class="eyebrow" role="heading" aria-level="2">The real candles and its next hour</p>
+    <div class="kchart" id="kchart"></div>
+    <div class="chartkeys" id="kkeys"></div>
+   </div>
+  </div>
+  <div class="card" data-panel="kronosrecord" id="krecard">
+   <p class="eyebrow" role="heading" aria-level="2">Its record on <span id="kname2">&mdash;</span> &middot; every call checked an hour later</p>
    <div class="aistats" id="kronosstats"></div>
-   <div class="kgrid" id="kronosgrid"></div>
-   <p class="eyebrow" role="heading" aria-level="2" style="margin-top:18px">Its record &middot; every call checked an hour later</p>
-   <div class="scrwrap"><table class="scr" id="kronosrec"></table></div>
+   <div class="scrwrap"><table class="scr" id="kcalls"></table></div>
    <div class="gnote" id="kronosnote"></div>
+  </div>
+  <div class="card" data-panel="kronosall" id="kallcard">
+   <p class="eyebrow" role="heading" aria-level="2">All four indices &middot; live calls</p>
+   <div class="scrwrap"><table class="scr" id="kronosrec"></table></div>
    <details class="about"><summary>How this works</summary>
     <div class="botwatchnote">Kronos (Shi et al., AAAI 2026) is an open-source model trained on billions of
      candlesticks from 45 exchanges. Each time a 15-minute candle closes, it reads that index's last 400 closed
@@ -6111,6 +6165,7 @@ function selectIndex(k){
   CUR = k;
   render(LAST);
   if(TAB === "aidesk" && window.AIDESK && window.AIDESK.data) aiRender(window.AIDESK.data);
+  if(TAB === "kronos" && typeof KR !== "undefined" && KR.data) kronosDraw(KR.data);
   if(changed && typeof botOnIndexChange === "function") botOnIndexChange();
 }
 // These are declared here, with the other page globals, because the code in
@@ -11575,124 +11630,187 @@ let ANA = null, ANA_AT = 0;
 // live spot. Refetched when the tab opens and every 15 s while it is open.
 let GANN = null;
 // ============================================================ Kronos (research only)
-// The open candlestick model's next-hour forecast per Indian index, drawn on the real candles, and its record
-// (kronos_live.py, kronos_worker.py). The user, 12 Oct 2026: "can you add a tab for kronos i want to see on the real
-// data how it works". Nothing here reaches a signal, a ticket or an order.
-const KR = {charts: {}, busy: false};
+// The open candlestick model's next-hour forecast, its own trade and its record (kronos_live.py, kronos_worker.py) -
+// one index at a time, picked like the Signal tab's (selectIndex / CUR). The user, 12 Oct 2026: "can you add a tab
+// for kronos i want to see on the real data how it works"; 13 Oct: "give a separate for all four indices like signal
+// tool". Nothing here reaches a signal, a ticket or an order.
+const KR = {data: null, chart: null, candles: null, path: null, lines: [], shown: null, busy: false};
+const KR_NAME = {NIFTY: "Nifty", BANKNIFTY: "Bank Nifty", SENSEX: "Sensex", MIDCPNIFTY: "Midcap Select"};
 async function kronosFetch(){
   if(KR.busy) return;
   KR.busy = true;
   try{
-    const d = await (await fetch("/api/kronos", {cache: "no-store"})).json();
-    kronosDraw(d);
+    KR.data = await (await fetch("/api/kronos", {cache: "no-store"})).json();
+    kronosDraw(KR.data);
   }catch(e){
     if($("kronosnote")) $("kronosnote").textContent = "Could not reach this tool's own server.";
   }finally{ KR.busy = false; }
 }
 const krPct = v => v == null ? "—" : `${v.toFixed(1)}%`;
+const krSigned = (v, d = 0) => v == null ? "—" : `${v >= 0 ? "+" : "−"}${num(Math.abs(v), d)}`;
 const krTime = t => new Date(t).toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit", hour12: false,
                                                              timeZone: "Asia/Kolkata"});
-// One index's call in words: which way, how far, by when - and whether the tool's own signal agreed at that moment.
-function kronosCall(ix){
-  const f = ix.forecast;
-  if(!f || !f.path || !f.path.length) return "No forecast yet - the first one comes when the next 15-minute candle closes.";
-  const end = f.path[f.path.length - 1], pts = end[4] - f.close, pc = pts / f.close * 100;
-  const way = pts > 0 ? "up" : pts < 0 ? "down" : "flat";
-  const tool = f.tool_dir == null ? null : f.tool_dir;
-  const toolTxt = tool == null ? "" : tool === 0 ? " · the tool had no direction"
-    : ` · the tool said ${tool > 0 ? "up" : "down"} - ${(tool > 0) === (pts > 0) ? "they agree" : "they disagree"}`;
-  // "by" the time the last forecast candle CLOSES - its start plus 15 minutes
-  const by = new Date(Date.parse(end[0]) + 15 * 60000).toISOString();
-  return `From the ${krTime(f.from)} candle (${num(f.close, 2)}): <b>${way} ${pts >= 0 ? "+" : "−"}${num(Math.abs(pts), 0)} pts`
-    + ` (${pc >= 0 ? "+" : "−"}${Math.abs(pc).toFixed(2)}%)</b> to ${num(end[4], 2)} by ${krTime(by)}${esc(toolTxt)}`;
-}
-// Kronos's own trade, as the tool would write it: the option (when the chain gave a price) with its premium, target and
-// stop - and the index levels they came from.
-function kronosTrade(ix){
-  const f = ix.forecast, t = f && f.trade;
-  if(!t) return "";
-  const lv = `index ${num(t.entry, 0)} → target ${num(t.target, 0)} · stop ${num(t.stop, 0)}`;
-  const name = `${esc(ix.index)} ${t.strike == null ? "" : esc(String(t.strike))} ${t.side}`;
-  return t.premium
-    ? `<div class="ktrade">Its trade: <b>${name}</b> at ₹${num(t.premium, 2)} · target ₹${num(t.premium_target, 2)}`
-      + ` · stop ₹${num(t.premium_stop, 2)}<span>${lv}${t.expiry ? " · expiry " + esc(t.expiry) : ""}</span></div>`
-    : `<div class="ktrade">Its trade: <b>${name}</b><span>${lv} · no option price from the chain at that moment</span></div>`;
+const krDay = t => new Date(t).toLocaleDateString("en-IN", {day: "2-digit", month: "short", timeZone: "Asia/Kolkata"});
+// A forecast as a move: which way, how far, and by when (the last forecast candle's CLOSE - its start + 15 minutes).
+function kronosMove(f){
+  if(!f || !f.path || !f.path.length) return null;
+  const end = f.path[f.path.length - 1], pts = end[4] - f.close;
+  return {up: pts > 0, flat: pts === 0, pts, pc: pts / f.close * 100, end: end[4],
+          by: new Date(Date.parse(end[0]) + 15 * 60000).toISOString()};
 }
 function kronosDraw(d){
-  const grid = $("kronosgrid"), note = $("kronosnote");
-  if(!grid) return;
-  if(d.note){
-    grid.innerHTML = ""; $("kronosstats").innerHTML = ""; $("kronosrec").innerHTML = "";
-    note.textContent = d.note;
+  if(!$("kronosidx")) return;
+  const rows = d.indices || [];
+  if(d.note || !rows.length){
+    $("kronosidx").innerHTML = ""; $("kronosstatus").textContent = d.note || "No data yet.";
     return;
   }
-  const w = d.worker || {}, live = (d.score || {}).live || {};
-  const st = (label, v, c) => `<div class="st"><b${c ? ` style="color:${c}"` : ""}>${esc(v)}</b><span>${esc(label)}</span></div>`;
-  $("kronosstats").innerHTML =
-      st("Kronos worker", w.running ? "running" : "not running", w.running ? "var(--up)" : "var(--down)")
-    + st("Live calls checked", String(live.checked || 0))
-    + st("Kronos right", krPct(live.kronos_right))
-    + st("Tool's signal right", krPct(live.tool_right))
-    + st("Agreed with the tool", krPct(live.agree))
-    + st("Its trades · won", live.trades ? `${live.trades} · ${krPct(live.won)}` : "0")
-    + st("Its result · points / ₹ a lot (est.)", live.trades
-        ? `${live.points >= 0 ? "+" : "−"}${num(Math.abs(live.points), 0)} / ${live.rupees == null ? "—" : money(live.rupees)}` : "—",
-         !live.trades ? "" : live.points > 0 ? "var(--up)" : live.points < 0 ? "var(--down)" : "");
-  grid.innerHTML = (d.indices || []).map(ix => {
-    const dots = (ix.recent || []).map(c => {
-      const ok = (c.f4 > c.close) === (c.actual > c.close);
-      return `<span class="${ok ? "r" : "w"}" title="${esc(krTime(c.t))}: ${ok ? "right" : "wrong"}">${ok ? "✓" : "✗"}</span>`;
-    }).join("");
-    return `<div class="kcard"><h3>${esc(ix.index)}</h3><div class="kcall">${kronosCall(ix)}</div>${kronosTrade(ix)}`
-      + `<div class="kchart" id="kchart-${esc(ix.index)}"></div>`
-      + `<div class="kdots">${dots ? "Last checked calls: " + dots : "No live call checked yet."}</div></div>`;
+  const ix = rows.find(r => r.index === CUR) || rows[0];
+  const name = KR_NAME[ix.index] || ix.index;
+  const w = d.worker || {};
+
+  // 1. the index switcher - the same pick as the Signal tab's
+  $("kronosidx").innerHTML = rows.map(r => {
+    const m = kronosMove(r.forecast);
+    const sub = m ? `${m.up ? "▲" : m.flat ? "■" : "▼"} ${krSigned(m.pts)} pts` : "no call yet";
+    return `<button type="button" class="kix${r.index === ix.index ? " on" : ""}" data-k="${esc(r.index)}"`
+      + ` aria-pressed="${r.index === ix.index}"><b>${esc(KR_NAME[r.index] || r.index)}</b>`
+      + `<span class="${m ? (m.up ? "up" : m.flat ? "" : "dn") : ""}">${esc(sub)}</span></button>`;
   }).join("");
-  const rows = d.indices || [];
-  const pts = v => `${v >= 0 ? "+" : "−"}${num(Math.abs(v), 0)}`;
+  $("kronosstatus").textContent = w.running
+    ? `Kronos is running · a new call after every 15-minute candle closes${w.alive_at ? " · last seen " + krTime(w.alive_at) : ""}`
+    : "The Kronos worker is not running right now - no new calls are being made. The trading is unaffected.";
+
+  // 2. its call
+  const f = ix.forecast, m = kronosMove(f);
+  $("kname").textContent = name; $("kname2").textContent = name;
+  const dir = $("kdir");
+  if(!m){
+    dir.textContent = "No call yet"; dir.style.color = "var(--ink-3)";
+    $("kmove").textContent = "";
+    $("kfrom").textContent = "The first one comes when the next 15-minute candle closes during market hours.";
+    $("ktags").innerHTML = ""; $("ktrade").innerHTML = "";
+  } else {
+    dir.textContent = m.up ? "UP" : m.flat ? "FLAT" : "DOWN";
+    dir.style.color = m.up ? "var(--up)" : m.flat ? "var(--ink-2)" : "var(--down)";
+    $("kmove").textContent = `${krSigned(m.pts)} pts (${krSigned(m.pc, 2)}%) to ${num(m.end, 2)} by ${krTime(m.by)}`;
+    $("kfrom").textContent = `From the ${krDay(f.from)} ${krTime(f.from)} candle's close, ${num(f.close, 2)}`
+      + (f.made_at ? ` · made ${krTime(f.made_at)}` : "");
+    const td = f.tool_dir;
+    $("ktags").innerHTML = td == null ? ""
+      : td === 0 ? `<span class="tag flat">The tool: no direction</span>`
+      : `<span class="tag ${td > 0 ? "up" : "down"}">The tool: ${td > 0 ? "BULLISH" : "BEARISH"}</span>`
+        + `<span class="tag ${(td > 0) === m.up ? "up" : "warn"}">${(td > 0) === m.up ? "They agree" : "They disagree"}</span>`;
+    // 3. its trade, as the tool's own ticket panel
+    const t = f.trade;
+    if(!t){ $("ktrade").innerHTML = `<div class="knote">A flat forecast - no trade.</div>`; }
+    else {
+      const opt = `${name} ${t.strike == null ? "" : t.strike} ${t.side}`, lot = ix.lot_size;
+      const reward = Math.abs(t.target - t.entry), risk = Math.abs(t.stop - t.entry);
+      const est = pts => (t.premium && lot) ? money(pts * (t.delta || 0.5) * lot) : "—";
+      // the option on a line of its own (a long name in a narrow figure cell got clipped), then the three prices
+      const head = t.premium
+        ? [["Entry", "₹" + num(t.premium, 2)], ["Target", "₹" + num(t.premium_target, 2), "var(--up)"],
+           ["Stop", "₹" + num(t.premium_stop, 2), "var(--down)"]]
+        : [["Index now", num(t.entry, 2)], ["Target", num(t.target, 2), "var(--up)"], ["Stop", num(t.stop, 2), "var(--down)"]];
+      const rowsT = [["Index now", num(t.entry, 2)], ["Index target", num(t.target, 2)], ["Index stop", num(t.stop, 2)],
+                     ["Reward : risk", risk ? `${(reward / risk).toFixed(2)} : 1` : "—"],
+                     ["At target, a lot (est.)", est(reward)], ["At stop, a lot (est.)", est(-risk)],
+                     ["Lot", lot ? `${lot} qty` : "—"], ["Expiry", t.expiry || "—"]];
+      $("ktrade").innerHTML = `<div class="kopt"><span class="tag ${t.side === "CE" ? "up" : "down"}">${t.side === "CE" ? "BUY CALL" : "BUY PUT"}</span>`
+        + `<b>${esc(opt)}</b></div>` + posPanel(head, rowsT)
+        + `<div class="knote">${t.premium ? "Premium from the option chain at that moment; target and stop by the tool's own rule (the index distance x 0.5 delta). Rupees are estimates - no time decay, no spread."
+                                          : "The option chain had no price for this strike at that moment, so the trade is in index points only."}</div>`;
+    }
+  }
+
+  // 4. the chart
+  ocLib().then(() => krChart(ix)).catch(() => {});
+
+  // 5. its record on this index
+  const L = ix.score.live, R = ix.score.replay;
+  const st = (label, v, c) => `<div class="st"><b${c ? ` style="color:${c}"` : ""}>${esc(v)}</b><span>${esc(label)}</span></div>`;
+  const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "";
+  $("kronosstats").innerHTML =
+      st("Calls checked", String(L.checked || 0))
+    + st("Kronos right", krPct(L.kronos_right))
+    + st("Tool right", krPct(L.tool_right))
+    + st("Agreed", krPct(L.agree))
+    + st("Trades won", L.trades ? `${krPct(L.won)} of ${L.trades}` : "—")
+    + st("Points · ₹ a lot", L.trades ? `${krSigned(L.points)} · ${L.rupees == null ? "—" : money(L.rupees)}` : "—",
+         col(L.points));
+  const res = {target: "target", stop: "stop", time: "at the hour"};
+  const calls = ix.calls || [];
+  $("kcalls").innerHTML = calls.length
+    ? `<thead><tr><th>Candle</th><th>Kronos said</th><th>The tool</th><th>Next hour</th><th>Right?</th>`
+      + `<th>Its trade</th><th>₹ a lot (est.)</th></tr></thead><tbody>`
+      + calls.map(c => {
+          const said = c.f4 - c.close, done = c.actual != null, ok = done && (said > 0) === (c.actual > c.close);
+          const t = c.trade || {};
+          return `<tr><td class="sym">${esc(krDay(c.t))} ${esc(krTime(c.t))}${c.replay ? '<span class="krep">replay</span>' : ""}</td>`
+            + `<td style="color:${col(said)}">${said > 0 ? "▲" : said < 0 ? "▼" : "■"} ${krSigned(said)}</td>`
+            + `<td>${c.tool_dir == null || c.tool_dir === 0 ? "—" : c.tool_dir > 0 ? "▲ up" : "▼ down"}</td>`
+            + `<td>${done ? krSigned(c.actual - c.close) : c.skip ? "past the close" : "waiting"}</td>`
+            + `<td class="${done ? (ok ? "kok" : "kno") : ""}">${done ? (ok ? "✓ right" : "✗ wrong") : "—"}</td>`
+            // the trade's outcome and points in one cell; which option it was, on hover
+            + `<td style="color:${col(c.points || 0)}" title="${c.trade ? esc(`${t.strike} ${t.side}${t.premium ? " at ₹" + num(t.premium, 2) : ""}`) : ""}">`
+            + `${c.result ? `${res[c.result]} ${krSigned(c.points, 1)}` : c.trade ? "open" : "—"}</td>`
+            + `<td style="color:${col(c.rupees || 0)}">${c.rupees == null ? "—" : money(c.rupees)}</td></tr>`;
+        }).join("") + `</tbody>`
+    : `<tbody><tr><td style="color:var(--ink-3);padding:8px">No calls yet on ${esc(name)}.</td></tr></tbody>`;
+  $("kronosnote").textContent = (R.checked ? `The replay of the last two sessions (before Kronos ran live): `
+      + `${krPct(R.kronos_right)} of ${R.checked} calls right, its trades ${krSigned(R.points)} points. ` : "")
+    + "A call is right when the index really moved the way Kronos said over the next hour. Fifty-fifty is a coin; "
+    + "a real edge would have to stay clearly above that over hundreds of calls.";
+
+  // 6. all four, side by side
   $("kronosrec").innerHTML = `<thead><tr><th>Index</th><th>Calls checked</th><th>Kronos right</th>`
-    + `<th>The tool right</th><th>Agreed</th><th>Its trades: target · stop · hour</th><th>Points</th>`
-    + `<th>₹ a lot (est.)</th><th>Replay (last 2 sessions)</th></tr></thead><tbody>`
-    + rows.map(ix => { const L = ix.score.live, R = ix.score.replay;
-        const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "";
-        return `<tr><td class="sym">${esc(ix.index)}</td><td>${L.checked}</td><td>${krPct(L.kronos_right)}</td>`
-          + `<td>${krPct(L.tool_right)}</td><td>${krPct(L.agree)}</td>`
-          + `<td>${L.trades ? `${L.targets} · ${L.stops} · ${L.timed}` : "—"}</td>`
-          + `<td style="color:${col(L.points)}">${L.trades ? pts(L.points) : "—"}</td>`
-          + `<td style="color:${col(L.rupees || 0)}">${L.rupees == null ? "—" : money(L.rupees)}</td>`
-          + `<td>${R.checked ? `${krPct(R.kronos_right)} right · trades ${pts(R.points)} pts` : "—"}</td></tr>`; }).join("")
+    + `<th>The tool right</th><th>Its trades: target · stop · hour</th><th>Points</th><th>₹ a lot (est.)</th></tr></thead><tbody>`
+    + rows.map(r => { const S = r.score.live;
+        return `<tr><td class="sym">${esc(KR_NAME[r.index] || r.index)}</td><td>${S.checked}</td><td>${krPct(S.kronos_right)}</td>`
+          + `<td>${krPct(S.tool_right)}</td><td>${S.trades ? `${S.targets} · ${S.stops} · ${S.timed}` : "—"}</td>`
+          + `<td style="color:${col(S.points)}">${S.trades ? krSigned(S.points) : "—"}</td>`
+          + `<td style="color:${col(S.rupees || 0)}">${S.rupees == null ? "—" : money(S.rupees)}</td></tr>`; }).join("")
     + `</tbody>`;
-  note.textContent = !w.running
-    ? "The Kronos worker is not running right now, so no new forecasts are being made. The trading is unaffected."
-    : "A call is right when the index really moved the way Kronos said over the next hour. Fifty-fifty is a coin; "
-      + "a real edge would have to stay clearly above that over hundreds of calls.";
-  ocLib().then(() => rows.forEach(krChart)).catch(() => {});
 }
-// One index's chart: its last closed candles, and Kronos's next four as a dotted path from the last close.
+// The chart for the index on screen: its last closed candles, the forecast as a dashed path from the last close, and
+// its trade's entry, target and stop as lines on the index.
 function krChart(ix){
-  const el = $("kchart-" + ix.index), LW = window.LightweightCharts;
+  const el = $("kchart"), LW = window.LightweightCharts;
   if(!el || !LW) return;
   const C = {bg: css("--bg"), ink3: css("--ink-3"), bd: css("--bd-soft"), up: css("--up"), down: css("--down"),
-             accent: css("--accent")};
-  const old = KR.charts[ix.index];
-  if(old && old.el === el){ /* same element: just new data */ }
-  else {
-    if(old) try{ old.chart.remove(); }catch(e){}
-    const chart = LW.createChart(el, {autoSize: true, layout: {background: {type: LW.ColorType.Solid, color: C.bg},
-      textColor: C.ink3, fontSize: 11}, grid: {vertLines: {color: C.bd}, horzLines: {color: C.bd}},
-      rightPriceScale: {borderColor: C.bd}, timeScale: {borderColor: C.bd, timeVisible: true, secondsVisible: false},
-      handleScroll: false, handleScale: false});
-    KR.charts[ix.index] = {el, chart,
-      candles: chart.addSeries(LW.CandlestickSeries, {upColor: C.bg, borderUpColor: C.up, wickUpColor: C.up,
-        downColor: C.down, borderDownColor: C.down, wickDownColor: C.down, priceLineVisible: false}),
-      path: chart.addSeries(LW.LineSeries, {color: C.accent, lineWidth: 2, lineStyle: LW.LineStyle.Dashed,
-        priceLineVisible: false, lastValueVisible: true, title: "Kronos"})};
+             accent: css("--accent"), warn: css("--warn")};
+  if(!KR.chart){
+    KR.chart = LW.createChart(el, {autoSize: true, layout: {background: {type: LW.ColorType.Solid, color: C.bg},
+      textColor: C.ink3, fontSize: 12}, grid: {vertLines: {color: C.bd}, horzLines: {color: C.bd}},
+      rightPriceScale: {borderColor: C.bd}, timeScale: {borderColor: C.bd, timeVisible: true, secondsVisible: false,
+      rightOffset: 2}, crosshair: {mode: LW.CrosshairMode.Normal},
+      localization: {locale: "en-IN", priceFormatter: v => Number(v).toLocaleString("en-IN", {maximumFractionDigits: 2})}});
+    KR.candles = KR.chart.addSeries(LW.CandlestickSeries, {upColor: C.bg, borderUpColor: C.up, wickUpColor: C.up,
+      downColor: C.down, borderDownColor: C.down, wickDownColor: C.down, priceLineVisible: false});
+    KR.path = KR.chart.addSeries(LW.LineSeries, {color: C.accent, lineWidth: 2, lineStyle: LW.LineStyle.Dashed,
+      priceLineVisible: false, lastValueVisible: true, title: "Kronos"});
   }
-  const k = KR.charts[ix.index], T = t => Math.floor(Date.parse(t) / 1000) + IST_S;
-  k.candles.setData((ix.candles || []).map(c => ({time: T(c[0]), open: c[1], high: c[2], low: c[3], close: c[4]})));
+  const T = t => Math.floor(Date.parse(t) / 1000) + IST_S;
+  KR.candles.setData((ix.candles || []).map(c => ({time: T(c[0]), open: c[1], high: c[2], low: c[3], close: c[4]})));
   const f = ix.forecast;
-  k.path.setData(f && f.path ? [{time: T(f.from), value: f.close}].concat(f.path.map(p => ({time: T(p[0]), value: p[4]}))) : []);
-  k.chart.timeScale().fitContent();
+  KR.path.setData(f && f.path ? [{time: T(f.from), value: f.close}].concat(f.path.map(q => ({time: T(q[0]), value: q[4]}))) : []);
+  for(const ln of KR.lines) KR.candles.removePriceLine(ln);
+  const t = f && f.trade, LS = LW.LineStyle;
+  KR.lines = !t ? [] : [[t.target, "Target", C.up], [t.stop, "Stop", C.down], [t.entry, "Entry", C.warn]]
+    .map(([v, title, color]) => KR.candles.createPriceLine({price: v, color, lineWidth: 1, lineStyle: LS.Dashed,
+                                                             axisLabelVisible: true, title}));
+  if(KR.shown !== ix.index){ KR.chart.timeScale().fitContent(); KR.shown = ix.index; }
+  $("kkeys").innerHTML = `<span class="o">${esc(KR_NAME[ix.index] || ix.index)} · 15-minute candles</span>`
+    + `<span class="o">Kronos's next hour<i class="key dash" style="display:inline-block;margin-left:5px"></i></span>`
+    + (t ? `<span class="o" style="color:${C.up}">Target ${num(t.target, 0)}</span>`
+         + `<span class="o" style="color:${C.down}">Stop ${num(t.stop, 0)}</span>` : "");
 }
+// the switcher picks the index for the whole tool, as the Signal tab's does
+document.addEventListener("click", e => {
+  const b = e.target.closest ? e.target.closest("#kronosidx .kix") : null;
+  if(b) selectIndex(b.dataset.k);
+});
 setInterval(() => { if(TAB === "kronos" && !document.hidden) kronosFetch(); }, 30000);
 
 async function gannFetch(){

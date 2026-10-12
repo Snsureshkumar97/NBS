@@ -171,11 +171,28 @@ inp = json.load(open(os.path.join(kl.base(), "in", "NIFTY.json")))
 check("the export carries the strike step, lot size, the tool's delta and the chain",
       inp["strike_step"] == 50 and inp["lot_size"] == 65 and inp["delta"] == 0.5 and inp["chain"]["strikes"], inp.get("chain"))
 
+print("4c. THE CALLS LISTED FOR AN INDEX: NEWEST LIVE FIRST, THEN THE REPLAYS")
+os.makedirs(os.path.join(kl.base(), "calls"), exist_ok=True)
+json.dump([{"t": "r1", "close": 1, "f4": 2, "replay": True}, {"t": "r2", "close": 1, "f4": 2, "replay": True},
+           {"t": "l1", "close": 1, "f4": 2}, {"t": "l2", "close": 1, "f4": 0, "actual": 0.5}],
+          open(os.path.join(kl.base(), "calls", "SENSEX.json"), "w"))
+sx = next(i for i in kl.public("nse_index", now)["indices"] if i["index"] == "SENSEX")
+check("live calls newest first, then the replays (newest first)", [c["t"] for c in sx["calls"]] == ["l2", "l1", "r2", "r1"],
+      [c["t"] for c in sx["calls"]])
+check("each with what the tab draws", set(sx["calls"][0]) >= {"t", "close", "f4", "actual", "tool_dir", "replay", "result",
+                                                               "points", "rupees", "trade", "skip"}, sorted(sx["calls"][0]))
+
 print("5. THE PAGE, AND THE TRADING NEVER LOADS IT")
 SRC = open(os.path.join(HERE, "web_server.py")).read()
 check("a Kronos tab under Research, and its pane", 'data-tab="kronos"' in SRC.split('data-grp="research"')[1].split("</div>")[0]
       and '<section class="pane" data-pane="kronos">' in SRC)
 check("its route and handler", 'if path == "/api/kronos":' in SRC and "def _api_kronos(self, user):" in SRC)
+check("one index at a time, like the Signal tab: the tool's own index pick redraws it, its switcher sets it",
+      'if(TAB === "kronos" && typeof KR !== "undefined" && KR.data) kronosDraw(KR.data);' in SRC
+      and 'const ix = rows.find(r => r.index === CUR) || rows[0];' in SRC and "if(b) selectIndex(b.dataset.k);" in SRC)
+check("its sections: the switcher, the call, the trade, the chart, the record, all four",
+      all(f'id="{i}"' in SRC for i in ("kronosidx", "kcallcard", "ktrade", "kchartcard", "krecard", "kallcard", "kcalls")))
+check("the trade drawn with the tool's own ticket panel", '+ `<b>${esc(opt)}</b></div>` + posPanel(head, rowsT)' in SRC)
 check("says research only on the tab itself", "<b>Research only.</b> Kronos never decides a trade here." in SRC)
 import bot_data
 check("Ask TradePicker can read it", any(s["name"] == "get_kronos" and "kronos" in s["tabs"] for s in bot_data.SOURCES))
