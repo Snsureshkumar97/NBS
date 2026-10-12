@@ -363,7 +363,9 @@ SOURCES = [
                             "description": "One part, or all; default all."}}},
     {"name": "get_kronos", "tabs": ("kronos",), "routes": ("/api/kronos",), "fn": _kronos,
      "description": "The Kronos tab: an open-source AI candlestick model's forecast of the next hour for each Indian "
-                    "index (its four forecast candles from the last closed one), and its live record - how often its "
+                    "index - or, on the crypto market, for Bitcoin and gold (CFDs on Exness: its trade is a buy or sell of "
+                    "the instrument, in dollars, and it was never tested on them) - with its own trade (strike, premium, "
+                    "target, stop; one at a time, small calls skipped) and its live record - how often its "
                     "direction was right an hour later, against the tool's own signal direction on the same calls. "
                     "RESEARCH ONLY: in the tool's 3-year test it was no better than a coin (49.5-51.2% right in the "
                     "held-out year) and as a filter it cut most of the profit, so it never decides a trade; say so if "

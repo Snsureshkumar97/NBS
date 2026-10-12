@@ -14,6 +14,7 @@ import tempfile
 
 os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()
 os.environ["TRADING_TOOL_LOGS"] = tempfile.mkdtemp()
+os.environ["ENABLE_CRYPTO"] = "1"             # Bitcoin and gold on Exness, as the server runs
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pandas as pd
@@ -105,7 +106,7 @@ check("the tab's payload: four indices, the worker not running (no heartbeat)",
 os.makedirs(kl.base(), exist_ok=True)
 json.dump({"alive_at": (now - dt.timedelta(seconds=30)).isoformat()}, open(os.path.join(kl.base(), "worker.json"), "w"))
 check("a heartbeat 30 s old: running", kl.public("nse_index", now)["worker"]["running"])
-check("on crypto: a note, nothing else", "Indian indices only" in kl.public("crypto", now)["note"])
+check("a market Kronos does not cover: a note, nothing else", "does not run" in kl.public("spot_fx", now)["note"])
 
 print("4b. ITS OWN TRADE (the user: \"strike and target ... by its own code or decision and stop loss\", priced from the chain)")
 up_path = [["a", 0, 22370, 22340, 22360], ["b", 0, 22380, 22350, 22372], ["c", 0, 22385, 22355, 22378], ["d", 0, 22390, 22360, 22380]]
@@ -216,6 +217,60 @@ check("live calls newest first, then the replays (newest first)", [c["t"] for c 
       [c["t"] for c in sx["calls"]])
 check("each with what the tab draws", set(sx["calls"][0]) >= {"t", "close", "f4", "actual", "tool_dir", "replay", "result",
                                                                "points", "rupees", "trade", "skip"}, sorted(sx["calls"][0]))
+
+print("4e. CRYPTO: BITCOIN AND GOLD ON EXNESS (the user: \"can you add it for crypto as well\")")
+import config
+btc_idx = pd.date_range("2026-10-12 22:00", periods=10, freq="15min", tz="Asia/Kolkata")
+bdf = pd.DataFrame({"Open": range(82000, 82010), "High": range(82050, 82060), "Low": range(81950, 81960),
+                    "Close": range(82000, 82010)}, index=btc_idx).astype(float)
+
+
+class CryptoFeed:
+    def candles(self, name):
+        return (bdf, {"bias": "BEARISH"}) if name == "BTC" else (None, None)
+    def live_chain(self, name):
+        raise AssertionError("an Exness CFD has no option chain - it must not be asked for one")
+
+
+kl._exported.clear()
+check("exported for Bitcoin", kl.export(CryptoFeed(), dt.datetime(2026, 10, 13, 0, 40, tzinfo=IST), market="crypto") == ["BTC"])
+bi = json.load(open(os.path.join(kl.base(), "in", "BTC.json")))
+check("...as a CFD: the crypto market, no chain, no strike step, its own lot (1 BTC), the tool's direction then",
+      (bi["market"], bi["cfd"], bi["chain"], bi["strike_step"], bi["lot_size"], bi["tool"]["dir"])
+      == ("crypto", True, None, None, 1.0, -1), {k: bi[k] for k in ("market", "cfd", "chain", "strike_step", "lot_size")})
+t = dt.datetime(2026, 10, 12, 23, 30, tzinfo=IST)
+check("its clock runs straight through midnight", [x.strftime("%d %H:%M") for x in kw.next_slots(t, continuous=True)]
+      == ["12 23:45", "13 00:00", "13 00:15", "13 00:30"])
+ctr = {"side": "PE", "entry": 82000.0, "target": 81800.0, "stop": 82100.0}
+cc = kw.to_call([["2026-10-12T23:00:00+05:30", 0, 0, 0, 82000.0]], 0,
+                [["a", 0, 82010, 81900, 81950], ["b", 0, 82000, 81850, 81900], ["c", 0, 81950, 81800, 81850],
+                 ["d", 0, 81900, 81750, 81800]], -1, False, now, {"cfd": True, "lot_size": 1.0, "delta": 0.5})
+check("its trade is the instrument itself: a sell, no strike, no premium", cc["trade"]["cfd"] is True
+      and cc["trade"]["side"] == "PE" and cc["trade"]["strike"] is None and "premium" not in cc["trade"], cc["trade"])
+night = [[ts.isoformat(), 0, float(82000 - 20 * k) + 30, float(82000 - 20 * k) - 30, float(82000 - 20 * k)]
+         for k, ts in enumerate(pd.date_range("2026-10-12 23:00", periods=6, freq="15min", tz="Asia/Kolkata"))]
+cc2 = dict(cc, t=night[0][0], close=82000.0, f4=81900.0,
+           trade={"side": "PE", "entry": 82000.0, "target": 81800.0, "stop": 82100.0, "cfd": True})   # 0.24%, R:R 2
+cs_c = [cc2]
+check("no 14:15 cut-off on crypto: a 23:00 call is traded", kw.decide(cs_c, night, "crypto") == 1 and cs_c[0]["taken"],
+      cs_c[0].get("no_trade"))
+kw.score(cs_c, night)
+check("an hour across midnight is scored; out at the hour's close (+80); the result in DOLLARS a lot (x 1 BTC)",
+      cs_c[0]["actual"] == 81920.0 and cs_c[0]["result"] == "time" and cs_c[0]["usd"] == 80.0
+      and "rupees" not in cs_c[0], {k: cs_c[0].get(k) for k in ("actual", "result", "points", "usd")})
+gap = [[ts.isoformat(), 0, 4101.0, 4099.0, 4100.0] for ts in
+       list(pd.date_range("2026-10-13 01:30", periods=4, freq="15min", tz="Asia/Kolkata"))
+       + list(pd.date_range("2026-10-13 03:30", periods=4, freq="15min", tz="Asia/Kolkata"))]
+gc = [{"t": gap[1][0], "close": 4100.0, "f4": 4110.0}]
+kw.score(gc, gap)
+check("an hour across gold's daily break is marked, not scored", gc[0].get("actual") is None and gc[0].get("skip"), gc[0])
+check("the crypto rules have no cut-off time", kw.rules_for("crypto")["last_trade"] is None
+      and kw.rules_for("nse_index")["last_trade"] == "14:15")
+sc = kl.scorecard(cs_c)
+check("the record counts the dollars", sc["live"]["rupees"] == 80 and sc["live"]["trades"] == 1, sc["live"])
+pc = kl.public("crypto", now)
+check("the tab on crypto: Bitcoin and gold, marked as CFDs", [i["index"] for i in pc["indices"]] == ["BTC", "GOLD"]
+      and pc["cfd"] is True, (pc.get("cfd"), [i["index"] for i in pc["indices"]]))
 
 print("5. THE PAGE, AND THE TRADING NEVER LOADS IT")
 SRC = open(os.path.join(HERE, "web_server.py")).read()

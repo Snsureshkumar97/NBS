@@ -42,6 +42,12 @@ MIN_RR = 1.0                    # ...and the target at least as far from the ent
 LAST_TRADE = dt.time(14, 15)    # no trade from a later candle: its hour would run past the close
 RULES = {"min_move_pct": MIN_MOVE_PCT, "min_rr": MIN_RR, "last_trade": LAST_TRADE.strftime("%H:%M"),
          "one_at_a_time": True}
+
+
+def rules_for(market):
+    """The rules above for one market. Bitcoin and gold (crypto, 12 Oct 2026) have no session close to stop short of -
+    Bitcoin never stops, gold's daily break is caught from the candles instead (score())."""
+    return dict(RULES, last_trade=None) if market == "crypto" else RULES
 KEEP_CALLS = 3000
 BATCH = 16
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
@@ -52,12 +58,16 @@ def parse(t):
     return dt.datetime.fromisoformat(t)
 
 
-def next_slots(t, n=PRED_LEN):
-    """The next n 15-minute candle starts after t on the NSE weekday schedule (09:15 to 15:15). Exchange holidays are
-    not known here; these times only feed the model's clock features."""
+def next_slots(t, n=PRED_LEN, continuous=False):
+    """The next n 15-minute candle starts after t: on the NSE weekday schedule (09:15 to 15:15), or every 15 minutes
+    round the clock for a market that does not close (crypto). Exchange holidays are not known here; these times only
+    feed the model's clock features."""
     out = []
     while len(out) < n:
         t = t + dt.timedelta(minutes=15)
+        if continuous:
+            out.append(t)
+            continue
         if t.time() > LAST:
             d = t.date() + dt.timedelta(days=1)
             while d.weekday() >= 5:
@@ -69,8 +79,9 @@ def next_slots(t, n=PRED_LEN):
 
 def score(calls, candles):
     """Fill in each unscored call's outcome from the candles: the close four candles later, when that candle has
-    closed and is in the same session; a call whose hour crosses the close is marked and never scored. Returns how
-    many calls changed."""
+    closed and follows on WITHOUT A GAP (exactly an hour after the call's own candle); a call whose hour crosses the
+    close (the Indian indices) or a break in trading (gold's daily break, a weekend) is marked and never scored.
+    Returns how many calls changed."""
     pos = {c[0]: i for i, c in enumerate(candles)}
     changed = 0
     for c in calls:
@@ -80,14 +91,17 @@ def score(calls, candles):
         if i is None or i + PRED_LEN >= len(candles):
             continue
         later = candles[i + PRED_LEN]
-        if parse(later[0]).date() != parse(c["t"]).date():
-            c["skip"] = "the hour crosses the close"
+        if parse(later[0]) - parse(c["t"]) != dt.timedelta(minutes=15 * PRED_LEN):
+            c["skip"] = "the hour crosses the close or a break in trading"
         else:
             c["actual"], c["actual_t"] = later[4], later[0]
             if c.get("trade") and c.get("taken"):
                 c["result"], c["points"] = trade_outcome(c["trade"], candles[i + 1:i + 1 + PRED_LEN])
                 tr = c["trade"]
-                if tr.get("premium") and c.get("lot_size"):
+                if tr.get("cfd") and c.get("lot_size"):
+                    # dollars a lot for a CFD (Exness): the points x the lot (1 BTC, 100 oz) - before the spread
+                    c["usd"] = round(c["points"] * c["lot_size"], 2)
+                elif tr.get("premium") and c.get("lot_size"):
                     # rupees per lot, ESTIMATED: the index points x the delta the premium levels were set with, x
                     # one lot - no time decay, no spread; the option's own candles are not read here
                     c["rupees"] = round(c["points"] * tr.get("delta", 0.5) * c["lot_size"], 2)
@@ -106,7 +120,7 @@ def _closed_by(trade, candles, i0, i):
     return i >= i0 + PRED_LEN
 
 
-def decide(calls, candles):
+def decide(calls, candles, market="nse_index"):
     """Which calls' trades are TAKEN, oldest first, by RULES above: a trade worth taking (the forecast move at least
     MIN_MOVE_PCT of the price, the reward at least MIN_RR x the risk, not after LAST_TRADE) and no trade of this index
     still open. Each call gets "taken" True/False and, when not taken, "no_trade" with the reason. A call already
@@ -130,7 +144,7 @@ def decide(calls, candles):
         why = None
         if not t:
             why = "a flat forecast"
-        elif parse(c["t"]).time() > LAST_TRADE:
+        elif market != "crypto" and parse(c["t"]).time() > LAST_TRADE:
             why = "too near the close"
         elif abs(t["target"] - t["entry"]) / t["entry"] * 100 < MIN_MOVE_PCT:
             why = "a small move"
@@ -141,7 +155,7 @@ def decide(calls, candles):
         c["taken"] = why is None
         if why:
             c["no_trade"] = why
-            for k in ("result", "points", "rupees"):
+            for k in ("result", "points", "rupees", "usd"):
                 c.pop(k, None)
         else:
             taken_last[run] = (c, i)
@@ -192,9 +206,12 @@ def to_call(candles, i, path, tool_dir, replay, now, inp=None):
     """One call. Only the newest candle's is priced in the option - the chain sent is the price NOW; a replayed
     candle from yesterday has no option price of its own here, so its trade is in index points only."""
     inp = inp or {}
+    trade = trade_from(candles[i][4], path, inp.get("strike_step"), None if replay else inp.get("chain"),
+                       inp.get("delta") or 0.5)
+    if trade and inp.get("cfd"):
+        trade = dict(trade, cfd=True, strike=None)        # the instrument itself, bought or sold - no option
     return {"t": candles[i][0], "close": candles[i][4], "f4": path[-1][4], "path": path,
-            "trade": trade_from(candles[i][4], path, inp.get("strike_step"), None if replay else inp.get("chain"),
-                                inp.get("delta") or 0.5),
+            "trade": trade,
             "lot_size": inp.get("lot_size"),
             "tool_dir": None if replay else tool_dir, "replay": replay, "made_at": now.isoformat()}
 
@@ -228,7 +245,7 @@ def load():
     return KronosPredictor(mdl, tok, device="cpu", max_context=512)
 
 
-def forecast(pred, windows):
+def forecast(pred, windows, continuous=False):
     """Each window (CONTEXT candles, the last one closed) -> its next PRED_LEN candles as [[t, o, h, l, c], ...]."""
     import pandas as pd
     import torch
@@ -236,7 +253,7 @@ def forecast(pred, windows):
     for w in windows:
         dfs.append(pd.DataFrame([r[1:5] for r in w], columns=["open", "high", "low", "close"], dtype=float))
         xts.append(pd.Series(pd.to_datetime([r[0] for r in w])))
-        yts.append(pd.Series(pd.to_datetime([s.isoformat() for s in next_slots(parse(w[-1][0]))])))
+        yts.append(pd.Series(pd.to_datetime([s.isoformat() for s in next_slots(parse(w[-1][0]), continuous=continuous)])))
     torch.manual_seed(len(windows[-1]))
     res = pred.predict_batch(dfs, xts, yts, pred_len=PRED_LEN, T=TEMP, top_p=TOP_P, sample_count=SAMPLES, verbose=False)
     return [[[y.iloc[k].isoformat(), *(round(float(r[c].iloc[k]), 2) for c in ("open", "high", "low", "close"))]
@@ -259,9 +276,11 @@ def _one(pred, path, replays, now):
             candles = inp.get("candles") or []
             if len(candles) < CONTEXT:
                 return
+            market = inp.get("market") or "nse_index"
+            cont = market == "crypto"
             cpath = os.path.join(BASE, "calls", f"{key}.json")
             calls = _read(cpath, []) or []
-            decide(calls, candles)
+            decide(calls, candles, market)
             score(calls, candles)
             have = {c["t"] for c in calls}
             last = len(candles) - 1
@@ -273,11 +292,11 @@ def _one(pred, path, replays, now):
                 todo = [(last, False)]
             for s in range(0, len(todo), BATCH):
                 chunk = todo[s:s + BATCH]
-                paths = forecast(pred, [candles[i - CONTEXT + 1:i + 1] for i, _ in chunk])
+                paths = forecast(pred, [candles[i - CONTEXT + 1:i + 1] for i, _ in chunk], cont)
                 for (i, replay), p in zip(chunk, paths):
                     calls.append(to_call(candles, i, p, (inp.get("tool") or {}).get("dir"), replay, now, inp))
             if todo:
-                decide(calls, candles)
+                decide(calls, candles, market)
                 score(calls, candles)
             calls.sort(key=lambda c: c["t"])
             live = [c for c in calls if not c["replay"]]
@@ -286,7 +305,8 @@ def _one(pred, path, replays, now):
                 _write(os.path.join(BASE, "out", f"{key}.json"),
                        {"index": key, "from": head["t"], "close": head["close"], "path": head["path"],
                         "trade": head.get("trade"), "taken": head.get("taken"), "no_trade": head.get("no_trade"),
-                        "made_at": head["made_at"], "tool_dir": head.get("tool_dir"), "rules": RULES})
+                        "made_at": head["made_at"], "tool_dir": head.get("tool_dir"), "rules": rules_for(market),
+                        "market": market, "cfd": bool(inp.get("cfd"))})
             for c in calls[:-PRED_LEN * 2]:
                 c.pop("path", None)              # only the newest calls keep their whole path; the record keeps f4
             _write(cpath, calls[-KEEP_CALLS:])

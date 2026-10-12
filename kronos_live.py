@@ -30,6 +30,9 @@ KEEP_CANDLES = 600            # what the worker gets: 400 of context and room to
 CHART_CANDLES = 80            # what the tab draws before the forecast - two sessions and a half
 CALLS_SHOWN = 30              # the newest calls listed per index on the tab
 MARKET = "nse_index"
+# Bitcoin and gold too (the user, 12 Oct 2026: "can you add it for crypto as well"). On Exness they are CFDs - no
+# option chain, no strike: Kronos's trade is the instrument itself, bought or sold, in its own price.
+MARKETS = ("nse_index", "crypto")
 WORKER_STALE_S = 180          # the worker beats every ~20 s; three minutes without one is "not running"
 
 _lock = threading.Lock()
@@ -108,12 +111,17 @@ def chain_prices(feed, key, close, step):
     return {"expiry": oi.get("expiry"), "strikes": out} if out else None
 
 
-def export(feed, now=None):
-    """Write in/<INDEX>.json for each Indian index whose latest closed candle is newer than the last one written.
-    Returns the indices written."""
+def _is_cfd(market):
+    return market == "crypto" and getattr(config, "CRYPTO_VENUE", "") == "exness"
+
+
+def export(feed, now=None, market=MARKET):
+    """Write in/<INSTRUMENT>.json for each instrument of `market` whose latest closed candle is newer than the last one
+    written. Returns the instruments written."""
     now = now or dt.datetime.now(IST)
     wrote = []
-    for key in config.instruments_in(MARKET):
+    cfd = _is_cfd(market)
+    for key in config.instruments_in(market):
         try:
             df, rec = feed.candles(key)
         except Exception:
@@ -129,23 +137,29 @@ def export(feed, now=None):
         meta = config.INSTRUMENTS.get(key) or {}
         step = meta.get("strike_step")
         _write_json(os.path.join(base(), "in", f"{key}.json"),
-                    {"index": key, "candles": rows, "tool": {"dir": tool_direction(rec), "bias": (rec or {}).get("bias")},
+                    {"index": key, "market": market, "cfd": cfd, "candles": rows,
+                     "tool": {"dir": tool_direction(rec), "bias": (rec or {}).get("bias")},
                      # what Kronos's own trade is priced with: the strikes' live prices, and the same delta and lot
-                     # size the tool's own premium levels use (signal_engine: index distance x APPROX_ATM_DELTA)
-                     "strike_step": step, "lot_size": meta.get("lot_size"), "delta": config.APPROX_ATM_DELTA,
-                     "chain": chain_prices(feed, key, rows[-1][4], step), "written_at": now.isoformat()})
+                     # size the tool's own premium levels use (signal_engine: index distance x APPROX_ATM_DELTA) -
+                     # or, for a CFD, nothing but its lot (1 BTC, 100 oz of gold)
+                     "strike_step": None if cfd else step, "lot_size": meta.get("lot_size"),
+                     "delta": config.APPROX_ATM_DELTA,
+                     "chain": None if cfd else chain_prices(feed, key, rows[-1][4], step), "written_at": now.isoformat()})
         wrote.append(key)
     return wrote
 
 
-def _indian_feed():
-    """Any running Indian feed that has candles - the always-on accounts keep one running through the session."""
+def _feed_for(market):
+    """Any running feed of `market` that has candles - the always-on accounts keep one running."""
     import feeds
+    keys = config.instruments_in(market)
+    if not keys:
+        return None
     with feeds._lock:
-        running = [f for f in feeds._feeds.values() if getattr(f, "market", None) == MARKET]
+        running = [f for f in feeds._feeds.values() if getattr(f, "market", None) == market]
     for f in running:
         try:
-            df, _ = f.candles(config.instruments_in(MARKET)[0])
+            df, _ = f.candles(keys[0])
         except Exception:
             continue
         if df is not None and len(df):
@@ -155,12 +169,13 @@ def _indian_feed():
 
 def _loop():
     while True:
-        try:
-            feed = _indian_feed()
-            if feed is not None:
-                export(feed)
-        except Exception as exc:
-            print(f"[kronos] export failed: {type(exc).__name__}: {exc}", flush=True)
+        for market in MARKETS:
+            try:
+                feed = _feed_for(market)
+                if feed is not None:
+                    export(feed, market=market)
+            except Exception as exc:
+                print(f"[kronos] {market} export failed: {type(exc).__name__}: {exc}", flush=True)
         time.sleep(30)
 
 
@@ -179,7 +194,9 @@ def scorecard(calls):
     for label, rows in (("live", [c for c in calls if not c.get("replay")]),
                         ("replay", [c for c in calls if c.get("replay")])):
         trades = [c for c in rows if c.get("result")]
-        rupees = [c["rupees"] for c in trades if c.get("rupees") is not None]
+        # money a lot: rupees (an option, estimated with delta) or dollars (a CFD, before the spread)
+        rupees = [c["rupees"] if c.get("rupees") is not None else c["usd"] for c in trades
+                  if c.get("rupees") is not None or c.get("usd") is not None]
         done = [c for c in rows if c.get("actual") is not None and c.get("actual") != c.get("close")]
         k_right = sum(1 for c in done if (c["f4"] > c["close"]) == (c["actual"] > c["close"]))
         tool = [c for c in done if c.get("tool_dir")]
@@ -207,8 +224,9 @@ def scorecard(calls):
 def public(market=None, now=None):
     """Everything the tab draws, read from the worker's files."""
     now = now or dt.datetime.now(IST)
-    if (market or MARKET) != MARKET:
-        return {"market": market, "note": "Kronos runs on the Indian indices only."}
+    market = market or MARKET
+    if market not in MARKETS or not config.instruments_in(market):
+        return {"market": market, "note": "Kronos does not run on this market."}
     b = base()
     hb = _read_json(os.path.join(b, "worker.json"), {}) or {}
     age = None
@@ -218,7 +236,7 @@ def public(market=None, now=None):
         except ValueError:
             age = None
     indices, every = [], []
-    for key in config.instruments_in(MARKET):
+    for key in config.instruments_in(market):
         inp = _read_json(os.path.join(b, "in", f"{key}.json"), {}) or {}
         fc = _read_json(os.path.join(b, "out", f"{key}.json"), None)
         calls = _read_json(os.path.join(b, "calls", f"{key}.json"), []) or []
@@ -229,10 +247,10 @@ def public(market=None, now=None):
         indices.append({"index": key, "candles": (inp.get("candles") or [])[-CHART_CANDLES:], "lot_size": inp.get("lot_size"),
                         "tool": inp.get("tool"), "forecast": fc, "score": scorecard(calls),
                         "calls": [{k: c.get(k) for k in ("t", "close", "f4", "actual", "actual_t", "tool_dir", "replay",
-                                                          "result", "points", "rupees", "trade", "skip", "taken",
-                                                          "no_trade")}
+                                                          "result", "points", "rupees", "usd", "trade", "skip",
+                                                          "taken", "no_trade")}
                                   for c in shown]})
-    return {"market": MARKET, "worker": {"alive_at": hb.get("alive_at"), "age_s": age,
+    return {"market": market, "cfd": _is_cfd(market), "worker": {"alive_at": hb.get("alive_at"), "age_s": age,
                                          "running": age is not None and age < WORKER_STALE_S,
                                          "device": hb.get("device"), "model": hb.get("model"),
                                          "rules": hb.get("rules")},
