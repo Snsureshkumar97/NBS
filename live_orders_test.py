@@ -206,7 +206,8 @@ check("the ticket engine's callback only queues - no call to Zerodha from inside
       ex.q.qsize() == 1 and not fk.calls)
 drain(ex)
 check("switched off: no order at all", not fk.places())
-check("every index starts switched off", ex.enabled == {"NIFTY": False, "BANKNIFTY": False, "SENSEX": False})
+check("every index starts switched off - Midcap Select too (live from 11 Oct 2026)",
+      ex.enabled == {"NIFTY": False, "BANKNIFTY": False, "SENSEX": False, "MIDCPNIFTY": False})
 try:
     ex.set_enabled("BTC", True)
     check("an index outside the three cannot be switched on", False)

@@ -233,13 +233,13 @@ try:
     web_server._state["mode"] = "kite"
     user_kite.token_for = lambda email: "tok"
 
-    ex = FakeExAll(("NIFTY", "BANKNIFTY", "SENSEX"))
+    ex = FakeExAll(("NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"))
     h, out = all_handler(ex)
     h._do_live({"index": "ALL", "on": "1"})
     d = json.loads(out["body"])
     check("index=ALL is accepted even though 'ALL' is not itself a real index", d["ok"], d)
-    check("every index x every source (rule, ai) is switched on - 6 calls for 3 indices",
-          len(ex.calls) == 6 and all(c[1] is True for c in ex.calls), ex.calls)
+    check("every index x every source (rule, ai) is switched on - 8 calls for 4 indices (Midcap Select live from "
+          "11 Oct 2026)", len(ex.calls) == 8 and all(c[1] is True for c in ex.calls), ex.calls)
     check("both rule and ai are actually on for every index",
           all(ex.enabled.values()) and all(ex.enabled_ai.values()), (ex.enabled, ex.enabled_ai))
 
@@ -256,11 +256,11 @@ try:
     user_kite.token_for = lambda email: "tok"
 
     print("12. ONE (index, source) PAIR FAILING DOES NOT STOP THE REST OF THE MARKET")
-    ex3 = FakeExAll(("NIFTY", "BANKNIFTY", "SENSEX"), fail_for={("BANKNIFTY", "ai")})
+    ex3 = FakeExAll(("NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"), fail_for={("BANKNIFTY", "ai")})
     h, out = all_handler(ex3)
     h._do_live({"index": "ALL", "on": "1"})
     d = json.loads(out["body"])
-    check("all 6 calls are still attempted, not aborted at the first failure", len(ex3.calls) == 6, ex3.calls)
+    check("all 8 calls are still attempted, not aborted at the first failure", len(ex3.calls) == 8, ex3.calls)
     check("the one failure is reported, not silently swallowed",
           not d["ok"] and "BANKNIFTY" in d["message"] and "ai" in d["message"], d)
     check("every OTHER (index, source) pair still switched on despite that one failure",

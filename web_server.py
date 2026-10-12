@@ -1581,7 +1581,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return reply(False, "Refused: that request did not come from this site.", 403)
         market = self._current_market()
         if market not in ("nse_index", "crypto"):
-            return reply(False, "Live orders are only for Nifty, Bank Nifty, Sensex and Bitcoin.", 400)
+            return reply(False, "Live orders are only for Nifty, Bank Nifty, Sensex, Midcap Select and Bitcoin.", 400)
         if market == "nse_index" and _state["mode"] == "free":
             return reply(False, "Live orders need Zerodha mode, not the free data mode.", 400)
         index = (form.get("index") or "").strip().upper()
@@ -1597,7 +1597,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             allowed = delta_orders.INDICES
         if index != "ALL" and index not in allowed:
             return reply(False, ("Live orders on Exness are for Bitcoin and gold." if exness else
-                                 "Live orders are only for Nifty, Bank Nifty and Sensex on Zerodha, and Bitcoin "
+                                 "Live orders are only for Nifty, Bank Nifty, Sensex and Midcap Select on Zerodha, and Bitcoin "
                                  "on Delta Exchange India."), 400)
         ex = getattr(feeds.for_user(user, market), "live", None)
         if ex is None:

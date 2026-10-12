@@ -166,11 +166,12 @@ INSTRUMENTS = {
         "lot_size": 20,                   # verify current lot size on Zerodha before trading
         "has_free_option_chain": False,
     },
-    # PAPER ONLY (7 Oct 2026). The user, after index_candidates_study.py: "add midcap i will check paper trades".
+    # Added 7 Oct 2026 on paper (the user, after index_candidates_study.py: "add midcap i will check paper trades").
     # It beat Bank Nifty in both periods on 3 years - but its options are thin (~5k lots a day at the money against
-    # Bank Nifty's ~110k) and its edge is gone by 0.75% slippage a side, so it is watched on paper first. It is NOT in
-    # live_orders.INDICES, so no live order can be placed for it (Executor.set_enabled refuses it and the page shows no
-    # live switch). Monthly options only. Lot and strike step from Kite's instrument list, 7 Oct 2026.
+    # Bank Nifty's ~110k) and its edge is gone by 0.75% slippage a side. LIVE ORDERS ALLOWED from 11 Oct 2026 (the
+    # user: "can you add live trades for midcpnifty as well") - in live_orders.INDICES, its switch OFF until turned on.
+    # Still kept out of the AI desk (AI_DESK_SKIP). Monthly options only. Lot and strike step from Kite's instrument
+    # list, 7 Oct 2026.
     "MIDCPNIFTY": {
         "yahoo_ticker": "NIFTY_MID_SELECT.NS",
         "nse_symbol": "MIDCPNIFTY",       # the options' underlying name on NFO

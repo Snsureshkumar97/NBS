@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Midcap Select as a PAPER-ONLY fourth Indian index (the user, 7 Oct 2026: "add midcap i will check paper trades").
-Its contract facts; that no live order can ever be placed for it; that its option chain is found by its own underlying
+"""Midcap Select as the fourth Indian index (the user, 7 Oct 2026: "add midcap i will check paper trades"; live orders
+allowed from 11 Oct 2026, its switch off until turned on). Its contract facts; its live orders - off by default, then
+handed to the order loop and placed on its own NFO contract; that its option chain is found by its own underlying
 name (the old fixed three-index map raised for anything else) while the other three still resolve; the recorder keeps
 its premiums; the engine prices its strikes on a 25-point step."""
 import datetime as dt
@@ -29,18 +30,37 @@ check("lot 120, strike step 25, on NSE as 'NIFTY MID SELECT', options named MIDC
       (m.get("lot_size"), m.get("strike_step"), m.get("kite_exchange"), m.get("kite_tradingsymbol"), m.get("nse_symbol"))
       == (120, 25, "NSE", "NIFTY MID SELECT", "MIDCPNIFTY"), m)
 
-print("2. PAPER ONLY")
-check("not one of the live-order indices", "MIDCPNIFTY" not in lo.INDICES and lo.INDICES == ("NIFTY", "BANKNIFTY", "SENSEX"))
-ex = lo.Executor("me@example.invalid", os.path.join(tempfile.mkdtemp(), "trades.csv"), kite=lambda: None, start=False)
-try:
-    ex.set_enabled("MIDCPNIFTY", True)
-    refused = False
-except ValueError:
-    refused = True
-check("switching live orders on for it is refused", refused and "MIDCPNIFTY" not in ex.enabled)
-check("...and an entry for it sends nothing (no switch to be on)", not ex.switches("rule").get("MIDCPNIFTY"))
+print("2. LIVE ORDERS: ALLOWED, OFF UNTIL SWITCHED ON (the user, 11 Oct 2026: \"can you add live trades for midcpnifty as well\")")
+check("one of the live-order indices, on NFO - the other three unchanged",
+      lo.INDICES == ("NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY") and lo.EXCHANGE["MIDCPNIFTY"] == "NFO"
+      and (lo.EXCHANGE["NIFTY"], lo.EXCHANGE["BANKNIFTY"], lo.EXCHANGE["SENSEX"]) == ("NFO", "NFO", "BFO"))
+log = os.path.join(tempfile.mkdtemp(), "trades.csv")
+ex = lo.Executor("me@example.invalid", log, kite=lambda: None, start=False)
+check("a new account starts with it OFF - nothing is placed until someone switches it on",
+      ex.enabled.get("MIDCPNIFTY") is False and ex.enabled_ai.get("MIDCPNIFTY") is False)
+check("switching it on is accepted", ex.set_enabled("MIDCPNIFTY", True) is True)
+check("...and kept across a restart", lo.Executor("me@example.invalid", log, kite=lambda: None, start=False)
+      .enabled.get("MIDCPNIFTY") is True)
+while not ex.q.empty():
+    ex.q.get_nowait()
+ex.on_ticket_event("opened", {"index": "MIDCPNIFTY", "trade_id": "MIDCPNIFTY-1", "strike": 13750, "option_type": "CE"})
+item = ex.q.get_nowait() if not ex.q.empty() else None
+check("a Midcap ticket opening is handed to the order loop (it used to be dropped)", item and item[0] == "open"
+      and item[1]["index"] == "MIDCPNIFTY", item)
+exp = dt.date.today() + dt.timedelta(days=17)
+ex._instruments[("NFO", ex._today())] = [
+    {"name": "MIDCPNIFTY", "instrument_type": "CE", "strike": 13750.0, "expiry": exp, "tradingsymbol": "MIDCPNIFTYXCE",
+     "lot_size": 120, "instrument_token": 1},
+    {"name": "NIFTY", "instrument_type": "CE", "strike": 13750.0, "expiry": exp, "tradingsymbol": "NIFTYXCE",
+     "lot_size": 65, "instrument_token": 2}]
+c = ex._contract("MIDCPNIFTY", 13750, "CE", exp.isoformat())
+check("its contract is found among the NFO options by its own name, not another index's same strike",
+      c and c["tradingsymbol"] == "MIDCPNIFTYXCE", c)
+check("still kept out of the AI desk", "MIDCPNIFTY" in config.AI_DESK_SKIP)
 src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
-check("the page shows the live switch only for an index the live orders know", "!(CUR in (L.enabled || {}))" in src)
+check("the page shows the live switch for any index the live orders know - now Midcap too",
+      "!(CUR in (L.enabled || {}))" in src)
+check("the server's messages name it", "Nifty, Bank Nifty, Sensex and Midcap Select on Zerodha" in src)
 
 print("3. ITS OPTION CHAIN")
 today = dt.date.today()

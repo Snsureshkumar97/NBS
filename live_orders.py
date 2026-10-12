@@ -66,8 +66,11 @@ import time
 import config
 from main import now_ist
 
-INDICES = ("NIFTY", "BANKNIFTY", "SENSEX")
-EXCHANGE = {"NIFTY": "NFO", "BANKNIFTY": "NFO", "SENSEX": "BFO"}
+# Midcap Select joined 11 Oct 2026 (the user: "can you add live trades for midcpnifty as well", after it ran on paper
+# from 7 Oct). Its switch starts OFF like every other's. Its options are thin (see config.INSTRUMENTS["MIDCPNIFTY"]):
+# the entry still goes through the same spread hold, mid-price chase and limit as the others.
+INDICES = ("NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY")
+EXCHANGE = {"NIFTY": "NFO", "BANKNIFTY": "NFO", "SENSEX": "BFO", "MIDCPNIFTY": "NFO"}
 PRODUCT = "MIS"
 SQUARE_OFF = (15, 20)
 NO_ENTRY_AFTER = (15, 10)
