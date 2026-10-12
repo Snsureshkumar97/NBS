@@ -5,7 +5,9 @@ Research only. Checks, without Kronos or PyTorch:
   2. the worker's clock: the next four candle starts across the close and the weekend
   3. the worker's scoring: a call is checked against the close four candles later, in the same session only
   4. the record: Kronos's hit rate, the tool's on the same calls, live and replayed calls kept apart
-  5. the page: the tab, its route, Ask TradePicker can read it, and nothing in the trading imports it"""
+  5. the page: the tab, its route, Ask TradePicker can read it, and nothing in the trading imports it
+Also (4f/4g) its whole-day forecast from the 09:15 candle to the close, and its trades today with the option's price
+NOW for the tab and the Positions page."""
 import datetime as dt
 import json
 import os
@@ -272,6 +274,181 @@ pc = kl.public("crypto", now)
 check("the tab on crypto: Bitcoin and gold, marked as CFDs", [i["index"] for i in pc["indices"]] == ["BTC", "GOLD"]
       and pc["cfd"] is True, (pc.get("cfd"), [i["index"] for i in pc["indices"]]))
 
+print("4f. THE WHOLE DAY (the user: \"forecast till where it can go end of the market ... which strike and target\")")
+def session(day, start_px, step_px, n=25, wig=5.0):
+    """One session's 15-minute candles from 09:15, the close moving step_px a candle, each +-wig."""
+    idx = pd.date_range(f"{day} 09:15", periods=n, freq="15min", tz="Asia/Kolkata")
+    return [[ts.isoformat(), start_px + step_px * k, start_px + step_px * k + wig, start_px + step_px * k - wig,
+             float(start_px + step_px * k)] for k, ts in enumerate(idx)]
+
+
+check("24 candles follow the 09:15 one, to the 15:15 one; none after 15:15",
+      kw.day_len("2026-10-13T09:15:00+05:30") == 24 and kw.day_len("2026-10-13T15:15:00+05:30") == 0)
+d1 = session("2026-10-12", 25000, 10)              # yesterday: rises 10 a candle, 25000 -> 25240
+d2 = session("2026-10-13", 25300, -10, n=8)        # today, to the 11:00 candle so far
+cand = d1 + d2
+check("yesterday's session is over; today's, at 11:00, is not", kw.session_done(cand, 0) and not kw.session_done(cand, 25))
+check("the rest of a session is that day's candles only", len(kw.session_rest(cand, 0)) == 24
+      and len(kw.session_rest(cand, 25)) == 7)
+dc = [{"t": d1[0][0], "close": 25000.0, "f4": 25150.0, "taken": True, "lot_size": 65,
+       "trade": {"side": "CE", "strike": 25000, "entry": 25000.0, "target": 25150.0, "stop": 24980.0, "premium": 120.0,
+                 "delta": 0.5}},
+      {"t": d2[0][0], "close": 25300.0, "f4": 25400.0, "taken": True,
+       "trade": {"side": "CE", "entry": 25300.0, "target": 25400.0, "stop": 25250.0}}]
+kw.score_days(dc, cand)
+check("a finished day is scored: closed at 25240, its target hit (+150), rupees estimated with delta x lot",
+      dc[0]["actual"] == 25240.0 and dc[0]["result"] == "target" and dc[0]["points"] == 150.0
+      and dc[0]["rupees"] == 150 * 0.5 * 65, {k: dc[0].get(k) for k in ("actual", "result", "points", "rupees")})
+check("today's is not scored while its session is on", dc[1].get("actual") is None and "result" not in dc[1])
+dc2 = [{"t": d1[0][0], "close": 25000.0, "f4": 25500.0, "taken": True,
+        "trade": {"side": "CE", "entry": 25000.0, "target": 25500.0, "stop": 24900.0}}]
+kw.score_days(dc2, cand)
+check("a target never reached: out at the day's last close (+240)", dc2[0]["result"] == "time" and dc2[0]["points"] == 240.0,
+      dc2[0])
+dc3 = [{"t": d1[0][0], "close": 25000.0, "f4": 24800.0, "taken": True,
+        "trade": {"side": "PE", "entry": 25000.0, "target": 24800.0, "stop": 25100.0}}]
+kw.score_days(dc3, cand)
+check("a put against a rising day is stopped (-100)", dc3[0]["result"] == "stop" and dc3[0]["points"] == -100.0, dc3[0])
+short = session("2026-10-09", 25000, 5, n=12) + d1
+dc4 = [{"t": short[0][0], "close": 25000.0, "f4": 25100.0, "taken": False, "trade": None}]
+kw.score_days(dc4, short)
+check("a short session (the next one has begun) is scored on its own last candle", dc4[0]["actual"] == short[11][4], dc4[0])
+for tg, stp, want in ((25100.0, 24950.0, True), (25020.0, 24990.0, "a small move"),
+                      (25100.0, 24850.0, "reward smaller than risk")):
+    c = {"trade": {"side": "CE", "entry": 25000.0, "target": tg, "stop": stp}}
+    kw.decide_day(c)
+    check(f"its rules: target {tg:.0f}, stop {stp:.0f} -> {want if want is not True else 'traded'}",
+          c["taken"] is True if want is True else (c["taken"] is False and c.get("no_trade") == want), c)
+c = {"trade": None}
+kw.decide_day(c)
+check("a flat whole-day forecast is not traded", c["taken"] is False and c["no_trade"] == "a flat forecast")
+
+# the worker's own pass, with a stand-in for the model (every forecast rises 6 points a candle) and a short context
+real = (kw.BASE, kw.forecast, kw.CONTEXT)
+kw.BASE, kw.CONTEXT = kl.base(), 25      # 09 Oct's 09:15 candle is the 26th
+asked = []
+def fake_forecast(pred, windows, continuous=False, n=kw.PRED_LEN):
+    asked.append((len(windows), n))
+    out = []
+    for w in windows:
+        c0 = w[-1][4]
+        out.append([[x.isoformat(), c0, c0 + 6 * (k + 1) + 3, c0 + 6 * k - 3, c0 + 6 * (k + 1)]
+                    for k, x in enumerate(kw.next_slots(kw.parse(w[-1][0]), n))])
+    return out
+kw.forecast = fake_forecast
+try:
+    hist = (session("2026-10-08", 24800, 2) + session("2026-10-09", 24850, 2) + session("2026-10-12", 24900, 2)
+            + session("2026-10-13", 25000, 2, n=1))
+    chain = {"expiry": "2026-10-14", "strikes": {"25000": {"CE": 130.0, "PE": 110.0}}}
+    inp = {"index": "NIFTY", "market": "nse_index", "candles": hist, "tool": {"dir": 1}, "strike_step": 50,
+           "lot_size": 65, "delta": 0.5, "chain": chain}
+    ipath = os.path.join(kw.BASE, "in", "NIFTY.json")
+    kw._write(ipath, inp)
+    dpath = os.path.join(kw.BASE, "days", "NIFTY.json")
+    kw._day(None, ipath, False, now)
+    days = json.load(open(dpath))
+    lv0 = days[-1] if days else {}
+    check("at 09:30 a live whole-day call from today's 09:15 candle: 24 candles ahead, in the option at the chain's "
+          "price, the tool's direction then", asked == [(1, 24)] and len(days) == 1 and lv0["t"] == hist[75][0]
+          and not lv0["replay"] and lv0["trade"]["premium"] == 130.0 and lv0["trade"]["strike"] == 25000
+          and lv0["tool_dir"] == 1 and lv0["kind"] == "day" and lv0["taken"] is True and len(lv0["path"]) == 24,
+          (asked, {k: lv0.get(k) for k in ("t", "replay", "taken", "tool_dir", "trade")}))
+    check("...its target where it says the index closes the day (+144), its day's high and low kept",
+          lv0["trade"]["target"] == 25144.0 and lv0["hi"] == 25147.0 and lv0["lo"] == 24997.0,
+          (lv0["trade"], lv0.get("hi"), lv0.get("lo")))
+    kw._day(None, ipath, False, now)
+    check("made once: the next pass forecasts nothing", asked == [(1, 24)], asked)
+    kw._day(None, ipath, True, now)
+    days = json.load(open(dpath))
+    reps = [c for c in days if c.get("replay")]
+    check("the replay: the finished sessions with a full context before them (09 and 12 Oct, not 08), in index points "
+          "only, scored", [c["t"][:10] for c in reps] == ["2026-10-09", "2026-10-12"] and asked[-1] == (2, 24)
+          and all("premium" not in c["trade"] and c.get("actual") is not None for c in reps),
+          [(c["t"][:10], c.get("actual"), c.get("result")) for c in reps])
+    kw._day(None, ipath, True, now)
+    check("...replayed once only", len(asked) == 2, asked)
+    # the worker reached today late: the 09:30 candle had closed too - no option price from 09:15, no tool direction
+    os.remove(dpath)
+    kw._write(ipath, dict(inp, candles=hist + session("2026-10-13", 25000, 2, n=2)[1:]))
+    kw._day(None, ipath, False, now)
+    late = json.load(open(dpath))[-1]
+    check("made late: still from the 09:15 candle, but in index points and without the tool's direction now",
+          late["late"] is True and "premium" not in late["trade"] and late["tool_dir"] is None
+          and late["t"] == hist[75][0], {k: late.get(k) for k in ("late", "tool_dir", "trade")})
+    # first seen at night, today's session already over: no "live" call from it - the chain and the tool's direction
+    # sent now are not 09:30's (the replay covers it, in points)
+    os.remove(dpath)
+    kw._write(ipath, dict(inp, candles=hist[:75] + session("2026-10-13", 25000, 2)))
+    n0 = len(asked)
+    kw._day(None, ipath, False, now)
+    check("first seen after the close: no live call from a finished session", len(asked) == n0
+          and not os.path.exists(dpath), asked[n0:])
+    kw._write(ipath, inp)
+    kw._day(None, ipath, False, now)
+    kw._day(None, ipath, True, now)
+    bpath = os.path.join(kw.BASE, "in", "BTCX.json")
+    kw._write(bpath, dict(inp, market="crypto", index="BTCX"))
+    n0 = len(asked)
+    kw._day(None, bpath, False, now)
+    check("no whole day on crypto - it never closes", len(asked) == n0 and not os.path.exists(os.path.join(kw.BASE, "days", "BTCX.json")))
+    os.remove(bpath)
+    pub = kl.public("nse_index", now)
+    nf = [i for i in pub["indices"] if i["index"] == "NIFTY"][0]
+    check("the tab gets the day on screen - today's live call with its whole path - its record and the days listed, "
+          "live first", nf["day"]["t"] == hist[75][0] and not nf["day"]["replay"] and len(nf["day"]["path"]) == 24
+          and nf["days"][0]["t"] == hist[75][0] and nf["day_score"]["replay"]["checked"] == 2
+          and nf["day_score"]["live"]["calls"] == 1, (nf["day"] and nf["day"]["t"], nf["day_score"]["replay"]))
+finally:
+    kw.BASE, kw.forecast, kw.CONTEXT = real
+
+print("4g. ITS TRADES TODAY, WITH THE OPTION'S PRICE NOW (the user: \"entry ltp and present ltp ... moving live\", "
+      "\"show it in postions\")")
+cpath = os.path.join(kl.base(), "calls", "NIFTY.json")
+hour_closed = {"t": "2026-10-13T10:00:00+05:30", "close": 25010.0, "f4": 25060.0, "taken": True, "replay": False,
+               "result": "target", "points": 50.0, "rupees": 1625.0, "lot_size": 65,
+               "trade": {"side": "CE", "strike": 25000, "entry": 25010.0, "target": 25060.0, "stop": 24990.0,
+                         "premium": 140.0, "premium_target": 165.0, "premium_stop": 130.0}}
+kw._write(cpath, [hour_closed,
+                  dict(hour_closed, t="2026-10-13T10:30:00+05:30", taken=False, no_trade="a small move", result=None),
+                  dict(hour_closed, t="2026-10-13T10:15:00+05:30", replay=True),
+                  dict(hour_closed, t="2026-10-12T14:00:00+05:30")])
+
+
+class LiveFeed:
+    def __init__(self, ltp=None, spot=None):
+        self.ltp, self.spot = ltp, spot
+    def ticks(self):
+        return {"spots": {"NIFTY": self.spot, "BTC": self.spot}}
+    def contract_quote(self, name, strike, side, expiry=None):
+        ok = (name, float(strike), side, expiry) == ("NIFTY", 25000.0, "CE", "2026-10-14")
+        return {"ltp": self.ltp} if ok and self.ltp is not None else None
+
+
+lv = kl.live("nse_index", LiveFeed(152.5, 25060.0), now)
+rows = [r for r in lv["trades"] if r["index"] == "NIFTY"]
+op = [r for r in rows if r["open"]]
+check("today's open day trade: the option's price NOW and its P&L for a lot ((152.5 - 130) x 65), the index now, open "
+      "till the close", len(op) == 1 and op[0]["kind"] == "day" and op[0]["ltp"] == 152.5
+      and op[0]["pnl"] == round(22.5 * 65, 2) and op[0]["spot"] == 25060.0 and op[0]["ends"].endswith("15:30:00+05:30"),
+      op)
+cl = [r for r in rows if not r["open"]]
+check("today's finished hour trade: its result and estimated rupees, no price asked; open ones listed first",
+      len(cl) == 1 and cl[0]["kind"] == "hour" and cl[0]["result"] == "target" and cl[0]["rupees"] == 1625.0
+      and "ltp" not in cl[0] and rows.index(op[0]) < rows.index(cl[0]), cl)
+check("not listed: a call it did not trade, a replay, another day's trade",
+      len(rows) == 2 and all(r["t"].startswith("2026-10-13") for r in rows), [(r["t"], r["kind"]) for r in rows])
+check("an hour trade ends an hour after its own candle closes", cl[0]["ends"] == "2026-10-13T11:15:00+05:30", cl[0]["ends"])
+nofeed = [r for r in kl.live("nse_index", None, now)["trades"] if r["open"]]
+check("with no feed it is still listed, without a price - nothing breaks", nofeed and nofeed[0]["ltp"] is None
+      and "pnl" not in nofeed[0], nofeed)
+kw._write(os.path.join(kl.base(), "calls", "BTC.json"),
+          [{"t": "2026-10-13T10:00:00+05:30", "close": 82000.0, "f4": 81800.0, "taken": True, "replay": False,
+            "lot_size": 1.0, "trade": {"side": "PE", "entry": 82000.0, "target": 81800.0, "stop": 82100.0, "cfd": True,
+                                       "strike": None}}])
+cv = kl.live("crypto", LiveFeed(None, 81950.0), now)["trades"]
+check("a CFD sell: the price now, and P&L for 1 BTC the right way round (82000 - 81950 = +50)",
+      len(cv) == 1 and cv[0]["cfd"] and cv[0]["spot"] == 81950.0 and cv[0]["pnl"] == 50.0, cv)
+
 print("5. THE PAGE, AND THE TRADING NEVER LOADS IT")
 SRC = open(os.path.join(HERE, "web_server.py")).read()
 check("a Kronos tab under Research, and its pane", 'data-tab="kronos"' in SRC.split('data-grp="research"')[1].split("</div>")[0]
@@ -282,7 +459,23 @@ check("one index at a time, like the Signal tab: the tool's own index pick redra
       and 'const ix = rows.find(r => r.index === CUR) || rows[0];' in SRC and "if(b) selectIndex(b.dataset.k);" in SRC)
 check("its sections: the switcher, the call, the trade, the chart, the record, all four",
       all(f'id="{i}"' in SRC for i in ("kronosidx", "kcallcard", "ktrade", "kchartcard", "krecard", "kallcard", "kcalls")))
-check("the trade drawn with the tool's own ticket panel", '+ `<b>${esc(opt)}</b></div>` + posPanel(head, rowsT)' in SRC)
+check("the trade drawn with the tool's own ticket panel", "+ posPanel(head, rowsT, \"k4\")" in SRC)
+check("...its option's price at entry and NOW, then its target and stop",
+      '[["Entry LTP", "₹" + num(t.premium, 2)],' in SRC and '["LTP now", ltp == null' in SRC
+      and '["Target", "₹" + num(t.premium_target, 2), "var(--up)"], ["Stop", "₹" + num(t.premium_stop, 2), "var(--down)"]]' in SRC)
+check("the whole day: its card, trade, chart and record", all(f'id="{i}"' in SRC for i in
+      ("kdaycard", "kddir", "kdtrade", "kdchart", "kdstats", "kdcalls", "kdnote")))
+check("its live route and handler, off the user's own feed without starting one",
+      'if path == "/api/kronos/live":' in SRC and "feeds.for_user(user, market, start=False)" in SRC)
+check("polled every few seconds while the Kronos tab or Positions is on screen",
+      'if((TAB === "kronos" || TAB === "positions") && !document.hidden) kronosLiveFetch(); }, 3000);' in SRC)
+pos = SRC.split('<section class="pane" data-pane="positions">')[1].split("</section>")[0]
+check("on Positions: its own card, apart from the tool's positions, saying research only and not in their P&L",
+      'id="kronposcard"' in pos and "No order is placed for them and they are" in pos and "not part of the P&amp;L above" in pos)
+pt = SRC.split("function posTable(s){")[1].split("\nfunction ")[0]
+pp = SRC.split("function posPane(s){")[1].split("\nfunction ")[0]
+check("...and never in the tool's own positions table or its totals", "KR" not in pt and "kronos" not in pt.lower()
+      and "KR." not in pp and "kronos" not in pp.lower())
 check("says research only on the tab itself", "<b>Research only.</b> Kronos never decides a trade here." in SRC)
 import bot_data
 check("Ask TradePicker can read it", any(s["name"] == "get_kronos" and "kronos" in s["tabs"] for s in bot_data.SOURCES))

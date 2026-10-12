@@ -12,6 +12,7 @@ environment (~/kronos on the server), at the lowest priority. The two meet only 
     in/<INDEX>.json    written here: the index's latest CLOSED 15-minute candles and the tool's direction then
     out/<INDEX>.json   written by the worker: its forecast of the next four candles from the last one
     calls/<INDEX>.json written by the worker: every call it made, scored once the hour has passed
+    days/<INDEX>.json  written by the worker: its whole-day forecast from each session's 09:15 candle to the close
     worker.json        written by the worker: its heartbeat
 If the worker stops, the tab says so and nothing else notices.
 """
@@ -29,6 +30,7 @@ STEP = dt.timedelta(minutes=15)
 KEEP_CANDLES = 600            # what the worker gets: 400 of context and room to replay the last two sessions
 CHART_CANDLES = 80            # what the tab draws before the forecast - two sessions and a half
 CALLS_SHOWN = 30              # the newest calls listed per index on the tab
+DAYS_SHOWN = 20               # ...and the newest whole-day calls
 MARKET = "nse_index"
 # Bitcoin and gold too (the user, 12 Oct 2026: "can you add it for crypto as well"). On Exness they are CFDs - no
 # option chain, no strike: Kronos's trade is the instrument itself, bought or sold, in its own price.
@@ -58,6 +60,24 @@ def _read_json(path, default=None):
             return json.load(f)
     except (OSError, ValueError):
         return default
+
+
+_cache = {}                   # path -> (mtime, size, parsed): the live view is asked for every few seconds
+
+
+def _cached_json(path, default=None):
+    """_read_json, parsed again only when the file has changed - the worker rewrites it a few times an hour."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return default
+    sig = (st.st_mtime_ns, st.st_size)
+    hit = _cache.get(path)
+    if hit and hit[0] == sig:
+        return hit[1]
+    data = _read_json(path, default)
+    _cache[path] = (sig, data)
+    return data
 
 
 def closed_candles(df, now):
@@ -207,7 +227,8 @@ def scorecard(calls):
                       "tool_checked": len(tool),
                       "tool_right": round(100 * t_right / len(tool), 1) if tool else None,
                       "agree": round(100 * len(agree) / len(tool), 1) if tool else None,
-                      # Kronos's own trades (kronos_worker.trade_from), played out over the hour
+                      # Kronos's own trades (kronos_worker.trade_from): taken, and played out
+                      "taken": sum(1 for c in rows if c.get("taken")),
                       "trades": len(trades),
                       "targets": sum(1 for c in trades if c["result"] == "target"),
                       "stops": sum(1 for c in trades if c["result"] == "stop"),
@@ -236,22 +257,116 @@ def public(market=None, now=None):
         except ValueError:
             age = None
     indices, every = [], []
+    keep = ("t", "close", "f4", "actual", "actual_t", "tool_dir", "replay", "result", "points", "rupees", "usd", "trade",
+            "skip", "taken", "no_trade")
     for key in config.instruments_in(market):
-        inp = _read_json(os.path.join(b, "in", f"{key}.json"), {}) or {}
-        fc = _read_json(os.path.join(b, "out", f"{key}.json"), None)
-        calls = _read_json(os.path.join(b, "calls", f"{key}.json"), []) or []
+        inp = _cached_json(os.path.join(b, "in", f"{key}.json"), {}) or {}
+        fc = _cached_json(os.path.join(b, "out", f"{key}.json"), None)
+        calls = _cached_json(os.path.join(b, "calls", f"{key}.json"), []) or []
+        days = _cached_json(os.path.join(b, "days", f"{key}.json"), []) or []
         every += calls
         # the newest calls first - live ones, and the replays after them (marked) so day one is not empty
-        live = [c for c in calls if not c.get("replay")]
-        shown = (live[::-1] + [c for c in calls if c.get("replay")][::-1])[:CALLS_SHOWN]
+        newest = lambda rows, n: ([c for c in rows if not c.get("replay")][::-1] + [c for c in rows if c.get("replay")][::-1])[:n]
+        shown = newest(calls, CALLS_SHOWN)
+        dshown = newest(days, DAYS_SHOWN)
+        # the whole day on screen: today's (or the last session's) live call, else the newest replayed one - with its
+        # whole forecast path
+        head = max(days, key=lambda c: (c["t"], not c.get("replay")), default=None)
         indices.append({"index": key, "candles": (inp.get("candles") or [])[-CHART_CANDLES:], "lot_size": inp.get("lot_size"),
                         "tool": inp.get("tool"), "forecast": fc, "score": scorecard(calls),
-                        "calls": [{k: c.get(k) for k in ("t", "close", "f4", "actual", "actual_t", "tool_dir", "replay",
-                                                          "result", "points", "rupees", "usd", "trade", "skip",
-                                                          "taken", "no_trade")}
-                                  for c in shown]})
+                        "calls": [{k: c.get(k) for k in keep} for c in shown],
+                        "day": dict({k: head.get(k) for k in keep + ("path", "hi", "lo", "late", "made_at")})
+                               if head else None,
+                        "day_score": scorecard(days),
+                        "days": [{k: c.get(k) for k in keep + ("late",)} for c in dshown]})
     return {"market": market, "cfd": _is_cfd(market), "worker": {"alive_at": hb.get("alive_at"), "age_s": age,
                                          "running": age is not None and age < WORKER_STALE_S,
                                          "device": hb.get("device"), "model": hb.get("model"),
                                          "rules": hb.get("rules")},
             "indices": indices, "score": scorecard(every)}
+
+
+def _price_now(feed, key):
+    """The instrument's own price this moment off the feed's socket (an index's spot, or a CFD's price), or None."""
+    if feed is None:
+        return None
+    try:
+        px = ((feed.ticks() or {}).get("spots") or {}).get(key)
+    except Exception:
+        px = None
+    if px is None:
+        px = (getattr(feed, "spots", None) or {}).get(key)
+    try:
+        return float(px) if px is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _ltp_now(feed, key, trade):
+    """The option's own last traded price this moment, off the feed's socket (the chain streams a dozen strikes
+    either side of the money), or None. Nothing is subscribed or fetched here."""
+    if feed is None or trade.get("strike") is None:
+        return None
+    try:
+        q = feed.contract_quote(key, trade["strike"], trade["side"], trade.get("expiry"))
+    except Exception:
+        q = None
+    try:
+        return float(q["ltp"]) if q and q.get("ltp") is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def live(market=None, feed=None, now=None):
+    """Kronos's trades TODAY on this market - every one it took, its hour's and its whole day's - with the option's
+    price when it entered and its price NOW, for the Kronos tab and the Positions page (the user, 12 Oct 2026: "it
+    should show entry ltp and present ltp that would be moving live and targets and stop loss", "and also show it in
+    positions when it enter a trade"). RESEARCH ONLY: these are not tickets - no order, no part of the tool's P&L.
+
+    An open trade's P&L is real: (the option's price now - its price at entry) x one lot, before costs (a CFD: the
+    price move x one lot, before the spread). A finished one shows the worker's result off the candles and its rupees
+    ESTIMATED with delta, as on the record."""
+    now = now or dt.datetime.now(IST)
+    market = market or MARKET
+    if market not in MARKETS or not config.instruments_in(market):
+        return {"market": market, "trades": []}
+    b, today, cfd = base(), now.astimezone(IST).date(), _is_cfd(market)
+    out = []
+    for key in config.instruments_in(market):
+        rows = [("hour", c) for c in _cached_json(os.path.join(b, "calls", f"{key}.json"), []) or []] \
+            + [("day", c) for c in _cached_json(os.path.join(b, "days", f"{key}.json"), []) or []]
+        lot = (config.INSTRUMENTS.get(key) or {}).get("lot_size")
+        spot = None
+        for kind, c in rows:
+            t = c.get("trade")
+            if c.get("replay") or not c.get("taken") or not t:
+                continue
+            try:
+                at = dt.datetime.fromisoformat(c["t"])
+            except (KeyError, ValueError):
+                continue
+            if at.astimezone(IST).date() != today:
+                continue
+            lot_ = c.get("lot_size") or lot
+            # its end: the hour's - its own candle closes at t + 15 minutes, then an hour - or the session's close
+            ends = at + STEP * 5 if kind == "hour" else at.replace(hour=15, minute=30)
+            row = {"index": key, "kind": kind, "t": c["t"], "ends": ends.isoformat(), "trade": t, "lot_size": lot_,
+                   "cfd": bool(t.get("cfd")), "late": bool(c.get("late")), "open": not c.get("result"),
+                   "result": c.get("result"), "points": c.get("points"), "rupees": c.get("rupees"), "usd": c.get("usd")}
+            if row["open"]:
+                if spot is None:
+                    spot = _price_now(feed, key)
+                row["spot"] = spot
+                if t.get("cfd"):
+                    if spot is not None and lot_:
+                        sign = 1 if t["side"] == "CE" else -1
+                        row["pnl"] = round((spot - t["entry"]) * sign * lot_, 2)
+                else:
+                    ltp = _ltp_now(feed, key, t)
+                    row["ltp"] = ltp
+                    if ltp is not None and t.get("premium") and lot_:
+                        row["pnl"] = round((ltp - t["premium"]) * lot_, 2)
+            out.append(row)
+    out.sort(key=lambda r: r["t"], reverse=True)                 # the open ones first, each part newest first
+    out = [r for r in out if r["open"]] + [r for r in out if not r["open"]]
+    return {"market": market, "cfd": cfd, "at": now.isoformat(), "trades": out}

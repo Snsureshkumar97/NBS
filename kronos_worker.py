@@ -23,6 +23,13 @@ where it says the index will be in an hour; the stop is the worst point it expec
 forecast low for a call, highest forecast high for a put) - or, when that is not on the losing side of the entry,
 the same distance away as the target. Played out on the next hour's real candles (trade_outcome): target, stop or
 the close of the hour, in INDEX POINTS - Kronos has no option prices, so no rupees.
+
+THE WHOLE DAY (the user, 12 Oct 2026: "if i know the whole day trend ... it will forecast till where it can go end of
+the market and in options it will tell me which strike and target"). Once a session's first candle (09:15) has
+closed, it also forecasts every candle left in the session - 24, to the 15:15 candle - from the same 400 candles of
+context, and turns that into a trade by the same rules (trade_from: the target is where it says the index will close
+the day). Played out on the rest of the session's real candles: target, stop, or out at the close. One a day per
+index, in days/<INDEX>.json, scored once the session is over. The Indian indices only - crypto never closes.
 """
 import datetime as dt
 import glob
@@ -50,6 +57,10 @@ def rules_for(market):
     return dict(RULES, last_trade=None) if market == "crypto" else RULES
 KEEP_CALLS = 3000
 BATCH = 16
+DAY_REPLAY = 10                 # sessions whose whole day is replayed the first time an index is seen
+DAY_BATCH = 4                   # whole-day forecasts are six times as long: fewer at once, a heartbeat between
+DAY_PATHS = 10                  # the newest day calls keep their whole forecast path
+KEEP_DAYS = 400
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 FIRST, LAST = dt.time(9, 15), dt.time(15, 15)     # the first and last 15-minute candle of the NSE session
 
@@ -75,6 +86,34 @@ def next_slots(t, n=PRED_LEN, continuous=False):
             t = dt.datetime.combine(d, FIRST, tzinfo=t.tzinfo)
         out.append(t)
     return out
+
+
+def day_len(t):
+    """How many 15-minute candles follow candle t in its own session, to the 15:15 one: 24 from the 09:15 candle."""
+    t = parse(t) if isinstance(t, str) else t
+    end = dt.datetime.combine(t.date(), LAST, tzinfo=t.tzinfo)
+    return max(0, int((end - t).total_seconds() // 900))
+
+
+def session_rest(candles, i):
+    """The candles after candle i in its own session (the same date)."""
+    d = parse(candles[i][0]).date()
+    out = []
+    for c in candles[i + 1:]:
+        if parse(c[0]).date() != d:
+            break
+        out.append(c)
+    return out
+
+
+def session_done(candles, i):
+    """Is candle i's session over in these candles - its 15:15 candle has closed, or a later session has begun?"""
+    d = parse(candles[i][0]).date()
+    for c in candles[i + 1:]:
+        tc = parse(c[0])
+        if tc.date() != d or tc.time() >= LAST:
+            return True
+    return False
 
 
 def score(calls, candles):
@@ -107,6 +146,50 @@ def score(calls, candles):
                     c["rupees"] = round(c["points"] * tr.get("delta", 0.5) * c["lot_size"], 2)
         changed += 1
     return changed
+
+
+def score_days(days, candles):
+    """Each unscored whole-day call's outcome once its session is over: where the index closed the day, and its trade
+    (if taken) played on the rest of the session's real candles - target, stop, or out at the close. Returns how many
+    changed."""
+    pos = {c[0]: i for i, c in enumerate(candles)}
+    changed = 0
+    for c in days:
+        if c.get("actual") is not None or c.get("skip"):
+            continue
+        i = pos.get(c["t"])
+        if i is None or not session_done(candles, i):
+            continue
+        rest = session_rest(candles, i)
+        if not rest:
+            c["skip"] = "no candles after it that day"
+        else:
+            c["actual"], c["actual_t"] = rest[-1][4], rest[-1][0]
+            if c.get("trade") and c.get("taken"):
+                c["result"], c["points"] = trade_outcome(c["trade"], rest)
+                tr = c["trade"]
+                if tr.get("premium") and c.get("lot_size"):
+                    c["rupees"] = round(c["points"] * tr.get("delta", 0.5) * c["lot_size"], 2)
+        changed += 1
+    return changed
+
+
+def decide_day(c):
+    """Whether a whole-day call's trade is taken: the same three checks as an hour's (decide) - not flat, the move at
+    least MIN_MOVE_PCT of the price, the target at least MIN_RR x as far as the stop. One a day, so nothing is ever
+    still open."""
+    t = c.get("trade")
+    why = None
+    if not t:
+        why = "a flat forecast"
+    elif abs(t["target"] - t["entry"]) / t["entry"] * 100 < MIN_MOVE_PCT:
+        why = "a small move"
+    elif abs(t["target"] - t["entry"]) < MIN_RR * abs(t["stop"] - t["entry"]):
+        why = "reward smaller than risk"
+    c["taken"] = why is None
+    if why:
+        c["no_trade"] = why
+    return c["taken"]
 
 
 def _closed_by(trade, candles, i0, i):
@@ -245,28 +328,39 @@ def load():
     return KronosPredictor(mdl, tok, device="cpu", max_context=512)
 
 
-def forecast(pred, windows, continuous=False):
-    """Each window (CONTEXT candles, the last one closed) -> its next PRED_LEN candles as [[t, o, h, l, c], ...]."""
+def forecast(pred, windows, continuous=False, n=PRED_LEN):
+    """Each window (CONTEXT candles, the last one closed) -> its next n candles as [[t, o, h, l, c], ...]."""
     import pandas as pd
     import torch
     dfs, xts, yts = [], [], []
     for w in windows:
         dfs.append(pd.DataFrame([r[1:5] for r in w], columns=["open", "high", "low", "close"], dtype=float))
         xts.append(pd.Series(pd.to_datetime([r[0] for r in w])))
-        yts.append(pd.Series(pd.to_datetime([s.isoformat() for s in next_slots(parse(w[-1][0]), continuous=continuous)])))
+        yts.append(pd.Series(pd.to_datetime([s.isoformat() for s in next_slots(parse(w[-1][0]), n, continuous=continuous)])))
     torch.manual_seed(len(windows[-1]))
-    res = pred.predict_batch(dfs, xts, yts, pred_len=PRED_LEN, T=TEMP, top_p=TOP_P, sample_count=SAMPLES, verbose=False)
+    res = pred.predict_batch(dfs, xts, yts, pred_len=n, T=TEMP, top_p=TOP_P, sample_count=SAMPLES, verbose=False)
     return [[[y.iloc[k].isoformat(), *(round(float(r[c].iloc[k]), 2) for c in ("open", "high", "low", "close"))]
-             for k in range(PRED_LEN)] for r, y in zip(res, yts)]
+             for k in range(n)] for r, y in zip(res, yts)]
+
+
+def beat():
+    """The heartbeat the tab reads to say the worker is running - also written between long pieces of work."""
+    _write(os.path.join(BASE, "worker.json"), {"alive_at": dt.datetime.now(IST).isoformat(), "device": "cpu",
+                                               "model": "Kronos-small", "pid": os.getpid(), "rules": RULES})
 
 
 def step(pred, now=None):
-    """One pass over the indices the trading server has written: every index's newest candle first, then (once, the
-    first time an index is seen) the replay of its last two sessions."""
+    """One pass over the indices the trading server has written: every index's newest candle first, then the
+    whole-day forecasts, then (once, the first time an index is seen) the replays."""
     now = now or dt.datetime.now(IST)
     for replays in (False, True):
-        for path in sorted(glob.glob(os.path.join(BASE, "in", "*.json"))):
+        files = sorted(glob.glob(os.path.join(BASE, "in", "*.json")))
+        for path in files:
             _one(pred, path, replays, now)
+            beat()
+        for path in files:
+            _day(pred, path, replays, now)
+            beat()
 
 
 def _one(pred, path, replays, now):
@@ -295,6 +389,7 @@ def _one(pred, path, replays, now):
                 paths = forecast(pred, [candles[i - CONTEXT + 1:i + 1] for i, _ in chunk], cont)
                 for (i, replay), p in zip(chunk, paths):
                     calls.append(to_call(candles, i, p, (inp.get("tool") or {}).get("dir"), replay, now, inp))
+                beat()
             if todo:
                 decide(calls, candles, market)
                 score(calls, candles)
@@ -314,12 +409,65 @@ def _one(pred, path, replays, now):
         print(f"[kronos] {key}: {type(exc).__name__}: {exc}", flush=True)
 
 
+def _day(pred, path, replays, now):
+    """The whole-day forecast of one index: from its newest session's 09:15 candle while that session is still on
+    (priced in the option from the chain sent with it - unless the worker reached it late, after a later candle had
+    closed, when the chain is no longer the price at 09:30 and the trade stays in index points), or, once, the
+    replay of its last DAY_REPLAY finished sessions."""
+    key = os.path.basename(path)[:-5]
+    try:
+        inp = _read(path, {}) or {}
+        if (inp.get("market") or "nse_index") != "nse_index":
+            return                                       # crypto never closes: there is no "whole day" to forecast
+        candles = inp.get("candles") or []
+        if len(candles) < CONTEXT:
+            return
+        dpath = os.path.join(BASE, "days", f"{key}.json")
+        days = _read(dpath, []) or []
+        have = {c["t"] for c in days}
+        firsts = [i for i in range(CONTEXT - 1, len(candles)) if parse(candles[i][0]).time() == FIRST]
+        todo = []
+        if replays:
+            if not any(c.get("replay") for c in days):
+                todo = [(i, True) for i in firsts if session_done(candles, i) and candles[i][0] not in have][-DAY_REPLAY:]
+        elif firsts and not session_done(candles, firsts[-1]) and candles[firsts[-1]][0] not in have:
+            todo = [(firsts[-1], False)]
+        changed = False
+        for s in range(0, len(todo), DAY_BATCH):
+            chunk = todo[s:s + DAY_BATCH]
+            n = day_len(candles[chunk[0][0]][0])
+            paths = forecast(pred, [candles[i - CONTEXT + 1:i + 1] for i, _ in chunk], False, n)
+            for (i, replay), p in zip(chunk, paths):
+                late = not replay and i != len(candles) - 1
+                c = to_call(candles, i, p, (inp.get("tool") or {}).get("dir"), replay, now,
+                            dict(inp, chain=None) if late else inp)
+                c.update(kind="day", hi=max(q[2] for q in p), lo=min(q[3] for q in p))
+                if late:
+                    c["late"] = True
+                    c["tool_dir"] = None                 # the tool's direction sent is today's NOW, not at 09:30
+                days.append(c)
+            changed = True
+            beat()
+        for c in days:
+            if "taken" not in c:
+                decide_day(c)
+                changed = True
+        if score_days(days, candles):
+            changed = True
+        if changed:
+            days.sort(key=lambda c: c["t"])
+            for c in days[:-DAY_PATHS]:
+                c.pop("path", None)
+            _write(dpath, days[-KEEP_DAYS:])
+    except Exception as exc:
+        print(f"[kronos] {key} day: {type(exc).__name__}: {exc}", flush=True)
+
+
 def main():
     pred = load()
     print(f"[kronos] worker up, {BASE}", flush=True)
     while True:
-        _write(os.path.join(BASE, "worker.json"), {"alive_at": dt.datetime.now(IST).isoformat(), "device": "cpu",
-                                                   "model": "Kronos-small", "pid": os.getpid(), "rules": RULES})
+        beat()
         step(pred)
         time.sleep(20)
 
