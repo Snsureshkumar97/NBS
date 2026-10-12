@@ -197,7 +197,10 @@ def scorecard(calls):
                       "timed": sum(1 for c in trades if c["result"] == "time"),
                       "won": round(100 * sum(1 for c in trades if c["points"] > 0) / len(trades), 1) if trades else None,
                       "points": round(sum(c["points"] for c in trades), 1),
-                      "rupees": round(sum(rupees)) if rupees else None, "rupees_n": len(rupees)}
+                      "rupees": round(sum(rupees)) if rupees else None, "rupees_n": len(rupees),
+                      # the calls whose trade was not taken (kronos_worker.decide), by reason
+                      "skipped": {r: sum(1 for c in rows if c.get("no_trade") == r)
+                                  for r in sorted({c["no_trade"] for c in rows if c.get("no_trade")})}}
     return out
 
 
@@ -226,9 +229,11 @@ def public(market=None, now=None):
         indices.append({"index": key, "candles": (inp.get("candles") or [])[-CHART_CANDLES:], "lot_size": inp.get("lot_size"),
                         "tool": inp.get("tool"), "forecast": fc, "score": scorecard(calls),
                         "calls": [{k: c.get(k) for k in ("t", "close", "f4", "actual", "actual_t", "tool_dir", "replay",
-                                                          "result", "points", "rupees", "trade", "skip")}
+                                                          "result", "points", "rupees", "trade", "skip", "taken",
+                                                          "no_trade")}
                                   for c in shown]})
     return {"market": MARKET, "worker": {"alive_at": hb.get("alive_at"), "age_s": age,
                                          "running": age is not None and age < WORKER_STALE_S,
-                                         "device": hb.get("device"), "model": hb.get("model")},
+                                         "device": hb.get("device"), "model": hb.get("model"),
+                                         "rules": hb.get("rules")},
             "indices": indices, "score": scorecard(every)}

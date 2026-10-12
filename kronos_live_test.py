@@ -141,7 +141,7 @@ check("a put's points are the fall", kw.trade_outcome({"side": "PE", "entry": 10
 # candles with real highs and lows: close 100, 101, ... each +-0.4
 real = [[ts.isoformat(), 0, float(c) + 0.4, float(c) - 0.4, float(c)]
         for ts, c in zip(pd.date_range("2026-10-13 09:15", periods=25, freq="15min", tz="Asia/Kolkata"), range(100, 125))]
-calls = [{"t": real[0][0], "close": 100.0, "f4": 105.0, "lot_size": 65,
+calls = [{"t": real[0][0], "close": 100.0, "f4": 105.0, "lot_size": 65, "taken": True,
           "trade": {"side": "CE", "entry": 100.0, "target": 103.5, "stop": 99.5, "premium": 50.0, "delta": 0.5}}]
 kw.score(calls, real)
 check("scored with its trade: target hit +3.5 points, Rs 3.5 x 0.5 x 65 a lot ESTIMATED",
@@ -170,6 +170,41 @@ kl.export(ChainFeed(df, "BULLISH"), now)
 inp = json.load(open(os.path.join(kl.base(), "in", "NIFTY.json")))
 check("the export carries the strike step, lot size, the tool's delta and the chain",
       inp["strike_step"] == 50 and inp["lot_size"] == 65 and inp["delta"] == 0.5 and inp["chain"]["strikes"], inp.get("chain"))
+
+print("4d. WHICH CALLS IT TRADES (the user: \"one trade at a time and skip small calls\")")
+def mk(i, entry, target, stop, replay=False):
+    return {"t": real[i][0], "close": entry, "f4": target, "replay": replay,
+            "trade": {"side": "CE" if target > entry else "PE", "entry": entry, "target": target, "stop": stop}}
+cs = [mk(0, 100.0, 101.0, 99.5),        # taken; its target is hit on the next candle (high 101.4)
+      mk(1, 101.0, 102.0, 100.5),       # the first ended at candle 1 -> taken
+      mk(2, 102.0, 102.05, 101.9),      # 0.05% move -> a small move
+      mk(3, 103.0, 104.0, 101.0),       # reward 1 < risk 2 -> reward smaller than risk
+      mk(4, 104.0, 110.0, 103.5),       # the second ended at candle 2 -> taken
+      mk(5, 105.0, 107.0, 104.0),       # the one from candle 4 is still open (110 not reached, 103.5 not hit) -> skipped
+      mk(20, 120.0, 121.0, 119.5),      # 14:15, the candle-4 trade long over -> taken
+      mk(21, 121.0, 122.0, 120.5),      # 14:30 -> too near the close
+      mk(6, 106.0, 108.0, 105.5, replay=True)]   # a replay: its own run, not blocked by the live one open then
+check("decided: every call", kw.decide(cs, real) == len(cs))
+got = [(c["taken"], c.get("no_trade")) for c in cs]
+check("taken / skipped, each for its reason",
+      got == [(True, None), (True, None), (False, "a small move"), (False, "reward smaller than risk"), (True, None),
+              (False, "a trade still open"), (True, None), (False, "too near the close"), (True, None)], got)
+check("a decision stays made", kw.decide(cs, real) == 0)
+hour = [mk(8, 108.0, 130.0, 100.0), mk(11, 111.0, 113.0, 110.5), mk(12, 112.0, 114.0, 111.5)]
+kw.decide(hour, real)
+check("a trade that hits neither target nor stop holds its slot for exactly its hour: a call 3 candles on is "
+      "skipped, one 4 candles on (the hour just ended) is taken",
+      [(c["taken"], c.get("no_trade")) for c in hour] == [(True, None), (False, "a trade still open"), (True, None)],
+      [(c["taken"], c.get("no_trade")) for c in hour])
+kw.score(cs, real)
+check("only TAKEN trades are played out and counted", all(("result" in c) == c["taken"] for c in cs[:7]),
+      [(c["taken"], c.get("result")) for c in cs])
+sc = kl.scorecard(cs)
+check("the record: trades = taken ones, skipped counted by reason", sc["live"]["trades"] == 4
+      and sc["live"]["skipped"] == {"a small move": 1, "a trade still open": 1, "reward smaller than risk": 1,
+                                    "too near the close": 1}, (sc["live"]["trades"], sc["live"]["skipped"]))
+check("the rules are what the tab says", kw.RULES == {"min_move_pct": 0.15, "min_rr": 1.0, "last_trade": "14:15",
+                                                       "one_at_a_time": True}, kw.RULES)
 
 print("4c. THE CALLS LISTED FOR AN INDEX: NEWEST LIVE FIRST, THEN THE REPLAYS")
 os.makedirs(os.path.join(kl.base(), "calls"), exist_ok=True)

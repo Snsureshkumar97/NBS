@@ -5843,7 +5843,11 @@ button.mgroup:hover{color:var(--ink-2)}
      target and stop premiums use the tool's own rule (the index distance x 0.5 delta). The trade is played out on
      the next hour's real candles - stop first if a candle touches both - and its result shown in index points and
      in rupees a lot, ESTIMATED with that delta (no time decay, no spread). Replayed calls have no option price, so
-     their trades are counted in points only.</div>
+     their trades are counted in points only.<br><br>
+     <b>Which calls it trades.</b> Every call is checked for direction, but it only TRADES one when the forecast
+     move is at least 0.15% of the price (about 34 points on Nifty), its target is at least as far as its stop, the
+     candle is 14:15 or earlier (so the hour ends before the close), and its previous trade on that index has
+     finished - one trade at a time, as one account would hold it. A call it does not trade says why.</div>
    </details>
   </div>
  </section>
@@ -11658,6 +11662,21 @@ function kronosMove(f){
   return {up: pts > 0, flat: pts === 0, pts, pc: pts / f.close * 100, end: end[4],
           by: new Date(Date.parse(end[0]) + 15 * 60000).toISOString()};
 }
+// Why a call was not traded, in words (kronos_worker.decide), and the rules it applies.
+function kronosWhy(r){
+  return {"a small move": "The forecast move is too small",
+          "reward smaller than risk": "Its target is closer than its stop",
+          "a trade still open": "Its previous trade on this index is still open",
+          "too near the close": "Too near the close - the hour would run past 15:30",
+          "a flat forecast": "A flat forecast"}[r] || (r || "Not traded");
+}
+function kronosRules(d){
+  const R = (d.worker || {}).rules || {min_move_pct: 0.15, min_rr: 1, last_trade: "14:15"};
+  const rr = Number(R.min_rr) === 1 ? "as far from the entry as the stop" : `${R.min_rr} times as far as the stop`;
+  return `It trades a call only when the forecast move is at least ${R.min_move_pct}% of the price, the target is `
+    + `at least ${rr}, the candle is ${R.last_trade} or earlier, and no trade of this index is still open - `
+    + `one at a time.`;
+}
 function kronosDraw(d){
   if(!$("kronosidx")) return;
   const rows = d.indices || [];
@@ -11672,7 +11691,10 @@ function kronosDraw(d){
   // 1. the index switcher - the same pick as the Signal tab's
   $("kronosidx").innerHTML = rows.map(r => {
     const m = kronosMove(r.forecast);
-    const sub = m ? `${m.up ? "▲" : m.flat ? "■" : "▼"} ${krSigned(m.pts)} pts` : "no call yet";
+    const f_ = r.forecast || {};
+    const sub = m ? `${m.up ? "▲" : m.flat ? "■" : "▼"} ${krSigned(m.pts)} pts${f_.taken === true ? " · trade"
+                                                                          : f_.taken === false ? " · no trade" : ""}`
+                  : "no call yet";
     return `<button type="button" class="kix${r.index === ix.index ? " on" : ""}" data-k="${esc(r.index)}"`
       + ` aria-pressed="${r.index === ix.index}"><b>${esc(KR_NAME[r.index] || r.index)}</b>`
       + `<span class="${m ? (m.up ? "up" : m.flat ? "" : "dn") : ""}">${esc(sub)}</span></button>`;
@@ -11701,9 +11723,16 @@ function kronosDraw(d){
       : td === 0 ? `<span class="tag flat">The tool: no direction</span>`
       : `<span class="tag ${td > 0 ? "up" : "down"}">The tool: ${td > 0 ? "BULLISH" : "BEARISH"}</span>`
         + `<span class="tag ${(td > 0) === m.up ? "up" : "warn"}">${(td > 0) === m.up ? "They agree" : "They disagree"}</span>`;
-    // 3. its trade, as the tool's own ticket panel
+    // 3. its trade, as the tool's own ticket panel - or, when this call was not traded, why not
     const t = f.trade;
     if(!t){ $("ktrade").innerHTML = `<div class="knote">A flat forecast - no trade.</div>`; }
+    else if(f.taken === false){
+      const would = `${name} ${t.strike == null ? "" : t.strike} ${t.side}`
+        + (t.premium ? ` at ₹${num(t.premium, 2)}, target ₹${num(t.premium_target, 2)}, stop ₹${num(t.premium_stop, 2)}`
+                     : `, index ${num(t.entry, 0)} → ${num(t.target, 0)}, stop ${num(t.stop, 0)}`);
+      $("ktrade").innerHTML = `<div class="kopt"><span class="tag flat">NO TRADE</span><b>${esc(kronosWhy(f.no_trade))}</b></div>`
+        + `<div class="knote">It would have been ${esc(would)}. ${esc(kronosRules(d))}</div>`;
+    }
     else {
       const opt = `${name} ${t.strike == null ? "" : t.strike} ${t.side}`, lot = ix.lot_size;
       const reward = Math.abs(t.target - t.entry), risk = Math.abs(t.stop - t.entry);
@@ -11752,23 +11781,28 @@ function kronosDraw(d){
             + `<td>${c.tool_dir == null || c.tool_dir === 0 ? "—" : c.tool_dir > 0 ? "▲ up" : "▼ down"}</td>`
             + `<td>${done ? krSigned(c.actual - c.close) : c.skip ? "past the close" : "waiting"}</td>`
             + `<td class="${done ? (ok ? "kok" : "kno") : ""}">${done ? (ok ? "✓ right" : "✗ wrong") : "—"}</td>`
-            // the trade's outcome and points in one cell; which option it was, on hover
-            + `<td style="color:${col(c.points || 0)}" title="${c.trade ? esc(`${t.strike} ${t.side}${t.premium ? " at ₹" + num(t.premium, 2) : ""}`) : ""}">`
-            + `${c.result ? `${res[c.result]} ${krSigned(c.points, 1)}` : c.trade ? "open" : "—"}</td>`
+            // the trade's outcome and points in one cell, or why it was not taken; which option it was, on hover
+            + (c.taken === false
+               ? `<td style="color:var(--ink-3)">no trade · ${esc(c.no_trade || "")}</td>`
+               : `<td style="color:${col(c.points || 0)}" title="${c.trade ? esc(`${t.strike} ${t.side}${t.premium ? " at ₹" + num(t.premium, 2) : ""}`) : ""}">`
+                 + `${c.result ? `${res[c.result]} ${krSigned(c.points, 1)}` : c.trade ? "open" : "—"}</td>`)
             + `<td style="color:${col(c.rupees || 0)}">${c.rupees == null ? "—" : money(c.rupees)}</td></tr>`;
         }).join("") + `</tbody>`
     : `<tbody><tr><td style="color:var(--ink-3);padding:8px">No calls yet on ${esc(name)}.</td></tr></tbody>`;
-  $("kronosnote").textContent = (R.checked ? `The replay of the last two sessions (before Kronos ran live): `
+  const skipped = Object.entries(L.skipped || {}).map(([k, n]) => `${k} ${n}`).join(", ");
+  $("kronosnote").textContent = `${L.calls || 0} live calls, ${L.trades || 0} traded`
+    + (skipped ? ` - not traded: ${skipped}. ` : ". ") + kronosRules(d) + " "
+    + (R.checked ? `The replay of the last two sessions (before Kronos ran live): `
       + `${krPct(R.kronos_right)} of ${R.checked} calls right, its trades ${krSigned(R.points)} points. ` : "")
     + "A call is right when the index really moved the way Kronos said over the next hour. Fifty-fifty is a coin; "
     + "a real edge would have to stay clearly above that over hundreds of calls.";
 
   // 6. all four, side by side
   $("kronosrec").innerHTML = `<thead><tr><th>Index</th><th>Calls checked</th><th>Kronos right</th>`
-    + `<th>The tool right</th><th>Its trades: target · stop · hour</th><th>Points</th><th>₹ a lot (est.)</th></tr></thead><tbody>`
+    + `<th>The tool right</th><th>Trades</th><th>Target · stop · hour</th><th>Points</th><th>₹ a lot (est.)</th></tr></thead><tbody>`
     + rows.map(r => { const S = r.score.live;
         return `<tr><td class="sym">${esc(KR_NAME[r.index] || r.index)}</td><td>${S.checked}</td><td>${krPct(S.kronos_right)}</td>`
-          + `<td>${krPct(S.tool_right)}</td><td>${S.trades ? `${S.targets} · ${S.stops} · ${S.timed}` : "—"}</td>`
+          + `<td>${krPct(S.tool_right)}</td><td>${S.trades || 0}</td><td>${S.trades ? `${S.targets} · ${S.stops} · ${S.timed}` : "—"}</td>`
           + `<td style="color:${col(S.points)}">${S.trades ? krSigned(S.points) : "—"}</td>`
           + `<td style="color:${col(S.rupees || 0)}">${S.rupees == null ? "—" : money(S.rupees)}</td></tr>`; }).join("")
     + `</tbody>`;
@@ -11796,7 +11830,7 @@ function krChart(ix){
   const f = ix.forecast;
   KR.path.setData(f && f.path ? [{time: T(f.from), value: f.close}].concat(f.path.map(q => ({time: T(q[0]), value: q[4]}))) : []);
   for(const ln of KR.lines) KR.candles.removePriceLine(ln);
-  const t = f && f.trade, LS = LW.LineStyle;
+  const t = f && f.trade && f.taken !== false ? f.trade : null, LS = LW.LineStyle;    // lines only for a trade it TOOK
   KR.lines = !t ? [] : [[t.target, "Target", C.up], [t.stop, "Stop", C.down], [t.entry, "Entry", C.warn]]
     .map(([v, title, color]) => KR.candles.createPriceLine({price: v, color, lineWidth: 1, lineStyle: LS.Dashed,
                                                              axisLabelVisible: true, title}));

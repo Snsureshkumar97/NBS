@@ -35,6 +35,13 @@ BASE = os.path.expanduser(os.environ.get("NBS_KRONOS_DIR") or "~/trading-tool-lo
 HOME = os.path.expanduser(os.environ.get("NBS_KRONOS_HOME") or "~/kronos")
 CONTEXT, PRED_LEN, SAMPLES, TEMP, TOP_P = 400, 4, 5, 1.0, 0.9      # as kronos_study.py tested them
 REPLAY = 50                     # candles replayed the first time an index is seen: the last two sessions
+# Which calls become TRADES (the user, 12 Oct 2026: "one trade at a time and skip small calls"). Every call is still
+# made and scored on its direction; only these decide whether its trade is taken (decide()):
+MIN_MOVE_PCT = 0.15             # the forecast move must be at least this share of the price (Nifty ~34 points)
+MIN_RR = 1.0                    # ...and the target at least as far from the entry as the stop
+LAST_TRADE = dt.time(14, 15)    # no trade from a later candle: its hour would run past the close
+RULES = {"min_move_pct": MIN_MOVE_PCT, "min_rr": MIN_RR, "last_trade": LAST_TRADE.strftime("%H:%M"),
+         "one_at_a_time": True}
 KEEP_CALLS = 3000
 BATCH = 16
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
@@ -77,7 +84,7 @@ def score(calls, candles):
             c["skip"] = "the hour crosses the close"
         else:
             c["actual"], c["actual_t"] = later[4], later[0]
-            if c.get("trade"):
+            if c.get("trade") and c.get("taken"):
                 c["result"], c["points"] = trade_outcome(c["trade"], candles[i + 1:i + 1 + PRED_LEN])
                 tr = c["trade"]
                 if tr.get("premium") and c.get("lot_size"):
@@ -86,6 +93,60 @@ def score(calls, candles):
                     c["rupees"] = round(c["points"] * tr.get("delta", 0.5) * c["lot_size"], 2)
         changed += 1
     return changed
+
+
+def _closed_by(trade, candles, i0, i):
+    """Has the trade entered at candle i0's close ENDED by the close of candle i? At its target or stop on one of the
+    candles i0+1..i, or because its hour (PRED_LEN candles) is over."""
+    up = trade["side"] == "CE"
+    for c in candles[i0 + 1:min(i, i0 + PRED_LEN) + 1]:
+        if ((c[3] <= trade["stop"]) if up else (c[2] >= trade["stop"])) or \
+                ((c[2] >= trade["target"]) if up else (c[3] <= trade["target"])):
+            return True
+    return i >= i0 + PRED_LEN
+
+
+def decide(calls, candles):
+    """Which calls' trades are TAKEN, oldest first, by RULES above: a trade worth taking (the forecast move at least
+    MIN_MOVE_PCT of the price, the reward at least MIN_RR x the risk, not after LAST_TRADE) and no trade of this index
+    still open. Each call gets "taken" True/False and, when not taken, "no_trade" with the reason. A call already
+    decided stays decided. The live calls and the replayed ones are two separate runs, each one trade at a time.
+    Returns how many were decided now."""
+    pos = {c[0]: i for i, c in enumerate(candles)}
+    order = sorted(calls, key=lambda c: c["t"])
+    taken_last = {}                                   # replay or not -> (call, candle number) of its last taken trade
+    n = 0
+    for c in order:
+        i = pos.get(c["t"])
+        run = bool(c.get("replay"))
+        last_taken = taken_last.get(run)
+        if "taken" in c:
+            if c["taken"] and i is not None:
+                taken_last[run] = (c, i)
+            continue
+        if i is None:
+            continue
+        t = c.get("trade")
+        why = None
+        if not t:
+            why = "a flat forecast"
+        elif parse(c["t"]).time() > LAST_TRADE:
+            why = "too near the close"
+        elif abs(t["target"] - t["entry"]) / t["entry"] * 100 < MIN_MOVE_PCT:
+            why = "a small move"
+        elif abs(t["target"] - t["entry"]) < MIN_RR * abs(t["stop"] - t["entry"]):
+            why = "reward smaller than risk"
+        elif last_taken and not _closed_by(last_taken[0]["trade"], candles, last_taken[1], i):
+            why = "a trade still open"
+        c["taken"] = why is None
+        if why:
+            c["no_trade"] = why
+            for k in ("result", "points", "rupees"):
+                c.pop(k, None)
+        else:
+            taken_last[run] = (c, i)
+        n += 1
+    return n
 
 
 def trade_from(close, path, step, chain=None, delta=0.5):
@@ -200,6 +261,7 @@ def _one(pred, path, replays, now):
                 return
             cpath = os.path.join(BASE, "calls", f"{key}.json")
             calls = _read(cpath, []) or []
+            decide(calls, candles)
             score(calls, candles)
             have = {c["t"] for c in calls}
             last = len(candles) - 1
@@ -215,13 +277,16 @@ def _one(pred, path, replays, now):
                 for (i, replay), p in zip(chunk, paths):
                     calls.append(to_call(candles, i, p, (inp.get("tool") or {}).get("dir"), replay, now, inp))
             if todo:
+                decide(calls, candles)
                 score(calls, candles)
-                calls.sort(key=lambda c: c["t"])
-                live = [c for c in calls if not c["replay"]]
-                head = live[-1] if live else calls[-1]
+            calls.sort(key=lambda c: c["t"])
+            live = [c for c in calls if not c["replay"]]
+            head = live[-1] if live else (calls[-1] if calls else None)
+            if head and head.get("path"):            # rewritten every pass: a decision can land after the forecast
                 _write(os.path.join(BASE, "out", f"{key}.json"),
                        {"index": key, "from": head["t"], "close": head["close"], "path": head["path"],
-                        "trade": head.get("trade"), "made_at": head["made_at"], "tool_dir": head.get("tool_dir")})
+                        "trade": head.get("trade"), "taken": head.get("taken"), "no_trade": head.get("no_trade"),
+                        "made_at": head["made_at"], "tool_dir": head.get("tool_dir"), "rules": RULES})
             for c in calls[:-PRED_LEN * 2]:
                 c.pop("path", None)              # only the newest calls keep their whole path; the record keeps f4
             _write(cpath, calls[-KEEP_CALLS:])
@@ -234,7 +299,7 @@ def main():
     print(f"[kronos] worker up, {BASE}", flush=True)
     while True:
         _write(os.path.join(BASE, "worker.json"), {"alive_at": dt.datetime.now(IST).isoformat(), "device": "cpu",
-                                                   "model": "Kronos-small", "pid": os.getpid()})
+                                                   "model": "Kronos-small", "pid": os.getpid(), "rules": RULES})
         step(pred)
         time.sleep(20)
 
