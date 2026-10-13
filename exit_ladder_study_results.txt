@@ -42,3 +42,39 @@
   drop  halfway from T2 on Sensex + Midcap           profit: in-sample   -97,776  held-out   -84,802   worst drop:  +10,734 /  +41,323   worst day:       +0 /   +5,393
   drop  halfway from T2 on Nifty + Bank Nifty        profit: in-sample    +6,078  held-out    -7,530   worst drop:   -3,101 /   -2,569   worst day:   +3,326 /       +0
   drop  halfway from T2 on all four                  profit: in-sample   -91,698  held-out   -92,332   worst drop:   +1,201 /  +51,089   worst day:   -3,377 /   +5,393
+
+THE MID STOP (python3 exit_ladder_study.py mid)
+============================================================================================================================================================================
+ THE MID STOP (20% past T1 -> the stop halfway between entry and T1, out at T2) against today's exits. Per lot, after costs.
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ SENSEX + MIDCAP SELECT (the tool's rules)
+    today: T1 -> stop to T1, out at T2, trail, 2h BE  1377   40% ₹  +252,225 PF 1.18 DD ₹  54,512 day ₹ -16,567  |  775   37% ₹  +186,668 PF 1.25 DD ₹  40,927 day ₹ -20,203
+    mid stop (a) 20% of T1->T2                   1211   47% ₹  +145,231 PF 1.10 DD ₹  79,944 day ₹ -16,567  |  658   47% ₹  +102,042 PF 1.12 DD ₹ 113,152 day ₹ -14,810
+    mid stop (b) 1.2 x T1's distance             1200   47% ₹  +142,620 PF 1.09 DD ₹  75,324 day ₹ -16,567  |  654   47% ₹  +119,026 PF 1.14 DD ₹ 103,843 day ₹ -14,810
+   SENSEX
+      today                                       662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+      mid stop (a)                                584   45% ₹   +64,565 PF 1.10 DD ₹  56,319 day ₹  -8,317  |  323   48% ₹   +88,947 PF 1.27 DD ₹  34,771 day ₹  -7,264
+      mid stop (b)                                579   44% ₹   +73,005 PF 1.12 DD ₹  53,496 day ₹  -8,317  |  321   47% ₹   +98,046 PF 1.30 DD ₹  30,991 day ₹  -7,264
+   MIDCPNIFTY
+      today                                       715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+      mid stop (a)                                627   50% ₹   +80,666 PF 1.09 DD ₹  39,736 day ₹ -12,562  |  335   47% ₹   +13,095 PF 1.02 DD ₹  85,939 day ₹ -12,047
+      mid stop (b)                                621   49% ₹   +69,615 PF 1.08 DD ₹  47,227 day ₹ -12,562  |  333   46% ₹   +20,980 PF 1.04 DD ₹  87,320 day ₹ -12,047
+ NIFTY + BANK NIFTY (the Trend Rider) - 5-minute candles
+    today: 90% to T2 -> T1, 90% to T3 -> T2, out T3   832   41% ₹  +339,081 PF 1.33 DD ₹  73,523 day ₹ -15,304  |  496   47% ₹  +115,033 PF 1.18 DD ₹  63,489 day ₹ -32,218
+    mid stop, out at T2                           846   44% ₹  +336,184 PF 1.34 DD ₹  71,854 day ₹ -11,921  |  498   47% ₹   +60,057 PF 1.09 DD ₹  86,030 day ₹ -32,218
+   NIFTY
+      today                                       408   39% ₹  +179,191 PF 1.39 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +81,254 PF 1.30 DD ₹  20,644 day ₹ -11,846
+      mid stop, out at T2                         415   42% ₹  +169,877 PF 1.38 DD ₹  23,737 day ₹  -6,747  |  253   47% ₹   +75,829 PF 1.29 DD ₹  26,743 day ₹ -11,846
+   BANKNIFTY
+      today                                       424   42% ₹  +159,890 PF 1.28 DD ₹  64,964 day ₹ -10,420  |  245   48% ₹   +33,779 PF 1.09 DD ₹  44,464 day ₹ -20,372
+      mid stop, out at T2                         431   46% ₹  +166,307 PF 1.31 DD ₹  55,680 day ₹ -10,388  |  245   47% ₹   -15,772 PF 0.96 DD ₹  65,988 day ₹ -20,372
+ ALL FOUR
+    today                                        2209   40% ₹  +591,306 PF 1.25 DD ₹ 108,061 day ₹ -23,997  | 1271   40% ₹  +301,701 PF 1.22 DD ₹  83,056 day ₹ -37,068
+    mid stop (a)                                 2057   46% ₹  +481,415 PF 1.19 DD ₹ 123,431 day ₹ -24,664  | 1156   47% ₹  +162,099 PF 1.11 DD ₹ 167,229 day ₹ -31,675
+
+ VERDICT - kept for a system only if it makes more than that system's exit today in BOTH periods
+  drop  mid stop (a) on Sensex + Midcap              profit: in-sample  -106,994  held-out   -84,626   worst drop:  +25,431 /  +72,225   worst day:       +0 /   +5,393
+  drop  mid stop (b) on Sensex + Midcap              profit: in-sample  -109,605  held-out   -67,643   worst drop:  +20,811 /  +62,917   worst day:       +0 /   +5,393
+  drop  mid stop on Nifty + Bank Nifty               profit: in-sample    -2,896  held-out   -54,976   worst drop:   -1,669 /  +22,541   worst day:   +3,383 /       +0
+  drop  mid stop (a) on all four                     profit: in-sample  -109,891  held-out  -139,603   worst drop:  +15,371 /  +84,173   worst day:     -667 /   +5,393

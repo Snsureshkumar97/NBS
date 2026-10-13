@@ -34,6 +34,13 @@ T3 instead of 90% of the way from the entry to T3; the rest the same. Judged by 
 VERDICT: the ladder is KEPT for a system only if it makes more than that system's exit today in BOTH the first two
 years (to 15 Aug 2025) AND the held-out final year, the system's two indices pooled. Per lot, after costs.
 
+ADDED next, after those results and before this was run (the user: "or after it cross t1 like 20% move the stop
+loss in between t1 and entry and make the exit at t2"): THE MID STOP - once the price is 20% past T1 the stop moves
+to halfway between the entry and T1, out at T2; nothing else moves. "20% past T1" read two ways: (a) 20% of the way
+from T1 to T2, (b) T1's distance from the entry plus 20% - the same level on the Trend Rider, whose T1 and T2 are
+evenly spaced (its exit moves to its T2, two thirds of 2.75R). Judged by the same rule. (python3 exit_ladder_study.py
+mid prints only these.)
+
 RESULT (13 Oct 2026, history to 11 Sep 2026; full table in exit_ladder_study_results.txt) - DROP, both versions.
   Sensex + Midcap (rules), first two years / held-out year: today +252,225 / +186,668; the ladder +160,076 / +96,679
   (-92,149 / -89,989, worst drop 40,927 -> 81,349 held-out); halfway from T2 +154,449 / +101,866. Midcap the worst:
@@ -42,6 +49,10 @@ RESULT (13 Oct 2026, history to 11 Sep 2026; full table in exit_ladder_study_res
   Nifty + Bank Nifty (Trend Rider, 5-minute walk): today +339,081 / +115,033; the ladder +348,461 / +113,410;
   halfway from T2 +345,158 / +107,502 - a tie within noise (today's is the user's own 8 Oct ladder, nearly the same).
   All four: today +591,306 / +301,701; the ladder +508,537 / +210,089. Nothing changed live.
+  THE MID STOP - DROP everywhere: Sensex + Midcap (a) +145,231 / +102,042, (b) +142,620 / +119,026 against
+  +252,225 / +186,668, held-out worst drop 40,927 -> 113,152 / 103,843; Nifty + Bank Nifty +336,184 / +60,057 against
+  +339,081 / +115,033 (Bank Nifty's held-out year +33,779 -> -15,772). It wins more often (47% vs 40%) and earns less:
+  the stop halfway to T1 gives back what today's stop AT T1 keeps, and out at T2 cuts the Trend Rider's runners.
 
     python3 exit_ladder_study.py
 """
@@ -97,6 +108,32 @@ def ladder_exit(A, i, tr, st=None, extras=False, hold_bars=26, wait_bars=None, h
     return [(cl[last], last, 1.0)]
 
 
+def mid_exit(A, i, tr, reading="a", hold_bars=26):
+    """[(exit spot, bar, weight)] under the mid stop: once the price is 20% past T1 ((a) of the way to T2, (b) of T1's
+    own distance from the entry) the stop moves to halfway between the entry and T1; out at T2, the stop, or the
+    close. The stop as it stood first inside a candle, then T2, then the move (from the next candle on)."""
+    hi, lo, cl, end = A["hi"], A["lo"], A["cl"], A["end"]
+    ce = tr["side"] == "CE"
+    tighten = (lambda a, b: max(a, b)) if ce else (lambda a, b: min(a, b))
+    e, t1, t2 = tr["entry"], tr["t1"], tr["t2"]
+    trig = t1 + 0.2 * (t2 - t1) if reading == "a" else e + 1.2 * (t1 - e)
+    mid = (e + t1) / 2
+    stop, moved = tr["stop"], False
+    n = len(cl)
+    for j in range(i + 1, min(i + 1 + hold_bars, n)):
+        if (lo[j] <= stop) if ce else (hi[j] >= stop):
+            return [(stop, j, 1.0)]
+        if (hi[j] >= t2) if ce else (lo[j] <= t2):
+            return [(t2, j, 1.0)]
+        if not moved and ((hi[j] >= trig) if ce else (lo[j] <= trig)):
+            moved = True
+            stop = tighten(stop, mid)
+        if end[j]:
+            return [(cl[j], j, 1.0)]
+    last = min(i + hold_bars, n - 1)
+    return [(cl[last], last, 1.0)]
+
+
 def _rules_job(job):
     """One rules index under one exit: today ("today"), the ladder ("ladder"), the ladder with today's extras."""
     key, variant = job
@@ -140,14 +177,17 @@ def _rules_job(job):
         s = sig[i]
         if not (s == s) or s <= 0 or tr.get("t3") is None:
             continue
-        legs = ladder_exit(A, i, tr, st, extras=(variant == "ladder+extras"), half_from_t2=(variant == "ladder50"))
+        if variant in ("mid_a", "mid_b"):
+            legs = mid_exit(A, i, tr, reading=variant[-1])
+        else:
+            legs = ladder_exit(A, i, tr, st, extras=(variant == "ladder+extras"), half_from_t2=(variant == "ladder50"))
         p = ps.price(key, df, A, i, tr, legs, s)
         if p is None:
             continue
         exit_px, exit_bar, _ = legs[-1]
         p["side"] = tr["side"]
         p["closed_via"] = ("stop" if abs(exit_px - tr["stop"]) < 1e-6 else
-                           "target" if abs(exit_px - tr["t3"]) < 1e-6 else "other")
+                           "target" if abs(exit_px - tr["t2" if variant.startswith("mid") else "t3"]) < 1e-6 else "other")
         p["exit_adx"] = float(adx.iloc[exit_bar])
         p["signal_time"] = df.index[i].time()
         p["index"] = key
@@ -170,6 +210,72 @@ def _trend_job(k):
                     ("ladder: T1 -> entry, T2 -> T1, halfway T2->T3 -> T2",
                      [(RR / 3, 0.0), (RR * 2 / 3, RR / 3), (RR * 5 / 6, RR * 2 / 3)], "ladder", False)]
     return trs._job(k)
+
+
+def _trend_mid_job(k):
+    """One Trend Rider index under the mid stop: its exit at T2 (two thirds of 2.75R), the stop to halfway between the
+    entry and T1 (a third) once the price is 20% past T1 - trend_rider_t1_study's walk with its target set to T2."""
+    import trend_rider_t1_study as trs
+    R0 = trs.RR
+    trs.RR = R0 * 2 / 3                                  # its one target: T2
+    trs.VARIANTS = [("no steps, out at T2 (the study's own check)", None, None, False),
+                    ("mid stop: 20% past T1 -> halfway entry-T1, out at T2", [(1.2 * R0 / 3, R0 / 6)], "ladder", False)]
+    return trs._job(k)
+
+
+def mid_main():
+    """Only the mid stop, against today's exits (today's figures as the main run's)."""
+    from concurrent.futures import ProcessPoolExecutor
+    import bollinger_vote_study as bvs
+    import stop_day_study as sds
+    print("Replaying the mid stop on the four indices...", flush=True)
+    jobs = [(k, v) for k in RULES for v in ("today", "mid_a", "mid_b")]
+    with ProcessPoolExecutor(max_workers=6) as ex:
+        rf = ex.map(_rules_job, jobs)
+        tf = ex.map(_trend_job, TREND)
+        mf = ex.map(_trend_mid_job, TREND)
+        rules, trend, tmid = dict(rf), dict(tf), dict(mf)
+    for k in RULES:
+        a, b = bvs.BASELINE[k]
+        s = sds.split(rules[(k, "today")])
+        assert (round(s["is"]["total"]), round(s["oos"]["total"])) == (a, b), f"{k}: 'today' must reproduce the baseline"
+    pool = lambda rows: sorted(rows, key=lambda r: r["when"])
+    T_TODAY, T_MID = "today: 90% to T2 -> T1, 90% to T3 -> T2", "mid stop: 20% past T1 -> halfway entry-T1, out at T2"
+    r_today = pool([r for k in RULES for r in rules[(k, "today")]])
+    r_a = pool([r for k in RULES for r in rules[(k, "mid_a")]])
+    r_b = pool([r for k in RULES for r in rules[(k, "mid_b")]])
+    t_today = pool([r for k in TREND for r in trend[k][(T_TODAY, "5")]])
+    t_mid = pool([r for k in TREND for r in tmid[k][(T_MID, "5")]])
+    W = 172
+    print("=" * W)
+    print(" THE MID STOP (20% past T1 -> the stop halfway between entry and T1, out at T2) against today's exits."
+          " Per lot, after costs.")
+    print("=" * W)
+    print(f" {'':46s} {'FIRST TWO YEARS (to 15 Aug 2025)':66s}  | HELD-OUT FINAL YEAR")
+    print(" SENSEX + MIDCAP SELECT (the tool's rules)")
+    print(sds.line("   today: T1 -> stop to T1, out at T2, trail, 2h BE", r_today))
+    print(sds.line("   mid stop (a) 20% of T1->T2", r_a))
+    print(sds.line("   mid stop (b) 1.2 x T1's distance", r_b))
+    for k in RULES:
+        print(f"   {k}")
+        print(sds.line("     today", rules[(k, "today")]))
+        print(sds.line("     mid stop (a)", rules[(k, "mid_a")]))
+        print(sds.line("     mid stop (b)", rules[(k, "mid_b")]))
+    print(" NIFTY + BANK NIFTY (the Trend Rider) - 5-minute candles")
+    print(sds.line("   today: 90% to T2 -> T1, 90% to T3 -> T2, out T3", t_today))
+    print(sds.line("   mid stop, out at T2", t_mid))
+    for k in TREND:
+        print(f"   {k}")
+        print(sds.line("     today", trend[k][(T_TODAY, "5")]))
+        print(sds.line("     mid stop, out at T2", tmid[k][(T_MID, "5")]))
+    print(" ALL FOUR")
+    print(sds.line("   today", pool(r_today + t_today)))
+    print(sds.line("   mid stop (a)", pool(r_a + t_mid)))
+    print("\n VERDICT - kept for a system only if it makes more than that system's exit today in BOTH periods")
+    print("  " + sds.verdict("mid stop (a) on Sensex + Midcap", r_a, r_today).strip())
+    print("  " + sds.verdict("mid stop (b) on Sensex + Midcap", r_b, r_today).strip())
+    print("  " + sds.verdict("mid stop on Nifty + Bank Nifty", t_mid, t_today).strip())
+    print("  " + sds.verdict("mid stop (a) on all four", pool(r_a + t_mid), pool(r_today + t_today)).strip())
 
 
 def main():
@@ -246,4 +352,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    mid_main() if sys.argv[1:] == ["mid"] else main()
