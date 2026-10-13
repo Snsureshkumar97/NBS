@@ -36,6 +36,18 @@ deployed, targets with stops sized to the day's range, a stop moved to the entry
 +30/-20 .. +100/-40); holding to the close made the most in the first two years AND the held-out final year on Nifty
 and Bank Nifty (+409,486 / +213,349 a lot after costs; its forecast's own stop, a few points away, lost in the first
 two years). Its forecast close is kept on the trade as where it says the day ends - shown, not traded.
+THEN (13 Oct 2026, 08:40 IST, the user: "target should not be at the close target should be before the market hits
+the top whatever ce or pe before that it should take the profit and come out", with "a ladder like we have it in our
+tool"): the same study tested taking the profit before the top - at Kronos's best point of the day (P: its highest
+forecast high for a call, lowest low for a put), 75% or 50% of the way there, a 50/75/P ladder with the tool's
+ratchet, out at the candle it expects P on, and those with stops. The best of them over both periods: TARGET AT P,
+NO STOP, out at the close if it is not reached (+185,512 / +208,997; holding to the close made +409,486 / +213,349).
+THEN (13 Oct 2026, 08:45 IST, the user: "its not giving a stop loss and targets should be shown in option prices not
+index price"): of the tested exits that take the profit before the top AND have a stop, the best was the LADDER WITH
+A STOP - T1 50% of the way to P, T2 75%, T3 P; the stop half the index's average day range (last 10 sessions) from the
+entry, moved to the entry once T1 is touched and to T1 once T2 is (the tool's own ratchet); out at T3, the stop, or
+the close (+65,816 / +188,504; with no stop +185,512 / +208,997). That is the exit now, and a trade is scored the
+moment the candles show it out - not only after the close.
 """
 import datetime as dt
 import glob
@@ -66,7 +78,10 @@ BATCH = 16
 DAY_REPLAY = 10                 # sessions whose whole day is replayed the first time an index is seen
 DAY_BATCH = 4                   # whole-day forecasts are six times as long: fewer at once, a heartbeat between
 DAY_PATHS = 10                  # the newest day calls keep their whole forecast path
-DAY_EXIT = "close"              # held to the close, no stop, no target (kronos_day_study.py, 13 Oct 2026)
+DAY_EXIT = "ladder"             # T1 50% / T2 75% / T3 its best point of the day, a stop that ratchets, else out at
+                                # the close (kronos_day_study.py, 13 Oct 2026 - "a stop loss", "before the top")
+DAY_STOP_RANGE = 0.5            # the stop: this share of the index's average day range from the entry
+RANGE_DAYS = 10                 # ...over the sessions before the trade's
 KEEP_DAYS = 400
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 FIRST, LAST = dt.time(9, 15), dt.time(15, 15)     # the first and last 15-minute candle of the NSE session
@@ -155,14 +170,70 @@ def score(calls, candles):
     return changed
 
 
-def day_trade(t):
-    """A whole-day trade as kronos_day_study.py chose it: held to the close. trade_from's target (its forecast close)
-    stays, as where it says the day ends; its stop, a few points away, goes."""
+def day_range(candles, t):
+    """The index's average day range (the session's high - low) over the RANGE_DAYS sessions before candle t's, or
+    None when there are not that many."""
+    d0 = parse(t).date()
+    by = {}
+    for c in candles:
+        d = parse(c[0]).date()
+        if d >= d0:
+            continue
+        h, l = by.get(d, (c[2], c[3]))
+        by[d] = (max(h, c[2]), min(l, c[3]))
+    days = sorted(by)[-RANGE_DAYS:]
+    return sum(by[d][0] - by[d][1] for d in days) / len(days) if len(days) == RANGE_DAYS else None
+
+
+def day_trade(t, hi, lo, rng=None):
+    """A whole-day trade as kronos_day_study.py chose it: a LADDER to Kronos's best point of the day (P: hi - its
+    highest forecast high - for a call, lo for a put) - T1 50% of the way, T2 75%, T3 (target) P - and a stop
+    DAY_STOP_RANGE x the day range rng from the entry, which ladder_walk moves to the entry at T1 and to T1 at T2. Its
+    forecast close stays as close_fc. The option's premium at each level by the tool's own rule (the index distance x
+    delta; a stop premium never below 0.05)."""
     if not t:
         return t
-    t = dict(t, exit=DAY_EXIT, stop=None)
+    up = t["side"] == "CE"
+    e = t["entry"]
+    fc = t.get("close_fc", t["target"])
+    P = hi if up else lo
+    if P is None or ((P <= e) if up else (P >= e)):
+        P = fc                                           # no best point on its side: its forecast close
+    stop = round(e - (1 if up else -1) * DAY_STOP_RANGE * rng, 2) if rng else None
+    t = dict(t, exit=DAY_EXIT, stop=stop, close_fc=fc, target=round(P, 2), t1=round(e + 0.5 * (P - e), 2),
+             t2=round(e + 0.75 * (P - e), 2))
     t.pop("premium_stop", None)
+    if t.get("premium"):
+        d = t.get("delta", 0.5)
+        for k in ("t1", "t2", "target"):
+            t["premium_" + k] = round(t["premium"] + abs(t[k] - e) * d, 2)
+        if stop is not None:
+            t["premium_stop"] = round(max(0.05, t["premium"] - abs(stop - e) * d), 2)
     return t
+
+
+def ladder_walk(tr, later):
+    """A ladder trade (day_trade) on the candles after its entry, as kronos_day_study.walk_ladder plays it: the stop
+    first within a candle, then T3 (the target); T1 touched moves the stop to the entry, T2 to T1. ->
+    (result "target" | "stop" | None while still open, the level it went out at, the candle number, the stop now)."""
+    up = tr["side"] == "CE"
+    e = tr["entry"]
+    stop = tr.get("stop")
+    better = max if up else min
+    hit1 = hit2 = False
+    for j, c in enumerate(later):
+        hi, lo = c[2], c[3]
+        if stop is not None and ((lo <= stop) if up else (hi >= stop)):
+            return "stop", stop, j, stop
+        if (hi >= tr["target"]) if up else (lo <= tr["target"]):
+            return "target", tr["target"], j, stop
+        if not hit1 and ((hi >= tr["t1"]) if up else (lo <= tr["t1"])):
+            hit1 = True
+            stop = e if stop is None else better(stop, e)
+        if not hit2 and ((hi >= tr["t2"]) if up else (lo <= tr["t2"])):
+            hit2 = True
+            stop = better(stop, tr["t1"])
+    return None, None, None, stop
 
 
 def score_days(days, candles):
@@ -172,6 +243,20 @@ def score_days(days, candles):
     pos = {c[0]: i for i, c in enumerate(candles)}
     changed = 0
     for c in days:
+        tr = c.get("trade")
+        if tr and c.get("taken") and tr.get("exit") == "ladder" and c.get("result") is None and not c.get("skip"):
+            i = pos.get(c["t"])
+            if i is not None:
+                rest = session_rest(candles, i)
+                res, lvl, j, _ = ladder_walk(tr, rest)
+                if res is None and rest and session_done(candles, i):
+                    res, lvl, j = "close", rest[-1][4], len(rest) - 1
+                if res:
+                    up = tr["side"] == "CE"
+                    c["result"], c["points"], c["exit_t"] = res, round((lvl - tr["entry"]) * (1 if up else -1), 2), rest[j][0]
+                    if tr.get("premium") and c.get("lot_size"):
+                        c["rupees"] = round(c["points"] * tr.get("delta", 0.5) * c["lot_size"], 2)
+                    changed += 1
         if c.get("actual") is not None or c.get("skip"):
             continue
         i = pos.get(c["t"])
@@ -182,11 +267,14 @@ def score_days(days, candles):
             c["skip"] = "no candles after it that day"
         else:
             c["actual"], c["actual_t"] = rest[-1][4], rest[-1][0]
-            if c.get("trade") and c.get("taken"):
+            if c.get("trade") and c.get("taken") and c["trade"].get("exit") != "ladder":
                 tr = c["trade"]
-                if tr.get("exit") == "close":           # held to the close: the day's last close against the entry
-                    move = rest[-1][4] - tr["entry"]
-                    c["result"], c["points"] = "close", round(move if tr["side"] == "CE" else -move, 2)
+                if tr.get("exit") in ("close", "peak"):  # its target (if any) on the way, else the day's last close
+                    up = tr["side"] == "CE"
+                    hit = tr.get("exit") == "peak" and any((x[2] >= tr["target"]) if up else (x[3] <= tr["target"])
+                                                           for x in rest)
+                    move = (tr["target"] if hit else rest[-1][4]) - tr["entry"]
+                    c["result"], c["points"] = ("target" if hit else "close"), round(move if up else -move, 2)
                 else:
                     c["result"], c["points"] = trade_outcome(tr, rest)
                 if tr.get("premium") and c.get("lot_size"):
@@ -196,16 +284,16 @@ def score_days(days, candles):
 
 
 def decide_day(c):
-    """Whether a whole-day call's trade is taken: not flat, and the move it forecasts to the close at least
-    MIN_MOVE_PCT of the price (the tab's "skip small calls"). Held to the close, it has no stop to weigh a reward
-    against. One a day, so nothing is ever still open."""
+    """Whether a whole-day call's trade is taken: not flat, and the move it forecasts to the CLOSE at least
+    MIN_MOVE_PCT of the price (the tab's "skip small calls" - the entries kronos_day_study.py tested). With no stop
+    there is no reward to weigh against a risk. One a day, so nothing is ever still open."""
     t = c.get("trade")
     why = None
     if not t:
         why = "a flat forecast"
-    elif abs(t["target"] - t["entry"]) / t["entry"] * 100 < MIN_MOVE_PCT:
+    elif abs(t.get("close_fc", t["target"]) - t["entry"]) / t["entry"] * 100 < MIN_MOVE_PCT:
         why = "a small move"
-    elif t.get("stop") is not None and abs(t["target"] - t["entry"]) < MIN_RR * abs(t["stop"] - t["entry"]):
+    elif not t.get("exit") and t.get("stop") is not None and abs(t["target"] - t["entry"]) < MIN_RR * abs(t["stop"] - t["entry"]):
         why = "reward smaller than risk"
     c["taken"] = why is None
     if why:
@@ -462,7 +550,8 @@ def _day(pred, path, replays, now):
                 late = not replay and i != len(candles) - 1
                 c = to_call(candles, i, p, (inp.get("tool") or {}).get("dir"), replay, now,
                             dict(inp, chain=None) if late else inp)
-                c.update(kind="day", hi=max(q[2] for q in p), lo=min(q[3] for q in p), trade=day_trade(c["trade"]))
+                c.update(kind="day", hi=max(q[2] for q in p), lo=min(q[3] for q in p))
+                c["trade"] = day_trade(c["trade"], c["hi"], c["lo"], day_range(candles, c["t"]))
                 if late:
                     c["late"] = True
                     c["tool_dir"] = None                 # the tool's direction sent is today's NOW, not at 09:30
@@ -471,10 +560,10 @@ def _day(pred, path, replays, now):
             beat()
         for c in days:
             if c.get("trade") and c["trade"].get("exit") != DAY_EXIT:
-                # made under the first exit (its forecast's own target and stop): re-decided and re-scored as held
-                # to the close, so the record is one rule throughout
-                c["trade"] = day_trade(c["trade"])
-                for k in ("taken", "no_trade", "result", "points", "rupees", "actual", "actual_t"):
+                # made under an earlier exit (its forecast's own target and stop; held to the close): re-decided and
+                # re-scored under this one, so the record is one rule throughout
+                c["trade"] = day_trade(c["trade"], c.get("hi"), c.get("lo"), day_range(candles, c["t"]))
+                for k in ("taken", "no_trade", "result", "points", "rupees", "actual", "actual_t", "exit_t"):
                     c.pop(k, None)
             if "taken" not in c:
                 decide_day(c)

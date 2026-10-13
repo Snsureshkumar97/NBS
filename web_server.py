@@ -4484,6 +4484,13 @@ table.chain .wide{color:var(--down)}
 .ktradebox .psum.k4{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:12px}
 .ktradebox .psum.k4 > div:nth-child(2n+1){border-left:0;padding-left:0}
 .kix span.kday{color:var(--ink-3)}
+.klotsrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px}
+.klotsrow .eyebrow{margin:0}
+.klots{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)}
+.klots select{font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--bd);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink);min-height:32px}
+#kdladder .rung .od{width:84px;color:var(--ink-2)}
+#kdladder .rung .rs{width:116px}
 .jbadge.kron{color:var(--ink-2);border-color:var(--bd)}
 .kposwrap .krpos .kd-tsm{display:none;font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:400}
 table.scr td.kok{color:var(--up)}
@@ -5832,7 +5839,9 @@ button.mgroup:hover{color:var(--ink-2)}
      <div class="khero"><div class="kdir" id="kddir">&mdash;</div><div class="kmove" id="kdmove"></div></div>
      <div class="kfrom" id="kdfrom"></div>
      <div class="ktags" id="kdtags"></div>
-     <p class="eyebrow" role="heading" aria-level="2" style="margin-top:22px">Its day trade</p>
+     <div class="klotsrow"><p class="eyebrow" role="heading" aria-level="2">Its day trade</p>
+      <label class="klots">Lots <select id="kdlots" aria-label="Lots for Kronos's day trade"></select>
+       <span id="kdqty"></span></label></div>
      <div class="ktradebox" id="kdtrade"></div>
     </div>
     <div>
@@ -5840,6 +5849,8 @@ button.mgroup:hover{color:var(--ink-2)}
      <div class="chartkeys" id="kdkeys"></div>
     </div>
    </div>
+   <p class="eyebrow" role="heading" aria-level="2" style="margin-top:22px">Its ladder &middot; entry to target</p>
+   <div class="ladder" id="kdladder"></div>
    <p class="eyebrow" role="heading" aria-level="2" style="margin-top:22px">Its whole-day record on <span id="kdname2">&mdash;</span></p>
    <div class="aistats kstats" id="kdstats"></div>
    <div class="scrwrap"><table class="scr" id="kdcalls"></table></div>
@@ -5892,12 +5903,14 @@ button.mgroup:hover{color:var(--ink-2)}
      finished - one trade at a time, as one account would hold it. A call it does not trade says why.<br><br>
      <b>The whole day.</b> When a session's first candle (09:15) closes, it also forecasts every candle left in the
      session - 24, to the 15:15 one - and turns that into one trade: up a call, down a put, at the strike nearest the
-     price, taken when the move it forecasts is at least 0.15% of the price, and HELD TO THE CLOSE - no stop, no
-     target. That exit was chosen on three years of these forecasts (kronos_day_study.py, 13 Oct 2026), priced as the
-     option after costs: on Nifty and Bank Nifty it made more than its own target and stop, and more than every other
-     stop or target tried, in both the first two years and the held-out final year (+&#8377;2.13 lakh in that year
-     for one lot of each, after costs, on the model's prices - not a live record). Where it says the day ends is shown, not traded.
-     Its rupees after the close are estimated with delta; over a whole day the time decay that leaves out is real.<br><br>
+     price, taken when the move it forecasts is at least 0.15% of the price, on a LADDER to the best point it
+     forecasts for the day: T1 halfway, T2 three-quarters, the target there; a stop half the index's usual day range
+     away, moved to the entry at T1 and to T1 at T2 (the tool's own ratchet); out at the target, the stop or the close.
+     Tested on three years of these forecasts (kronos_day_study.py, 13 Oct 2026), priced as the option after costs, on
+     Nifty and Bank Nifty: holding to the close with no stop made the most (+&#8377;4.09 / 2.13 lakh, first two years /
+     final year, one lot of each); this ladder made +&#8377;0.66 / 1.89 lakh - the best of the ways tried that take the
+     profit before the top AND keep a stop, as asked. Model prices, not a live record. Option prices at its levels are
+     estimated with delta.<br><br>
      <b>LTP now.</b> While one of its trades is open, the option's own price is read every few seconds off the
      exchange feed the tool already runs (nothing extra is fetched), and its P&amp;L is that price against its entry
      LTP, for one lot, before costs. Its open trades are also listed on the Positions page, apart from the tool's own:
@@ -11747,7 +11760,8 @@ const KR_RES = {hour: {target: "target", stop: "stop", time: "at the hour"},
 function kronosDayRules(ix){
   const R = (ix && ix.forecast && ix.forecast.rules) || {min_move_pct: 0.15, min_rr: 1};
   return `It trades the day when the forecast move to the close is at least ${R.min_move_pct}% of the price - one trade `
-    + `a day, held to the close with no stop and no target: in the 3-year test that beat every stop and target tried.`;
+    + `a day, on a ladder to the best point it forecasts for the day (T1 halfway, T2 three-quarters), with a stop that `
+    + `moves up to the entry at T1 and to T1 at T2; out at the target, the stop or the close.`;
 }
 // Today's live row for a trade on screen (kronos_live.live): its option's price now while it is open, its result after.
 function krLiveRow(index, kind, t){
@@ -11799,26 +11813,60 @@ function krTradeHTML(f, ix, d, kind, done){
   }
   const opt = `${name} ${t.strike == null ? "" : t.strike} ${t.side}`;
   const est = pts => (t.premium && lot) ? money(pts * (t.delta || 0.5) * lot) : "—";
-  if(t.exit === "close"){
+  if(t.exit === "close" || t.exit === "peak" || t.exit === "ladder"){
     // the whole day, held to the close (kronos_day_study.py, 13 Oct 2026): the price it entered at and NOW, and its
     // exit - the close, no stop, no target; where it says the day ends is shown, not traded
     const ltp = isOpen ? lv.ltp : null, spot = isOpen ? lv.spot : null;
+    const peak = t.exit === "peak" || t.exit === "ladder", lad = t.exit === "ladder";
+    const fc = t.close_fc != null ? t.close_fc : t.target;
+    // its stop in the option's price: where the ladder has moved it to (live), else where it started
+    const stopPrem = lad ? (isOpen && lv.premium_stop_now != null ? lv.premium_stop_now : t.premium_stop) : null;
+    const stopIdx = lad ? (isOpen && lv.stop_now != null ? lv.stop_now : t.stop) : null;
+    // the trade at YOUR lots (the user, 13 Oct 2026: "give lots also so we can see what cost it takes and how much we
+    // get by the targets") - the lots picked on this card, the tool's own lots for the index until one is picked
+    const lots = krLots(ix.index), qty = lot ? lots * lot : null;
+    const tgtCell = peak ? (t.premium_target != null ? "₹" + num(t.premium_target, 2) : num(t.target, 2)) : "at the close";
     const head = t.premium
       ? [["Entry LTP", "₹" + num(t.premium, 2)],
          ["LTP now", ltp == null ? (res ? "closed" : "—") : "₹" + num(ltp, 2), ltp == null ? "" : col(ltp - t.premium)],
-         ["Exit", "at the close"], ["Stop", "none"]]
+         ["Target", tgtCell, peak ? "var(--up)" : ""],
+         ["Stop", lad ? (stopPrem == null ? "—" : "₹" + num(stopPrem, 2)) : "none", lad ? "var(--down)" : ""]]
       : [["Index then", num(t.entry, 2)], ["Index now", spot == null ? "—" : num(spot, 2)],
-         ["Exit", "at the close"], ["Stop", "none"]];
-    const rowsT = (isOpen && t.premium ? [["P&L a lot (live)", lv.pnl == null ? "—" : money(lv.pnl), col(lv.pnl || 0)]] : [])
-      .concat(resRows, [["Index at entry", num(t.entry, 2)], ["Index now", spot == null ? "—" : num(spot, 2)],
-        ["Its forecast close", num(t.target, 2)], ["Its forecast move", krSigned(t.target - t.entry) + " pts"],
-        ["Lot", lot ? `${lot} qty` : "—"], ["Expiry", t.expiry || "—"], ["Sold", "15:30, the close"]]);
+         ["Target", peak ? num(t.target, 2) : "at the close", peak ? "var(--up)" : ""],
+         ["Stop", lad && stopIdx != null ? num(stopIdx, 2) : "none", lad ? "var(--down)" : ""]];
+    const atLots = v => v == null || qty == null ? "—" : money(v * lots);
+    const cost = t.premium && qty ? t.premium * qty : null;
+    const tgtGross = peak && t.premium_target != null && qty ? (t.premium_target - t.premium) * qty : null;
+    const tgtCharges = tgtGross != null ? krCharges(ix.index, t.premium * qty, t.premium_target * qty) : null;
+    const stpGross = lad && stopPrem != null && t.premium && qty ? (stopPrem - t.premium) * qty : null;
+    const stpCharges = stpGross != null ? krCharges(ix.index, t.premium * qty, stopPrem * qty) : null;
+    const rowsT = (isOpen && t.premium ? [[`P&L, ${lots} lot${lots === 1 ? "" : "s"} (live)`, atLots(lv.pnl), col(lv.pnl || 0)]] : [])
+      .concat(resRows, t.premium && qty ? [
+        ["Lots", `${lots} × ${lot} = ${num(qty, 0)} qty`],
+        ["Cost (entry LTP × qty)", money(cost).replace("+", "")],
+        ...(tgtGross != null ? [["At target, before charges", money(tgtGross), "var(--up)"],
+                                ["Charges, about", money(-tgtCharges)],
+                                ["At target, after charges", money(tgtGross - tgtCharges), col(tgtGross - tgtCharges)]] : []),
+        ...(stpGross != null ? [["At the stop, after charges", money(stpGross - stpCharges), col(stpGross - stpCharges)]] : [])] : [],
+        [["Index at entry", num(t.entry, 2)], ["Index now", spot == null ? "—" : num(spot, 2)],
+         ...(peak ? [[t.side === "CE" ? "Index target · its day high" : "Index target · its day low", num(t.target, 2)]] : []),
+         ...(lad ? [["Index stop" + (stopIdx != null && t.stop != null && stopIdx !== t.stop ? " · moved" : ""), stopIdx == null ? "—" : num(stopIdx, 2)]] : []),
+         ["Its forecast close", num(fc, 2)], ["Expiry", t.expiry || "—"],
+         ["If the target is not reached", peak ? "sold 15:30" : "—"]]);
     const note = !t.premium
       ? (f.late ? "Made late - the worker was not running when the 09:15 candle closed, so there is no option price from then; the trade is in index points."
                 : "No option price for this one (a replay), so the trade is in index points only.")
-      : (isOpen ? "LTP now is the option's live price, read every few seconds; P&L a lot is (LTP now − entry LTP) × the lot, before costs. " : "")
-        + "Held to the close: in the 3-year test (Nifty and Bank Nifty, priced as the option after costs) that beat its own "
-        + "target and stop and every other stop or target tried, in both the first two years and the final year. "
+      : (isOpen ? `LTP now is the option's live price, read every few seconds; its P&L is (LTP now − entry LTP) × ${qty == null ? "the lot" : num(qty, 0) + " qty"}, before charges. ` : "")
+        + (lad ? "A ladder to the best point it forecasts for the day: T1 halfway, T2 three-quarters, the target there. Its stop "
+                 + "starts half the index's usual day range away, moves to the entry once T1 is touched and to T1 once T2 is - the "
+                 + "tool's own ratchet; out at the target, the stop, or the close. Of the ways tested over three years to take "
+                 + "the profit before the top with a stop, this made the most. Option prices at the levels are the tool's own "
+                 + "estimate (index distance × 0.5 delta). "
+         : peak ? "Its target is the best point it forecasts for the day - the profit taken before the top, as asked; out at "
+                  + "the close if it is not reached, and no stop: in the 3-year test that was the best way to take profit "
+                  + "early, and every stop tried did worse. Premiums at the levels are the tool's own estimate (index distance × 0.5 delta). "
+                : "Held to the close: in the 3-year test (Nifty and Bank Nifty, priced as the option after costs) that beat its own "
+                  + "target and stop and every other stop or target tried, in both the first two years and the final year. ")
         + (res ? "Rupees after the close are estimated with delta - no time decay, and over a whole day the decay is real." : "");
     return `<div class="kopt"><span class="tag ${t.side === "CE" ? "up" : "down"}">${t.side === "CE" ? "BUY CALL" : "BUY PUT"}</span>`
       + `<b>${esc(opt)}</b>${res ? '<span class="tag flat">CLOSED</span>' : isOpen ? '<span class="tag up">OPEN</span>' : ""}</div>`
@@ -11851,6 +11899,85 @@ function krTradeHTML(f, ix, d, kind, done){
     + `<b>${esc(opt)}</b>${res ? '<span class="tag flat">CLOSED</span>' : isOpen ? '<span class="tag up">OPEN</span>' : ""}</div>`
     + posPanel(head, rowsT, "k4") + `<div class="knote">${esc(note)}</div>`;
 }
+// Lots for Kronos's day trade: picked on its card and kept on this device - never the tool's own trading lots, which
+// it only starts from.
+function krLots(index){
+  let v = null;
+  try{ v = Number(localStorage.getItem("kronos.lots." + index)) || null; }catch(e){}
+  if(v == null){ try{ v = lotsOf((LAST && LAST.session) || {}, index); }catch(e){ v = null; } }
+  return v && v > 0 ? v : 1;
+}
+function krLotsSync(ix){
+  const sel = $("kdlots");
+  if(!sel || !ix) return;
+  const choices = (((LAST && LAST.session) || {}).lot_choices) || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const sig = ix.index + "|" + choices.join(",");
+  if(sel.dataset.sig !== sig){
+    sel.innerHTML = "";
+    choices.forEach(v => sel.add(new Option(String(v), String(v))));
+    sel.dataset.sig = sig; sel.dataset.k = ix.index;
+  }
+  const n = krLots(ix.index);
+  if(document.activeElement !== sel) sel.value = String(choices.includes(n) ? n : choices[0]);
+  $("kdqty").textContent = ix.lot_size ? `= ${num(n * ix.lot_size, 0)} qty` : "";
+}
+document.addEventListener("change", e => {
+  if(e.target && e.target.id === "kdlots"){
+    try{ localStorage.setItem("kronos.lots." + e.target.dataset.k, e.target.value); }catch(err){}
+    if(KR.data) krTradePaint();
+    kronPosPaint();
+  }
+});
+// Zerodha's charges on one buy and one sell of an index option (regime_study.py's own figures): brokerage per order,
+// STT on the sell, exchange transaction charges, SEBI, stamp duty on the buy, GST.
+function krCharges(index, buy, sell){
+  const bse = index === "SENSEX";
+  const brokerage = 40, txn = (bse ? 0.000325 : 0.0003553) * (buy + sell), sebi = 1e-6 * (buy + sell);
+  return brokerage + 0.0015 * sell + txn + sebi + 0.00003 * buy + 0.18 * (brokerage + txn + sebi);
+}
+// The day trade's ladder, as the Signal tab's (the user, 13 Oct 2026: "add a ladder like we have it in our tool from
+// entry to target or to stop loss"): 50% and 75% of the way to its target (milestones), the target, and the stop -
+// each with how far the index has come, its level, the option's price there and what it is worth at your lots.
+function krLadder(ix, day, lv){
+  const el = $("kdladder");
+  if(!el) return;
+  const t = day && day.trade;
+  if(!t || day.taken === false || (t.exit !== "peak" && t.exit !== "ladder")){ el.innerHTML = ""; return; }
+  const up = t.side === "CE", lots = krLots(ix.index), qty = ix.lot_size ? lots * ix.lot_size : null;
+  // how far the index has come since the entry: today's closed candles after it, and the live price
+  const after = (ix.candles || []).filter(c => c[0] > day.t && String(c[0]).slice(0, 10) === String(day.t).slice(0, 10));
+  const spot = lv && lv.open ? lv.spot : null;
+  const best = [...after.map(c => up ? c[2] : c[3])].concat(spot == null ? [] : [spot]);
+  const reach = best.length ? (up ? Math.max(...best) : Math.min(...best)) : null;
+  const done = day.result === "target";
+  const lad = t.exit === "ladder";
+  const rungs = [[lad ? "T1 · halfway" : "50% of the way", t.t1, t.premium_t1],
+                 [lad ? "T2 · three-quarters" : "75% of the way", t.t2, t.premium_t2],
+                 [up ? "Target · day high" : "Target · day low", t.target, t.premium_target]];
+  const html = rungs.map(([label, v, pv], n) => {
+    const hit = done || (reach != null && (up ? reach >= v : reach <= v));
+    const pct = hit ? 100 : spot == null ? 0 : Math.max(0, Math.min(100, (spot - t.entry) / (v - t.entry) * 100));
+    const amt = pv != null && t.premium && qty ? (pv - t.premium) * qty : null;
+    return `<div class="rung${hit ? " done" : ""}"><div class="k">${esc(label)}${hit ? ' <span class="tick">✓</span>' : ""}</div>`
+      + `<div class="bar" title="${hit ? "reached" : Math.round(pct) + "% of the way"}"><i style="width:${pct}%;background:var(--up);--c:var(--up)"></i></div>`
+      + `<div class="n" style="color:var(--up)">${pv == null ? num(v, 0) : "₹" + num(pv, 2)}</div>`
+      + `<div class="od">${pv == null ? "" : "index " + num(v, 0)}</div>`
+      + `<div class="rs" style="color:var(--up)">${amt == null ? "" : money(amt)}</div></div>`;
+  }).join("");
+  // the stop: where the ratchet has it now (live), in the option's price, and what it costs at your lots
+  const stIdx = lad ? (lv && lv.stop_now != null ? lv.stop_now : t.stop) : null;
+  const stPrem = lad ? (lv && lv.premium_stop_now != null ? lv.premium_stop_now : t.premium_stop) : null;
+  const stopHit = day.result === "stop";
+  const moved = lad && stIdx != null && t.stop != null && stIdx !== t.stop;
+  const stPct = stopHit ? 100 : (!lad || stIdx == null || spot == null) ? 0
+    : Math.max(0, Math.min(100, (t.entry - spot) / (t.entry - stIdx) * 100));
+  const stAmt = stPrem != null && t.premium && qty ? (stPrem - t.premium) * qty : null;
+  el.innerHTML = html + `<div class="rung${stopHit ? " done" : ""}"><div class="k">Stop${moved ? (Math.abs(stIdx - t.entry) < 1e-6 ? " · at entry" : " · at T1") : ""}</div>`
+    + `<div class="bar" title="${Math.round(stPct)}% of the way"><i style="width:${stPct}%;background:var(--down);--c:var(--down)"></i></div>`
+    + `<div class="n" style="color:var(--down)">${!lad ? "none" : stPrem != null ? "₹" + num(stPrem, 2) : stIdx != null ? num(stIdx, 0) : "—"}</div>`
+    + `<div class="od">${lad && stIdx != null && stPrem != null ? "index " + num(stIdx, 0) : ""}</div>`
+    + `<div class="rs" style="color:${stAmt == null ? "var(--ink-3)" : stAmt >= 0 ? "var(--up)" : "var(--down)"}">${!lad ? "out 15:30 if not hit" : stAmt == null ? "" : money(stAmt)}</div></div>`;
+}
 // Both trade panels of the index on screen, from the last full read and the last live one.
 function krTradePaint(){
   const d = KR.data;
@@ -11862,7 +11989,9 @@ function krTradePaint(){
     $("ktrade").innerHTML = krTradeHTML(Object.assign({}, f, {t: f.from}), ix, d, "hour", done);
   }
   const day = ix.day;
+  krLotsSync(ix);
   if($("kdtrade")) $("kdtrade").innerHTML = day ? krTradeHTML(day, ix, d, "day", day.result ? day : null) : "";
+  krLadder(ix, day, day ? krLiveRow(ix.index, "day", day.t) : null);
 }
 function kronosDraw(d){
   if(!$("kronosidx")) return;
@@ -12075,7 +12204,10 @@ function krDayChart(ix){
   KR.dpath.setData(day && day.path ? [{time: T(day.t), value: day.close}].concat(day.path.map(q => ({time: T(q[0]), value: q[4]}))) : []);
   for(const ln of KR.dlines) KR.dcandles.removePriceLine(ln);
   const t = day && day.trade && day.taken !== false ? day.trade : null, LS = LW.LineStyle;
-  KR.dlines = !t ? [] : (t.exit === "close" ? [[t.entry, "Entry", C.warn]]
+  KR.dlines = !t ? [] : (t.exit === "ladder" ? [[t.target, "Target", C.up], [t.t2, "T2", C.up], [t.t1, "T1", C.up],
+                                                  [t.entry, "Entry", C.warn], [t.stop, "Stop", C.down]]
+                          : t.exit === "peak" ? [[t.target, "Target", C.up], [t.t2, "75%", C.up], [t.t1, "50%", C.up], [t.entry, "Entry", C.warn]]
+                          : t.exit === "close" ? [[t.entry, "Entry", C.warn]]
                           : [[t.target, "Target", C.up], [t.stop, "Stop", C.down], [t.entry, "Entry", C.warn]])
     .filter(([v]) => v != null)
     .map(([v, title, color]) => KR.dcandles.createPriceLine({price: v, color, lineWidth: 1, lineStyle: LS.Dashed,
@@ -12084,7 +12216,10 @@ function krDayChart(ix){
   if(KR.dshown !== shown){ KR.dchart.timeScale().fitContent(); KR.dshown = shown; }
   $("kdkeys").innerHTML = `<span class="o">${esc(KR_NAME[ix.index] || ix.index)} · ${date ? esc(krDay(day.t)) : "—"} · 15-minute candles</span>`
     + `<span class="o">Kronos's whole day<i class="key dash" style="display:inline-block;margin-left:5px"></i></span>`
-    + (t && t.exit === "close" ? `<span class="o" style="color:${C.warn}">Entry ${num(t.entry, 0)} · held to the close</span>`
+    + (t && t.exit === "ladder" ? `<span class="o" style="color:${C.up}">Target ${num(t.target, 0)}</span>`
+         + (t.stop != null ? `<span class="o" style="color:${C.down}">Stop ${num(t.stop, 0)}</span>` : "")
+       : t && t.exit === "peak" ? `<span class="o" style="color:${C.up}">Target ${num(t.target, 0)} · no stop</span>`
+       : t && t.exit === "close" ? `<span class="o" style="color:${C.warn}">Entry ${num(t.entry, 0)} · held to the close</span>`
        : t ? `<span class="o" style="color:${C.up}">Target ${num(t.target, 0)}</span>`
          + `<span class="o" style="color:${C.down}">Stop ${num(t.stop, 0)}</span>` : "");
 }
@@ -12154,27 +12289,30 @@ function kronPosPaint(){
     const t = r.trade || {}, nm = KR_NAME[r.index] || r.index, cfd = r.cfd;
     const strike = cfd ? (t.side === "CE" ? "Buy" : "Sell") : `${t.strike == null ? "" : t.strike} ${t.side || ""}`;
     const px = v => v == null ? "—" : (cfd ? "$" : "₹") + num(v, 2);
-    const entry = cfd ? t.entry : t.premium, tgt = cfd ? t.target : t.premium_target, stp = cfd ? t.stop : t.premium_stop;
+    const entry = cfd ? t.entry : t.premium, tgt = cfd ? t.target : t.premium_target;
+    const stp = cfd ? t.stop : (r.premium_stop_now != null ? r.premium_stop_now : t.premium_stop);
     const hold = t.exit === "close";
+    const lots = r.kind === "day" && !cfd ? krLots(r.index) : 1;
     const now = cfd ? r.spot : r.ltp;
-    const when = `${r.kind === "day" ? "whole day" : "next hour"} · ${krTime(r.t)}`
+    const when = `${r.kind === "day" ? "whole day" : "next hour"} · ${lots} lot${lots === 1 ? "" : "s"}${r.lot_size && !cfd ? ` (${num(lots * r.lot_size, 0)} qty)` : ""} · ${krTime(r.t)}`
       + (r.open ? ` · open till ${krTime(r.ends)}` : ` · ${KR_RES[r.kind][r.result] || r.result} ${krSigned(r.points, 1)} pts`);
-    const money_ = r.open ? (r.pnl == null ? "—" : money(r.pnl))
-                          : ((r.rupees ?? r.usd) == null ? "—" : (cfd ? "" : "≈ ") + money(r.rupees ?? r.usd));
-    const pv = r.open ? r.pnl : (r.rupees ?? r.usd);
+    const money_ = r.open ? (r.pnl == null ? "—" : money(r.pnl * lots))
+                          : ((r.rupees ?? r.usd) == null ? "—" : (cfd ? "" : "≈ ") + money((r.rupees ?? r.usd) * lots));
+    const pv = r.open ? (r.pnl == null ? null : r.pnl * lots) : (r.rupees ?? r.usd);
     return `<tr class="${r.open ? "" : "kd-closed"}"><td><b>${esc(nm)}</b> <span class="jbadge kron">Kronos</span>`
       + `<div class="kd-strk"><b>${esc(strike)}</b></div><div class="kd-when">${esc(when)}</div>`
-      + `<div class="kd-tsm">${hold ? "held to the close · no stop" : `target ${esc(px(tgt))} · stop ${esc(px(stp))}`}</div></td>`
+      + `<div class="kd-tsm">${hold ? "held to the close · no stop" : t.exit === "peak" ? `target ${esc(px(tgt))} · no stop` : `target ${esc(px(tgt))} · stop ${esc(px(stp))}`}</div></td>`
       + `<td><b>${esc(strike)}</b></td><td class="r">${esc(px(entry))}</td>`
       + `<td class="r" style="color:${r.open && now != null && entry != null ? col((now - entry) * (cfd && t.side !== "CE" ? -1 : 1)) : ""}">`
       + `${r.open ? esc(px(now)) : `closed<div class="kd-when">${esc(KR_RES[r.kind][r.result] || "")}</div>`}</td>`
       + (hold ? `<td class="r kts">at the close</td><td class="r kts">none</td>`
+         : t.exit === "peak" ? `<td class="r kts" style="color:var(--up)">${esc(px(tgt))}</td><td class="r kts">none</td>`
               : `<td class="r kts" style="color:var(--up)">${esc(px(tgt))}</td><td class="r kts" style="color:var(--down)">${esc(px(stp))}</td>`)
       + `<td class="r" style="color:${col(pv || 0)}">${esc(money_)}</td></tr>`;
   }).join("");
   $("kronpos").innerHTML = `<table class="kd-tab kd-pos krpos"><thead><tr><th>Kronos trade</th><th>Strike</th>`
     + `<th class="r">${rows.some(r => r.cfd) ? "Entry" : "Entry LTP"}</th><th class="r">${rows.some(r => r.cfd) ? "Price now" : "LTP now"}</th>`
-    + `<th class="r kts">Target</th><th class="r kts">Stop</th><th class="r">P&amp;L a lot</th></tr></thead><tbody>${body}</tbody></table>`;
+    + `<th class="r kts">Target</th><th class="r kts">Stop</th><th class="r">P&amp;L</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 
 async function gannFetch(){

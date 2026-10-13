@@ -322,21 +322,62 @@ for tg, stp, want in ((25100.0, 24950.0, True), (25020.0, 24990.0, "a small move
 c = {"trade": None}
 kw.decide_day(c)
 check("a flat whole-day forecast is not traded", c["taken"] is False and c["no_trade"] == "a flat forecast")
-c = {"trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25100.0, "stop": 24850.0})}
+dt_ = kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25080.0, "stop": 24990.0, "premium": 130.0, "delta": 0.5},
+                   25120.0, 24990.0)
+check("the day trade (the user: \"take the profit before the market hits the top\"): a ladder to the best point it "
+      "forecasts for the day - T1 halfway (25060), T2 three-quarters (25090), target 25120; its forecast close kept; "
+      "premiums by delta; no day range known -> no stop yet", (dt_["exit"], dt_["target"], dt_["stop"], dt_["close_fc"],
+      dt_["t1"], dt_["t2"], dt_["premium_t1"], dt_["premium_t2"], dt_["premium_target"])
+      == ("ladder", 25120.0, None, 25080.0, 25060.0, 25090.0, 160.0, 175.0, 190.0) and "premium_stop" not in dt_, dt_)
+ds_ = kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25080.0, "stop": 24990.0, "premium": 130.0, "delta": 0.5},
+                   25120.0, 24990.0, 200.0)
+check("...with a day range of 200: its STOP half of it below the entry (24900), the option's stop price 130 - 50 = 80 "
+      "(the user: \"its not giving a stop loss\")", ds_["stop"] == 24900.0 and ds_["premium_stop"] == 80.0, ds_)
+dsp = kw.day_trade({"side": "PE", "entry": 25000.0, "target": 24950.0, "stop": 25010.0, "premium": 40.0, "delta": 0.5},
+                   25010.0, 24930.0, 200.0)
+check("...a put's stop ABOVE the entry; its stop price never below 0.05", dsp["stop"] == 25100.0
+      and dsp["premium_stop"] == 0.05, dsp)
+lad = [["a", 0, 25040, 24980, 25030], ["b", 0, 25070, 25020, 25060], ["c", 0, 25095, 25050, 25090],
+       ["d", 0, 25080, 25055, 25060]]
+check("the ladder, traced: T1 touched (b) -> the stop to the entry; T2 touched (c) -> the stop to T1 (25060); the "
+      "pull-back (d) closes it there, +60 kept", kw.ladder_walk(ds_, lad) == ("stop", 25060.0, 3, 25060.0),
+      kw.ladder_walk(ds_, lad))
+check("...still open after b: the stop now at the entry", kw.ladder_walk(ds_, lad[:2]) == (None, None, None, 25000.0))
+check("...its stop first: a candle down through 24900 before anything else", kw.ladder_walk(
+      ds_, [["a", 0, 25010, 24890, 24950]]) == ("stop", 24900.0, 0, 24900.0))
+check("...the target touched: out there", kw.ladder_walk(ds_, [["a", 0, 25130, 24990, 25100]])[:2] == ("target", 25120.0))
+rng_c = [[ts.isoformat(), 0, 100.0 + 10 * k, 100.0, 105.0] for k, ts in
+         enumerate(pd.date_range("2026-09-28 09:15", periods=12, freq="1D", tz="Asia/Kolkata"))]
+check("the day range: the average (high - low) of the 10 sessions before the trade's - fewer than 10, none",
+      kw.day_range(rng_c, "2026-10-09T09:15:00+05:30") == sum(10 * k for k in range(1, 11)) / 10
+      and kw.day_range(rng_c, "2026-10-05T09:15:00+05:30") is None, kw.day_range(rng_c, "2026-10-09T09:15:00+05:30"))
+lc = [{"t": d2[0][0], "close": 25300.0, "f4": 25200.0, "taken": True, "lot_size": 65,
+       "trade": kw.day_trade({"side": "CE", "entry": 25300.0, "target": 25400.0, "stop": 25290.0, "premium": 120.0,
+                              "delta": 0.5}, 25450.0, 25290.0, 100.0)}]
+kw.score_days(lc, cand)
+check("a ladder trade is scored the moment the candles show it out - today's falling session stops the call at "
+      "25250 during the day, not after the close", lc[0]["result"] == "stop" and lc[0]["points"] == -50.0
+      and lc[0].get("actual") is None and lc[0]["exit_t"].startswith("2026-10-13T"), lc[0])
+dp_ = kw.day_trade({"side": "PE", "entry": 25000.0, "target": 24950.0, "stop": 25010.0}, 25010.0, 24930.0)
+check("...a put's target its forecast LOW", dp_["target"] == 24930.0 and dp_["t1"] == 24965.0, dp_)
+dn_ = kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25080.0, "stop": 24990.0}, None, None)
+check("...no day high known (an old record): its forecast close", dn_["target"] == 25080.0, dn_)
+c = {"trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25100.0, "stop": 24850.0}, 25150.0, 24850.0)}
 kw.decide_day(c)
-check("held to the close, a stop further than the target no longer matters: traded", c["taken"] is True, c)
-c = {"trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25020.0, "stop": 24990.0})}
+check("no stop: a far-away old stop no longer matters - traded", c["taken"] is True, c)
+c = {"trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25020.0, "stop": 24990.0}, 25200.0, 24990.0)}
 kw.decide_day(c)
-check("...but a small move is still skipped", c["taken"] is False and c["no_trade"] == "a small move", c)
+check("...but a small move TO THE CLOSE is still skipped, however high its day high", c["taken"] is False
+      and c["no_trade"] == "a small move", c)
 hc = [{"t": d1[0][0], "close": 25000.0, "f4": 25050.0, "taken": True, "lot_size": 65,
        "trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25050.0, "stop": 24999.0, "premium": 120.0,
-                              "premium_stop": 119.5, "delta": 0.5})},
-      {"t": d1[0][0], "close": 25000.0, "f4": 24900.0, "taken": True,
-       "trade": kw.day_trade({"side": "PE", "entry": 25000.0, "target": 24900.0, "stop": 25001.0})}]
+                              "premium_stop": 119.5, "delta": 0.5}, 25100.0, 24999.0)},
+      {"t": d1[0][0], "close": 25000.0, "f4": 24950.0, "taken": True,
+       "trade": kw.day_trade({"side": "PE", "entry": 25000.0, "target": 24950.0, "stop": 25001.0}, 25001.0, 24900.0)}]
 kw.score_days(hc, cand)
-check("held to the close: past its forecast close (25050) and through its old stop (24999), out at the day's last "
-      "close - a call +240, a put -240", (hc[0]["result"], hc[0]["points"], hc[1]["result"], hc[1]["points"])
-      == ("close", 240.0, "close", -240.0) and hc[0]["rupees"] == 240 * 0.5 * 65,
+check("a call's target (its day high, 25100) reached on a rising day: out there (+100); a put's (24900) never - out "
+      "at the day's last close (-240)", (hc[0]["result"], hc[0]["points"], hc[1]["result"], hc[1]["points"])
+      == ("target", 100.0, "close", -240.0) and hc[0]["rupees"] == 100 * 0.5 * 65,
       [(c.get("result"), c.get("points"), c.get("rupees")) for c in hc])
 
 # the worker's own pass, with a stand-in for the model (every forecast rises 6 points a candle) and a short context
@@ -369,12 +410,12 @@ try:
           and not lv0["replay"] and lv0["trade"]["premium"] == 130.0 and lv0["trade"]["strike"] == 25000
           and lv0["tool_dir"] == 1 and lv0["kind"] == "day" and lv0["taken"] is True and len(lv0["path"]) == 24,
           (asked, {k: lv0.get(k) for k in ("t", "replay", "taken", "tool_dir", "trade")}))
-    check("...its target where it says the index closes the day (+144), its day's high and low kept",
-          lv0["trade"]["target"] == 25144.0 and lv0["hi"] == 25147.0 and lv0["lo"] == 24997.0,
-          (lv0["trade"], lv0.get("hi"), lv0.get("lo")))
-    check("...HELD TO THE CLOSE (kronos_day_study.py): no stop, no stop premium - its forecast close kept as information",
-          lv0["trade"]["exit"] == "close" and lv0["trade"]["stop"] is None and "premium_stop" not in lv0["trade"]
-          and lv0["trade"]["premium"] == 130.0, lv0["trade"])
+    check("...its target its forecast high for the day (25147), its forecast close (+144) kept, its day's high and "
+          "low kept", lv0["trade"]["target"] == 25147.0 and lv0["trade"]["close_fc"] == 25144.0 and lv0["hi"] == 25147.0
+          and lv0["lo"] == 24997.0, (lv0["trade"], lv0.get("hi"), lv0.get("lo")))
+    check("...a ladder, the option's target premium by delta (130 + 147 x 0.5); three sessions of history - fewer "
+          "than the 10 a day range needs - so no stop", lv0["trade"]["exit"] == "ladder"
+          and lv0["trade"]["stop"] is None and lv0["trade"]["premium_target"] == 203.5, lv0["trade"])
     kw._day(None, ipath, False, now)
     check("made once: the next pass forecasts nothing", asked == [(1, 24)], asked)
     kw._day(None, ipath, True, now)
@@ -396,11 +437,16 @@ try:
     kw._write(dpath, days)
     kw._day(None, ipath, False, now)
     again = [c for c in json.load(open(dpath)) if c["t"] == old["t"]][0]
-    sess = [x for x in hist if x[0][:10] == old["t"][:10]]
-    check("a day recorded under the first exit is re-scored held to the close (out at its last close), no new "
-          "forecast", len(asked) == 2 and again["trade"]["exit"] == "close" and again["trade"]["stop"] is None
-          and again["result"] == "close" and again["points"] == round(sess[-1][4] - old["close"], 2),
-          (again.get("result"), again.get("points"), sess[-1][4] - old["close"]))
+    sess = [x for x in hist if x[0][:10] == old["t"][:10]][1:]
+    up = again["trade"]["side"] == "CE"
+    P = old["hi"] if up else old["lo"]
+    res_, lvl_, _, _ = kw.ladder_walk(again["trade"], sess)
+    want_r, want_p = (res_, round((lvl_ - old["close"]) * (1 if up else -1), 2)) if res_ else \
+        ("close", round((sess[-1][4] - old["close"]) * (1 if up else -1), 2))
+    check("a day recorded under an earlier exit is re-scored under this one - the ladder to its day high - with no "
+          "new forecast", len(asked) == 2 and again["trade"]["exit"] == "ladder" and again["trade"]["target"] == P
+          and (again["result"], again["points"]) == (want_r, want_p),
+          (again.get("result"), again.get("points"), want_r, want_p))
     # the worker reached today late: the 09:30 candle had closed too - no option price from 09:15, no tool direction
     os.remove(dpath)
     kw._write(ipath, dict(inp, candles=hist + session("2026-10-13", 25000, 2, n=2)[1:]))
@@ -479,6 +525,24 @@ kw._write(os.path.join(kl.base(), "calls", "BTC.json"),
           [{"t": "2026-10-13T10:00:00+05:30", "close": 82000.0, "f4": 81800.0, "taken": True, "replay": False,
             "lot_size": 1.0, "trade": {"side": "PE", "entry": 82000.0, "target": 81800.0, "stop": 82100.0, "cfd": True,
                                        "strike": None}}])
+kw._write(os.path.join(kl.base(), "days", "SENSEX.json"),
+          [{"t": "2026-10-13T09:15:00+05:30", "close": 25000.0, "f4": 25080.0, "taken": True, "replay": False,
+            "lot_size": 20, "trade": kw.day_trade({"side": "CE", "strike": 25000, "entry": 25000.0, "target": 25080.0,
+                                                   "stop": 24990.0, "premium": 130.0, "delta": 0.5}, 25120.0, 24990.0, 200.0)}])
+kw._write(os.path.join(kl.base(), "in", "SENSEX.json"),
+          {"candles": [["2026-10-13T09:15:00+05:30", 0, 25005, 24995, 25000.0],
+                       ["2026-10-13T09:30:00+05:30", 0, 25070, 25010, 25060.0]]})
+
+
+class SensexFeed(LiveFeed):
+    def ticks(self):
+        return {"spots": {"SENSEX": 25095.0}}
+
+
+sx = [r for r in kl.live("nse_index", SensexFeed(), now)["trades"] if r["index"] == "SENSEX"]
+check("live: a ladder trade's stop where it is NOW - T1 touched by a closed candle, T2 by the live price -> T1 "
+      "(25060), its option price 130 + 30 = 160", len(sx) == 1 and sx[0]["stop_now"] == 25060.0
+      and sx[0]["premium_stop_now"] == 160.0 and sx[0]["open"], sx)
 cv = kl.live("crypto", LiveFeed(None, 81950.0), now)["trades"]
 check("a CFD sell: the price now, and P&L for 1 BTC the right way round (82000 - 81950 = +50)",
       len(cv) == 1 and cv[0]["cfd"] and cv[0]["spot"] == 81950.0 and cv[0]["pnl"] == 50.0, cv)
@@ -499,9 +563,19 @@ check("...its option's price at entry and NOW, then its target and stop",
       and '["Target", "₹" + num(t.premium_target, 2), "var(--up)"], ["Stop", "₹" + num(t.premium_stop, 2), "var(--down)"]]' in SRC)
 check("the whole day: its card, trade, chart and record", all(f'id="{i}"' in SRC for i in
       ("kdaycard", "kddir", "kdtrade", "kdchart", "kdstats", "kdcalls", "kdnote")))
-check("a held-to-close trade shows its exit and no stop, on the tab and on Positions",
-      '["Exit", "at the close"], ["Stop", "none"]]' in SRC and '"held to the close · no stop"' in SRC
-      and '<td class="r kts">at the close</td><td class="r kts">none</td>' in SRC)
+check("the day trade's target AND stop in the OPTION's price, the stop where the ladder has moved it (the user: "
+      "\"its not giving a stop loss and targets should be shown in option prices not index price\")",
+      '["Stop", lad ? (stopPrem == null ? "—" : "₹" + num(stopPrem, 2)) : "none", lad ? "var(--down)" : ""]]' in SRC
+      and "const stopPrem = lad ? (isOpen && lv.premium_stop_now != null ? lv.premium_stop_now : t.premium_stop) : null;" in SRC
+      and "const stp = cfd ? t.stop : (r.premium_stop_now != null ? r.premium_stop_now : t.premium_stop);" in SRC)
+check("...at the lots picked on its card (kept on the device, never the tool's own trading lots): the cost, what the "
+      "target is worth before and after charges", 'localStorage.setItem("kronos.lots." + e.target.dataset.k' in SRC
+      and '["Cost (entry LTP × qty)"' in SRC and '["At target, after charges"' in SRC
+      and 'id="kdlots"' in SRC and "setLots" not in SRC.split("function krLots(")[1].split("\nfunction ")[0])
+check("...and its ladder, as the Signal tab's: 50%, 75%, the target and the stop, each with its level, the option's "
+      "price there and its worth at those lots", 'id="kdladder"' in SRC and "function krLadder(ix, day, lv)" in SRC
+      and '[lad ? "T1 · halfway" : "50% of the way", t.t1, t.premium_t1]' in SRC
+      and '<div class="n" style="color:var(--up)">${pv == null ? num(v, 0) : "₹" + num(pv, 2)}</div>' in SRC)
 check("its live route and handler, off the user's own feed without starting one",
       'if path == "/api/kronos/live":' in SRC and "feeds.for_user(user, market, start=False)" in SRC)
 check("polled every few seconds while the Kronos tab or Positions is on screen",

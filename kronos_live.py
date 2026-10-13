@@ -330,9 +330,11 @@ def live(market=None, feed=None, now=None):
     market = market or MARKET
     if market not in MARKETS or not config.instruments_in(market):
         return {"market": market, "trades": []}
+    import kronos_worker as kw                           # pure Python at import; PyTorch only inside its load()
     b, today, cfd = base(), now.astimezone(IST).date(), _is_cfd(market)
     out = []
     for key in config.instruments_in(market):
+        candles = (_cached_json(os.path.join(b, "in", f"{key}.json"), {}) or {}).get("candles") or []
         rows = [("hour", c) for c in _cached_json(os.path.join(b, "calls", f"{key}.json"), []) or []] \
             + [("day", c) for c in _cached_json(os.path.join(b, "days", f"{key}.json"), []) or []]
         lot = (config.INSTRUMENTS.get(key) or {}).get("lot_size")
@@ -357,6 +359,20 @@ def live(market=None, feed=None, now=None):
                 if spot is None:
                     spot = _price_now(feed, key)
                 row["spot"] = spot
+                if t.get("exit") == "ladder":
+                    # where its stop is NOW: the ratchet over today's closed candles since the entry, and the live
+                    # price for the one forming (T1 touched -> the entry, T2 -> T1)
+                    later = [c_ for c_ in candles if c_[0] > c["t"] and c_[0][:10] == c["t"][:10]]
+                    if spot is not None:
+                        later = later + [["now", spot, spot, spot, spot]]
+                    res, _, _, st = kw.ladder_walk(t, later)
+                    row["stop_now"] = st
+                    if st is not None and t.get("premium"):
+                        row["premium_stop_now"] = round(max(0.05, t["premium"] - abs(st - t["entry"]) * t.get("delta", 0.5)), 2) \
+                            if (st - t["entry"]) * (1 if t["side"] == "CE" else -1) <= 0 else \
+                            round(t["premium"] + abs(st - t["entry"]) * t.get("delta", 0.5), 2)
+                    if res:
+                        row["hit_now"] = res          # the price is at its stop or target - booked at the candle's close
                 if t.get("cfd"):
                     if spot is not None and lot_:
                         sign = 1 if t["side"] == "CE" else -1

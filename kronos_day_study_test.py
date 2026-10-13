@@ -30,6 +30,14 @@ check("...and when the index comes back below the entry, out at the entry",
 check("the stop does not move before halfway is reached (the same candle counts after the stop check)",
       kds.walk_index([(101.0, 99.0, 100.5)], "CE", 100.0, target=110.0, stop=98.0, be_at=101.0) == (100.5, 0, "close"))
 
+print("1b. THE LADDER (the user: \"add a ladder like we have it in our tool\")")
+check("T1 then T2 touched: the stop climbs to T1, and the pull-back to it closes the trade there",
+      kds.walk_ladder(day, "CE", 100.0, 101.0, 102.0, 103.0) == (101.0, 3, "stop"))
+check("T3 touched: out at T3", kds.walk_ladder(day, "CE", 100.0, 101.0, 102.0, 102.4) == (102.4, 2, "target"))
+check("a stop below, touched first", kds.walk_ladder(day, "CE", 100.0, 101.0, 102.0, 103.0, stop=99.2) == (99.2, 0, "stop"))
+check("T1 only: the stop at the entry, hit on the next candle's low", kds.walk_ladder(day, "CE", 100.0, 100.4, 100.6, 103.0)
+      == (100.0, 1, "stop"))
+
 print("2. ON THE OPTION'S OWN PRICE")
 prem = lambda x, j: (x - 95.0)            # a call worth its distance above 95 - premium 5 at 100
 check("+30% (6.5) reached on candle 2 (its high 102.5 -> 7.5); the -25% stop (3.75) never",

@@ -15,6 +15,15 @@
     premium +50% / -30%                           629   41% ₹   -36,154 PF 0.96 DD ₹  56,585 day ₹ -10,177  |  351   43% ₹   +64,566 PF 1.11 DD ₹  58,152 day ₹ -17,986
     premium +100% / -40%                          629   42% ₹  +120,358 PF 1.13 DD ₹  46,141 day ₹ -11,659  |  351   44% ₹   +71,792 PF 1.12 DD ₹  49,159 day ₹ -20,137
     (info) first candle's direction, hold (no model)   910   44% ₹  +400,192 PF 1.27 DD ₹ 121,117 day ₹ -16,739  |  530   47% ₹  +147,619 PF 1.16 DD ₹  94,692 day ₹ -30,118
+ THE USER'S "TAKE THE PROFIT BEFORE THE TOP" (P = Kronos's best point of the day)
+    to peak                                       629   52% ₹  +185,512 PF 1.21 DD ₹  49,048 day ₹ -15,057  |  351   54% ₹  +208,997 PF 1.37 DD ₹  44,869 day ₹ -23,722
+    75% to peak                                   629   56% ₹   +99,308 PF 1.12 DD ₹  46,216 day ₹ -15,057  |  351   60% ₹  +184,845 PF 1.36 DD ₹  44,849 day ₹ -23,722
+    50% to peak                                   629   63% ₹   +80,216 PF 1.11 DD ₹  44,902 day ₹ -15,057  |  351   67% ₹  +136,251 PF 1.31 DD ₹  43,883 day ₹ -23,696
+    ladder 50/75/peak, ratchet                    629   49% ₹  +131,431 PF 1.18 DD ₹  44,539 day ₹ -15,057  |  351   54% ₹  +223,190 PF 1.48 DD ₹  48,643 day ₹ -23,696
+    peak time                                     629   51% ₹  +165,443 PF 1.19 DD ₹  56,131 day ₹ -14,238  |  351   54% ₹  +224,203 PF 1.45 DD ₹  43,017 day ₹ -23,696
+    75% to peak, stop 0.5 x range                 629   52% ₹   +38,241 PF 1.05 DD ₹  70,264 day ₹  -9,953  |  351   56% ₹  +137,590 PF 1.27 DD ₹  33,718 day ₹ -13,815
+    50% to peak, stop 0.5 x range                 629   59% ₹   +15,086 PF 1.02 DD ₹  58,511 day ₹  -9,953  |  351   63% ₹  +113,266 PF 1.26 DD ₹  32,365 day ₹ -11,976
+    ladder, stop 0.5 x range                      629   45% ₹   +65,816 PF 1.09 DD ₹  65,792 day ₹  -9,953  |  351   49% ₹  +188,504 PF 1.42 DD ₹  31,113 day ₹ -11,976
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Nifty
     live today (K target + K stop, R:R >= 1)      297   26% ₹   -24,257 PF 0.89 DD ₹  36,507 day ₹  -4,713  |  163   29% ₹   +53,441 PF 1.41 DD ₹  25,214 day ₹  -4,357
@@ -55,3 +64,15 @@
           premium +100% / -40%                         vs live: first two years   +196,488   held-out     -9,128   total both   +192,150   held-out alone    +71,792
 
  CHOSEN: hold to the close  (held-out year MAKES money: +213,349)
+
+ THE USER'S "BEFORE THE TOP" - the best of these by total over both periods, against hold to the close
+   to peak                                  both   +394,509   first two years   +185,512   held-out   +208,997   vs hold:   -223,975 /     -4,352
+   peak time                                both   +389,646   first two years   +165,443   held-out   +224,203   vs hold:   -244,044 /    +10,854
+   ladder 50/75/peak, ratchet               both   +354,621   first two years   +131,431   held-out   +223,190   vs hold:   -278,055 /     +9,841
+   75% to peak                              both   +284,153   first two years    +99,308   held-out   +184,845   vs hold:   -310,179 /    -28,504
+   ladder, stop 0.5 x range                 both   +254,320   first two years    +65,816   held-out   +188,504   vs hold:   -343,670 /    -24,845
+   50% to peak                              both   +216,467   first two years    +80,216   held-out   +136,251   vs hold:   -329,270 /    -77,098
+   75% to peak, stop 0.5 x range            both   +175,832   first two years    +38,241   held-out   +137,590   vs hold:   -371,245 /    -75,759
+   50% to peak, stop 0.5 x range            both   +128,352   first two years    +15,086   held-out   +113,266   vs hold:   -394,401 /   -100,083
+
+ BEST BEFORE THE TOP: to peak
