@@ -1,0 +1,24 @@
+============================================================================================================================================================================
+ THE TREND RIDER WITH THE RULES' STOP STEPS - Nifty + Bank Nifty, 5-minute candles. Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + BANK NIFTY
+    TODAY: 90% to T2 -> T1, 90% to T3 -> T2       832   41% ₹  +339,081 PF 1.33 DD ₹  73,523 day ₹ -15,304  |  496   47% ₹  +115,033 PF 1.18 DD ₹  63,489 day ₹ -32,218
+    A: rules' steps at the 15-min candle close    870   45% ₹  +316,807 PF 1.32 DD ₹  63,335 day ₹ -12,680  |  513   49% ₹   +51,360 PF 1.08 DD ₹ 100,817 day ₹ -32,218
+    B: A + Supertrend trail + 2h breakeven        992   35% ₹  +275,631 PF 1.31 DD ₹  52,106 day ₹ -12,398  |  618   35% ₹  +121,022 PF 1.25 DD ₹  42,588 day ₹ -13,522
+    C: rules' steps on the touch (info)           871   45% ₹  +284,541 PF 1.29 DD ₹  62,580 day ₹ -11,921  |  514   49% ₹   +31,390 PF 1.05 DD ₹ 104,560 day ₹ -32,218
+ NIFTY
+    TODAY: 90% to T2 -> T1, 90% to T3 -> T2       408   39% ₹  +179,191 PF 1.39 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +81,254 PF 1.30 DD ₹  20,644 day ₹ -11,846
+    A: rules' steps at the 15-min candle close    426   44% ₹  +156,004 PF 1.36 DD ₹  24,157 day ₹  -6,747  |  264   47% ₹   +57,572 PF 1.22 DD ₹  38,005 day ₹ -11,846
+    B: A + Supertrend trail + 2h breakeven        489   35% ₹  +157,331 PF 1.43 DD ₹  20,739 day ₹  -6,747  |  319   36% ₹   +70,163 PF 1.34 DD ₹  20,175 day ₹  -4,933
+    C: rules' steps on the touch (info)           427   44% ₹  +145,706 PF 1.33 DD ₹  24,122 day ₹  -6,747  |  265   48% ₹   +58,098 PF 1.22 DD ₹  37,405 day ₹ -11,846
+ BANKNIFTY
+    TODAY: 90% to T2 -> T1, 90% to T3 -> T2       424   42% ₹  +159,890 PF 1.28 DD ₹  64,964 day ₹ -10,420  |  245   48% ₹   +33,779 PF 1.09 DD ₹  44,464 day ₹ -20,372
+    A: rules' steps at the 15-min candle close    444   46% ₹  +160,803 PF 1.30 DD ₹  48,461 day ₹ -10,388  |  249   50% ₹    -6,212 PF 0.98 DD ₹  62,813 day ₹ -20,372
+    B: A + Supertrend trail + 2h breakeven        503   36% ₹  +118,299 PF 1.23 DD ₹  48,095 day ₹ -10,719  |  299   35% ₹   +50,859 PF 1.18 DD ₹  34,680 day ₹  -8,981
+    C: rules' steps on the touch (info)           444   47% ₹  +138,835 PF 1.26 DD ₹  47,359 day ₹ -10,388  |  249   50% ₹   -26,708 PF 0.93 DD ₹  67,155 day ₹ -20,372
+
+ VERDICT - kept only if more than TODAY in BOTH periods
+  drop  A: rules' steps at the 15-min candle close   profit: in-sample   -22,274  held-out   -63,672   worst drop:  -10,188 /  +37,328   worst day:   +2,624 /       +0
+  drop  B: A + Supertrend trail + 2h breakeven       profit: in-sample   -63,450  held-out    +5,989   worst drop:  -21,417 /  -20,901   worst day:   +2,906 /  +18,696
+  drop  C: rules' steps on the touch (info)          profit: in-sample   -54,540  held-out   -83,643   worst drop:  -10,943 /  +41,071   worst day:   +3,383 /       +0
