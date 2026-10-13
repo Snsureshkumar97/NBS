@@ -322,6 +322,22 @@ for tg, stp, want in ((25100.0, 24950.0, True), (25020.0, 24990.0, "a small move
 c = {"trade": None}
 kw.decide_day(c)
 check("a flat whole-day forecast is not traded", c["taken"] is False and c["no_trade"] == "a flat forecast")
+c = {"trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25100.0, "stop": 24850.0})}
+kw.decide_day(c)
+check("held to the close, a stop further than the target no longer matters: traded", c["taken"] is True, c)
+c = {"trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25020.0, "stop": 24990.0})}
+kw.decide_day(c)
+check("...but a small move is still skipped", c["taken"] is False and c["no_trade"] == "a small move", c)
+hc = [{"t": d1[0][0], "close": 25000.0, "f4": 25050.0, "taken": True, "lot_size": 65,
+       "trade": kw.day_trade({"side": "CE", "entry": 25000.0, "target": 25050.0, "stop": 24999.0, "premium": 120.0,
+                              "premium_stop": 119.5, "delta": 0.5})},
+      {"t": d1[0][0], "close": 25000.0, "f4": 24900.0, "taken": True,
+       "trade": kw.day_trade({"side": "PE", "entry": 25000.0, "target": 24900.0, "stop": 25001.0})}]
+kw.score_days(hc, cand)
+check("held to the close: past its forecast close (25050) and through its old stop (24999), out at the day's last "
+      "close - a call +240, a put -240", (hc[0]["result"], hc[0]["points"], hc[1]["result"], hc[1]["points"])
+      == ("close", 240.0, "close", -240.0) and hc[0]["rupees"] == 240 * 0.5 * 65,
+      [(c.get("result"), c.get("points"), c.get("rupees")) for c in hc])
 
 # the worker's own pass, with a stand-in for the model (every forecast rises 6 points a candle) and a short context
 real = (kw.BASE, kw.forecast, kw.CONTEXT)
@@ -356,6 +372,9 @@ try:
     check("...its target where it says the index closes the day (+144), its day's high and low kept",
           lv0["trade"]["target"] == 25144.0 and lv0["hi"] == 25147.0 and lv0["lo"] == 24997.0,
           (lv0["trade"], lv0.get("hi"), lv0.get("lo")))
+    check("...HELD TO THE CLOSE (kronos_day_study.py): no stop, no stop premium - its forecast close kept as information",
+          lv0["trade"]["exit"] == "close" and lv0["trade"]["stop"] is None and "premium_stop" not in lv0["trade"]
+          and lv0["trade"]["premium"] == 130.0, lv0["trade"])
     kw._day(None, ipath, False, now)
     check("made once: the next pass forecasts nothing", asked == [(1, 24)], asked)
     kw._day(None, ipath, True, now)
@@ -367,6 +386,21 @@ try:
           [(c["t"][:10], c.get("actual"), c.get("result")) for c in reps])
     kw._day(None, ipath, True, now)
     check("...replayed once only", len(asked) == 2, asked)
+    # a record made under the first exit (its forecast's own target and stop) is re-decided and re-scored as held to
+    # the close on the next pass - no new forecast
+    days = json.load(open(dpath))
+    old = [c for c in days if c.get("replay")][-1]
+    old["trade"] = dict(old["trade"], stop=old["close"] - 3.0, premium_stop=1.0)
+    old["trade"].pop("exit")
+    old.update(result="stop", points=-3.0, taken=True)
+    kw._write(dpath, days)
+    kw._day(None, ipath, False, now)
+    again = [c for c in json.load(open(dpath)) if c["t"] == old["t"]][0]
+    sess = [x for x in hist if x[0][:10] == old["t"][:10]]
+    check("a day recorded under the first exit is re-scored held to the close (out at its last close), no new "
+          "forecast", len(asked) == 2 and again["trade"]["exit"] == "close" and again["trade"]["stop"] is None
+          and again["result"] == "close" and again["points"] == round(sess[-1][4] - old["close"], 2),
+          (again.get("result"), again.get("points"), sess[-1][4] - old["close"]))
     # the worker reached today late: the 09:30 candle had closed too - no option price from 09:15, no tool direction
     os.remove(dpath)
     kw._write(ipath, dict(inp, candles=hist + session("2026-10-13", 25000, 2, n=2)[1:]))
@@ -465,6 +499,9 @@ check("...its option's price at entry and NOW, then its target and stop",
       and '["Target", "₹" + num(t.premium_target, 2), "var(--up)"], ["Stop", "₹" + num(t.premium_stop, 2), "var(--down)"]]' in SRC)
 check("the whole day: its card, trade, chart and record", all(f'id="{i}"' in SRC for i in
       ("kdaycard", "kddir", "kdtrade", "kdchart", "kdstats", "kdcalls", "kdnote")))
+check("a held-to-close trade shows its exit and no stop, on the tab and on Positions",
+      '["Exit", "at the close"], ["Stop", "none"]]' in SRC and '"held to the close · no stop"' in SRC
+      and '<td class="r kts">at the close</td><td class="r kts">none</td>' in SRC)
 check("its live route and handler, off the user's own feed without starting one",
       'if path == "/api/kronos/live":' in SRC and "feeds.for_user(user, market, start=False)" in SRC)
 check("polled every few seconds while the Kronos tab or Positions is on screen",

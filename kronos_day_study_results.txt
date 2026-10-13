@@ -1,0 +1,57 @@
+============================================================================================================================================================================
+ KRONOS'S WHOLE-DAY OPTION TRADE - which exit, on three years. Per lot, after costs. columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + BANK NIFTY
+    live today (K target + K stop, R:R >= 1)      606   26% ₹   -76,130 PF 0.85 DD ₹  86,739 day ₹ -10,935  |  334   30% ₹   +80,920 PF 1.27 DD ₹  48,305 day ₹ -11,168
+    K target + K stop                             629   27% ₹   -85,347 PF 0.84 DD ₹  95,956 day ₹ -10,935  |  351   31% ₹   +77,101 PF 1.24 DD ₹  53,515 day ₹ -11,168
+    hold to the close                             629   46% ₹  +409,486 PF 1.41 DD ₹  46,186 day ₹ -15,057  |  351   47% ₹  +213,349 PF 1.33 DD ₹  49,454 day ₹ -23,722
+    K target, no stop                             629   57% ₹  +108,354 PF 1.13 DD ₹  45,763 day ₹ -15,057  |  351   61% ₹  +185,518 PF 1.37 DD ₹  45,581 day ₹ -23,722
+    K target, stop 0.25 x day range               629   42% ₹   -28,954 PF 0.96 DD ₹  69,245 day ₹  -6,263  |  351   46% ₹  +150,668 PF 1.39 DD ₹  33,239 day ₹  -8,032
+    K target, stop 0.5 x day range                629   53% ₹   +49,474 PF 1.06 DD ₹  70,563 day ₹  -9,953  |  351   56% ₹  +146,874 PF 1.30 DD ₹  33,436 day ₹ -13,815
+    hold, stop 0.5 x day range                    629   42% ₹  +266,508 PF 1.27 DD ₹  75,179 day ₹  -9,953  |  351   43% ₹  +159,318 PF 1.25 DD ₹  50,175 day ₹ -13,815
+    K target, 0.5 x range stop, then entry        629   41% ₹   +43,140 PF 1.06 DD ₹  60,270 day ₹  -9,953  |  351   44% ₹  +172,167 PF 1.44 DD ₹  32,818 day ₹ -11,976
+    premium +30% / -20%                           629   39% ₹   -64,719 PF 0.90 DD ₹  74,638 day ₹  -7,955  |  351   42% ₹   +22,565 PF 1.05 DD ₹  52,653 day ₹ -12,166
+    premium +50% / -30%                           629   41% ₹   -36,154 PF 0.96 DD ₹  56,585 day ₹ -10,177  |  351   43% ₹   +64,566 PF 1.11 DD ₹  58,152 day ₹ -17,986
+    premium +100% / -40%                          629   42% ₹  +120,358 PF 1.13 DD ₹  46,141 day ₹ -11,659  |  351   44% ₹   +71,792 PF 1.12 DD ₹  49,159 day ₹ -20,137
+    (info) first candle's direction, hold (no model)   910   44% ₹  +400,192 PF 1.27 DD ₹ 121,117 day ₹ -16,739  |  530   47% ₹  +147,619 PF 1.16 DD ₹  94,692 day ₹ -30,118
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nifty
+    live today (K target + K stop, R:R >= 1)      297   26% ₹   -24,257 PF 0.89 DD ₹  36,507 day ₹  -4,713  |  163   29% ₹   +53,441 PF 1.41 DD ₹  25,214 day ₹  -4,357
+    K target + K stop                             300   26% ₹   -23,372 PF 0.89 DD ₹  36,020 day ₹  -4,713  |  169   30% ₹   +51,548 PF 1.37 DD ₹  27,573 day ₹  -4,357
+    hold to the close                             300   47% ₹  +266,905 PF 1.67 DD ₹  28,645 day ₹  -8,457  |  169   48% ₹  +108,585 PF 1.42 DD ₹  27,273 day ₹  -9,750
+    K target, no stop                             300   56% ₹   +78,219 PF 1.22 DD ₹  41,688 day ₹  -8,457  |  169   60% ₹  +115,709 PF 1.54 DD ₹  25,532 day ₹  -9,750
+    K target, stop 0.25 x day range               300   40% ₹    -9,118 PF 0.97 DD ₹  49,120 day ₹  -3,648  |  169   42% ₹   +61,268 PF 1.37 DD ₹  19,418 day ₹  -3,478
+    K target, stop 0.5 x day range                300   52% ₹   +53,859 PF 1.16 DD ₹  31,451 day ₹  -4,405  |  169   53% ₹   +74,617 PF 1.34 DD ₹  22,901 day ₹  -5,548
+    hold, stop 0.5 x day range                    300   43% ₹  +223,270 PF 1.58 DD ₹  22,137 day ₹  -4,793  |  169   42% ₹   +58,949 PF 1.22 DD ₹  28,902 day ₹  -5,548
+    K target, 0.5 x range stop, then entry        300   41% ₹   +23,281 PF 1.08 DD ₹  37,451 day ₹  -4,405  |  169   41% ₹   +91,169 PF 1.55 DD ₹  16,678 day ₹  -5,548
+    premium +30% / -20%                           300   39% ₹   -21,645 PF 0.91 DD ₹  37,149 day ₹  -3,779  |  169   40% ₹    -1,754 PF 0.99 DD ₹  17,457 day ₹  -3,987
+    premium +50% / -30%                           300   41% ₹   +13,163 PF 1.04 DD ₹  35,112 day ₹  -4,482  |  169   43% ₹   +37,864 PF 1.19 DD ₹  25,416 day ₹  -5,363
+    premium +100% / -40%                          300   41% ₹  +107,763 PF 1.30 DD ₹  27,658 day ₹  -5,651  |  169   43% ₹   +23,276 PF 1.11 DD ₹  58,389 day ₹  -7,092
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bank Nifty
+    live today (K target + K stop, R:R >= 1)      309   27% ₹   -51,873 PF 0.83 DD ₹  64,705 day ₹  -6,926  |  171   31% ₹   +27,479 PF 1.17 DD ₹  28,965 day ₹ -10,357
+    K target + K stop                             329   28% ₹   -61,975 PF 0.81 DD ₹  69,413 day ₹  -6,926  |  182   32% ₹   +25,553 PF 1.14 DD ₹  28,393 day ₹ -10,357
+    hold to the close                             329   45% ₹  +142,581 PF 1.24 DD ₹  62,548 day ₹ -11,582  |  182   46% ₹  +104,764 PF 1.26 DD ₹  51,837 day ₹ -16,335
+    K target, no stop                             329   58% ₹   +30,135 PF 1.06 DD ₹  40,462 day ₹ -11,582  |  182   62% ₹   +69,809 PF 1.24 DD ₹  27,675 day ₹ -16,335
+    K target, stop 0.25 x day range               329   44% ₹   -19,836 PF 0.95 DD ₹  49,657 day ₹  -4,627  |  182   50% ₹   +89,400 PF 1.41 DD ₹  26,899 day ₹  -4,572
+    K target, stop 0.5 x day range                329   53% ₹    -4,385 PF 0.99 DD ₹  49,543 day ₹  -6,522  |  182   59% ₹   +72,257 PF 1.26 DD ₹  26,242 day ₹  -8,488
+    hold, stop 0.5 x day range                    329   40% ₹   +43,239 PF 1.07 DD ₹  88,116 day ₹  -6,522  |  182   43% ₹  +100,369 PF 1.26 DD ₹  36,566 day ₹  -8,488
+    K target, 0.5 x range stop, then entry        329   42% ₹   +19,860 PF 1.05 DD ₹  37,771 day ₹  -5,654  |  182   47% ₹   +80,998 PF 1.36 DD ₹  27,133 day ₹  -8,488
+    premium +30% / -20%                           329   40% ₹   -43,074 PF 0.90 DD ₹  55,884 day ₹  -7,343  |  182   43% ₹   +24,320 PF 1.07 DD ₹  45,524 day ₹ -10,371
+    premium +50% / -30%                           329   42% ₹   -49,316 PF 0.90 DD ₹  68,291 day ₹  -8,475  |  182   44% ₹   +26,702 PF 1.07 DD ₹  38,959 day ₹ -15,349
+    premium +100% / -40%                          329   42% ₹   +12,595 PF 1.02 DD ₹  87,726 day ₹ -10,141  |  182   46% ₹   +48,516 PF 1.12 DD ₹  44,249 day ₹ -16,335
+
+ VERDICT - an exit is chosen only if it beats 'live today' in BOTH periods; of those, the larger total
+          K target + K stop                            vs live: first two years     -9,217   held-out     -3,819   total both     -8,246   held-out alone    +77,101
+   beats  hold to the close                            vs live: first two years   +485,617   held-out   +132,429   total both   +622,835   held-out alone   +213,349
+   beats  K target, no stop                            vs live: first two years   +184,484   held-out   +104,598   total both   +293,872   held-out alone   +185,518
+   beats  K target, stop 0.25 x day range              vs live: first two years    +47,176   held-out    +69,748   total both   +121,714   held-out alone   +150,668
+   beats  K target, stop 0.5 x day range               vs live: first two years   +125,605   held-out    +65,954   total both   +196,348   held-out alone   +146,874
+   beats  hold, stop 0.5 x day range                   vs live: first two years   +342,639   held-out    +78,398   total both   +425,826   held-out alone   +159,318
+   beats  K target, 0.5 x range stop, then entry       vs live: first two years   +119,271   held-out    +91,247   total both   +215,307   held-out alone   +172,167
+          premium +30% / -20%                          vs live: first two years    +11,411   held-out    -58,355   total both    -42,154   held-out alone    +22,565
+          premium +50% / -30%                          vs live: first two years    +39,977   held-out    -16,353   total both    +28,413   held-out alone    +64,566
+          premium +100% / -40%                         vs live: first two years   +196,488   held-out     -9,128   total both   +192,150   held-out alone    +71,792
+
+ CHOSEN: hold to the close  (held-out year MAKES money: +213,349)

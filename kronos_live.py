@@ -232,7 +232,7 @@ def scorecard(calls):
                       "trades": len(trades),
                       "targets": sum(1 for c in trades if c["result"] == "target"),
                       "stops": sum(1 for c in trades if c["result"] == "stop"),
-                      "timed": sum(1 for c in trades if c["result"] == "time"),
+                      "timed": sum(1 for c in trades if c["result"] in ("time", "close")),
                       "won": round(100 * sum(1 for c in trades if c["points"] > 0) / len(trades), 1) if trades else None,
                       "points": round(sum(c["points"] for c in trades), 1),
                       "rupees": round(sum(rupees)) if rupees else None, "rupees_n": len(rupees),

@@ -27,9 +27,15 @@ the close of the hour, in INDEX POINTS - Kronos has no option prices, so no rupe
 THE WHOLE DAY (the user, 12 Oct 2026: "if i know the whole day trend ... it will forecast till where it can go end of
 the market and in options it will tell me which strike and target"). Once a session's first candle (09:15) has
 closed, it also forecasts every candle left in the session - 24, to the 15:15 candle - from the same 400 candles of
-context, and turns that into a trade by the same rules (trade_from: the target is where it says the index will close
-the day). Played out on the rest of the session's real candles: target, stop, or out at the close. One a day per
+context, and turns that into one option trade: up a call, down a put, at the strike nearest the price. One a day per
 index, in days/<INDEX>.json, scored once the session is over. The Indian indices only - crypto never closes.
+ITS EXIT (13 Oct 2026, the user: "whatever is best for option trading and exit on the profits which ever is best i
+want to go ahead with that"): HELD TO THE CLOSE - no stop, no target. kronos_day_study.py replayed three years of
+these forecasts, priced as the option after costs, against ten other exits (its own target and stop as first
+deployed, targets with stops sized to the day's range, a stop moved to the entry, exits on the option's own price at
++30/-20 .. +100/-40); holding to the close made the most in the first two years AND the held-out final year on Nifty
+and Bank Nifty (+409,486 / +213,349 a lot after costs; its forecast's own stop, a few points away, lost in the first
+two years). Its forecast close is kept on the trade as where it says the day ends - shown, not traded.
 """
 import datetime as dt
 import glob
@@ -60,6 +66,7 @@ BATCH = 16
 DAY_REPLAY = 10                 # sessions whose whole day is replayed the first time an index is seen
 DAY_BATCH = 4                   # whole-day forecasts are six times as long: fewer at once, a heartbeat between
 DAY_PATHS = 10                  # the newest day calls keep their whole forecast path
+DAY_EXIT = "close"              # held to the close, no stop, no target (kronos_day_study.py, 13 Oct 2026)
 KEEP_DAYS = 400
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 FIRST, LAST = dt.time(9, 15), dt.time(15, 15)     # the first and last 15-minute candle of the NSE session
@@ -148,6 +155,16 @@ def score(calls, candles):
     return changed
 
 
+def day_trade(t):
+    """A whole-day trade as kronos_day_study.py chose it: held to the close. trade_from's target (its forecast close)
+    stays, as where it says the day ends; its stop, a few points away, goes."""
+    if not t:
+        return t
+    t = dict(t, exit=DAY_EXIT, stop=None)
+    t.pop("premium_stop", None)
+    return t
+
+
 def score_days(days, candles):
     """Each unscored whole-day call's outcome once its session is over: where the index closed the day, and its trade
     (if taken) played on the rest of the session's real candles - target, stop, or out at the close. Returns how many
@@ -166,8 +183,12 @@ def score_days(days, candles):
         else:
             c["actual"], c["actual_t"] = rest[-1][4], rest[-1][0]
             if c.get("trade") and c.get("taken"):
-                c["result"], c["points"] = trade_outcome(c["trade"], rest)
                 tr = c["trade"]
+                if tr.get("exit") == "close":           # held to the close: the day's last close against the entry
+                    move = rest[-1][4] - tr["entry"]
+                    c["result"], c["points"] = "close", round(move if tr["side"] == "CE" else -move, 2)
+                else:
+                    c["result"], c["points"] = trade_outcome(tr, rest)
                 if tr.get("premium") and c.get("lot_size"):
                     c["rupees"] = round(c["points"] * tr.get("delta", 0.5) * c["lot_size"], 2)
         changed += 1
@@ -175,16 +196,16 @@ def score_days(days, candles):
 
 
 def decide_day(c):
-    """Whether a whole-day call's trade is taken: the same three checks as an hour's (decide) - not flat, the move at
-    least MIN_MOVE_PCT of the price, the target at least MIN_RR x as far as the stop. One a day, so nothing is ever
-    still open."""
+    """Whether a whole-day call's trade is taken: not flat, and the move it forecasts to the close at least
+    MIN_MOVE_PCT of the price (the tab's "skip small calls"). Held to the close, it has no stop to weigh a reward
+    against. One a day, so nothing is ever still open."""
     t = c.get("trade")
     why = None
     if not t:
         why = "a flat forecast"
     elif abs(t["target"] - t["entry"]) / t["entry"] * 100 < MIN_MOVE_PCT:
         why = "a small move"
-    elif abs(t["target"] - t["entry"]) < MIN_RR * abs(t["stop"] - t["entry"]):
+    elif t.get("stop") is not None and abs(t["target"] - t["entry"]) < MIN_RR * abs(t["stop"] - t["entry"]):
         why = "reward smaller than risk"
     c["taken"] = why is None
     if why:
@@ -441,7 +462,7 @@ def _day(pred, path, replays, now):
                 late = not replay and i != len(candles) - 1
                 c = to_call(candles, i, p, (inp.get("tool") or {}).get("dir"), replay, now,
                             dict(inp, chain=None) if late else inp)
-                c.update(kind="day", hi=max(q[2] for q in p), lo=min(q[3] for q in p))
+                c.update(kind="day", hi=max(q[2] for q in p), lo=min(q[3] for q in p), trade=day_trade(c["trade"]))
                 if late:
                     c["late"] = True
                     c["tool_dir"] = None                 # the tool's direction sent is today's NOW, not at 09:30
@@ -449,6 +470,12 @@ def _day(pred, path, replays, now):
             changed = True
             beat()
         for c in days:
+            if c.get("trade") and c["trade"].get("exit") != DAY_EXIT:
+                # made under the first exit (its forecast's own target and stop): re-decided and re-scored as held
+                # to the close, so the record is one rule throughout
+                c["trade"] = day_trade(c["trade"])
+                for k in ("taken", "no_trade", "result", "points", "rupees", "actual", "actual_t"):
+                    c.pop(k, None)
             if "taken" not in c:
                 decide_day(c)
                 changed = True
