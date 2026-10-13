@@ -58,12 +58,30 @@ def _cfg(name, fallback):
     return getattr(config, name, fallback)
 
 
+def rules_exit(trade):
+    """Does this ticket follow the rules' exit - the stop stepping to each target before its exit, the Supertrend trail
+    after T1, the 2-hour breakeven? Every ticket but a plain-exit one (an Exness rule, which keeps one stop and one
+    target as it was tested) - and a Trend Rider ticket too when config.TREND_RIDER_EXIT is "rules" (the user, 13 Oct
+    2026, after trend_rider_rules_stop_study.py: "Switch to the rules' exit")."""
+    if not trade.get("plain_exit"):
+        return True
+    return trade.get("system") == "trend_rider" and _cfg("TREND_RIDER_EXIT", "ladder") == "rules"
+
+
+def near_plan(trade):
+    """The near-target steps for this ticket's system (config.NEAR_TARGET_STEPS) - none for a Trend Rider ticket on the
+    rules' exit, which steps at the targets themselves instead."""
+    if trade.get("system") == "trend_rider" and _cfg("TREND_RIDER_EXIT", "ladder") == "rules":
+        return []
+    return (_cfg("NEAR_TARGET_STEPS", {}) or {}).get(trade.get("system")) or []
+
+
 def stop_steps(trade):
     """The near-target stop steps planned for this ticket (config.NEAR_TARGET_STEPS, per system - the Trend Rider's), for
     a page to show: where each one fires, the target it moves the stop to, and whether it has. The same frozen levels, the
     same units (premium or index) and the same reference (the entry) _check_price() measures them on; [] when the
     ticket's system has no plan."""
-    plan = (_cfg("NEAR_TARGET_STEPS", {}) or {}).get(trade.get("system")) or []
+    plan = near_plan(trade)
     targets = trade["premium_targets"] if trade["use_premium"] else trade["index_targets"]
     ref = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
     done = trade.get("near_steps") or []
@@ -887,14 +905,14 @@ class TicketBook:
         # entries). The AI desk's (never measured this way) and Exness CFDs (studied on real ticks) step on the touch.
         step_min = (_cfg("STEP_STOP_AT_CANDLE_CLOSE", 0)
                     if (self.market == "nse_index" and not trade.get("ai_reason") and not trade.get("cfd")
-                        and (trade.get("system") or "rules") == "rules") else 0)
+                        and (trade.get("system") or "rules") in ("rules", "trend_rider")) else 0)
         for i, key in enumerate(TARGET_KEYS):
             tv = targets[i] if targets and len(targets) > i else None
             if not trade["hit"][key] and hit_t(price, tv):
                 trade["hit"][key] = True
                 trade["hit_time"][key] = now_ist().strftime("%H:%M:%S")
                 events.append({"kind": "target", "index": book.name, "target": key, "price": price, "level": tv})
-                if tv is not None and i < exit_i and not trade["sl_hit"] and not trade.get("plain_exit"):
+                if tv is not None and i < exit_i and not trade["sl_hit"] and rules_exit(trade):
                     if step_min:
                         # waits for this candle to close: the next step_min-minute boundary (candles start 09:15,
                         # a multiple of 15, so the clock's own quarter hours are the candle edges in both markets)
@@ -910,7 +928,7 @@ class TicketBook:
         # NEAR-TARGET STEPS (config.NEAR_TARGET_STEPS, per system - the Trend Rider's): close to T2 the stop moves to
         # T1, close to T3 to T2, so a trade that nearly reaches its target closes in profit if it turns (the user,
         # 8 Oct 2026). Measured on the ticket's own frozen levels and units (premium or index), from its entry.
-        plan = (_cfg("NEAR_TARGET_STEPS", {}) or {}).get(trade.get("system"))
+        plan = near_plan(trade)
         if plan and not trade["sl_hit"] and targets:
             ref = trade["entry_ltp"] if trade["use_premium"] else trade["entry_spot"]
             done = trade.setdefault("near_steps", [])
@@ -941,7 +959,7 @@ class TicketBook:
         # Per market (config.time_breakeven_minutes): off for crypto since 3 Oct 2026, the
         # Indian indices unchanged.
         wait_min = config.time_breakeven_minutes(trade.get("index") or book.name)
-        if trade.get("plain_exit"):
+        if not rules_exit(trade):
             wait_min = 0          # one stop and target, as tested (an entry rule, the Trend Rider): no breakeven
         if (wait_min and not trade["sl_hit"] and not trade["hit"]["T1"]
                 and not trade["time_breakeven_done"]):
@@ -972,7 +990,7 @@ class TicketBook:
         st = rec.get("supertrend") if rec else None
         t1_live = ("T1" in (trade.get("stepped") or [])) if step_min else trade["hit"]["T1"]
         if (_cfg("TRAIL_AFTER_T1_SUPERTREND", True) and t1_live
-                and not trade["sl_hit"] and st is not None and not trade.get("plain_exit")):
+                and not trade["sl_hit"] and st is not None and rules_exit(trade)):
             if trade["use_premium"]:
                 sign = 1 if opt == "CE" else -1
                 st_level = trade["entry_ltp"] + sign * config.APPROX_ATM_DELTA * (st - trade["entry_spot"])

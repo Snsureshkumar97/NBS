@@ -3,7 +3,8 @@
 that"). Its live reading equals the 3-year backtest's (pasted_combos_study, combination 2) candle for candle on real
 history; the recommendation it writes (an index option: the strike at the money, its live premium, a delta ladder, one
 target at 2.75R, the swing stop); each index's system, saved; a ticket through the rule path (the fresh-price hold, no
-cooldown, one fixed exit, its system recorded) whose stop never moves - no 2-hour breakeven; the feed's hook only on an
+cooldown, one fixed exit, its system recorded) - on the rules' exit (TREND_RIDER_EXIT, since 13 Oct 2026) its stop
+moves to breakeven after 2 hours without T1, on the ladder it does not; the feed's hook only on an
 index set to it; the Dashboard's System selector (node)."""
 import datetime as dt
 import json
@@ -150,8 +151,25 @@ rr = tr_rec(side=0, stop=None)
 rr["live_ltp"] = 121.0
 nb.update("NIFTY", rr)
 t = nb.books["NIFTY"].trade
-check("2h44m later, T1 untouched: its stop has NOT moved to breakeven (the Trend Rider was tested without it)",
-      t["status"] == "OPEN" and t["premium_sl"] == sl0, (t["status"], t["premium_sl"], sl0))
+check("2h44m later, T1 untouched: on the rules' exit (config.TREND_RIDER_EXIT, the user's choice 13 Oct 2026) its stop "
+      "has moved to breakeven, its entry", config.TREND_RIDER_EXIT == "rules" and t["status"] == "OPEN"
+      and t["premium_sl"] == t["entry_ltp"] and t["premium_sl"] != sl0, (t["status"], t["premium_sl"], t["entry_ltp"], sl0))
+# ...and on the ladder (what ran 8-13 Oct), the same ticket's stop does not move at all
+was_exit = config.TREND_RIDER_EXIT
+config.TREND_RIDER_EXIT = "ladder"
+CLOCK["now"] = dt.datetime(2026, 10, 8, 9, 46, 0, tzinfo=IST)
+lb = tickets.TicketBook(market="nse_index", path=os.path.join(tempfile.mkdtemp(), "trades.csv"))
+lb.fresh_price = lambda index, rec: 120.0
+lb.update("NIFTY", tr_rec())
+lsl0 = lb.books["NIFTY"].trade["premium_sl"]
+CLOCK["now"] = dt.datetime(2026, 10, 8, 12, 30, tzinfo=IST)
+rr = tr_rec(side=0, stop=None)
+rr["live_ltp"] = 121.0
+lb.update("NIFTY", rr)
+lt = lb.books["NIFTY"].trade
+check("...on the ladder (TREND_RIDER_EXIT = \"ladder\") its stop has NOT moved - as tested 8 Oct",
+      lt["status"] == "OPEN" and lt["premium_sl"] == lsl0, (lt["status"], lt["premium_sl"], lsl0))
+config.TREND_RIDER_EXIT = was_exit
 src = open(os.path.join(HERE, "tickets.py")).read()
 check("no wait after an exit for it (its first-close rule is its own spacing)",
       'cd = 0 if info.get("no_cooldown") else _cfg("REENTRY_COOLDOWN_MIN", 0)' in src)

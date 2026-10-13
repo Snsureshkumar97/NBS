@@ -145,6 +145,37 @@ cb.tick_price(name, 106.0)
 t = cb.books[name].trade
 check("a crypto-market book: on the touch", t["premium_sl"] == 105.0 and not t.get("stop_pending"), t["premium_sl"])
 
+print("5c. A TREND RIDER TICKET ON THE RULES' EXIT (TREND_RIDER_EXIT, the user's choice 13 Oct 2026) STEPS THE SAME WAY")
+config.STEP_STOP_AT_CANDLE_CLOSE = 15
+was_exit = config.TREND_RIDER_EXIT
+config.TREND_RIDER_EXIT = "rules"
+at(9, 52)
+b = book()
+b.books["SENSEX"].trade = dict(mk(), plain_exit=True, rule_strategy=True, system="trend_rider")
+b.tick_price("SENSEX", 106.0)
+t = b.books["SENSEX"].trade
+check("T1 touched at 09:52: the step waits for 10:00, no near-target ladder", t["premium_sl"] == 70.0
+      and [p["rung"] for p in t["stop_pending"]] == ["T1"] and not t.get("near_steps"), (t["premium_sl"], t.get("stop_pending")))
+at(9, 53)
+b.tick_price("SENSEX", 112.5)                              # past 90% of the way to T2 (111.6) - the ladder's trigger
+t = b.books["SENSEX"].trade
+check("past the ladder's 90%-to-T2 trigger: on the rules' exit the ladder does NOT fire - the stop waits for the "
+      "candle, and the page is shown no ladder", t["premium_sl"] == 70.0 and not t.get("near_steps")
+      and tickets.stop_steps(t) == [], (t["premium_sl"], t.get("near_steps"), tickets.stop_steps(t)))
+at(10, 0, 1)
+b.tick_price("SENSEX", 107.0)
+check("at 10:00 its stop is T1", b.books["SENSEX"].trade["premium_sl"] == 105.0, b.books["SENSEX"].trade["premium_sl"])
+config.TREND_RIDER_EXIT = "ladder"
+b = book()
+b.books["SENSEX"].trade = dict(mk(), plain_exit=True, rule_strategy=True, system="trend_rider")
+b.tick_price("SENSEX", 106.0)
+at(10, 15, 1)
+b.tick_price("SENSEX", 107.0)
+t = b.books["SENSEX"].trade
+check("on the ladder a T1 touch moves nothing (only its near-target steps do)", t["premium_sl"] == 70.0
+      and not t.get("stop_pending"), (t["premium_sl"], t.get("stop_pending")))
+config.TREND_RIDER_EXIT = was_exit
+
 print("6. THE PAGE IS TOLD WHAT IS WAITING")
 config.STEP_STOP_AT_CANDLE_CLOSE = 15
 at(14, 1)

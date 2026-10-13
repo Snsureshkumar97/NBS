@@ -625,6 +625,15 @@ TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}
 # AT T1 (earlier than near T2) and they exit at T2.
 NEAR_TARGET_STEPS = {"trend_rider": [(0.9, "T2", "T1"), (0.9, "T3", "T2")]}
 
+# THE TREND RIDER'S EXIT. "ladder": the near-target steps above, nothing else moves. "rules": the rules' own exit -
+# the stop to T1 when T1 is touched and to T2 when T2 is, each once that 15-minute candle has closed
+# (STEP_STOP_AT_CANDLE_CLOSE), the Supertrend trail after T1 and the 2-hour breakeven; out at T3 (2.75 x the risk) as
+# before. The user, 13 Oct 2026, chose "rules" after trend_rider_rules_stop_study.py: Nifty + Bank Nifty, per lot after
+# costs, first two years / held-out - ladder +339,081 / +115,033, rules +275,631 / +121,022: about the same held-out
+# profit with a much smaller worst drop (63,489 -> 42,588) and worst single day (-32,218 -> -13,522), but 63,450 less in
+# the first two years - a steadier ride, not more money. "ladder" puts back what ran 8-13 Oct.
+TREND_RIDER_EXIT = "rules"
+
 # How a live Zerodha entry is priced (live_orders.py). "ltp_buffer" (unchanged, the default): one limit at the live price
 # + 2%, which fills at the ask. "mid_chase": start at the middle of the best bid and ask, step toward the ask every 5 s,
 # never above that same limit, cancelled at 20 s as before - may save part of the spread, may miss a fast entry. The
@@ -1334,9 +1343,9 @@ EXIT_AT_TARGET = "T3"
 # 5-minute candles, the rules as they run now: from the next 15-minute candle +12,777 / +10,861 a lot after costs
 # (first two years / held-out) against on the touch, worst drop smaller in both, 97 T1-stop exits instead of 130 -
 # and live, on the option's own ticks, the touch is quicker still. The Supertrend trail after T1 starts when T1's
-# step does. Only the Indian rules' tickets - what that evidence covers: not the Trend Rider's near-target steps (they
-# leave room below the price; measured as they run), not the AI desk's (never measured this way), not Exness CFDs
-# (their exits were studied on real ticks) - those step on the touch as before.
+# step does. Only the Indian rules' tickets - what that evidence covers - and the Trend Rider's when it runs the rules'
+# exit (TREND_RIDER_EXIT, measured that way in trend_rider_rules_stop_study.py); not its near-target ladder, not the AI
+# desk's (never measured this way), not Exness CFDs (their exits were studied on real ticks) - those step on the touch.
 STEP_STOP_AT_CANDLE_CLOSE = 15
 
 # ---------------------------------------------------------------------------

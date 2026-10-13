@@ -139,7 +139,10 @@ def apply(rec, ev, index_key, avoid_strikes=None):
             "note": (f"Trend Rider: a trade on the FIRST 15-minute close where price is above EMA 50 and VWAP, ADX is over "
                      f"{p['adx_min']:g} and rising, and +DI is over -DI (the mirror image for a put) - decided once, at "
                      f"that close. Stop at the last {p['swing']} candles' low (high), one target at {p['target_r']:g} x "
-                     "the risk; near T2 the stop moves to T1, near T3 to T2.")}
+                     "the risk; " + ("the stop moves to T1 at T1 and to T2 at T2 once that 15-minute candle closes, "
+                                     "then follows the Supertrend; to the entry after 2 hours without T1."
+                                     if getattr(config, "TREND_RIDER_EXIT", "ladder") == "rules"
+                                     else "near T2 the stop moves to T1, near T3 to T2."))}
     rec["rule"] = info
     side = (ev or {}).get("side", 0) if info["ready"] else 0
     spot, stop = rec.get("spot"), (ev or {}).get("stop")

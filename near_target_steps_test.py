@@ -21,6 +21,8 @@ import tickets
 # What a step DOES is tested here, on the touch (STEP_STOP_AT_CANDLE_CLOSE = 0); WHEN it takes effect - at the
 # touching candle's close, as live since 13 Oct 2026 - is step_timing_live_test.py's.
 config.STEP_STOP_AT_CANDLE_CLOSE = 0
+# The ladder itself is tested here; the Trend Rider has run the rules' exit since 13 Oct 2026 (TREND_RIDER_EXIT).
+config.TREND_RIDER_EXIT = "ladder"
 
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 _now = {"t": dt.datetime(2026, 10, 8, 10, 0, 0, tzinfo=IST)}
