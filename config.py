@@ -1314,7 +1314,17 @@ PREMIUM_SL_PCT = 25                   # % loss on premium
 # number the trade was measured against, not a price it got to. And the
 # premium ladder converts index levels at 0.5 delta with no time decay, which
 # overstates a far target more than a near one.
-EXIT_AT_TARGET = "T2"
+#
+# T3 SINCE 13 OCT 2026 (the user: "yes switch to t3"). That 11 Sep measurement came before the one-position walk,
+# the T1 step, the Supertrend trail and the 2-hour breakeven priced as it fills. Re-measured with all of them:
+# stop_target_sweep.py (7 Oct) found T3 ahead of T2 on every index in both periods (the user kept T2 then); and
+# t3_exit_recheck_study.py (13 Oct) - Sensex + Midcap Select, the indices the rules run on, with the T1-exit
+# re-entry (WAIVE_COOLDOWN_AFTER_T1_EXIT) and the stop stepping to T2 at T2 as _check_price does on a T3 exit:
+#     out at T2 + re-entry   +303,873 first two years   +197,048 held-out   worst drop 47,532 / 45,049
+#     out at T3 + re-entry   +370,798                   +229,174            worst drop 47,174 / 40,601
+# both indices better in both periods. Only the rules' tickets read this: the Trend Rider, the Exness rules and the
+# AI desk fix their own exit at T3. A ticket freezes its exit at entry - one already open keeps the one it opened with.
+EXIT_AT_TARGET = "T3"
 
 # ---------------------------------------------------------------------------
 # Kite Connect credentials (only needed if --mode kite)

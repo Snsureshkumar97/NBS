@@ -79,6 +79,10 @@ check("_assert_gates_are_stateless() ran on import without raising - if a future
       "rather than this study silently producing a wrong number", True)
 
 print("3. THE REVERSAL EXIT CHECKS TARGET AND STOP FIRST, EXACTLY ONCE PER BAR, SAME AS TICKETS.PY")
+# The exit pinned at T2, the rung these bars cross: the question is target-or-reversal first, not which rung is the
+# exit (config.EXIT_AT_TARGET is T3 since 13 Oct 2026; simulate_reversal reads it).
+_exit_saved = config.EXIT_AT_TARGET
+config.EXIT_AT_TARGET = "T2"
 A = {"hi": [0, 101, 101, 130, 101], "lo": [0, 99, 99, 99, 99], "cl": [0, 100, 100, 115, 100],
      "end": [False, False, False, False, False]}
 tr = {"side": "CE", "stop": 90.0, "t1": 105.0, "t2": 120.0, "t3": 150.0}
@@ -105,6 +109,8 @@ opt_arr5 = [None, None, "PE", "PE", "PE"]   # AND the opposite side ALSO reads f
 legs5 = rvs.simulate_reversal(A3, opt_arr5, 0, tr, hold_bars=4)
 check("the stop (90.0) is checked, and wins over a reversal true on the very same bar",
       legs5[-1][0] == 90.0 and legs5[-1][1] == 2, legs5)
+
+config.EXIT_AT_TARGET = _exit_saved
 
 print("REVERSAL EXIT STUDY TEST PASSED" if not fails else f"REVERSAL EXIT STUDY TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

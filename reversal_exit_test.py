@@ -155,8 +155,13 @@ try:
     check("no opinion is not held against an open trade", book.books["NIFTY"].trade["status"] == "OPEN")
 
     print("7. TARGET / STOP STILL TAKE PRIORITY WHEN BOTH ARE TRUE ON THE SAME READING")
+    # The exit pinned at T2, the rung this section crosses: the question is target-or-reversal first, not which rung
+    # is the exit (config.EXIT_AT_TARGET is T3 since 13 Oct 2026; a ticket freezes its exit at entry).
+    _exit_saved = config.EXIT_AT_TARGET
+    config.EXIT_AT_TARGET = "T2"
     book = new_book()
     t = open_one(book)
+    config.EXIT_AT_TARGET = _exit_saved
     # First sustain the reversal (PE) at a price that touches neither the CE trade's frozen stop (24440) nor
     # T1 (24560) - one tick SHORT of the window, so it has not fired yet. Then, on the single NEXT tick, the
     # price also crosses T2 (24610, the exit target) while still reading PE: both conditions become true for
