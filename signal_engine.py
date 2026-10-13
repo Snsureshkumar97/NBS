@@ -69,6 +69,11 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
     vwap_score = 1 if last_close > last_vwap else (-1 if last_close < last_vwap else 0)
     last_pdi, last_mdi = plus_di.iloc[-1], minus_di.iloc[-1]
     di_score = 1 if last_pdi > last_mdi else (-1 if last_mdi > last_pdi else 0)   # NaN compares False -> 0
+    # ADX rising (adx_rising_vote_study.py, 13 Oct 2026 - a vote only through config.VOTE_OVERRIDES, off): ADX above
+    # its last candle's. "ADX rising" votes the +DI/-DI side while it rises and abstains otherwise; "ADX rising (lean)"
+    # (build_recommendation) votes with the other votes' lean while it rises.
+    adx_rising = bool(len(adx) > 1 and adx.iloc[-1] > adx.iloc[-2])               # NaN compares False -> not rising
+    adx_rise_score = di_score if adx_rising else 0
     # Two more direction reads, votes only where config.VOTE_OVERRIDES adds them for
     # a market ("off" everywhere today). Supertrend: which side of its line price
     # is on. Volume: a candle on at least 1.5x the previous 20 candles' average
@@ -113,6 +118,7 @@ def compute_technical_signal(df: pd.DataFrame, index_key: str = None) -> dict:
         # Not part of total_score/max_score - a vote only when config.DI_VOTE_MODE
         # joins it in (build_recommendation()), exactly like Volume.
         "di_score": di_score,
+        "adx_rise_score": adx_rise_score, "adx_rising": adx_rising,
         "st_score": st_score,
         "vol_score": vol_score,
         "bb_score": bb_score,
@@ -813,10 +819,18 @@ def build_recommendation(index_key: str, tech: dict, oi: dict, strike_step: int,
         votes.pop(name, None)
     for name in vo.get("add", ()):
         key = {"Supertrend": "st_score", "Volume": "vol_score", "+DI/-DI": "di_score",
-               "Bollinger": "bb_score", "Bollinger break": "bb_break_score"}.get(name)
+               "Bollinger": "bb_score", "Bollinger break": "bb_break_score",
+               "ADX rising": "adx_rise_score"}.get(name)
         if key and name not in votes:
             votes[name] = tech.get(key, 0)
             max_total += 1
+    # "ADX rising (lean)": no direction of its own - while ADX rises it votes with whichever way the other votes lean
+    # (the trend is strengthening), and abstains otherwise. Counted after them, so it never makes a lean on its own.
+    if "ADX rising (lean)" in vo.get("add", ()) and "ADX rising (lean)" not in votes:
+        b_ = sum(1 for v in votes.values() if v > 0)
+        s_ = sum(1 for v in votes.values() if v < 0)
+        votes["ADX rising (lean)"] = (1 if b_ > s_ else -1 if s_ > b_ else 0) if tech.get("adx_rising") else 0
+        max_total += 1
 
     # An indicator that ABSTAINS must not raise the bar.
     #

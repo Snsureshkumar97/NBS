@@ -1,0 +1,28 @@
+============================================================================================================================================================================
+ ADX RISING AS A FIFTH VOTE - per lot, after costs, the live entry checks and exit.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ SENSEX + MIDCAP SELECT (the verdict)
+    today (Trend / MACD / RSI / VWAP)            1377   40% ₹  +252,225 PF 1.18 DD ₹  54,512 day ₹ -16,567  |  775   37% ₹  +186,668 PF 1.25 DD ₹  40,927 day ₹ -20,203
+    A: + ADX rising, the +DI/-DI side            1396   41% ₹  +251,316 PF 1.18 DD ₹  55,565 day ₹ -16,567  |  787   36% ₹  +167,378 PF 1.22 DD ₹  59,071 day ₹ -20,203
+    B: + ADX rising, with the others' lean       1403   41% ₹  +253,668 PF 1.18 DD ₹  47,186 day ₹ -16,567  |  788   37% ₹  +174,253 PF 1.22 DD ₹  56,524 day ₹ -20,203
+    (compare) C: ADX rising REQUIRED on every entry  1180   41% ₹  +279,032 PF 1.25 DD ₹  40,814 day ₹ -16,567  |  673   37% ₹  +140,339 PF 1.22 DD ₹  39,195 day ₹ -11,521
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sensex
+    today (Trend / MACD / RSI / VWAP)             662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+    A: + ADX rising, the +DI/-DI side             671   39% ₹  +125,018 PF 1.22 DD ₹  33,585 day ₹  -6,694  |  390   35% ₹   +99,967 PF 1.33 DD ₹  29,852 day ₹  -7,928
+    B: + ADX rising, with the others' lean        674   39% ₹  +118,881 PF 1.21 DD ₹  33,585 day ₹  -6,694  |  390   35% ₹  +100,256 PF 1.33 DD ₹  29,852 day ₹  -7,928
+    (compare) C: ADX rising REQUIRED on every entry   577   38% ₹   +92,662 PF 1.19 DD ₹  34,821 day ₹  -6,997  |  339   35% ₹   +49,832 PF 1.18 DD ₹  27,982 day ₹  -7,565
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Midcap Select
+    today (Trend / MACD / RSI / VWAP)             715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+    A: + ADX rising, the +DI/-DI side             725   43% ₹  +126,298 PF 1.15 DD ₹  40,126 day ₹ -12,603  |  397   38% ₹   +67,411 PF 1.14 DD ₹  53,291 day ₹ -12,274
+    B: + ADX rising, with the others' lean        729   43% ₹  +134,788 PF 1.16 DD ₹  40,126 day ₹ -12,603  |  398   38% ₹   +73,996 PF 1.16 DD ₹  50,743 day ₹ -12,274
+    (compare) C: ADX rising REQUIRED on every entry   603   44% ₹  +186,371 PF 1.29 DD ₹  27,523 day ₹ -11,161  |  334   38% ₹   +90,508 PF 1.25 DD ₹  29,845 day ₹ -12,047
+
+ VERDICT (Sensex + Midcap Select) - kept only if better than today in BOTH periods
+  drop  A: + ADX rising, the +DI/-DI side            profit: in-sample      -909  held-out   -19,291   worst drop:   +1,052 /  +18,144   worst day:       +0 /       +0
+  drop  B: + ADX rising, with the others' lean       profit: in-sample    +1,444  held-out   -12,416   worst drop:   -7,326 /  +15,597   worst day:       +0 /       +0
+  drop  (compare) C: ADX rising REQUIRED on every entry profit: in-sample   +26,808  held-out   -46,329   worst drop:  -13,699 /   -1,732   worst day:       +0 /   +8,682
+
+ Vote A agrees with the EMA Trend vote on 90.4% of the candles where both voted (15,437) - +DI/-DI was 85%, Bollinger 79-92%

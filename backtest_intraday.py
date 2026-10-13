@@ -275,6 +275,8 @@ def tech_at(df, pre, i):
     bm, bu, bl = float(pre["bb_mid"].iloc[i]), float(pre["bb_up"].iloc[i]), float(pre["bb_lo"].iloc[i])
     bb_s = 1 if c > bm else (-1 if c < bm else 0)               # NaN compares False -> 0, as live
     bbk_s = 1 if c > bu else (-1 if c < bl else 0)
+    a_prev = float(pre["adx"].iloc[i - 1]) if i > 0 else float("nan")
+    adx_rising = bool(a > a_prev)                               # NaN compares False -> not rising, as live
 
     return {
         "last_close": c, "last_rsi": r, "last_atr": float(pre["atr"].iloc[i]),
@@ -282,6 +284,7 @@ def tech_at(df, pre, i):
         "trend_score": trend, "macd_score": macd_s, "macd_hist": round(h, 2),
         "rsi_score": rsi_s, "vwap_score": vwap_s, "di_score": di_s,
         "st_score": st_s, "vol_score": vol_s, "bb_score": bb_s, "bb_break_score": bbk_s,
+        "adx_rise_score": di_s if adx_rising else 0, "adx_rising": adx_rising,
         "supertrend": round(st, 2) if st == st else None,     # the line itself, as live (config.SL_MODE reads it)
         "adx": round(a, 1), "adx_ok": bool(a >= config.ADX_TREND_THRESHOLD),
         "vwap": round(v, 2), "vwap_gap": round(c - v, 1),
@@ -303,7 +306,7 @@ def verify_precompute(df, pre, samples=25, index_key=None):
         real = se.compute_technical_signal(df.iloc[:i + 1], index_key)
         fast = tech_at(df, pre, i)
         for k in ("trend_score", "macd_score", "rsi_score", "vwap_score", "di_score", "st_score", "vol_score",
-                  "bb_score", "bb_break_score", "adx",
+                  "bb_score", "bb_break_score", "adx", "adx_rise_score", "adx_rising",
                   "last_close", "vwap", "last_swing_low", "last_swing_high", "supertrend"):
             rv, fv = real[k], fast[k]
             if isinstance(rv, float) and abs(rv - fv) > 0.02:
