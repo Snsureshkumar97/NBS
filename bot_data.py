@@ -258,13 +258,6 @@ def _gann(ctx, args):
     return _page_call(ctx, "_api_gann", ctx.user, _qs(index=_index(ctx, args)))
 
 
-def _kronos(ctx, args):
-    out = _page_call(ctx, "_api_kronos", ctx.user)
-    # its trades today with the option's price at entry and now - what the tab's trade panels and Positions show
-    out["trades_today"] = _page_call(ctx, "_api_kronos_live", ctx.user).get("trades")
-    return out
-
-
 def _news(ctx, args):
     return _page_call(ctx, "_api_news", ctx.user)
 
@@ -364,22 +357,6 @@ SOURCES = [
                     "leads) and Seasonality (how this time of month or year has behaved).",
      "params": {"section": {"type": "string", "enum": ["all", *ANALYTICS_SECTIONS],
                             "description": "One part, or all; default all."}}},
-    {"name": "get_kronos", "tabs": ("kronos",), "routes": ("/api/kronos", "/api/kronos/live"), "fn": _kronos,
-     "description": "The Kronos tab: an open-source AI candlestick model's forecast of the next hour for each Indian "
-                    "index - or, on the crypto market, for Bitcoin and gold (CFDs on Exness: its trade is a buy or sell of "
-                    "the instrument, in dollars, and it was never tested on them) - with its own trade (strike, premium, "
-                    "target, stop; one at a time, small calls skipped) and its live record - how often its "
-                    "direction was right an hour later, against the tool's own signal direction on the same calls. "
-                    "On the Indian indices also its WHOLE-DAY forecast (from the 09:15 candle's close to the close: "
-                    "direction, where it says the day ends, its day high and low, one option trade a day HELD TO THE "
-                    "CLOSE with no stop or target - the exit a 3-year test chose over its own target and stop and nine "
-                    "others - and its record of whole days). trades_today: "
-                    "its trades today, each with the option's price at entry and now (ltp) and P&L a lot - research "
-                    "only, no order placed. "
-                    "RESEARCH ONLY: in the tool's 3-year test it was no better than a coin (49.5-51.2% right in the "
-                    "held-out year) and as a filter it cut most of the profit, so it never decides a trade; say so if "
-                    "asked whether to follow it.",
-     "params": {}},
     {"name": "get_gann", "tabs": ("gann",), "routes": ("/api/gann",), "fn": _gann,
      "description": "The Gann levels tab: Square of Nine levels around the live spot - the 45-degree grid with the "
                     "nearest support and resistance and their distance in ATR, the 90/180/360-degree rungs - and the "
@@ -413,7 +390,7 @@ SOURCES = [
 ]
 
 _BY_NAME = {s["name"]: s for s in SOURCES}
-LABELS = {"get_signal": "Signal", "get_gann": "Gann levels", "get_kronos": "Kronos", "get_chart": "Chart", "get_option_chart": "Option chart",
+LABELS = {"get_signal": "Signal", "get_gann": "Gann levels", "get_chart": "Chart", "get_option_chart": "Option chart",
           "get_option_chain": "Option chain", "get_oi_clock": "OI clock", "get_watchlist": "Watchlist",
           "get_journal": "Journal", "get_market_map": "Market map", "get_constituents": "Constituents",
           "get_momentum_spikes": "Momentum spikes", "run_stock_screener": "Screener",
