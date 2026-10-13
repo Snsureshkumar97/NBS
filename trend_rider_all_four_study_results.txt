@@ -1,0 +1,22 @@
+============================================================================================================================================================================
+ THE TREND RIDER (live exit) ON ALL FOUR INDICES, beside the tool's own rules. Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY  (live today: Trend Rider)
+    Trend Rider, 5-minute walk                    408   39% ₹  +179,191 PF 1.39 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +81,254 PF 1.30 DD ₹  20,644 day ₹ -11,846
+    Trend Rider, 15-minute walk                   408   39% ₹  +173,340 PF 1.38 DD ₹  24,089 day ₹  -6,769  |  251   45% ₹   +80,723 PF 1.30 DD ₹  20,673 day ₹ -11,850
+   the tool rules (15-minute)                                 ₹  +154,936                                                        |             ₹   +30,386
+ BANKNIFTY  (live today: Trend Rider)
+    Trend Rider, 5-minute walk                    424   42% ₹  +159,890 PF 1.28 DD ₹  64,964 day ₹ -10,420  |  245   48% ₹   +33,779 PF 1.09 DD ₹  44,464 day ₹ -20,372
+    Trend Rider, 15-minute walk                   424   42% ₹  +156,398 PF 1.27 DD ₹  65,044 day ₹ -10,423  |  245   48% ₹   +30,030 PF 1.08 DD ₹  46,918 day ₹ -20,375
+   the tool rules (15-minute)                                 ₹  +172,293                                                        |             ₹    -5,376
+ SENSEX  (live today: the tool's rules)
+    Trend Rider, 5-minute walk                    400   40% ₹  +205,869 PF 1.45 DD ₹  28,500 day ₹  -8,046  |  252   42% ₹   +42,314 PF 1.15 DD ₹  33,490 day ₹  -8,326
+    Trend Rider, 15-minute walk                   400   40% ₹  +204,221 PF 1.44 DD ₹  28,591 day ₹  -8,055  |  252   42% ₹   +41,910 PF 1.15 DD ₹  33,701 day ₹  -8,326
+   the tool rules (15-minute)                                 ₹  +110,280                                                        |             ₹  +100,217
+ MIDCPNIFTY  (live today: the tool's rules)
+    Trend Rider, 15-minute walk                   425   48% ₹  +122,064 PF 1.18 DD ₹  38,178 day ₹ -10,198  |  234   45% ₹   -11,494 PF 0.97 DD ₹  99,939 day ₹ -16,657
+   the tool rules (15-minute)                                 ₹  +141,945                                                        |             ₹   +86,451
+ ALL FOUR, the Trend Rider on the 15-minute walk
+    Trend Rider on all four                      1657   42% ₹  +656,023 PF 1.30 DD ₹  94,677 day ₹ -27,188  |  982   45% ₹  +141,170 PF 1.11 DD ₹ 177,598 day ₹ -51,915
+   the tool rules on all four                                 ₹  +579,454                                                        |             ₹  +211,678
