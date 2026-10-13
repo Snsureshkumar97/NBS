@@ -1,0 +1,44 @@
+============================================================================================================================================================================
+ THE USER'S LADDER (T1 -> stop to entry, T2 -> stop to T1, 90% to T3 -> stop to T2, out at T3) against today's exits. Per lot, after costs.
+ columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ SENSEX + MIDCAP SELECT (the tool's rules)
+    today: T1 -> stop to T1, out at T2, trail, 2h BE  1377   40% ₹  +252,225 PF 1.18 DD ₹  54,512 day ₹ -16,567  |  775   37% ₹  +186,668 PF 1.25 DD ₹  40,927 day ₹ -20,203
+    the ladder                                   1143   40% ₹  +160,076 PF 1.11 DD ₹  65,281 day ₹ -16,567  |  630   41% ₹   +96,679 PF 1.12 DD ₹  81,349 day ₹ -14,810
+    the ladder, halfway from T2                  1144   40% ₹  +154,449 PF 1.11 DD ₹  65,246 day ₹ -16,567  |  631   41% ₹  +101,866 PF 1.12 DD ₹  82,250 day ₹ -14,810
+    (info) the ladder + today's trail and 2h BE  1247   32% ₹  +208,824 PF 1.16 DD ₹  45,571 day ₹ -16,567  |  709   30% ₹  +153,653 PF 1.22 DD ₹  54,387 day ₹ -20,203
+   SENSEX
+      today                                       662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+      the ladder                                  546   37% ₹   +82,421 PF 1.14 DD ₹  54,077 day ₹  -8,317  |  312   41% ₹   +84,849 PF 1.26 DD ₹  28,634 day ₹  -7,264
+      the ladder, halfway from T2                 545   37% ₹   +81,123 PF 1.14 DD ₹  54,042 day ₹  -8,317  |  312   41% ₹   +90,275 PF 1.28 DD ₹  28,634 day ₹  -7,264
+   MIDCPNIFTY
+      today                                       715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+      the ladder                                  597   42% ₹   +77,655 PF 1.09 DD ₹  39,049 day ₹ -12,562  |  318   40% ₹   +11,831 PF 1.02 DD ₹  79,763 day ₹ -12,047
+      the ladder, halfway from T2                 599   42% ₹   +73,327 PF 1.09 DD ₹  37,574 day ₹ -12,562  |  319   40% ₹   +11,591 PF 1.02 DD ₹  79,763 day ₹ -12,047
+ NIFTY + BANK NIFTY (the Trend Rider) - 5-minute candles
+    today: 90% to T2 -> T1, 90% to T3 -> T2       832   41% ₹  +339,081 PF 1.33 DD ₹  73,523 day ₹ -15,304  |  496   47% ₹  +115,033 PF 1.18 DD ₹  63,489 day ₹ -32,218
+    the ladder                                    842   38% ₹  +348,461 PF 1.36 DD ₹  70,528 day ₹ -11,978  |  500   44% ₹  +113,410 PF 1.18 DD ₹  60,920 day ₹ -32,218
+    the ladder, halfway from T2                   842   38% ₹  +345,158 PF 1.35 DD ₹  70,422 day ₹ -11,978  |  501   45% ₹  +107,502 PF 1.17 DD ₹  60,920 day ₹ -32,218
+    (info) today, 15-minute walk                  832   41% ₹  +329,738 PF 1.32 DD ₹  73,798 day ₹ -15,311  |  496   47% ₹  +110,753 PF 1.17 DD ₹  63,552 day ₹ -32,225
+    (info) the ladder, 15-minute walk             841   38% ₹  +338,842 PF 1.34 DD ₹  70,745 day ₹ -12,686  |  500   44% ₹  +109,423 PF 1.17 DD ₹  60,981 day ₹ -32,225
+   NIFTY
+      today                                       408   39% ₹  +179,191 PF 1.39 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +81,254 PF 1.30 DD ₹  20,644 day ₹ -11,846
+      the ladder                                  411   38% ₹  +187,729 PF 1.42 DD ₹  24,164 day ₹  -6,747  |  255   44% ₹   +75,943 PF 1.29 DD ₹  21,072 day ₹ -11,846
+      the ladder, halfway from T2                 411   38% ₹  +189,247 PF 1.43 DD ₹  24,164 day ₹  -6,747  |  256   44% ₹   +73,835 PF 1.28 DD ₹  21,072 day ₹ -11,846
+   BANKNIFTY
+      today                                       424   42% ₹  +159,890 PF 1.28 DD ₹  64,964 day ₹ -10,420  |  245   48% ₹   +33,779 PF 1.09 DD ₹  44,464 day ₹ -20,372
+      the ladder                                  431   39% ₹  +160,731 PF 1.30 DD ₹  62,034 day ₹ -10,388  |  245   45% ₹   +37,467 PF 1.10 DD ₹  42,312 day ₹ -20,372
+      the ladder, halfway from T2                 431   39% ₹  +155,911 PF 1.29 DD ₹  61,928 day ₹ -10,388  |  245   45% ₹   +33,667 PF 1.09 DD ₹  44,639 day ₹ -20,372
+ ALL FOUR
+    today                                        2209   40% ₹  +591,306 PF 1.25 DD ₹ 108,061 day ₹ -23,997  | 1271   40% ₹  +301,701 PF 1.22 DD ₹  83,056 day ₹ -37,068
+    the ladder                                   1985   39% ₹  +508,537 PF 1.21 DD ₹ 109,262 day ₹ -27,374  | 1130   42% ₹  +210,089 PF 1.14 DD ₹ 134,144 day ₹ -31,675
+    the ladder, halfway from T2                  1986   39% ₹  +499,608 PF 1.21 DD ₹ 109,262 day ₹ -27,374  | 1132   42% ₹  +209,369 PF 1.14 DD ₹ 134,144 day ₹ -31,675
+
+ VERDICT - kept for a system only if it makes more than that system's exit today in BOTH periods
+  drop  the ladder on Sensex + Midcap                profit: in-sample   -92,149  held-out   -89,989   worst drop:  +10,768 /  +40,423   worst day:       +0 /   +5,393
+  drop  the ladder on Nifty + Bank Nifty             profit: in-sample    +9,380  held-out    -1,623   worst drop:   -2,995 /   -2,569   worst day:   +3,326 /       +0
+  drop  the ladder on all four                       profit: in-sample   -82,769  held-out   -91,612   worst drop:   +1,201 /  +51,089   worst day:   -3,377 /   +5,393
+  drop  halfway from T2 on Sensex + Midcap           profit: in-sample   -97,776  held-out   -84,802   worst drop:  +10,734 /  +41,323   worst day:       +0 /   +5,393
+  drop  halfway from T2 on Nifty + Bank Nifty        profit: in-sample    +6,078  held-out    -7,530   worst drop:   -3,101 /   -2,569   worst day:   +3,326 /       +0
+  drop  halfway from T2 on all four                  profit: in-sample   -91,698  held-out   -92,332   worst drop:   +1,201 /  +51,089   worst day:   -3,377 /   +5,393
