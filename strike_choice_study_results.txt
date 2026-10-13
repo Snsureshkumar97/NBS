@@ -1,0 +1,50 @@
+============================================================================================================================================================================
+ WHICH STRIKE - the same trades priced at the money and in / out of it. Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ SENSEX + MIDCAP SELECT (the tool's rules)
+    ATM                                          1377   40% ₹  +252,225 PF 1.18 DD ₹  54,512 day ₹ -16,567  |  775   37% ₹  +186,668 PF 1.25 DD ₹  40,927 day ₹ -20,203
+    ITM 1                                        1380   41% ₹  +245,178 PF 1.16 DD ₹  60,293 day ₹ -17,382  |  777   37% ₹  +180,416 PF 1.22 DD ₹  46,510 day ₹ -21,002
+    ITM 2                                        1380   41% ₹  +221,690 PF 1.13 DD ₹  75,366 day ₹ -18,200  |  777   37% ₹  +169,884 PF 1.19 DD ₹  50,654 day ₹ -21,805
+    OTM 1                                        1368   40% ₹  +226,675 PF 1.18 DD ₹  50,333 day ₹ -15,759  |  770   36% ₹  +162,402 PF 1.24 DD ₹  44,095 day ₹ -19,411
+   SENSEX
+      ATM                                         662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+      ITM 1                                       665   38% ₹  +106,147 PF 1.17 DD ₹  45,824 day ₹  -7,343  |  388   35% ₹   +92,059 PF 1.27 DD ₹  32,341 day ₹  -8,526
+      ITM 2                                       665   39% ₹   +88,643 PF 1.12 DD ₹  62,288 day ₹  -9,976  |  388   36% ₹   +83,775 PF 1.22 DD ₹  33,592 day ₹  -9,128
+      OTM 1                                       658   37% ₹   +92,430 PF 1.19 DD ₹  35,369 day ₹  -6,315  |  383   34% ₹   +86,175 PF 1.34 DD ₹  27,794 day ₹  -7,338
+   MIDCPNIFTY
+      ATM                                         715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+      ITM 1                                       715   43% ₹  +139,030 PF 1.16 DD ₹  35,113 day ₹ -11,572  |  389   38% ₹   +88,358 PF 1.19 DD ₹  41,007 day ₹ -12,547
+      ITM 2                                       715   43% ₹  +133,047 PF 1.14 DD ₹  39,400 day ₹ -11,984  |  389   38% ₹   +86,109 PF 1.17 DD ₹  43,293 day ₹ -13,048
+      OTM 1                                       710   42% ₹  +134,245 PF 1.18 DD ₹  28,404 day ₹ -10,752  |  387   38% ₹   +76,228 PF 1.18 DD ₹  40,204 day ₹ -12,074
+ NIFTY + BANK NIFTY (the Trend Rider, 5-minute walk)
+    ATM                                           832   41% ₹  +339,081 PF 1.33 DD ₹  73,523 day ₹ -15,304  |  496   47% ₹  +115,033 PF 1.18 DD ₹  63,489 day ₹ -32,218
+    ITM 1                                         832   42% ₹  +315,075 PF 1.26 DD ₹  86,960 day ₹ -15,961  |  496   48% ₹  +106,730 PF 1.14 DD ₹  72,459 day ₹ -33,565
+    ITM 2                                         832   43% ₹  +270,534 PF 1.20 DD ₹ 105,023 day ₹ -24,951  |  496   48% ₹   +85,891 PF 1.10 DD ₹  79,849 day ₹ -34,931
+    OTM 1                                         827   39% ₹  +330,220 PF 1.38 DD ₹  63,623 day ₹ -14,651  |  493   44% ₹   +99,162 PF 1.18 DD ₹  56,146 day ₹ -30,892
+   NIFTY
+      ATM                                         408   39% ₹  +179,191 PF 1.39 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +81,254 PF 1.30 DD ₹  20,644 day ₹ -11,846
+      ITM 1                                       408   41% ₹  +160,401 PF 1.28 DD ₹  29,678 day ₹  -8,899  |  251   47% ₹   +74,623 PF 1.22 DD ₹  25,999 day ₹ -12,754
+      ITM 2                                       408   42% ₹  +127,522 PF 1.19 DD ₹  38,480 day ₹ -13,090  |  251   48% ₹   +58,764 PF 1.15 DD ₹  34,764 day ₹ -13,678
+      OTM 1                                       403   37% ₹  +176,582 PF 1.50 DD ₹  20,305 day ₹  -5,740  |  248   42% ₹   +69,051 PF 1.32 DD ₹  18,435 day ₹ -10,959
+   BANKNIFTY
+      ATM                                         424   42% ₹  +159,890 PF 1.28 DD ₹  64,964 day ₹ -10,420  |  245   48% ₹   +33,779 PF 1.09 DD ₹  44,464 day ₹ -20,372
+      ITM 1                                       424   43% ₹  +154,674 PF 1.24 DD ₹  75,532 day ₹ -11,292  |  245   48% ₹   +32,107 PF 1.08 DD ₹  46,460 day ₹ -20,812
+      ITM 2                                       424   44% ₹  +143,013 PF 1.20 DD ₹  86,297 day ₹ -12,204  |  245   48% ₹   +27,127 PF 1.06 DD ₹  49,621 day ₹ -21,253
+      OTM 1                                       424   41% ₹  +153,638 PF 1.31 DD ₹  55,513 day ₹ -10,174  |  245   47% ₹   +30,111 PF 1.09 DD ₹  44,432 day ₹ -19,933
+ ALL FOUR
+    ATM                                          2209   40% ₹  +591,306 PF 1.25 DD ₹ 108,061 day ₹ -23,997  | 1271   40% ₹  +301,701 PF 1.22 DD ₹  83,056 day ₹ -37,068
+    ITM 1                                        2212   41% ₹  +560,253 PF 1.21 DD ₹ 129,769 day ₹ -24,876  | 1273   41% ₹  +287,146 PF 1.18 DD ₹  96,284 day ₹ -38,425
+    ITM 2                                        2212   42% ₹  +492,224 PF 1.16 DD ₹ 165,848 day ₹ -33,710  | 1273   41% ₹  +255,775 PF 1.15 DD ₹ 113,380 day ₹ -39,789
+    OTM 1                                        2195   40% ₹  +556,894 PF 1.27 DD ₹  85,306 day ₹ -23,125  | 1263   39% ₹  +261,565 PF 1.21 DD ₹  79,421 day ₹ -35,723
+
+ VERDICT - kept for a system only if more than ATM in BOTH periods
+  drop  ITM 1 on Sensex + Midcap                     profit: in-sample    -7,047  held-out    -6,252   worst drop:   +5,780 /   +5,583   worst day:     -815 /     -799
+  drop  ITM 2 on Sensex + Midcap                     profit: in-sample   -30,535  held-out   -16,784   worst drop:  +20,854 /   +9,728   worst day:   -1,632 /   -1,602
+  drop  OTM 1 on Sensex + Midcap                     profit: in-sample   -25,550  held-out   -24,266   worst drop:   -4,180 /   +3,168   worst day:     +808 /     +791
+  drop  ITM 1 on Nifty + Bank Nifty                  profit: in-sample   -24,006  held-out    -8,303   worst drop:  +13,437 /   +8,970   worst day:     -657 /   -1,348
+  drop  ITM 2 on Nifty + Bank Nifty                  profit: in-sample   -68,547  held-out   -29,142   worst drop:  +31,500 /  +16,360   worst day:   -9,647 /   -2,713
+  drop  OTM 1 on Nifty + Bank Nifty                  profit: in-sample    -8,861  held-out   -15,871   worst drop:   -9,900 /   -7,344   worst day:     +653 /   +1,325
+  drop  ITM 1 on all four                            profit: in-sample   -31,053  held-out   -14,555   worst drop:  +21,708 /  +13,228   worst day:     -879 /   -1,357
+  drop  ITM 2 on all four                            profit: in-sample   -99,082  held-out   -45,926   worst drop:  +57,787 /  +30,324   worst day:   -9,713 /   -2,722
+  drop  OTM 1 on all four                            profit: in-sample   -34,411  held-out   -40,136   worst drop:  -22,755 /   -3,635   worst day:     +872 /   +1,345
