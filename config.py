@@ -1326,6 +1326,19 @@ PREMIUM_SL_PCT = 25                   # % loss on premium
 # AI desk fix their own exit at T3. A ticket freezes its exit at entry - one already open keeps the one it opened with.
 EXIT_AT_TARGET = "T3"
 
+# WHEN a target's step moves the stop (the T1 step; the T2 step on a T3 exit): 15 = once the 15-minute candle that
+# touched it has CLOSED; 0 = on the touching tick itself. The user, 13 Oct 2026: "when the stop moves to t1 its
+# instantly exiting at t1 only" - real trades confirmed it: of 36 rules tickets closed at their T1 stop, 35 closed
+# within ~2 minutes of first touching T1 (the option flickering around the level), and 28 went on to T2 that day.
+# Every study moved the stop only from the NEXT candle; live moved it on the tick. t1_step_timing_study.py, Sensex on
+# 5-minute candles, the rules as they run now: from the next 15-minute candle +12,777 / +10,861 a lot after costs
+# (first two years / held-out) against on the touch, worst drop smaller in both, 97 T1-stop exits instead of 130 -
+# and live, on the option's own ticks, the touch is quicker still. The Supertrend trail after T1 starts when T1's
+# step does. Only the Indian rules' tickets - what that evidence covers: not the Trend Rider's near-target steps (they
+# leave room below the price; measured as they run), not the AI desk's (never measured this way), not Exness CFDs
+# (their exits were studied on real ticks) - those step on the touch as before.
+STEP_STOP_AT_CANDLE_CLOSE = 15
+
 # ---------------------------------------------------------------------------
 # Kite Connect credentials (only needed if --mode kite)
 # Prefer setting these as environment variables rather than editing this file:

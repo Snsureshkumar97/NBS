@@ -6380,10 +6380,14 @@ function ladder(r, tk){
     // is needed, same as the AI tab's ticket card.
     const exitIdx = {T1: 0, T2: 1, T3: 2}[tk.exit_at] ?? 2;
     const beforeExit = ["T1", "T2", "T3"].slice(0, exitIdx);
-    const trailedRung = beforeExit.slice().reverse().find(rung => (tk.hit || {})[rung]);
+    // a rung's step waits for its candle to close (config.STEP_STOP_AT_CANDLE_CLOSE): "trailed" only once it took effect
+    // (tk.stepped), and a waiting one said with the time it lands
+    const trailedRung = beforeExit.slice().reverse().find(rung => tk.stepped ? tk.stepped.includes(rung) : (tk.hit || {})[rung]);
+    const waitStep = (tk.stop_pending || []).slice(-1)[0];
     const rungs=[["T1","T1",tg[0],"var(--up)"],["T2","T2",tg[1],"var(--up)"],
                  ["T3","T3",tg[2],"var(--up)"],
-                 ["Stop", "Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : ""), tk.stop, "var(--down)"]];
+                 ["Stop", "Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : "")
+                          + (waitStep ? ` · to ${waitStep.rung} at ${waitStep.at}` : ""), tk.stop, "var(--down)"]];
     // The chance of reaching each of THIS ticket's frozen levels from where the
     // index is now. The live ladder had it; this branch returned before it, so
     // the percentages vanished exactly when a position was open.
@@ -6427,14 +6431,16 @@ function ladder(r, tk){
                     : "Calibrated estimates - against 3,582 past trades the model lands within about four points.");
     }
     const trailNote = ` The stop shown has already moved up to reflect ${trailedRung} - each rung before `
-      + `${esc(tk.exit_at||"T3")} trails the stop there the moment it is crossed, so a reversal costs back `
-      + `only to the last rung reached, never all the way to the original stop.`;
+      + `${esc(tk.exit_at||"T3")} moves the stop there once the 15-minute candle that crossed it has closed, so a `
+      + `reversal costs back only to the last rung reached, never all the way to the original stop.`;
+    const waitNote = waitStep ? ` ${esc(waitStep.rung)} was crossed: the stop moves up to it at ${esc(waitStep.at)}, when `
+      + `that 15-minute candle closes - a flicker back under it before then does not close the trade.` : "";
     $("lnote").innerHTML = (prem
       ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
       : `No live chain for this strike at entry, so the ticket is tracked on the `
         + `index itself. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`)
-      + (trailedRung ? trailNote : "")
+      + (trailedRung ? trailNote : "") + waitNote
       + (tk.strike_swap
           ? ` It is on <b>${esc(String(tk.strike))} ${esc(tk.option_type||"")}</b> because `
             + `${esc(String(tk.strike_swap.from))} had already been traded today - a second buy on the `
@@ -10410,9 +10416,11 @@ function aiTicketCard(k, t){
   // before the exit rung can ever trail; reaching the exit rung closes the
   // trade outright, so it is never itself a "trailed to" rung.
   const beforeExit = ["T1", "T2", "T3"].slice(0, exitIdx);
-  const trailedRung = beforeExit.slice().reverse().find(rung => (t.hit || {})[rung]);
+  const trailedRung = beforeExit.slice().reverse().find(rung => t.stepped ? t.stepped.includes(rung) : (t.hit || {})[rung]);
+  const waitStep = (t.stop_pending || []).slice(-1)[0];
   const rungs = [["Target · exit", target, "var(--up)", (t.hit || {})[exitKey], (t.hit_time || {})[exitKey]],
-                 ["Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : ""), t.stop, "var(--down)", t.sl_hit, t.sl_hit_time]];
+                 ["Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : "") + (waitStep ? ` · to ${waitStep.rung} at ${waitStep.at}` : ""),
+                  t.stop, "var(--down)", t.sl_hit, t.sl_hit_time]];
   const ladder = rungs.map(([name, v, c, done, when]) => {
     let pct = 0;
     if(v != null && t.entry != null && t.now != null && v !== t.entry){

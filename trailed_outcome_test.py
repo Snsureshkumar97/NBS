@@ -32,6 +32,9 @@ import config
 import journal
 import review_page
 import tickets
+# What a step DOES is tested here, on the touch (STEP_STOP_AT_CANDLE_CLOSE = 0); WHEN it takes effect - at the
+# touching candle's close, as live since 13 Oct 2026 - is step_timing_live_test.py's.
+config.STEP_STOP_AT_CANDLE_CLOSE = 0
 import trade_log
 import web_server
 

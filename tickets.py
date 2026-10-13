@@ -38,6 +38,7 @@ WHAT DELIBERATELY DID NOT CHANGE
 *** tracked against frozen levels so it can be measured honestly afterwards.
 """
 
+import datetime as dt
 import re
 import threading
 import time
@@ -857,6 +858,22 @@ class TicketBook:
             exit_key = "T3"
         exit_i = TARGET_KEYS.index(exit_key)
 
+        # STEP_STOP_AT_CANDLE_CLOSE (config.py, 13 Oct 2026): a rung's step to the stop waits for the candle that
+        # touched it to close. Due ones are applied first - they belong to an earlier candle - so this candle's stop
+        # check reads them, exactly as every study moved the stop "from the next candle".
+        ratcheted = False
+        pending = trade.get("stop_pending") or []
+        if pending:
+            now = now_ist()
+            for p in [p for p in pending if p["at"] <= now]:
+                pending.remove(p)
+                if not trade["sl_hit"]:
+                    new = tighten(trade[sl_field], p["level"])
+                    if new != trade[sl_field]:
+                        trade[sl_field] = new
+                        ratcheted = True
+                    trade.setdefault("stepped", []).append(p["rung"])
+
         # Captured BEFORE this tick's targets can move it - otherwise the very
         # tick that first reaches a rung would also read as hitting the stop
         # it just moved to, closing a winning trade as a stop-out.
@@ -866,7 +883,11 @@ class TicketBook:
             trade["sl_hit_time"] = now_ist().strftime("%H:%M:%S")
             events.append({"kind": "stop", "index": book.name, "price": price, "level": sl_before})
 
-        ratcheted = False
+        # Only the Indian rules' tickets - what the evidence covers (their real T1 exits; t1_step_timing_study.py on their
+        # entries). The AI desk's (never measured this way) and Exness CFDs (studied on real ticks) step on the touch.
+        step_min = (_cfg("STEP_STOP_AT_CANDLE_CLOSE", 0)
+                    if (self.market == "nse_index" and not trade.get("ai_reason") and not trade.get("cfd")
+                        and (trade.get("system") or "rules") == "rules") else 0)
         for i, key in enumerate(TARGET_KEYS):
             tv = targets[i] if targets and len(targets) > i else None
             if not trade["hit"][key] and hit_t(price, tv):
@@ -874,8 +895,17 @@ class TicketBook:
                 trade["hit_time"][key] = now_ist().strftime("%H:%M:%S")
                 events.append({"kind": "target", "index": book.name, "target": key, "price": price, "level": tv})
                 if tv is not None and i < exit_i and not trade["sl_hit"] and not trade.get("plain_exit"):
-                    trade[sl_field] = tv
-                    ratcheted = True
+                    if step_min:
+                        # waits for this candle to close: the next step_min-minute boundary (candles start 09:15,
+                        # a multiple of 15, so the clock's own quarter hours are the candle edges in both markets)
+                        now = now_ist()
+                        at = now.replace(second=0, microsecond=0) - dt.timedelta(minutes=now.minute % step_min) \
+                            + dt.timedelta(minutes=step_min)
+                        trade.setdefault("stop_pending", []).append({"rung": key, "level": tv, "at": at})
+                    else:
+                        trade[sl_field] = tv
+                        trade.setdefault("stepped", []).append(key)
+                        ratcheted = True
 
         # NEAR-TARGET STEPS (config.NEAR_TARGET_STEPS, per system - the Trend Rider's): close to T2 the stop moves to
         # T1, close to T3 to T2, so a trade that nearly reaches its target closes in profit if it turns (the user,
@@ -940,7 +970,8 @@ class TicketBook:
         # outright on a missing/NaN reading (indicator still warming up)
         # rather than guessing a level.
         st = rec.get("supertrend") if rec else None
-        if (_cfg("TRAIL_AFTER_T1_SUPERTREND", True) and trade["hit"]["T1"]
+        t1_live = ("T1" in (trade.get("stepped") or [])) if step_min else trade["hit"]["T1"]
+        if (_cfg("TRAIL_AFTER_T1_SUPERTREND", True) and t1_live
                 and not trade["sl_hit"] and st is not None and not trade.get("plain_exit")):
             if trade["use_premium"]:
                 sign = 1 if opt == "CE" else -1
@@ -956,7 +987,9 @@ class TicketBook:
         if trade["hit"][exit_key]:
             trade["status"] = f"CLOSED — {exit_key} hit (full target reached)"
         elif trade["sl_hit"]:
-            trailed_to = next((k for k in reversed(TARGET_KEYS[:exit_i]) if trade["hit"][k]), None)
+            # the last rung whose step had TAKEN EFFECT - a touch whose step was still waiting moved nothing
+            trailed_to = next((k for k in reversed(TARGET_KEYS[:exit_i])
+                               if k in (trade.get("stepped") or []) or (not step_min and trade["hit"][k])), None)
             trade["status"] = (f"CLOSED — stop-loss hit (trailed to {trailed_to})" if trailed_to
                                else "CLOSED — stop-loss hit")
 
@@ -1834,6 +1867,10 @@ class TicketBook:
                      else trade["index_sl"]),
             # the Trend Rider's near-target stop steps: where each fires, where it moves the stop, done or not
             "stop_steps": stop_steps(trade),
+            # a rung's step waiting for its candle to close (STEP_STOP_AT_CANDLE_CLOSE): where the stop goes, and when
+            "stop_pending": [{"rung": p["rung"], "level": p["level"], "at": p["at"].strftime("%H:%M")}
+                             for p in (trade.get("stop_pending") or [])],
+            "stepped": list(trade.get("stepped") or []),
             "hit": trade["hit"], "hit_time": trade["hit_time"],
             "sl_hit": trade["sl_hit"], "sl_hit_time": trade["sl_hit_time"],
             "exit_at": trade.get("exit_at", "T3"),

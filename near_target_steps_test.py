@@ -18,6 +18,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import config
 import tickets
+# What a step DOES is tested here, on the touch (STEP_STOP_AT_CANDLE_CLOSE = 0); WHEN it takes effect - at the
+# touching candle's close, as live since 13 Oct 2026 - is step_timing_live_test.py's.
+config.STEP_STOP_AT_CANDLE_CLOSE = 0
 
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 _now = {"t": dt.datetime(2026, 10, 8, 10, 0, 0, tzinfo=IST)}
