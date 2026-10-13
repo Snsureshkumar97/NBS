@@ -50,7 +50,7 @@ def rec(adx=None):
     return {"reach_to_risk": 5.0, "reach_points": 500.0, "risk_points": 100.0, "adx": adx}
 
 
-def close_ticket(b, name, reason, adx):
+def close_ticket(b, name, reason, adx, plain=False):
     """Closes a ticket on this index RIGHT NOW (at the current mocked clock),
     for the given reason/ADX - via the REAL _close() path (a fake trade dict
     + a fake rec), not by poking book.last_close_reason/last_close_adx
@@ -61,13 +61,14 @@ def close_ticket(b, name, reason, adx):
     ib.last_ticket_at = tickets.now_ist() - dt.timedelta(minutes=5)   # entry, 5 min before this close
     status = {"target": "CLOSED — T3 hit (full target reached)",
               "stop": "CLOSED — stop-loss hit",
+              "t1stop": "CLOSED — stop-loss hit (trailed to T1)",
               "other": "CLOSED — market closed with the trade still open"}[reason]
     trade = {"status": status, "use_premium": False, "entry_ltp": None,
              "entry_spot": 100.0, "lot_size": 65, "lots": 1,
              "entry_time": "09:30:00", "index": name, "strike": 25000,
              "option_type": "CE", "expiry": "2026-10-02", "trade_id": f"{name}-cctest",
-             "hit": {"T1": False, "T2": False, "T3": reason == "target"},
-             "sl_hit": reason == "stop"}
+             "hit": {"T1": reason == "t1stop", "T2": False, "T3": reason == "target"},
+             "sl_hit": reason in ("stop", "t1stop"), "plain_exit": plain}
     b._close(ib, trade, 100.0, rec(adx=adx))
     return ib
 
@@ -170,6 +171,50 @@ advance(10)
 b._same_direction_hold(ib, rec(adx=25.0), ("BULLISH", "CE"))   # sets trend_waiver_applied as a side effect
 check("trend_waiver_applied is live ahead of a real _open() carrying it onto the new ticket",
       ib.trend_waiver_applied is True)
+
+print("10. WAIVE_COOLDOWN_AFTER_T1_EXIT (t1_reentry_study.py, 13 Oct 2026): A T1 EXIT WITH ADX AT/ABOVE THE THRESHOLD "
+      "IS WAIVED TOO")
+was_t1 = config.WAIVE_COOLDOWN_AFTER_T1_EXIT
+config.WAIVE_COOLDOWN_AFTER_T1_EXIT = True
+b = book()
+ib = close_ticket(b, "SENSEX", "t1stop", adx=24.0)
+advance(10)
+check("a T1 exit reads back as one - and still as 'other', not a target", ib.last_close_t1 is True
+      and ib.last_close_reason == "other", (ib.last_close_t1, ib.last_close_reason))
+hold = b._same_direction_hold(ib, rec(adx=24.0), ("BULLISH", "CE"))
+check("allowed - 10 minutes after a T1 exit in a trending market", hold is None, hold)
+check("the T1-exit waiver is what fired - not the target one, not the hand-chosen one",
+      ib.t1_waiver_applied is True and ib.trend_waiver_applied is False and ib.waiver_applied is False,
+      (ib.t1_waiver_applied, ib.trend_waiver_applied, ib.waiver_applied))
+
+print("11. ...BUT NOT WITH ADX FADED BELOW THE THRESHOLD, NOT AFTER A PLAIN STOP-OUT, NOT ON A TREND RIDER TICKET, "
+      "NOT WITH THE FLAG OFF")
+b = book()
+ib = close_ticket(b, "SENSEX", "t1stop", adx=15.0)
+advance(10)
+hold = b._same_direction_hold(ib, rec(adx=15.0), ("BULLISH", "CE"))
+check("blocked - a T1 exit with ADX(15) under the threshold", hold is not None and hold[0] == "reentry_cooldown"
+      and ib.t1_waiver_applied is False, hold)
+b = book()
+ib = close_ticket(b, "SENSEX", "stop", adx=30.0)
+advance(10)
+hold = b._same_direction_hold(ib, rec(adx=30.0), ("BULLISH", "CE"))
+check("blocked - a stop-out that never touched T1, however strong the trend", hold is not None
+      and hold[0] == "reentry_cooldown" and ib.last_close_t1 is False, hold)
+b = book()
+ib = close_ticket(b, "NIFTY", "t1stop", adx=30.0, plain=True)
+advance(10)
+hold = b._same_direction_hold(ib, rec(adx=30.0), ("BULLISH", "CE"))
+check("blocked - a plain-exit (Trend Rider) ticket: its stop does not move at T1, and it was not tested",
+      hold is not None and hold[0] == "reentry_cooldown" and ib.last_close_t1 is False, hold)
+config.WAIVE_COOLDOWN_AFTER_T1_EXIT = False
+b = book()
+ib = close_ticket(b, "SENSEX", "t1stop", adx=30.0)
+advance(10)
+hold = b._same_direction_hold(ib, rec(adx=30.0), ("BULLISH", "CE"))
+check("blocked - the flag off: exactly the behaviour before 13 Oct", hold is not None
+      and hold[0] == "reentry_cooldown", hold)
+config.WAIVE_COOLDOWN_AFTER_T1_EXIT = was_t1
 
 config.WAIVE_COOLDOWN_ON_TRENDING_TARGET = was_waive
 config.ADX_TREND_THRESHOLD = was_thresh

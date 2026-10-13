@@ -152,6 +152,9 @@ class IndexBook:
         # actually closed once.
         self.last_close_reason = None  # "target" | "other" | None
         self.last_close_adx = None     # float | None - ADX at that close
+        # WAIVE_COOLDOWN_AFTER_T1_EXIT: the last ticket here was a T1 exit - T1 touched, then the stop that moved there
+        # (or trailed on from it) hit - on a ticket that moves its stop at T1 (not a plain-exit Trend Rider one).
+        self.last_close_t1 = False
         self.wait_reason = None        # (code, short, long)
         # A cooldown you chose to skip, pinned to the ticket or exit it was
         # counting from. Pinned rather than a flag so it is one-shot by
@@ -163,6 +166,7 @@ class IndexBook:
         # (not a hand-chosen skip) is what let a same-direction entry through.
         # Kept separate from waiver_applied so the two can be measured apart.
         self.trend_waiver_applied = False
+        self.t1_waiver_applied = False   # the same, when WAIVE_COOLDOWN_AFTER_T1_EXIT let it through
         self.live = None               # newest streamed price for this index
 
     # -- the gate that only this index knows about -------------------------
@@ -1061,6 +1065,7 @@ class TicketBook:
         now = time.time()
         book.waiver_applied = False
         book.trend_waiver_applied = False
+        book.t1_waiver_applied = False
 
         def hold(code, short, why):
             book.wait_reason = (code, short, why)
@@ -1383,12 +1388,23 @@ class TicketBook:
                              and book.last_close_reason == "target"
                              and book.last_close_adx is not None
                              and book.last_close_adx >= _cfg("ADX_TREND_THRESHOLD", 20))
+            # WAIVE_COOLDOWN_AFTER_T1_EXIT (t1_reentry_study.py, 13 Oct 2026 - KEEP): the same waiver after a T1 exit -
+            # T1 touched, then its moved stop hit - with ADX still at/above the threshold at that close. 41.6% of
+            # those trades went on to T2 the same day; re-entering catches some of that run without loosening the T1
+            # stop, which every test (five of them) found costs money.
+            t1_waiver = (gap < mins and not manual_waiver and not trend_waiver
+                         and _cfg("WAIVE_COOLDOWN_AFTER_T1_EXIT", False)
+                         and getattr(book, "last_close_t1", False)
+                         and book.last_close_adx is not None
+                         and book.last_close_adx >= _cfg("ADX_TREND_THRESHOLD", 20))
             if manual_waiver:
                 # Skipped by hand. Only the clock is waived: the room check
                 # below, and every gate after this one, still decide.
                 book.waiver_applied = True
             elif trend_waiver:
                 book.trend_waiver_applied = True
+            elif t1_waiver:
+                book.t1_waiver_applied = True
             elif gap < mins:
                 return ("reentry_cooldown", "COOLDOWN",
                         f"Already ticketed {side} today. A second ticket the same "
@@ -1439,6 +1455,7 @@ class TicketBook:
         """
         book.waiver_applied = False
         book.trend_waiver_applied = False
+        book.t1_waiver_applied = False
         if rec.get("rule") is not None:
             return False                 # an entry rule decides only at a 15-minute close (_consider_rule)
         if self.entry_block(book.name) is not None:
@@ -1551,6 +1568,8 @@ class TicketBook:
             # hand-chosen skip. Kept separate from cooldown_skipped above so
             # the two can be measured apart.
             "cooldown_waived_trend": bool(book.trend_waiver_applied),
+            # ...and because WAIVE_COOLDOWN_AFTER_T1_EXIT did (a re-entry straight after a T1 exit)
+            "cooldown_waived_t1": bool(book.t1_waiver_applied),
             # Set when this strike is not the one at the money because that one
             # was already traded today - so the ticket can say why it is here.
             "strike_swap": rec.get("strike_swap"),
@@ -1558,6 +1577,7 @@ class TicketBook:
         book.cooldown_waived = None
         book.waiver_applied = False
         book.trend_waiver_applied = False
+        book.t1_waiver_applied = False
         book.last_ticket_at = stamp
         # The previous ticket's streamed price is not this one's.
         book.live = None
@@ -1608,6 +1628,8 @@ class TicketBook:
         book.last_close_reason = ("target" if trade_log.is_target_close(trade["status"])
                                    else "other")
         book.last_close_adx = (rec or {}).get("adx")
+        book.last_close_t1 = bool(trade.get("sl_hit") and (trade.get("hit") or {}).get("T1")
+                                  and not trade.get("plain_exit"))
         row = {
             "trade_id": trade.get("trade_id"),                # so the page can say whether it was a live order
             "index": trade["index"], "strike": trade["strike"],

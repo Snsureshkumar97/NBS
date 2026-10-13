@@ -1466,6 +1466,17 @@ REENTRY_MIN_RR = 1.0
 # every other gate still apply exactly as today.
 WAIVE_COOLDOWN_ON_TRENDING_TARGET = True
 
+# The same waiver after a T1 EXIT (the user, 13 Oct 2026: "i am feeling i am loosing money after i exit t1", then "yes
+# test the re-entry after t1 exit"). A ticket whose stop moved to T1 and was hit there (or trailed on from it) is a
+# stop-out to the rule above, so it always waited the full REENTRY_COOLDOWN_MIN - yet 41.6% of those trades went on to
+# T2 the same day (t1_stop_study.py), and every looser T1 stop tested earned less. t1_reentry_study.py: waive the
+# cooldown after a same-direction T1 exit when ADX is still at/above ADX_TREND_THRESHOLD at that close - KEEP, Sensex +
+# Midcap Select, first two years +51,648 / held-out +10,379 a lot after costs (+252,225 / +186,668 ->
+# +303,873 / +197,048); worst drop -6,980 / +4,122; Sensex better both periods, Midcap better in the first two and
+# -2,503 in the held-out year. Only the clock is waived: one open position, the room check (REENTRY_MIN_RR) and every
+# other gate still apply. Not for a plain-exit (Trend Rider) ticket - its stop does not move at T1; not tested there.
+WAIVE_COOLDOWN_AFTER_T1_EXIT = True
+
 # Once T1 ratchets the stop to its own level (tickets.py's _check_price(),
 # unconditional, always on), this keeps trailing it further: the stop
 # continuously follows the Supertrend line computed on the index itself
