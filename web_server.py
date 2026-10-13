@@ -4484,7 +4484,7 @@ table.chain .wide{color:var(--down)}
 .ktradebox .psum.k4{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:12px}
 .ktradebox .psum.k4 > div:nth-child(2n+1){border-left:0;padding-left:0}
 .kix span.kday{color:var(--ink-3)}
-.jbadge.kr{color:var(--ink-2);border-color:var(--bd)}
+.jbadge.kron{color:var(--ink-2);border-color:var(--bd)}
 .kposwrap .krpos .kd-tsm{display:none;font-size:12px;color:var(--ink-3);margin-top:2px;font-weight:400}
 table.scr td.kok{color:var(--up)}
 table.scr td.kno{color:var(--down)}
@@ -12162,7 +12162,7 @@ function kronPosPaint(){
     const money_ = r.open ? (r.pnl == null ? "—" : money(r.pnl))
                           : ((r.rupees ?? r.usd) == null ? "—" : (cfd ? "" : "≈ ") + money(r.rupees ?? r.usd));
     const pv = r.open ? r.pnl : (r.rupees ?? r.usd);
-    return `<tr class="${r.open ? "" : "kd-closed"}"><td><b>${esc(nm)}</b> <span class="jbadge kr">Kronos</span>`
+    return `<tr class="${r.open ? "" : "kd-closed"}"><td><b>${esc(nm)}</b> <span class="jbadge kron">Kronos</span>`
       + `<div class="kd-strk"><b>${esc(strike)}</b></div><div class="kd-when">${esc(when)}</div>`
       + `<div class="kd-tsm">${hold ? "held to the close · no stop" : `target ${esc(px(tgt))} · stop ${esc(px(stp))}`}</div></td>`
       + `<td><b>${esc(strike)}</b></td><td class="r">${esc(px(entry))}</td>`
