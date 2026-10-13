@@ -25,6 +25,9 @@ RESULT (13 Oct 2026, history to 11 Sep 2026; t1_stop_study_results.txt) - the fe
      -50,039 / -56,033. With the entry and halfway (exit_ladder_study.py) and a delay (2 Oct), five looser T1 stops
      tested, every one made less: the trades that come back below T1 and drift give back more than the ones that go
      on to T2 add. Nothing changed live.
+  3. Then (the user: "what if i remove the trailing stop loss to t1 instead it moves to entry"): the stop to the ENTRY
+     at T1, all else as today - DROP, the worst of them: -52,852 / -70,340 (+199,373 / +116,329), held-out worst drop
+     40,927 -> 72,707, won 40% -> 33% / 37% -> 30%. Midcap's held-out year +86,451 -> +35,242.
 
     python3 t1_stop_study.py
 """
@@ -33,7 +36,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 RULES = ("SENSEX", "MIDCPNIFTY")
-SHARES = (1.0, 0.9, 0.75)          # where the stop goes at the T1 touch: share of the way from the entry to T1
+SHARES = (1.0, 0.9, 0.75, 0.0)     # where the stop goes at the T1 touch: share of the way from the entry to T1
+# 0.0 - the stop to the ENTRY at T1, everything else as today - added 13 Oct 2026 before it was run (the user: "what if
+# i remove the trailing stop loss to t1 instead it moves to entry")
 
 
 def sim(A, i, tr, st, target, share=1.0, wait_bars=None, hold_bars=26):
@@ -174,7 +179,8 @@ def main():
           " drop, worst single DAY")
     print("=" * 172)
     print(f" {'':46s} {'FIRST TWO YEARS (to 15 Aug 2025)':66s}  | HELD-OUT FINAL YEAR")
-    label = {1.0: "today: at T1 itself", 0.9: "90% of the way to T1", 0.75: "75% of the way to T1"}
+    label = {1.0: "today: at T1 itself", 0.9: "90% of the way to T1", 0.75: "75% of the way to T1",
+             0.0: "the ENTRY (breakeven) at T1"}
     for s_ in SHARES:
         print(sds.line("   " + label[s_], sorted([r for k in RULES for r in got[(k, s_)]], key=lambda r: r["when"])))
     for k in RULES:
