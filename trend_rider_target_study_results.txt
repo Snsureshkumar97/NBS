@@ -1,0 +1,34 @@
+============================================================================================================================================================================
+ THE TREND RIDER'S TARGET - how many times the risk, the near-target ladder scaled with it. Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + BANK NIFTY, 5-minute candles
+    target 1.5 x risk                             865   46% ₹  +337,810 PF 1.35 DD ₹  66,101 day ₹ -11,921  |  514   49% ₹   +42,896 PF 1.07 DD ₹  94,401 day ₹ -32,218
+    target 2 x risk                               847   43% ₹  +307,332 PF 1.31 DD ₹  73,817 day ₹ -12,680  |  500   48% ₹   +47,729 PF 1.07 DD ₹  94,269 day ₹ -32,218
+    target 2.5 x risk                             833   41% ₹  +361,301 PF 1.35 DD ₹  73,177 day ₹ -15,304  |  498   47% ₹   +90,347 PF 1.14 DD ₹  64,409 day ₹ -32,218
+    target 2.75 x risk (today)                    832   41% ₹  +339,081 PF 1.33 DD ₹  73,523 day ₹ -15,304  |  496   47% ₹  +115,033 PF 1.18 DD ₹  63,489 day ₹ -32,218
+    target 3 x risk                               831   41% ₹  +351,169 PF 1.34 DD ₹  74,173 day ₹ -15,304  |  495   46% ₹  +100,477 PF 1.16 DD ₹  62,581 day ₹ -32,218
+ NIFTY + BANK NIFTY, 15-minute candles (info)
+    target 1.5 x risk                             864   45% ₹  +321,440 PF 1.33 DD ₹  66,980 day ₹ -12,686  |  514   49% ₹   +39,868 PF 1.06 DD ₹  91,628 day ₹ -32,225
+    target 2 x risk                               847   42% ₹  +306,552 PF 1.30 DD ₹  74,069 day ₹ -12,686  |  500   48% ₹   +42,451 PF 1.07 DD ₹  96,674 day ₹ -32,225
+    target 2.5 x risk                             832   41% ₹  +348,330 PF 1.34 DD ₹  73,263 day ₹ -15,311  |  498   47% ₹   +89,274 PF 1.14 DD ₹  64,474 day ₹ -32,225
+    target 2.75 x risk (today)                    832   41% ₹  +329,738 PF 1.32 DD ₹  73,798 day ₹ -15,311  |  496   47% ₹  +110,753 PF 1.17 DD ₹  63,552 day ₹ -32,225
+    target 3 x risk                               831   41% ₹  +348,158 PF 1.34 DD ₹  74,257 day ₹ -15,311  |  495   46% ₹   +98,421 PF 1.15 DD ₹  62,641 day ₹ -32,225
+ NIFTY, 5-minute candles
+    target 1.5 x risk                             425   44% ₹  +174,353 PF 1.40 DD ₹  23,633 day ₹  -6,747  |  266   49% ₹   +59,557 PF 1.22 DD ₹  36,338 day ₹ -11,846
+    target 2 x risk                               416   42% ₹  +170,540 PF 1.38 DD ₹  23,202 day ₹  -6,747  |  254   47% ₹   +57,400 PF 1.22 DD ₹  34,327 day ₹ -11,846
+    target 2.5 x risk                             409   41% ₹  +196,822 PF 1.44 DD ₹  24,010 day ₹  -6,747  |  253   46% ₹   +78,802 PF 1.29 DD ₹  21,351 day ₹ -11,846
+    target 2.75 x risk (today)                    408   39% ₹  +179,191 PF 1.39 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +81,254 PF 1.30 DD ₹  20,644 day ₹ -11,846
+    target 3 x risk                               408   40% ₹  +192,342 PF 1.42 DD ₹  24,010 day ₹  -6,747  |  251   45% ₹   +79,981 PF 1.29 DD ₹  23,159 day ₹ -11,846
+ BANKNIFTY, 5-minute candles
+    target 1.5 x risk                             440   47% ₹  +163,456 PF 1.31 DD ₹  52,089 day ₹ -10,388  |  248   50% ₹   -16,661 PF 0.95 DD ₹  60,068 day ₹ -20,372
+    target 2 x risk                               431   43% ₹  +136,792 PF 1.24 DD ₹  62,910 day ₹ -10,388  |  246   48% ₹    -9,671 PF 0.97 DD ₹  67,080 day ₹ -20,372
+    target 2.5 x risk                             424   42% ₹  +164,479 PF 1.29 DD ₹  65,220 day ₹ -10,420  |  245   48% ₹   +11,545 PF 1.03 DD ₹  49,918 day ₹ -20,372
+    target 2.75 x risk (today)                    424   42% ₹  +159,890 PF 1.28 DD ₹  64,964 day ₹ -10,420  |  245   48% ₹   +33,779 PF 1.09 DD ₹  44,464 day ₹ -20,372
+    target 3 x risk                               423   42% ₹  +158,827 PF 1.28 DD ₹  64,516 day ₹ -10,420  |  244   47% ₹   +20,496 PF 1.05 DD ₹  47,216 day ₹ -20,372
+
+ VERDICT - better than today's 2.75 only if more profit in BOTH periods (5-minute, the two indices pooled)
+  drop  target 1.5 x risk                            profit: in-sample    -1,271  held-out   -72,137   worst drop:   -7,422 /  +30,912   worst day:   +3,383 /       +0
+  drop  target 2 x risk                              profit: in-sample   -31,749  held-out   -67,304   worst drop:     +294 /  +30,780   worst day:   +2,624 /       +0
+  drop  target 2.5 x risk                            profit: in-sample   +22,220  held-out   -24,685   worst drop:     -346 /     +920   worst day:       +0 /       +0
+  drop  target 3 x risk                              profit: in-sample   +12,088  held-out   -14,556   worst drop:     +651 /     -908   worst day:       +0 /       +0
