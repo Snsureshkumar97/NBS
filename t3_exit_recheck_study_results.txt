@@ -1,0 +1,25 @@
+============================================================================================================================================================================
+ OUT AT T3 vs T2, WITH THE T1-EXIT RE-ENTRY (Sensex + Midcap). Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+    T2 (until today)                             1377   40% ₹  +252,225 PF 1.18 DD ₹  54,512 day ₹ -16,567  |  775   37% ₹  +186,668 PF 1.25 DD ₹  40,927 day ₹ -20,203
+    T2 + T1 re-entry (LIVE NOW)                  1441   41% ₹  +303,873 PF 1.22 DD ₹  47,532 day ₹ -16,567  |  793   36% ₹  +197,048 PF 1.26 DD ₹  45,049 day ₹ -20,203
+    T3 + T1 re-entry (the candidate)             1434   41% ₹  +370,798 PF 1.26 DD ₹  47,174 day ₹ -16,567  |  790   36% ₹  +229,174 PF 1.30 DD ₹  40,601 day ₹ -20,203
+    (info) T3, no T1 re-entry                    1363   40% ₹  +282,257 PF 1.21 DD ₹  54,522 day ₹ -16,567  |  766   37% ₹  +218,042 PF 1.30 DD ₹  33,714 day ₹ -20,203
+    (info) T3 + re-entry, walked as on 7 Oct     1419   41% ₹  +339,371 PF 1.24 DD ₹  46,230 day ₹ -16,567  |  783   36% ₹  +201,913 PF 1.27 DD ₹  40,058 day ₹ -20,203
+   SENSEX
+      T2 (until today)                            662   38% ₹  +110,280 PF 1.20 DD ₹  36,069 day ₹  -6,694  |  387   35% ₹  +100,217 PF 1.34 DD ₹  31,133 day ₹  -7,928
+      T2 + T1 re-entry (LIVE NOW)                 688   38% ₹  +136,000 PF 1.24 DD ₹  34,193 day ₹  -6,694  |  399   35% ₹  +113,099 PF 1.37 DD ₹  31,133 day ₹  -7,928
+      T3 + T1 re-entry (the candidate)            683   38% ₹  +176,460 PF 1.31 DD ₹  34,194 day ₹  -6,694  |  397   35% ₹  +135,052 PF 1.45 DD ₹  26,514 day ₹  -7,928
+      (info) T3, no T1 re-entry                   653   38% ₹  +146,578 PF 1.27 DD ₹  34,123 day ₹  -6,694  |  384   35% ₹  +124,109 PF 1.43 DD ₹  26,514 day ₹  -7,928
+      (info) T3 + re-entry, walked as on 7 Oct    675   38% ₹  +165,614 PF 1.29 DD ₹  29,831 day ₹  -6,694  |  396   35% ₹  +122,302 PF 1.41 DD ₹  28,930 day ₹  -7,928
+   MIDCPNIFTY
+      T2 (until today)                            715   43% ₹  +141,945 PF 1.18 DD ₹  30,925 day ₹ -11,161  |  388   38% ₹   +86,451 PF 1.19 DD ₹  39,346 day ₹ -12,274
+      T2 + T1 re-entry (LIVE NOW)                 753   43% ₹  +167,873 PF 1.20 DD ₹  29,211 day ₹ -11,161  |  394   37% ₹   +83,948 PF 1.19 DD ₹  39,346 day ₹ -12,274
+      T3 + T1 re-entry (the candidate)            751   43% ₹  +194,339 PF 1.23 DD ₹  29,211 day ₹ -11,161  |  393   37% ₹   +94,122 PF 1.21 DD ₹  39,630 day ₹ -12,274
+      (info) T3, no T1 re-entry                   710   42% ₹  +135,679 PF 1.17 DD ₹  31,716 day ₹ -11,161  |  382   38% ₹   +93,932 PF 1.21 DD ₹  38,502 day ₹ -12,274
+      (info) T3 + re-entry, walked as on 7 Oct    744   43% ₹  +173,757 PF 1.21 DD ₹  30,221 day ₹ -11,161  |  387   38% ₹   +79,611 PF 1.18 DD ₹  38,733 day ₹ -12,274
+
+ VERDICT - the candidate against what runs now, kept only if more in BOTH periods
+  KEEP  T3 + T1 re-entry vs T2 + T1 re-entry         profit: in-sample   +66,926  held-out   +32,126   worst drop:     -358 /   -4,448   worst day:       +0 /       +0
+  KEEP  (info) T3 vs T2, neither with the re-entry   profit: in-sample   +30,032  held-out   +31,373   worst drop:       +9 /   -7,213   worst day:       +0 /       +0
