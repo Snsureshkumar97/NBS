@@ -179,9 +179,9 @@ def adx(df: pd.DataFrame, length: int = 14, dx_length: int = None) -> pd.Series:
     `dx_length` is how many candles the final average of DX runs over. None
     means `length` - Wilder's ADX, which is what every caller that does not
     pass it still gets (the screener, for one). The signal engine passes
-    config.ADX_DX_SMOOTHING: +DI/-DI still over 14 candles, DX over 6 on the Indian
-    indices (3 until 14 Oct 2026), so the gate follows a trend within a few candles
-    instead of three and a half hours.
+    config.ADX_DX_SMOOTHING: +DI/-DI still over 14 candles, DX over 3 on the Indian
+    indices, so the gate follows a trend within a few candles instead of three and
+    a half hours.
     """
     plus_di, minus_di = plus_minus_di(df, length)
 

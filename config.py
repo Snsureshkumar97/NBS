@@ -343,7 +343,9 @@ ADX_LENGTH = 14
 # speed from 4 to 10 beat 3 in both periods (12 and 14 fell back): 3 was the edge of
 # a plateau, 6 its middle. Chosen after the sweep (its pre-declared rule, about 7,
 # kept 3) - the whole 4-10 band is what makes it more than a lucky point.
-ADX_DX_SMOOTHING = {"nse_index": 6, "crypto": None}
+# BACK TO 3 the same evening, 14 Oct 2026 - the user: "make the adx gate as before fast adx for all and reset back
+# to its original". The 6 figures above stay on record (adx_speed_sweep_study.py); 3 is what runs.
+ADX_DX_SMOOTHING = {"nse_index": 3, "crypto": None}
 
 
 def adx_dx_smoothing(index_key=None):
