@@ -65,12 +65,25 @@ def rules_exit(trade):
     2026, after trend_rider_rules_stop_study.py: "Switch to the rules' exit")."""
     if not trade.get("plain_exit"):
         return True
+    if trade.get("system") == "tv_rating":        # tv_rating.py: always the exit it was measured with
+        return True
     return trade.get("system") == "trend_rider" and _cfg("TREND_RIDER_EXIT", "ladder") == "rules"
+
+
+def system_allowed(system, index):
+    """May this index trade on this system? It must be one of config.SYSTEMS, and - for one config.SYSTEM_INDICES limits
+    (the TradingView rating: Nifty and Bank Nifty, where it was measured better) - one of its indices."""
+    if not system or system not in _cfg("SYSTEMS", ("rules",)):
+        return False
+    only = (_cfg("SYSTEM_INDICES", {}) or {}).get(system)
+    return only is None or index in only
 
 
 def near_plan(trade):
     """The near-target steps for this ticket's system (config.NEAR_TARGET_STEPS) - none for a Trend Rider ticket on the
-    rules' exit, which steps at the targets themselves instead."""
+    rules' exit, or a TradingView-rating one (always that exit), which step at the targets themselves instead."""
+    if trade.get("system") == "tv_rating":
+        return []
     if trade.get("system") == "trend_rider" and _cfg("TREND_RIDER_EXIT", "ladder") == "rules":
         return []
     return (_cfg("NEAR_TARGET_STEPS", {}) or {}).get(trade.get("system")) or []
@@ -288,7 +301,7 @@ class TicketBook:
                 if k in names and v not in (None, ""):
                     self.lots_by[k] = self._snap_lots(v)
             for k, v in (s.get("systems_by") or {}).items():
-                if k in names and v in _cfg("SYSTEMS", ("rules",)):
+                if k in names and system_allowed(v, k):
                     self.systems_by[k] = v
         except Exception:
             pass
@@ -314,8 +327,14 @@ class TicketBook:
         rules. Indian indices only - every other market trades on its own rules."""
         if self.market != "nse_index":
             return "rules"
-        v = self.systems_by.get(index) or (_cfg("SYSTEM_DEFAULTS", {}) or {}).get(index) or "rules"
-        return v if v in _cfg("SYSTEMS", ("rules",)) else "rules"
+        v = self.systems_by.get(index)
+        if not system_allowed(v, index):
+            v = (_cfg("SYSTEM_DEFAULTS", {}) or {}).get(index)
+        return v if system_allowed(v, index) else "rules"
+
+    def system_choices_for(self, index):
+        """The systems this index may be set to (config.SYSTEMS, less those config.SYSTEM_INDICES keeps elsewhere)."""
+        return [s for s in _cfg("SYSTEMS", ("rules",)) if system_allowed(s, index)]
 
     def lots_for(self, index):
         """How many lots a ticket on this instrument is issued for: its own choice, else the market's."""
@@ -494,7 +513,7 @@ class TicketBook:
             if system is not None and self.market == "nse_index":
                 # One index's system; an unknown index or system changes nothing. A ticket already open keeps the exit
                 # it was opened with.
-                if system in _cfg("SYSTEMS", ("rules",)) and system_index in config.instruments_in(self.market):
+                if system_index in config.instruments_in(self.market) and system_allowed(system, system_index):
                     self.systems_by[system_index] = system
                     self._save_settings()
             if reentry is not None:
@@ -905,7 +924,7 @@ class TicketBook:
         # entries). The AI desk's (never measured this way) and Exness CFDs (studied on real ticks) step on the touch.
         step_min = (_cfg("STEP_STOP_AT_CANDLE_CLOSE", 0)
                     if (self.market == "nse_index" and not trade.get("ai_reason") and not trade.get("cfd")
-                        and (trade.get("system") or "rules") in ("rules", "trend_rider")) else 0)
+                        and (trade.get("system") or "rules") in ("rules", "trend_rider", "tv_rating")) else 0)
         for i, key in enumerate(TARGET_KEYS):
             tv = targets[i] if targets and len(targets) > i else None
             if not trade["hit"][key] and hit_t(price, tv):
@@ -1998,6 +2017,9 @@ class TicketBook:
                 "systems_by": ({k: self.system_for(k) for k in config.instruments_in(self.market)}
                                if self.market == "nse_index" else {}),
                 "system_choices": list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else [],
+                # each index's own (the TradingView rating is offered on Nifty and Bank Nifty only)
+                "system_choices_by": ({k: self.system_choices_for(k) for k in config.instruments_in(self.market)}
+                                      if self.market == "nse_index" else {}),
                 "lot_choices": config.lot_choices(self.market),
                 "capital": self.capital,
                 "risk_pct": self.risk_pct,

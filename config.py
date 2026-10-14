@@ -609,8 +609,14 @@ AI_DESK_SKIP = ("MIDCPNIFTY",)
 # (in-sample / held-out per lot, the tool vs the Trend Rider at 2.75R): Nifty 154,936 / 30,386 vs 180,232 / 69,814;
 # Bank Nifty 172,293 / -5,376 vs 147,747 / 23,664; Sensex 110,280 / 100,217 vs 190,961 / 54,879; Midcap 141,945 /
 # 86,451 vs 95,338 / -8,054. Picking per index from those same figures flatters the result - a starting point to watch.
-SYSTEMS = ("rules", "trend_rider")
+SYSTEMS = ("rules", "trend_rider", "tv_rating")
 SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX": "rules", "MIDCPNIFTY": "rules"}
+# A system offered on only some indices: "tv_rating" (tv_rating.py - TradingView's Technical Ratings for the entry, the
+# Trend Rider's exit; the user, 13 Oct 2026, "okay" to building it after tv_ratings_study.py) only where it measured
+# better than the Trend Rider in both periods: Nifty +267,670 / +143,011 vs +157,331 / +70,163, Bank Nifty +181,285 /
+# +76,234 vs +118,299 / +50,859 (per lot after costs, first two years / held-out), with a deeper worst drop. Sensex
+# was mixed and Midcap worse, so it is not offered there. No index starts on it (SYSTEM_DEFAULTS): the user picks it.
+SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY")}
 # The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
 TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}

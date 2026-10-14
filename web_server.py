@@ -3647,6 +3647,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   .psum.kpossum > div:nth-child(3){border-left:0;padding-left:0}
 }
 .jbadge.tr{color:#7a5af8;border-color:rgba(122,90,248,.45)}
+.jbadge.tv{color:#4078f2;border-color:rgba(64,120,242,.45)}
 .lotqty{font-size:12px;color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
   border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
@@ -6199,8 +6200,11 @@ function lotsDash(s){
   // Which system trades each index (the user, 7 Oct 2026: "so apply for which index best apply for that"):
   // the tool's own rules or the Trend Rider - Indian indices only.
   const sys = sess.systems_by || {}, sysChoices = sess.system_choices || [];
-  const SYSNAME = {rules: "Current rules", trend_rider: "Trend Rider"};
-  const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",");
+  const SYSNAME = {rules: "Current rules", trend_rider: "Trend Rider", tv_rating: "TradingView rating"};
+  // Each index's own choices: the TradingView rating (tv_rating.py, 13 Oct 2026) is offered on Nifty and Bank Nifty only.
+  const sysBy = sess.system_choices_by || {}, sysFor = k => sysBy[k] || sysChoices;
+  const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
+    + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
     // A row per index, its lots and the system that trades it side by side, at the top of the Dashboard (the user,
@@ -6214,7 +6218,7 @@ function lotsDash(s){
           + `<small class="kdl-q" data-q="${esc(k)}" data-ls="${esc(String(lotSize(k) || ""))}" data-cfd="${isCfd(k) ? 1 : ""}"></small>`
           + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</td>`
           + (sysChoices.length ? `<td><label><span class="kdl-sr">${esc(k)} system</span><select data-sys="${esc(k)}">`
-              + sysChoices.map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+              + sysFor(k).map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + `<td class="kdl-live" data-live="${esc(k)}"></td></tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
@@ -9935,8 +9939,9 @@ function paperPnl(s){
   }
   return {booked: P.booked || 0, closed: P.closed || 0, open, open_n: n, net: (P.booked || 0) + open};
 }
-// The Trend Rider's trades (trend_rider.py), badged apart from the tool's own rules' ones.
-const trTag = t => t && t.system === "trend_rider" ? ' <span class="jbadge tr" title="Taken by the Trend Rider">TR</span>' : "";
+// The Trend Rider's trades (trend_rider.py) and the TradingView rating's (tv_rating.py), badged apart from the tool's own.
+const trTag = t => t && t.system === "trend_rider" ? ' <span class="jbadge tr" title="Taken by the Trend Rider">TR</span>'
+  : t && t.system === "tv_rating" ? ' <span class="jbadge tv" title="Taken by the TradingView rating">TV</span>' : "";
 // Which kind a trade is, on every line that shows one: the Journal's own badges.
 const tradeTag = t => t && (t.entry_real || t.live)
   ? ' <span class="jbadge live" title="A real order: placed at the broker">Live</span>'

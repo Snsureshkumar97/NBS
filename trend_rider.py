@@ -127,7 +127,6 @@ def apply(rec, ev, index_key, avoid_strikes=None):
     """Write the reading into the engine's recommendation for this index: the card's conditions, and - on a fresh
     signal - the side, the strike, its premium, the stop and the one target a ticket freezes. Anything incomplete is no
     trade, said in words."""
-    import signal_engine as se
     p = params()
     rows, lean = _conditions(ev, p)
     info = {"label": "Trend Rider", "system": "trend_rider", "ready": bool((ev or {}).get("ready")), "why": (ev or {}).get("why"),
@@ -143,6 +142,17 @@ def apply(rec, ev, index_key, avoid_strikes=None):
                                      "then follows the Supertrend; to the entry after 2 hours without T1."
                                      if getattr(config, "TREND_RIDER_EXIT", "ladder") == "rules"
                                      else "near T2 the stop moves to T1, near T3 to T2."))}
+    return place(rec, info, ev, p, avoid_strikes,
+                 "Trend Rider: every condition holds, first time, on the 15-minute close",
+                 lambda side, spot, stop: _why_not(ev, rows, lean, side, spot, stop))
+
+
+def place(rec, info, ev, p, avoid_strikes, action, why_not):
+    """The levels a ticket freezes from a reading - shared with tv_rating.py, which enters differently and exits the
+    same way: the side, the strike at the money (or the next free one), its premium, the stop at the reading's swing
+    and one target at p["target_r"] x the risk (T1 / T2 / T3 a third, two thirds and all of it). Anything incomplete is
+    no trade, said in words (why_not(side, spot, stop) -> [reasons])."""
+    import signal_engine as se
     rec["rule"] = info
     side = (ev or {}).get("side", 0) if info["ready"] else 0
     spot, stop = rec.get("spot"), (ev or {}).get("stop")
@@ -175,16 +185,16 @@ def apply(rec, ev, index_key, avoid_strikes=None):
                    strike_swap=swap, strike_taken=taken, live_ltp=ltp, spread=se._find_strike_quote(oi, strike, opt),
                    index_stop_loss=round(float(stop), 2), risk_points=round(R, 2), index_targets=targets,
                    premium_targets=ptg, premium_stop_loss=psl, premium_source=src, target_basis="rule",
-                   gate_targets=None, reach_to_risk=p["target_r"], reach_points=None, sl_basis="trend_rider",
-                   confidence="Rule", action=f"{word} - Trend Rider: every condition holds, first time, on the 15-minute close",
+                   gate_targets=None, reach_to_risk=p["target_r"], reach_points=None, sl_basis=info["system"],
+                   confidence="Rule", action=f"{word} - {action}",
                    blockers=[], adx_blocked=False, macd_blocked=False, not_worth_it=False)
         info["side"] = side
     else:
-        why = _why_not(ev, rows, lean, side, spot, stop)
+        why = why_not(side, spot, stop)
         rec.update(bias="NEUTRAL", option_type=None, index_stop_loss=None, risk_points=None, reach_to_risk=None,
                    reach_points=None, index_targets=[None, None, None], premium_targets=[None, None, None],
                    premium_stop_loss=None, premium_source=None, target_basis="rule", gate_targets=None,
-                   confidence="N/A", action="NO TRADE - WAIT (Trend Rider: " + "; ".join(w.rstrip(".") for w in why) + ")",
+                   confidence="N/A", action=f"NO TRADE - WAIT ({info['label']}: " + "; ".join(w.rstrip(".") for w in why) + ")",
                    blockers=why, adx_blocked=False, macd_blocked=False, not_worth_it=False)
     return rec
 

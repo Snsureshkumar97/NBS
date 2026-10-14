@@ -46,18 +46,22 @@ ADDED AFTER THE FIRST RUN, to explain why TV + OURS led on Nifty and Bank Nifty 
 holds, the Trend Rider only on a fresh one - more trades, or better votes?): TradingView's votes on a fresh signal only,
 and the Trend Rider re-entering while its condition holds - each with the same exit, so like is set against like.
 
-RESULT (13 Oct 2026, history to 11 Sep 2026; tv_ratings_study_results.txt), all four pooled, first two years / held-out:
+RESULT (13 Oct 2026, history to 11 Sep 2026; tv_ratings_study_results.txt; re-run the same evening after a port bug
+was fixed - Ichimoku now reads the cloud as drawn, spans 25 candles back; unshifted its vote could never fire. Every
+verdict held), all four pooled, first two years / held-out:
   THE TOOL                      +592,784 / +323,517   PF 1.26 / 1.26   worst drop  81,087 /  77,460   won 38% / 36%
-  TradingView's own strategy    +773,635 / +296,107   PF 1.26 / 1.18   worst drop 156,507 / 153,789   won 43% / 45%
-    - DROP: more in the first two years, less in the held-out year, about twice the worst drop; Midcap +16,203 /
-      +53,955 against the rules' +194,339 / +94,122. MAs only the same picture (+1,067,646 / +302,841, drop 207,504).
+  TradingView's own strategy    +762,058 / +290,312   PF 1.25 / 1.18   worst drop 153,456 / 165,185   won 43% / 45%
+    - DROP: more in the first two years, less in the held-out year, about twice the worst drop; Midcap +4,685 /
+      +49,358 against the rules' +194,339 / +94,122. MAs only the same picture (+1,069,040 / +305,866, drop 212,578).
       Oscillators only almost never reach Strong: 9 trades in 3 years.
-  TV votes + the tool's exit    +748,556 / +373,907   PF 1.26 / 1.26   worst drop 111,799 / 117,403   - ahead both periods
-    pooled, but only from Nifty and Bank Nifty: Sensex +272,193 / +77,586 (mixed against +122,814 / +108,374), Midcap
-    +51,362 / +75,797 (worse both).
+  TV votes + the tool's exit    +772,406 / +369,427   PF 1.27 / 1.26   worst drop 110,506 / 114,450   - ahead both periods
+    pooled, but only from Nifty and Bank Nifty: Sensex +283,361 / +82,230 (mixed against +122,814 / +108,374), Midcap
+    +40,091 / +67,953 (worse both).
   LIKE FOR LIKE on Nifty + Bank Nifty, the Trend Rider's live exit on both: TradingView's votes beat the Trend Rider's
-    both ways - fresh signals +67,309 / +80,398, while it holds +51,077 / +100,844 - and on each index alone, in both
-    periods; but with a deeper worst drop (+22,874 / +19,597 at best). A candidate entry for those two, not built.
+    both ways - fresh signals +93,258 / +76,129, while it holds +75,031 / +99,565 - and on each index alone, in both
+    periods; but with a deeper worst drop (+21,270 / +21,332 at best). Nifty +267,670 / +143,011 against +157,331 /
+    +70,163; Bank Nifty +181,285 / +76,234 against +118,299 / +50,859. Built as tv_rating.py (Nifty and Bank Nifty
+    only, chosen by no index until the user picks it).
   "Accuracy": the index had moved the call's way an hour later on 50-55% of entries for EVERY system here, the tool's
   52% / 52% included - no vote system calls direction much better than a coin; the money is made by the exit.
 
@@ -77,95 +81,10 @@ MIDCAP_T3RE = (194339, 94122)                                          # t3_exit
 
 # ---------------------------------------------------------------- TradingView's ratings
 def tv_ratings(df):
-    """DataFrame (ma, osc, all) of TradingView's Technical Ratings at each candle's close."""
-    import numpy as np
-    import pandas as pd
-    h, l, c, v = df["High"], df["Low"], df["Close"], df["Volume"].astype(float)
-    sma = lambda s, n: s.rolling(n).mean()
-    ema = lambda s, n: s.ewm(span=n, adjust=False).mean()
-    rma = lambda s, n: s.ewm(alpha=1.0 / n, adjust=False).mean()
-    wts = {}
-
-    def wma(s, n):
-        w = wts.setdefault(n, np.arange(1, n + 1, dtype=float))
-        return s.rolling(n).apply(lambda x: (x * w).sum() / w.sum(), raw=True)
-
-    def vote(buy, sell, *need):
-        out = pd.Series(np.where(buy, 1.0, np.where(sell, -1.0, 0.0)), index=df.index)
-        bad = pd.Series(False, index=df.index)
-        for s in need:
-            bad |= s.isna()
-        return out.mask(bad)
-
-    up1 = lambda s: s > s.shift(1)
-    dn1 = lambda s: s < s.shift(1)
-    # moving averages: buy when the MA is under the price
-    ma_votes = []
-    for n in (10, 20, 30, 50, 100, 200):
-        for m in (sma(c, n), ema(c, n).where(c.notna().cumsum() >= n)):
-            ma_votes.append(vote(m < c, m > c, m))
-    hull = wma(2 * wma(c, 4) - wma(c, 9), 3)
-    ma_votes.append(vote(hull < c, hull > c, hull))
-    vsum = v.rolling(20).sum()
-    vwma = ((c * v).rolling(20).sum() / vsum).where(vsum > 0)
-    ma_votes.append(vote(vwma < c, vwma > c, vwma))
-    don = lambda n: (h.rolling(n).max() + l.rolling(n).min()) / 2
-    conv, base = don(9), don(26)
-    lead1, lead2 = (conv + base) / 2, don(52)
-    ma_votes.append(vote((lead1 > lead2) & (base > lead1) & (conv > base) & (c > conv),
-                         (lead1 < lead2) & (base < lead1) & (conv < base) & (c < conv), lead1, lead2))
-    # oscillators
-    trend_ma = ema(c, 50)
-    uptrend, downtrend = c > trend_ma, c < trend_ma
-    d = c.diff()
-    rsi = 100 - 100 / (1 + rma(d.clip(lower=0), 14) / rma((-d).clip(lower=0), 14))
-    hh14, ll14 = h.rolling(14).max(), l.rolling(14).min()
-    k = sma(100 * (c - ll14) / (hh14 - ll14), 3)
-    dd = sma(k, 3)
-    cci_mean = sma(c, 20)
-    cci_dev = c.rolling(20).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True)
-    cci = (c - cci_mean) / (0.015 * cci_dev)
-    upm, dnm = h.diff(), -l.diff()
-    pdm = pd.Series(np.where((upm > dnm) & (upm > 0), upm, 0.0), index=df.index)
-    mdm = pd.Series(np.where((dnm > upm) & (dnm > 0), dnm, 0.0), index=df.index)
-    tr = pd.concat([h - l, (h - c.shift(1)).abs(), (l - c.shift(1)).abs()], axis=1).max(axis=1)
-    atr14 = rma(tr, 14)
-    pdi, mdi = 100 * rma(pdm, 14) / atr14, 100 * rma(mdm, 14) / atr14
-    adx = rma(100 * (pdi - mdi).abs() / (pdi + mdi), 14)
-    hl2 = (h + l) / 2
-    ao = sma(hl2, 5) - sma(hl2, 34)
-    a1, a2 = ao.shift(1), ao.shift(2)
-    mom = c - c.shift(10)
-    macd = ema(c, 12) - ema(c, 26)
-    sig = ema(macd, 9)
-    rmin, rmax = rsi.rolling(14).min(), rsi.rolling(14).max()
-    sk = sma(100 * (rsi - rmin) / (rmax - rmin), 3)
-    sd = sma(sk, 3)
-    wr = 100 * (c - hh14) / (hh14 - ll14)
-    e13 = ema(c, 13)
-    bull, bear = h - e13, l - e13
-    pc = c.shift(1)
-    bp = c - pd.concat([l, pc], axis=1).min(axis=1)
-    trr = pd.concat([h, pc], axis=1).max(axis=1) - pd.concat([l, pc], axis=1).min(axis=1)
-    avg = lambda n: bp.rolling(n).sum() / trr.rolling(n).sum()
-    uo = 100 * (4 * avg(7) + 2 * avg(14) + avg(28)) / 7
-    osc_votes = [
-        vote((rsi < 30) & up1(rsi), (rsi > 70) & dn1(rsi), rsi, rsi.shift(1)),
-        vote((k < 20) & (dd < 20) & (k > dd), (k > 80) & (dd > 80) & (k < dd), k, dd),
-        vote((cci < -100) & up1(cci), (cci > 100) & dn1(cci), cci, cci.shift(1)),
-        vote((pdi > mdi) & (adx > 20) & up1(adx), (pdi < mdi) & (adx > 20) & dn1(adx), adx, adx.shift(1)),
-        vote(((ao > 0) & (a1 <= 0)) | ((ao > 0) & (a1 > 0) & (ao > a1) & (a2 > a1)),
-             ((ao < 0) & (a1 >= 0)) | ((ao < 0) & (a1 < 0) & (ao < a1) & (a2 < a1)), ao, a2),
-        vote(up1(mom), dn1(mom), mom, mom.shift(1)),
-        vote(macd > sig, macd < sig, macd, sig),
-        vote(downtrend & (sk < 20) & (sd < 20) & (sk > sd), uptrend & (sk > 80) & (sd > 80) & (sk < sd), sk, sd),
-        vote((wr < -80) & up1(wr), (wr > -20) & dn1(wr), wr, wr.shift(1)),
-        vote(uptrend & (bear < 0) & up1(bear), downtrend & (bull > 0) & dn1(bull), bear.shift(1), trend_ma),
-        vote(uo > 70, uo < 30, uo),
-    ]
-    ma = pd.concat(ma_votes, axis=1).mean(axis=1, skipna=True)
-    osc = pd.concat(osc_votes, axis=1).mean(axis=1, skipna=True)
-    return pd.DataFrame({"ma": ma, "osc": osc, "all": (ma + osc) / 2, "atr": atr14})
+    """TradingView's Technical Ratings at each candle's close - tv_rating.ratings(), the live system's own (moved there
+    on 13 Oct 2026 when the system was built, so this study and the live entry compute the same thing)."""
+    import tv_rating
+    return tv_rating.ratings(df)
 
 
 # ---------------------------------------------------------------- one trade's walk
