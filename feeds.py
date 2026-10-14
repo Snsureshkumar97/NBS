@@ -469,7 +469,10 @@ def _public(rec, name=None):
                    contracts_per_lot=None, premium_targets=[None, None, None], premium_stop=None,
                    premium_source=None, atm_strike=None, expiry=None, expiry_today=False,
                    cfd_spread=rec.get("cfd_spread"), quote_age_s=rec.get("quote_age_s"),
-                   cfd_bid=rec.get("cfd_bid"), cfd_ask=rec.get("cfd_ask"))
+                   cfd_bid=rec.get("cfd_bid"), cfd_ask=rec.get("cfd_ask"),
+                   # gold's TradingView rule (cfd_rules._apply_tv): [where the trail starts, its gap], in price - the
+                   # ladder shows these instead of T1-T3, which are only the far safety target Exness needs
+                   rule_trail=rec.get("rule_trail"))
     return out
 
 

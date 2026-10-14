@@ -1950,6 +1950,8 @@ class TicketBook:
             "stop_pending": [{"rung": p["rung"], "level": p["level"], "at": p["at"].strftime("%H:%M")}
                              for p in (trade.get("stop_pending") or [])],
             "stepped": list(trade.get("stepped") or []),
+            # a TradingView-rating CFD rule's trail (cfd_rules._apply_tv): [start, gap] in price, and whether it is on
+            "atr_trail": trade.get("atr_trail"), "trail_active": bool(trade.get("trail_active")),
             "hit": trade["hit"], "hit_time": trade["hit_time"],
             "sl_hit": trade["sl_hit"], "sl_hit_time": trade["sl_hit_time"],
             "exit_at": trade.get("exit_at", "T3"),

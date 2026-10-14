@@ -197,6 +197,44 @@ check("no trade: the card says what it needs", "Strong Buy (over +0.5)" in xq["v
 wsrc = open(os.path.join(HERE, "web_server.py")).read()
 check("the Journal badges its trades TV", 't.system === "tv_ma"' in wsrc)
 
+print("7. THE LADDER SHOWS THE TRAIL, NOT THE FAR TARGETS (the user, 14 Oct 2026: \"gold targets are way to far\")")
+d2 = tempfile.mkdtemp()
+pb = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d2, "t.csv"))
+_now["t"] = dt.datetime(2026, 10, 16, 10, 0, 30, tzinfo=IST)
+pb.update("GOLD", reading(bar="2026-10-16T04:30:00+00:00"))
+pub = pb.public("GOLD")["ticket"]
+check("the open ticket tells the page its trail and whether it is on", pub.get("atr_trail") == [25.0, 10.0]
+      and pub.get("trail_active") is False, (pub.get("atr_trail"), pub.get("trail_active")))
+pb.tick_price("GOLD", 4026.0)
+check("...and when the trail has started", pb.public("GOLD")["ticket"]["trail_active"] is True)
+import feeds
+pr = feeds._public(dict(reading(), index="GOLD", candles=None), "GOLD")
+check("the live reading tells the page the trail too", pr.get("rule_trail") == [25.0, 10.0], pr.get("rule_trail"))
+import shutil, subprocess
+NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
+if not NODE:
+    check("node is available", False)
+else:
+    a0 = wsrc.index("const num=")
+    z0 = wsrc.index("\n", wsrc.index("\n", a0) + 1) + 1
+    a1 = wsrc.index("function trailRungs(")
+    z1 = wsrc.index("\n}\n", a1) + 3
+    prog = wsrc[a0:z0] + wsrc[a1:z1] + r'''
+const assert = require("assert");
+const sell = trailRungs(4000, -1, [61, 24.4], 3634, 4036.6, false);
+assert.deepStrictEqual(sell.map(x => x[0]), ["Trail", "T3", "Stop"], "three rungs: trail, safety target, stop");
+assert.strictEqual(sell[0][2], 3939, "a sell's trail starts 61 below the entry");
+assert.ok(sell[0][1] === "Trail starts" && sell[1][1] === "Safety target" && sell[2][1].includes("then trails 24.40 behind"), sell);
+const on = trailRungs(4000, 1, [61, 24.4], 4366, 4039.6, true);
+assert.ok(on[0][2] === 4061 && on[0][1].includes("trailing") && on[2][1].includes("24.40 behind the best"), on);
+console.log("ok:trail");
+'''
+    rr = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    check("the ladder: 'Trail starts' at entry -/+ the start distance, 'Safety target', the stop and its gap",
+          "ok:trail" in rr.stdout, (rr.stdout + rr.stderr)[-600:])
+check("both ladders use it (open ticket and live reading) and the T1 / T2 rungs are gone for it",
+      "trailRungs(base, sgn, tk.atr_trail" in wsrc and "trailRungs(base, r.option_type" in wsrc)
+
 print()
 print("CFD TV RULE TEST PASSED" if not fails else f"CFD TV RULE TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

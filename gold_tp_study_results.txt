@@ -1,0 +1,15 @@
+======================================================================================================================================================
+ GOLD: TradingView MA rule with a REAL take-profit (the trail unchanged), Exness real ticks, $ per gold lot after spread and swap
+======================================================================================================================================================
+ take-profit                    FIRST TWO YEARS  n  won   total    PF   worst drop |      HELD-OUT  n  won   total    PF   worst drop | how they closed
+   3 x ATR                     3236   38% $    +2,174  1.00 $   47,590 |  1752   37% $   +55,620  1.03 $  104,332 | reverse 2403, target 1815, stop 766, other 4
+   5 x ATR                     2558   28% $   +30,578  1.03 $   34,564 |  1392   28% $  +108,063  1.07 $  104,501 | reverse 2551, target 875, stop 503, other 21
+   8 x ATR                     2429   27% $   +44,500  1.05 $   32,404 |  1334   27% $  +177,158  1.13 $   71,262 | reverse 2563, trail 558, stop 404, target 214, other 24
+   10 x ATR                    2410   27% $   +49,499  1.06 $   31,074 |  1320   27% $  +156,633  1.12 $   73,025 | reverse 2562, trail 682, stop 380, target 80, other 26
+   30 x ATR (TODAY - safety only)  2403   27% $   +48,403  1.06 $   29,508 |  1316   27% $  +145,212  1.11 $   74,577 | reverse 2563, trail 756, stop 373, other 27
+
+ VERDICT - kept only if more than TODAY in BOTH periods
+   drop  take-profit 3 x ATR      -46,228 /    -89,592
+   drop  take-profit 5 x ATR      -17,825 /    -37,149
+   drop  take-profit 8 x ATR       -3,903 /    +31,947
+   KEEP  take-profit 10 x ATR       +1,096 /    +11,422

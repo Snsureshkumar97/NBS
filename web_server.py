@@ -6354,6 +6354,16 @@ function lotQty(r){
                                    : `= ${Math.round(q).toLocaleString("en-IN")} qty`;
 }
 
+// Gold's TradingView rule (cfd_rules._apply_tv - since 14 Oct 2026): its exit is the trailing stop. T1 / T2 / T3 sit at
+// 10 / 20 / 30 x ATR only because Exness never takes an order without a target, and were never reached in 3 years -
+// shown as rungs they read as "targets way too far" (the user, 14 Oct 2026). Its ladder instead: where the trail starts,
+// the safety target, and the stop. trail = [start distance, gap] in price; sgn +1 for a buy, -1 for a sell.
+function trailRungs(base, sgn, trail, safety, stop, active){
+  return [["Trail", "Trail starts" + (active ? " · trailing" : ""), base == null ? null : base + sgn * trail[0], "var(--up)"],
+          ["T3", "Safety target", safety, "var(--up)"],
+          ["Stop", "Stop" + (active ? ` · ${num(trail[1], 2)} behind the best` : ` · then trails ${num(trail[1], 2)} behind`),
+           stop, "var(--down)"]];
+}
 function ladder(r, tk){
   unitLabel(r);
   lotsSync();
@@ -6388,7 +6398,9 @@ function ladder(r, tk){
     // (tk.stepped), and a waiting one said with the time it lands
     const trailedRung = beforeExit.slice().reverse().find(rung => tk.stepped ? tk.stepped.includes(rung) : (tk.hit || {})[rung]);
     const waitStep = (tk.stop_pending || []).slice(-1)[0];
-    const rungs=[["T1","T1",tg[0],"var(--up)"],["T2","T2",tg[1],"var(--up)"],
+    const trl = cfd && tk.atr_trail;
+    const rungs = trl ? trailRungs(base, sgn, tk.atr_trail, tg[2], tk.stop, tk.trail_active)
+               : [["T1","T1",tg[0],"var(--up)"],["T2","T2",tg[1],"var(--up)"],
                  ["T3","T3",tg[2],"var(--up)"],
                  ["Stop", "Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : "")
                           + (waitStep ? ` · to ${waitStep.rung} at ${waitStep.at}` : ""), tk.stop, "var(--down)"]];
@@ -6397,7 +6409,7 @@ function ladder(r, tk){
     // the percentages vanished exactly when a position was open.
     const tod = tk.odds || {};
     $("ladder").innerHTML = rungs.map(([k,label,v,c])=>{
-      const done = k==="Stop" ? tk.sl_hit : (tk.hit||{})[k];
+      const done = k==="Stop" ? tk.sl_hit : k === "Trail" ? !!tk.trail_active : (tk.hit||{})[k];
       const ch = tod[k === "Stop" ? "stop" : k.toLowerCase()];
       const when = k==="Stop" ? tk.sl_hit_time : (tk.hit_time||{})[k];
       // How far price has actually travelled from entry toward this level —
@@ -6439,7 +6451,12 @@ function ladder(r, tk){
       + `reversal costs back only to the last rung reached, never all the way to the original stop.`;
     const waitNote = waitStep ? ` ${esc(waitStep.rung)} was crossed: the stop moves up to it at ${esc(waitStep.at)}, when `
       + `that 15-minute candle closes - a flicker back under it before then does not close the trade.` : "";
-    $("lnote").innerHTML = (prem
+    $("lnote").innerHTML = trl
+      ? `Gold's TradingView rule: once the trade is <b>${num(tk.atr_trail[0], 2)}</b> in profit the stop follows `
+        + `<b>${num(tk.atr_trail[1], 2)}</b> behind the best price` + (tk.trail_active ? " - <b>trailing now</b>" : "")
+        + `; an opposite Strong reading closes it; out after 24 hours. The ${num(tg[2], 2)} target is only a safety `
+        + `level Exness needs - the trail is the real exit.`
+      : (prem
       ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
       : `No live chain for this strike at entry, so the ticket is tracked on the `
@@ -6480,8 +6497,12 @@ function ladder(r, tk){
   const exitAt = (r.exit_at || "T2").toUpperCase();
   const lbl = k => k === exitAt ? k + " · exit"
                  : k === "T3"   ? "T3 · room check" : k;
-  const rungs=[["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
+  const trlR = cfd && r.rule_trail && r.option_type
+    ? trailRungs(base, r.option_type === "PE" ? -1 : 1, r.rule_trail, tg[2], stop, false) : null;
+  const rungs = trlR ? trlR.map(([k, , v, c]) => [k, v, c])
+             : [["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],
                ["T3",tg[2],"var(--up)"],["Stop",stop,"var(--down)"]];
+  const trlLbl = trlR ? Object.fromEntries(trlR.map(([k, l]) => [k, l])) : null;
   const spread=Math.max(...rungs.map(x=>x[1]==null?0:Math.abs(x[1]-(base||0))))||1;
 
   // What each level is worth in rupees, at the lot size Zerodha uses for this
@@ -6506,10 +6527,11 @@ function ladder(r, tk){
     // touch T1, turn round and still hit the stop, so these do not sum to 100.
     const od = r.odds || {};
     const ch = od[k === "Stop" ? "stop" : k.toLowerCase()];
-    return `<div class="rung"><div class="k" title="${k === exitAt
+    return `<div class="rung"><div class="k" title="${trlLbl ? (k === "T3"
+        ? "a safety target only - the trailing stop is the real exit" : "") : k === exitAt
         ? "the trade closes here" : k === "T3"
         ? "not an exit - the room-to-run check that decides whether a ticket is issued at all"
-        : ""}">${lbl(k)}</div>
+        : ""}">${trlLbl ? esc(trlLbl[k]) : lbl(k)}</div>
       <div class="bar"><i style="width:${pct}%;background:${v==null?"transparent":c};--c:${c}"></i></div>
       <div class="n" style="color:${v==null?"var(--ink-3)":c}">${v==null?"—":num(v,dp)}</div>
       <div class="od" style="color:${ch==null?"var(--ink-3)":c}" title="chance of touching this level before the close">${ch==null?"":ch+"%"}</div>
