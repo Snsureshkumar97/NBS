@@ -67,6 +67,9 @@ def install_live_room(key, chain=True, normal_days=10):
     days = set(df.index.date)
     step = config.INSTRUMENTS[key]["strike_step"]
     real = se.compute_reachability
+    if chain:
+        # the room as live gave it BEFORE config.ROOM_LIMITS (14 Oct 2026): the expected move and walls as limits too
+        config.ROOM_LIMITS = dict(getattr(config, "ROOM_LIMITS", {}) or {}, nse_index="all")
 
     def live_like(spot, oi, df_, now, adx=None, range_stats=None, index_key=None, day_extremes=None):
         ts = pd.Timestamp(now)

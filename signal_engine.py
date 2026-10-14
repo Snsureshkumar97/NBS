@@ -590,8 +590,14 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     #
     # It is now floored so it can never bind below half the expected move,
     # which keeps it as a sensible drag without letting it veto anything.
-    if room_left is not None and em_remaining:
-        room_left = max(room_left, 0.5 * em_remaining)
+    # config.ROOM_LIMITS (14 Oct 2026, room_fix_study.py): on a "range" market the expected move and the OI walls are
+    # still worked out and shown, but take no part in the room - not as a limit and not as a floor - exactly as the
+    # winning variant was tested (the day's range alone).
+    range_only = config.room_limits(index_key) == "range"
+    out["room_limits"] = "range" if range_only else "all"
+    em_lim = None if range_only else em_remaining
+    if room_left is not None and em_lim:
+        room_left = max(room_left, 0.5 * em_lim)
 
     # ---- 3b. a trend day's room in its own direction --------------------
     # On 15 Sep 2026 every index had used its whole normal range by 10:30 and
@@ -634,21 +640,21 @@ def compute_reachability(spot: float, oi: dict, df: pd.DataFrame, now: dt.dateti
     # a wall sitting close to spot must not shrink the reach so far that the
     # whole trade gets rejected, so it too is floored against the expected
     # move rather than allowed to dominate.
-    res_dist = (out["resistance"] - spot) if out["resistance"] else None
-    sup_dist = (spot - out["support"]) if out["support"] else None
-    if em_remaining:
+    res_dist = (out["resistance"] - spot) if out["resistance"] and not range_only else None
+    sup_dist = (spot - out["support"]) if out["support"] and not range_only else None
+    if em_lim:
         if res_dist is not None:
             res_dist = max(res_dist, 0.5 * em_remaining)
         if sup_dist is not None:
             sup_dist = max(sup_dist, 0.5 * em_remaining)
 
     up_limits = [
-        (em_remaining, "the option market's expected move for the time left"),
+        (em_lim, "the option market's expected move for the time left"),
         (res_dist, f"the call-OI wall at {out['resistance']}"),
         (room_up, label_up),
     ]
     down_limits = [
-        (em_remaining, "the option market's expected move for the time left"),
+        (em_lim, "the option market's expected move for the time left"),
         (sup_dist, f"the put-OI wall at {out['support']}"),
         (room_down, label_down),
     ]

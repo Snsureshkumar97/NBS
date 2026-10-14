@@ -1001,6 +1001,25 @@ def active_instruments():
     return out
 
 
+# ROOM TO RUN'S LIMITS, per market (signal_engine.compute_reachability). "all": the tightest of the option market's
+# expected move, the OI walls and what is left of the day's range. "range": the day's range alone - the expected move and
+# the walls are still worked out and shown on the card, but no longer shrink the room the targets and the reward:risk
+# gate are built from. The user, 14 Oct 2026, after room_fix_study.py: "build the room fix". The expected-move cap bound
+# on ~70% of candles and halved the room; the rules with the day's range alone (on the live ~10-day normal day), per lot
+# after costs, first two years / held-out: Sensex + Midcap +489,948 / +204,688 against +287,984 / +142,514 with the cap;
+# Sensex on 5-minute candles +199,733 / +63,091 against +13,713 / +19,727. Only the Indian rules use the room (the Trend
+# Rider and the TradingView rating set their own targets); crypto was not studied and keeps "all".
+ROOM_LIMITS = {"nse_index": "range", "crypto": "all"}
+
+
+def room_limits(index_key=None):
+    """"range" or "all" for this instrument's market (ROOM_LIMITS); "all" when it is not known."""
+    meta = INSTRUMENTS.get(index_key) or {}
+    if not index_key or not meta:
+        return "all"
+    return (globals().get("ROOM_LIMITS") or {}).get(meta.get("market", DEFAULT_MARKET), "all")
+
+
 def market_for(index_key=None):
     """The market profile an instrument trades in.
 
