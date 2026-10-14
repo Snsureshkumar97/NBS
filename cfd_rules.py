@@ -97,7 +97,7 @@ _CACHE = {}                 # (instrument, last closed bar, its close, its volum
 _LAST_READY = {}            # instrument -> its last complete reading: shown (never traded) while the next candle loads
 
 
-def evaluate(index_key, df, now=None):
+def evaluate(index_key, df, now=None, plan=None):
     """The rule's reading on the last CLOSED candle of `df`, or None when this instrument
     has no rule. {ready, votes, filters, side (+1/-1/0), atr, close, bar_close, fresh}.
 
@@ -106,10 +106,12 @@ def evaluate(index_key, df, now=None):
     read, and acting on it would be acting on half a candle. Until the new candle shows up the
     reading waits. compute() runs once per closed candle and instrument - shared by every
     feed - not on every one-second recompute."""
-    plan = config.cfd_rule(index_key)
+    # plan: the rule an account chose (config.CRYPTO_SYSTEMS via TicketBook.cfd_plan); None means config.CFD_RULES'
+    plan = plan if plan is not None else config.cfd_rule(index_key)
     if not plan:
         return None
     now = pd.Timestamp.now(tz="UTC") if now is None else pd.Timestamp(now)
+    memo = (index_key, plan.get("label"))       # accounts on different rules must never see each other's last reading
     if df is None or not len(df):
         return {"ready": False, "why": "no candles yet"}
     if df.index[-1] + BAR <= now:
@@ -117,7 +119,7 @@ def evaluate(index_key, df, now=None):
         # instead of blanking every row for the seconds the new candle takes to arrive (it looked like the page
         # reloading every 15 minutes - the user, 4 Oct 2026).
         why = "waiting for the new 15-minute candle's first prices"
-        prev = _LAST_READY.get(index_key)
+        prev = _LAST_READY.get(memo)
         return dict(prev, ready=False, why=why, side=0, fresh=False) if prev else {"ready": False, "why": why}
     closed = df.iloc[:-1]
     if len(closed) < 250:
@@ -143,14 +145,14 @@ def evaluate(index_key, df, now=None):
     out = {"ready": True, "votes": votes, "filters": filters, "side": side, "atr": float(a["atr"]), "values": values,
            "close": float(closed["Close"].iloc[-1]), "bar_close": bar_close.isoformat(),
            "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}
-    _LAST_READY[index_key] = out
+    _LAST_READY[memo] = out
     return out
 
 
-def apply(rec, ev, index_key):
+def apply(rec, ev, index_key, plan=None):
     """Write the rule's reading into a recommendation: the votes the Signal card shows, and -
     when it says buy or sell - the side, the stop and the one target a ticket freezes."""
-    plan = config.cfd_rule(index_key)
+    plan = plan if plan is not None else config.cfd_rule(index_key)
     if not plan or ev is None:
         return rec
     if plan.get("kind") == "tv_rating":
@@ -269,7 +271,7 @@ def _evaluate_tv(index_key, plan, closed, now):
     out = {"ready": True, "votes": {}, "filters": {}, "side": side, "atr": float(r["atr"]), "values": values,
            "close": values["close"], "bar_close": bar_close.isoformat(),
            "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}
-    _LAST_READY[index_key] = out
+    _LAST_READY[(index_key, plan.get("label"))] = out
     return out
 
 

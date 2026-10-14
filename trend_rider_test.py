@@ -120,7 +120,9 @@ check("saved across a restart", tickets.TicketBook(market="nse_index", path=path
 check("the page gets every index's system and the choices", b.session()["systems_by"]["SENSEX"] == "trend_rider"
       and b.session()["system_choices"] == ["rules", "trend_rider", "tv_rating"])     # + tv_rating.py, 13 Oct 2026
 cb = tickets.TicketBook(market="crypto", path=os.path.join(tempfile.mkdtemp(), "trades.csv"))
-check("crypto: always its own rules, no choice offered", cb.system_for("BTC") == "rules" and cb.session()["system_choices"] == [])
+check("crypto: its own list since 14 Oct 2026 (crypto_system_choice_test.py) - never the Indian systems",
+      cb.system_for("BTC") == "engine" and "trend_rider" not in cb.session()["system_choices"]
+      and cb.system_choices_for("BTC") == ["engine", "rsi2", "tv_ma"])
 
 print("4. A TICKET THROUGH THE RULE PATH")
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))

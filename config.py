@@ -903,6 +903,43 @@ def cfd_rule(index_key):
     return (globals().get("CFD_RULES") or {}).get(index_key) if is_cfd(index_key) else None
 
 
+# EACH CRYPTO INSTRUMENT'S STRATEGY, chosen per account on the Dashboard's System selector (the user, 14 Oct 2026: "in
+# trade setting add a drop down to change the startegy for crypt also"). "engine" is no rule: the tool's own votes
+# (VOTE_OVERRIDES["crypto"]: Trend EMA 20/50, MACD, VWAP, ADX 25) and its 1:1 exit (CFD_EXIT_PLAN). The others are
+# cfd_rules.py entry rules. An account that has not chosen gets what CFD_RULES says (BTC: the engine; gold: TradingView's
+# MA rating) - nothing changes until someone picks. Their 3-year results on Exness's real ticks after spread and swap,
+# per BTC / per gold lot, first two years / held-out:
+#   BTC   engine -34,831 / -3,057 (crypto_engine_votes_study)   RSI-2 bounce +25,729 / +25,228 (the retired rule, $10
+#         spread floor)   TradingView MA rating -59,602 / -15,806 (crypto_tv_ratings_study, MAs only, 30 x ATR target)
+#   GOLD  TradingView MA rating +49,499 / +156,633 (gold_tp_study, 10 x ATR)   engine -30,347 / -33,445   gold trend
+#         rule +108,722 / +47,774 (the retired rule)
+# A rule offered here never carries the retired BTC rule's forward-test guard (it would switch live orders off on a
+# record that started on 4 Oct under other rules).
+_TV_MA = CFD_RULES["GOLD"]
+CRYPTO_SYSTEMS = {
+    "BTC": {"engine": None,
+            "rsi2": {k: v for k, v in CFD_RULES_RETIRED["BTC"].items() if k != "forward_test"},
+            "tv_ma": dict(_TV_MA)},
+    "GOLD": {"tv_ma": _TV_MA, "engine": None, "gold_trend": CFD_RULES_RETIRED["GOLD"]},
+}
+CRYPTO_SYSTEM_LABELS = {"engine": "Tool votes (EMA, MACD, VWAP)", "tv_ma": "TradingView MA rating",
+                        "rsi2": "RSI-2 bounce", "gold_trend": "Gold trend rule"}
+
+
+def crypto_default_system(index_key):
+    """The system a crypto instrument runs for an account that has not chosen: the one CFD_RULES names."""
+    plan = cfd_rule(index_key)
+    for k, v in (CRYPTO_SYSTEMS.get(index_key) or {}).items():
+        if v is plan or (v is not None and plan is not None and v.get("label") == plan.get("label")):
+            return k
+    return "engine"
+
+
+def cfd_plan(index_key, system):
+    """The entry rule for this crypto instrument under `system` (CRYPTO_SYSTEMS), or None (the engine / unknown)."""
+    return (CRYPTO_SYSTEMS.get(index_key) or {}).get(system) if is_cfd(index_key) else None
+
+
 # The longest a CFD ticket is held, in minutes - 24 hours, the limit every Exness study walked with
 # (96 fifteen-minute bars); closed at the market then (tickets._check_price). 0 = no limit.
 CFD_MAX_HOLD_MINUTES = 24 * 60

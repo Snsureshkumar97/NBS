@@ -6198,9 +6198,11 @@ function lotsDash(s){
   if(!order.length || !sess.lots_by && sess.lots == null){ el.innerHTML = ""; el.dataset.sig = ""; return; }
   const live = s.live && s.live.enabled ? Object.keys(s.live.enabled) : null;
   // Which system trades each index (the user, 7 Oct 2026: "so apply for which index best apply for that"):
-  // the tool's own rules or the Trend Rider - Indian indices only.
+  // the tool's own rules or the Trend Rider on the Indian indices; on crypto (since 14 Oct 2026) each coin's own list.
   const sys = sess.systems_by || {}, sysChoices = sess.system_choices || [];
-  const SYSNAME = {rules: "Current rules", trend_rider: "Trend Rider", tv_rating: "TradingView rating"};
+  // crypto's choices name themselves (config.CRYPTO_SYSTEM_LABELS, sent with the session - 14 Oct 2026)
+  const SYSNAME = Object.assign({rules: "Current rules", trend_rider: "Trend Rider", tv_rating: "TradingView rating"},
+                                sess.system_labels || {});
   // Each index's own choices: the TradingView rating (tv_rating.py, 13 Oct 2026) is offered on Nifty and Bank Nifty only.
   const sysBy = sess.system_choices_by || {}, sysFor = k => sysBy[k] || sysChoices;
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")

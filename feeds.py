@@ -1928,18 +1928,21 @@ class Feed:
         """An Exness instrument with an entry rule (config.CFD_RULES): its reading on the last CLOSED
         15-minute candle replaces the engine's call (cfd_rules.py). Never raises - a failure is a
         reading that waits, with the reason."""
-        if rec is None or not config.cfd_rule(name):
+        # the rule THIS account trades the instrument on (its Dashboard System choice - config.CRYPTO_SYSTEMS, 14 Oct
+        # 2026); none - the engine's own votes - leaves the reading as it is
+        plan = self.tickets.cfd_plan(name) if getattr(self, "tickets", None) is not None else config.cfd_rule(name)
+        if rec is None or not plan:
             return rec
         import cfd_rules
         try:
             df = self._provider_for(name, None).get_ohlc(name, "15m", lookback_days=cfd_rules.HISTORY_DAYS)
-            ev = cfd_rules.evaluate(name, df)
+            ev = cfd_rules.evaluate(name, df, plan=plan)
         except Exception as exc:
             # The message itself, not only its type ("RuntimeError" told nobody anything - 4 Oct 2026); the token is
             # never in these messages (exness_provider builds them without it).
             ev = {"ready": False, "why": f"no candles for the rule: {type(exc).__name__}: {str(exc)[:160]}"}
             print(f"feeds: {name} rule - {ev['why']}", file=sys.stderr, flush=True)
-        return cfd_rules.apply(rec, ev, name)
+        return cfd_rules.apply(rec, ev, name, plan=plan)
 
     def _cfd_stamp(self, name, rec):
         """On a CFD (Exness), stamp the reading with the live spread - the cost a ticket

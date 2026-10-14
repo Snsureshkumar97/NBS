@@ -72,7 +72,11 @@ def rules_exit(trade):
 
 def system_allowed(system, index):
     """May this index trade on this system? It must be one of config.SYSTEMS, and - for one config.SYSTEM_INDICES limits
-    (the TradingView rating: Nifty and Bank Nifty, where it was measured better) - one of its indices."""
+    (the TradingView rating: Nifty and Bank Nifty, where it was measured better) - one of its indices. A crypto
+    instrument has its own list (config.CRYPTO_SYSTEMS, 14 Oct 2026)."""
+    crypto = (_cfg("CRYPTO_SYSTEMS", {}) or {}).get(index)
+    if crypto is not None:
+        return bool(system) and system in crypto
     if not system or system not in _cfg("SYSTEMS", ("rules",)):
         return False
     only = (_cfg("SYSTEM_INDICES", {}) or {}).get(system)
@@ -326,14 +330,31 @@ class TicketBook:
         """Which system trades this instrument: the user's choice, else config.SYSTEM_DEFAULTS, else the tool's own
         rules. Indian indices only - every other market trades on its own rules."""
         if self.market != "nse_index":
+            # a crypto instrument: the account's choice of config.CRYPTO_SYSTEMS, else the one config.CFD_RULES names
+            if index in (_cfg("CRYPTO_SYSTEMS", {}) or {}):
+                v = self.systems_by.get(index)
+                return v if system_allowed(v, index) else config.crypto_default_system(index)
             return "rules"
         v = self.systems_by.get(index)
         if not system_allowed(v, index):
             v = (_cfg("SYSTEM_DEFAULTS", {}) or {}).get(index)
         return v if system_allowed(v, index) else "rules"
 
+    def cfd_plan(self, index):
+        """The entry rule this account's crypto instrument trades on (config.cfd_plan of its system), or None: the
+        tool's own votes (the engine)."""
+        if self.market == "nse_index":
+            return None
+        return config.cfd_plan(index, self.system_for(index))
+
     def system_choices_for(self, index):
-        """The systems this index may be set to (config.SYSTEMS, less those config.SYSTEM_INDICES keeps elsewhere)."""
+        """The systems this index may be set to (config.SYSTEMS, less those config.SYSTEM_INDICES keeps elsewhere; a
+        crypto instrument's own config.CRYPTO_SYSTEMS)."""
+        crypto = (_cfg("CRYPTO_SYSTEMS", {}) or {}).get(index)
+        if crypto is not None:
+            return list(crypto)
+        if self.market != "nse_index":
+            return []
         return [s for s in _cfg("SYSTEMS", ("rules",)) if system_allowed(s, index)]
 
     def lots_for(self, index):
@@ -510,7 +531,8 @@ class TicketBook:
                     self.lots = self._snap_lots(lots)
                     self.lots_by = {}
                 self._save_settings()
-            if system is not None and self.market == "nse_index":
+            if system is not None and (self.market == "nse_index"
+                                       or system_index in (_cfg("CRYPTO_SYSTEMS", {}) or {})):
                 # One index's system; an unknown index or system changes nothing. A ticket already open keeps the exit
                 # it was opened with.
                 if system_index in config.instruments_in(self.market) and system_allowed(system, system_index):
@@ -2058,12 +2080,15 @@ class TicketBook:
                 "recent": self.closed[:8],
                 "lots": self.lots,
                 "lots_by": {k: self.lots_for(k) for k in config.instruments_in(self.market)},
-                "systems_by": ({k: self.system_for(k) for k in config.instruments_in(self.market)}
-                               if self.market == "nse_index" else {}),
-                "system_choices": list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else [],
-                # each index's own (the TradingView rating is offered on Nifty and Bank Nifty only)
-                "system_choices_by": ({k: self.system_choices_for(k) for k in config.instruments_in(self.market)}
-                                      if self.market == "nse_index" else {}),
+                "systems_by": {k: self.system_for(k) for k in config.instruments_in(self.market)
+                               if self.market == "nse_index" or k in (_cfg("CRYPTO_SYSTEMS", {}) or {})},
+                "system_choices": (list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else
+                                   list(dict.fromkeys(s for k in config.instruments_in(self.market)
+                                                      for s in self.system_choices_for(k)))),
+                # each index's own (the TradingView rating is offered on Nifty and Bank Nifty only; crypto its own)
+                "system_choices_by": {k: self.system_choices_for(k) for k in config.instruments_in(self.market)
+                                      if self.system_choices_for(k)},
+                "system_labels": dict(_cfg("CRYPTO_SYSTEM_LABELS", {}) or {}),
                 "lot_choices": config.lot_choices(self.market),
                 "capital": self.capital,
                 "risk_pct": self.risk_pct,
