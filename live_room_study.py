@@ -45,8 +45,10 @@ SENSEX5 = (122814, 108374)                                              # t1_ste
 _ROOMS = []
 
 
-def install_live_room(key):
-    """Wrap signal_engine.compute_reachability in this process: the option chain and normal day live would hand it."""
+def install_live_room(key, chain=True, normal_days=10):
+    """Wrap signal_engine.compute_reachability in this process: the option chain and normal day live would hand it.
+    chain False keeps the backtest's "no chain" (no expected-move limit); normal_days None keeps the backtest's mean
+    of every prior day (room_fix_study.py takes these apart)."""
     import numpy as np
     import pandas as pd
     import config
@@ -61,7 +63,7 @@ def install_live_room(key):
     sig_at = dict(zip(df.index, sig.to_numpy()))
     day = pd.Series([t.date() for t in df.index])
     full = df.groupby(day.to_numpy()).agg(h=("High", "max"), l=("Low", "min"))
-    typ10 = (full["h"] - full["l"]).rolling(10).mean().shift(1).to_dict()
+    typ10 = ((full["h"] - full["l"]).rolling(normal_days).mean().shift(1).to_dict() if normal_days else {})
     days = set(df.index.date)
     step = config.INSTRUMENTS[key]["strike_step"]
     real = se.compute_reachability
@@ -69,19 +71,19 @@ def install_live_room(key):
     def live_like(spot, oi, df_, now, adx=None, range_stats=None, index_key=None, day_extremes=None):
         ts = pd.Timestamp(now)
         s = sig_at.get(ts)
-        chain = oi
-        if s is not None and s == s and s > 0:
+        oi_used = oi                                # NOT "chain": that is the switch (14 Oct 2026 - it shadowed it)
+        if chain and s is not None and s == s and s > 0:
             exp = ps.expiry_on_or_after(key, ts.date(), days)
             K = round(spot / step) * step
             T = ps.years_to(exp, ts)
-            chain = {"available": True, "expiry": exp.isoformat(),
+            oi_used = {"available": True, "expiry": exp.isoformat(),
                      "strikes": [{"strike": K, "call_ltp": rs.bs(spot, K, T, s, True),
                                   "put_ltp": rs.bs(spot, K, T, s, False)}]}
         if range_stats is not None:
             t10 = typ10.get(ts.date())
             if t10 is not None and t10 == t10 and t10 > 0:
                 range_stats = (float(t10), range_stats[1])
-        out = real(spot, chain, df_, now, adx=adx, range_stats=range_stats, index_key=index_key,
+        out = real(spot, oi_used, df_, now, adx=adx, range_stats=range_stats, index_key=index_key,
                    day_extremes=day_extremes)
         _ROOMS.append((out.get("reach_up"), out.get("reach_down")))
         return out
