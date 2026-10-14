@@ -1,0 +1,28 @@
+============================================================================================================================================================================
+ A ROOM-TO-RUN CHECK ON THE TREND RIDER (Nifty + Bank Nifty, 5-minute walk, its live exit). Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + BANK NIFTY
+    TODAY                                         992   35% ₹  +275,631 PF 1.31 DD ₹  52,106 day ₹ -12,398  |  618   35% ₹  +121,022 PF 1.25 DD ₹  42,588 day ₹ -13,522
+    SKIP_NO_ROOM                                  442   37% ₹   -46,512 PF 0.86 DD ₹  80,181 day ₹ -12,398  |  266   45% ₹   +31,793 PF 1.17 DD ₹  30,367 day ₹  -7,506
+    SKIP_UNDER_1R                                 811   35% ₹   +29,385 PF 1.04 DD ₹  64,498 day ₹ -12,398  |  485   38% ₹   +72,589 PF 1.19 DD ₹  46,577 day ₹ -13,522
+    CAP_AT_ROOM                                   829   39% ₹   -43,296 PF 0.94 DD ₹  66,219 day ₹ -12,398  |  497   41% ₹   +45,381 PF 1.12 DD ₹  45,268 day ₹ -13,522
+    SKIP_NO_ROOM_OLD                              121   41% ₹    -6,533 PF 0.89 DD ₹  14,240 day ₹  -2,743  |  103   51% ₹    +9,683 PF 1.16 DD ₹  15,547 day ₹  -5,899
+ NIFTY
+    TODAY                                         489   35% ₹  +157,331 PF 1.43 DD ₹  20,739 day ₹  -6,747  |  319   36% ₹   +70,163 PF 1.34 DD ₹  20,175 day ₹  -4,933   (0 signals skipped)
+    SKIP_NO_ROOM                                  212   39% ₹   -10,807 PF 0.91 DD ₹  30,825 day ₹  -3,913  |  133   46% ₹   +14,412 PF 1.20 DD ₹   8,876 day ₹  -4,070   (614 signals skipped)
+    SKIP_UNDER_1R                                 394   34% ₹   +24,552 PF 1.08 DD ₹  25,760 day ₹  -5,819  |  251   40% ₹   +62,250 PF 1.39 DD ₹  22,773 day ₹  -5,366   (213 signals skipped)
+    CAP_AT_ROOM                                   404   41% ₹    +3,295 PF 1.01 DD ₹  36,089 day ₹  -5,819  |  259   42% ₹   +31,101 PF 1.19 DD ₹  21,488 day ₹  -5,366   (214 signals skipped)
+    SKIP_NO_ROOM_OLD                               56   41% ₹      +837 PF 1.04 DD ₹   5,168 day ₹  -1,541  |   46   59% ₹   +15,333 PF 2.03 DD ₹   3,346 day ₹  -2,070   (916 signals skipped)
+ BANKNIFTY
+    TODAY                                         503   36% ₹  +118,299 PF 1.23 DD ₹  48,095 day ₹ -10,719  |  299   35% ₹   +50,859 PF 1.18 DD ₹  34,680 day ₹  -8,981   (0 signals skipped)
+    SKIP_NO_ROOM                                  230   36% ₹   -35,706 PF 0.82 DD ₹  56,935 day ₹ -10,719  |  133   44% ₹   +17,380 PF 1.16 DD ₹  23,249 day ₹  -4,696   (593 signals skipped)
+    SKIP_UNDER_1R                                 417   35% ₹    +4,833 PF 1.01 DD ₹  55,206 day ₹ -10,719  |  234   36% ₹   +10,338 PF 1.05 DD ₹  48,640 day ₹  -8,981   (204 signals skipped)
+    CAP_AT_ROOM                                   425   38% ₹   -46,591 PF 0.89 DD ₹  58,761 day ₹ -10,719  |  238   40% ₹   +14,280 PF 1.06 DD ₹  38,695 day ₹  -8,981   (204 signals skipped)
+    SKIP_NO_ROOM_OLD                               65   42% ₹    -7,370 PF 0.81 DD ₹  14,503 day ₹  -2,743  |   57   46% ₹    -5,650 PF 0.87 DD ₹  17,690 day ₹  -4,696   (905 signals skipped)
+
+ VERDICT - kept only if more than TODAY in BOTH periods (the two pooled)
+  drop  SKIP_NO_ROOM                                 profit: in-sample  -322,143  held-out   -89,229   worst drop:  +28,075 /  -12,221   worst day:       +0 /   +6,015
+  drop  SKIP_UNDER_1R                                profit: in-sample  -246,246  held-out   -48,433   worst drop:  +12,391 /   +3,989   worst day:       +0 /       +0
+  drop  CAP_AT_ROOM                                  profit: in-sample  -318,927  held-out   -75,641   worst drop:  +14,113 /   +2,680   worst day:       +0 /       +0
+  drop  SKIP_NO_ROOM_OLD (info)                      profit: in-sample  -282,164  held-out  -111,338   worst drop:  -37,867 /  -27,041   worst day:   +9,655 /   +7,623
