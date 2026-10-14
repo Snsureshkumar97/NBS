@@ -252,6 +252,13 @@ def _why_not(info, ev, plan):
 TV_LABEL = {"ma": "moving-average", "osc": "oscillator", "all": "overall"}
 
 
+def trail_first(plan):
+    """Can this TradingView plan's trail start before its target closes the trade? Not when the target is nearer than
+    the trail's start - gold at 1:1 (3 x ATR) since 15 Oct 2026, its trail from 5 x ATR: one stop, one target."""
+    trail = plan.get("trail_atr") or plan.get("trail")
+    return bool(trail) and plan.get("target_atr") is not None and plan["target_atr"] > trail[0]
+
+
 def _evaluate_tv(index_key, plan, closed, now):
     import tv_rating
     basis = plan.get("basis", "ma")
@@ -301,9 +308,12 @@ def _apply_tv(rec, ev, plan):
             "values": v, "tag": f"TradingView {word} rating · {tv_rating.label(x)}",
             "note": (f"TradingView {word} rating: TradingView's own Technical Ratings strategy on its {word} votes - "
                      "a buy at a 15-minute close where the rating is Strong Buy (over +0.5), a sell at Strong Sell "
-                     f"(under -0.5), with nothing open. Stop {plan['stop_atr']:g} x ATR; once {act:g} x ATR in profit "
-                     f"the stop trails {off:g} x ATR behind the best price; an opposite Strong reading closes it and "
-                     f"trades the other way; out at a far target, {plan['target_atr']:g} x ATR, if it comes first; out after 24 hours.")}
+                     f"(under -0.5), with nothing open. Stop {plan['stop_atr']:g} x ATR; "
+                     + (f"once {act:g} x ATR in profit the stop trails {off:g} x ATR behind the best price; an opposite "
+                        f"Strong reading closes it and trades the other way; out at a far target, {plan['target_atr']:g} x "
+                        "ATR, if it comes first; out after 24 hours." if trail_first(plan) else
+                        f"target {plan['target_atr']:g} x ATR ({plan['target_atr'] / plan['stop_atr']:g}:1 with the "
+                        "stop); an opposite Strong reading closes it and trades the other way; out after 24 hours."))}
     rec["rule"] = info
     rec.update(suggested_strike=None, strike_swap=None, strike_taken=False, premium_targets=[None, None, None],
                premium_stop_loss=None, premium_source=None, live_ltp=None)

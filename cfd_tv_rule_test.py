@@ -2,9 +2,10 @@
 """Gold on TradingView's moving-average rating (the user, 14 Oct 2026: "change gold to trading view moving averages";
 config.CFD_RULES["GOLD"], cfd_rules._evaluate_tv / _apply_tv, tickets' ATR trail and reversal). The live reading from
 30 days of candles is the 3-year study's (crypto_tv_ratings_study.py) at random bars; the live plan is the study's "as
-built" variant (10 x ATR target since 14 Oct 2026 evening - gold_tp_study.py); a reading becomes that ticket (stop
-3 x ATR, a far target - never an order without
-one); the trail starts at 5 x ATR in profit and follows 2 x ATR behind the best price, Exness's stop moved only every
+built" variant, its target 1:1 with the stop since 15 Oct 2026 (3 x ATR - gold_tp_study.py's 3 x ATR; the user: "i want
+to make gold target 1:1 risk and reward"); a reading becomes that ticket (stop 3 x ATR, target 3 x ATR, nothing moved on
+the way - the trail, from 5 x ATR, never starts before it). With a far target (BTC's TradingView MA option, 10 x ATR)
+the trail starts at 5 x ATR in profit and follows 2 x ATR behind the best price, Exness's stop moved only every
 quarter of that distance; an opposite Strong reading closes it and trades the other way at the same close; no cooldown;
 24 hours at most; BTC stays on the engine; the card's words; the Journal's TV badge. Paper only, no network."""
 import datetime as dt
@@ -34,10 +35,14 @@ def check(name, cond, extra=""):
 PLAN = config.CFD_RULES.get("GOLD") or {}
 print("1. THE LIVE PLAN IS THE ONE MEASURED")
 import crypto_tv_ratings_study as cts
-check("gold: TradingView's rating on its MOVING-AVERAGE votes, stop 3 x ATR, trail at 5 x ATR, 2 x ATR behind, far "
-      "target 10 x ATR - gold_tp_study's 10 x ATR", PLAN.get("kind") == "tv_rating" and PLAN.get("basis") == "ma"
+check("gold: TradingView's rating on its MOVING-AVERAGE votes, stop 3 x ATR, target 3 x ATR (1:1) - gold_tp_study's "
+      "3 x ATR, trail settings unchanged (5 / 2 x ATR)", PLAN.get("kind") == "tv_rating" and PLAN.get("basis") == "ma"
       and PLAN.get("stop_atr") == 3.0 and tuple(PLAN.get("trail_atr")) == (5.0, 2.0)
-      and PLAN.get("target_atr") == 10.0 and 10.0 in __import__("gold_tp_study").TPS, PLAN)
+      and PLAN.get("target_atr") == 3.0 and 3.0 in __import__("gold_tp_study").TPS
+      and not cfd_rules.trail_first(PLAN), PLAN)
+FAR = config.CRYPTO_SYSTEMS["BTC"]["tv_ma"]
+check("BTC's TradingView MA option keeps the far 10 x ATR target, and its trail starts first",
+      FAR.get("target_atr") == 10.0 and cfd_rules.trail_first(FAR) and FAR.get("stop_atr") == 3.0, FAR)
 check("BTC stays on the engine (no rule)", config.cfd_rule("BTC") is None and config.cfd_exit_plan("BTC") is not None)
 src_study = open(os.path.join(HERE, "crypto_tv_ratings_study.py")).read()
 check("the study walks it with these numbers: stop 3 x ATR, trail 5 / 2 x ATR, an opposite Strong reading reverses",
@@ -83,26 +88,29 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 _now = {"t": dt.datetime(2026, 10, 14, 10, 0, 30, tzinfo=IST)}
 tickets.now_ist = lambda: _now["t"]
 ATR, SPOT = 5.0, 4000.0
-def reading(side=1, x=None, bar="2026-10-14T04:30:00+00:00", fresh=True, spot=SPOT, ready=True):
+def reading(side=1, x=None, bar="2026-10-14T04:30:00+00:00", fresh=True, spot=SPOT, ready=True, plan=None):
     x = (0.8 if side > 0 else -0.8 if side < 0 else 0.3) if x is None else x
     ev = {"ready": ready, "votes": {}, "filters": {}, "side": side, "atr": ATR, "close": spot, "bar_close": bar,
           "fresh": fresh, "values": {"rating": x, "basis": "ma", "close": spot, "buy": 13, "sell": 1, "n": 15}}
     if not ready:
         ev = {"ready": False, "why": "only 120 closed candles - 250 needed"}
     return cfd_rules.apply({"index": "GOLD", "spot": spot, "cfd_spread": 0.26, "quote_age_s": 1.0,
-                            "reach_to_risk": 3.2, "reach_points": 40.0}, ev, "GOLD")
+                            "reach_to_risk": 3.2, "reach_points": 40.0}, ev, "GOLD", plan)
 r = reading()
-check("Strong Buy: BUY, stop 3 x ATR (3,985), far target 10 x ATR (4,050), the trail frozen in price (25 / 10)",
+check("gold, Strong Buy: BUY, stop 3 x ATR (3,985), target 1:1 (4,015; T1 / T2 4,005 / 4,010 on the way)",
       r["bias"] == "BULLISH" and r["option_type"] == "CE" and r["index_stop_loss"] == 3985.0
-      and r["index_targets"] == [4016.67, 4033.33, 4050.0] and r["rule_trail"] == [25.0, 10.0]
-      and r["target_basis"] == "rule", (r["index_stop_loss"], r["index_targets"], r.get("rule_trail")))
+      and r["index_targets"] == [4005.0, 4010.0, 4015.0] and r["reach_to_risk"] == 1.0
+      and r["target_basis"] == "rule", (r["index_stop_loss"], r["index_targets"], r.get("reach_to_risk")))
+rf = reading(plan=FAR)
+check("a far plan (BTC's option): target 10 x ATR (4,050), the trail frozen in price (25 / 10)",
+      rf["index_targets"] == [4016.67, 4033.33, 4050.0] and rf["rule_trail"] == [25.0, 10.0], (rf["index_targets"], rf.get("rule_trail")))
 check("...its own system (tv_ma - never the Indian Trend Rider's exit), a reversal, no cooldown, its card rows",
       r["rule"]["system"] == "tv_ma" and r["rule"]["reverse"] and r["rule"]["no_cooldown"]
       and r["rule"]["filters"][0]["ok"] and "Strong Buy" in r["rule"]["tag"] and not tickets.rules_exit(
           {"plain_exit": True, "system": "tv_ma"}), r["rule"]["filters"])
 rs = reading(side=-1)
-check("Strong Sell: SELL, stop above, target below", rs["option_type"] == "PE" and rs["index_stop_loss"] == 4015.0
-      and rs["index_targets"][2] == 3950.0)
+check("Strong Sell: SELL, stop above, target below at 1:1", rs["option_type"] == "PE" and rs["index_stop_loss"] == 4015.0
+      and rs["index_targets"][2] == 3985.0)
 rq = reading(side=0)
 check("Buy (not Strong): no trade, no levels, no trail, and why in words", rq["bias"] == "NEUTRAL"
       and rq["index_stop_loss"] is None and rq.get("rule_trail") is None and rq["rule"]["side"] == 0
@@ -110,7 +118,22 @@ check("Buy (not Strong): no trade, no levels, no trail, and why in words", rq["b
 rw = reading(ready=False)
 check("no reading yet: waits", rw["bias"] == "NEUTRAL" and "120 closed candles" in rw["action"], rw["action"])
 
-print("4. THE TICKET: TRAIL, REVERSAL, NO COOLDOWN, 24 HOURS")
+print("4. GOLD'S 1:1 TICKET: ONE STOP, ONE TARGET")
+d0 = tempfile.mkdtemp()
+gb = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d0, "g.csv"))
+gb.update("GOLD", reading())
+g = gb.books["GOLD"].trade
+check("opened: stop 3,985, target 4,015, exit at T3", g["index_sl"] == 3985.0 and g["index_targets"][2] == 4015.0
+      and g["exit_at"] == "T3" and g["system"] == "tv_ma", (g["index_sl"], g["index_targets"]))
+gb.tick_price("GOLD", 4011.0)
+check("past T1 and T2: the stop does not move, still open", g["index_sl"] == 3985.0 and g["status"] == "OPEN"
+      and not g.get("trail_active"), (g["index_sl"], g["status"]))
+gb.tick_price("GOLD", 4015.0)
+check("at 4,015: closed at the 1:1 target", g["status"] == "CLOSED — T3 hit (full target reached)", g["status"])
+
+print("5. A FAR-TARGET TICKET (BTC's option): TRAIL, REVERSAL, NO COOLDOWN, 24 HOURS")
+_far = reading
+reading = lambda *a, **k: _far(*a, **dict(k, plan=k.get("plan", FAR)))
 d = tempfile.mkdtemp()
 bk = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d, "t.csv"))
 seen = []
@@ -168,7 +191,8 @@ _now["t"] += dt.timedelta(hours=24)
 bk.tick_price("GOLD", 3990.0)
 check("24 hours later: closed by the time limit", "time limit" in t3["status"], t3["status"])
 
-print("5. AN OLD-STYLE RULE KEEPS ITS OWN WAYS (no trail, no reversal)")
+reading = _far
+print("6. AN OLD-STYLE RULE KEEPS ITS OWN WAYS (no trail, no reversal)")
 old = dict(config.CFD_RULES)
 config.CFD_RULES = dict(config.CFD_RULES_RETIRED)
 _now["t"] = dt.datetime(2026, 10, 15, 10, 0, 30, tzinfo=IST)
@@ -187,29 +211,33 @@ check("...and an opposite reading does not reverse it", ot["status"] == "OPEN"
       and ob.books["GOLD"].wait_reason[1] == "POSITION OPEN", ob.books["GOLD"].wait_reason)
 config.CFD_RULES = old
 
-print("6. THE CARD AND THE JOURNAL")
+print("7. THE CARD AND THE JOURNAL")
 import explain
 x = explain.explain(r)
-check("the card: the rating, the trail, the reversal, the far target", "TradingView MA rating" in x["headline"]
-      and "trails 2 x ATR behind the best price" in x["verdict"] and "trades the other way" in x["verdict"]
-      and "far target, 10 x ATR" in x["levels"][1], (x["headline"], x["verdict"], x["levels"]))
+check("gold's card: the rating, ONE target 1:1, the reversal - no trail words", "TradingView MA rating" in x["headline"]
+      and "one target at 3 x ATR (1:1 with the stop)" in x["verdict"] and "trades the other way" in x["verdict"]
+      and "trails" not in x["verdict"] and "1:1 with the stop" in x["levels"][1] and "far" not in x["levels"][1]
+      and "it stays there" in x["levels"][0] and "1:1 with the stop" in r["rule"]["note"], (x["verdict"], x["levels"]))
+xf = explain.explain(rf)
+check("a far plan's card: the trail, the reversal, the far target", "trails 2 x ATR behind the best price" in xf["verdict"]
+      and "trades the other way" in xf["verdict"] and "far target, 10 x ATR" in xf["levels"][1], (xf["verdict"], xf["levels"]))
 xq = explain.explain(rq)
 check("no trade: the card says what it needs", "Strong Buy (over +0.5)" in xq["verdict"], xq["verdict"])
 wsrc = open(os.path.join(HERE, "web_server.py")).read()
 check("the Journal badges its trades TV", 't.system === "tv_ma"' in wsrc)
 
-print("7. THE LADDER SHOWS THE TRAIL, NOT THE FAR TARGETS (the user, 14 Oct 2026: \"gold targets are way to far\")")
+print("8. A FAR TARGET'S LADDER SHOWS THE TRAIL; GOLD'S 1:1 LADDER IS T1 / T2 / T3 AND THE STOP")
 d2 = tempfile.mkdtemp()
 pb = tickets.TicketBook(owner=None, market="crypto", path=os.path.join(d2, "t.csv"))
 _now["t"] = dt.datetime(2026, 10, 16, 10, 0, 30, tzinfo=IST)
-pb.update("GOLD", reading(bar="2026-10-16T04:30:00+00:00"))
+pb.update("GOLD", reading(bar="2026-10-16T04:30:00+00:00", plan=FAR))
 pub = pb.public("GOLD")["ticket"]
 check("the open ticket tells the page its trail and whether it is on", pub.get("atr_trail") == [25.0, 10.0]
       and pub.get("trail_active") is False, (pub.get("atr_trail"), pub.get("trail_active")))
 pb.tick_price("GOLD", 4026.0)
 check("...and when the trail has started", pb.public("GOLD")["ticket"]["trail_active"] is True)
 import feeds
-pr = feeds._public(dict(reading(), index="GOLD", candles=None), "GOLD")
+pr = feeds._public(dict(reading(plan=FAR), index="GOLD", candles=None), "GOLD")
 check("the live reading tells the page the trail too", pr.get("rule_trail") == [25.0, 10.0], pr.get("rule_trail"))
 import shutil, subprocess
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
@@ -218,8 +246,8 @@ if not NODE:
 else:
     a0 = wsrc.index("const num=")
     z0 = wsrc.index("\n", wsrc.index("\n", a0) + 1) + 1
-    a1 = wsrc.index("function trailRungs(")
-    z1 = wsrc.index("\n}\n", a1) + 3
+    a1 = wsrc.index("function trailFirst(")
+    z1 = wsrc.index("\n}\n", wsrc.index("function trailRungs(")) + 3
     prog = wsrc[a0:z0] + wsrc[a1:z1] + r'''
 const assert = require("assert");
 const sell = trailRungs(4000, -1, [61, 24.4], 3634, 4036.6, false);
@@ -228,13 +256,18 @@ assert.strictEqual(sell[0][2], 3939, "a sell's trail starts 61 below the entry")
 assert.ok(sell[0][1] === "Trail starts" && sell[1][1] === "Target" && sell[2][1].includes("then trails 24.40 behind"), sell);
 const on = trailRungs(4000, 1, [61, 24.4], 4366, 4039.6, true);
 assert.ok(on[0][2] === 4061 && on[0][1].includes("trailing") && on[2][1].includes("24.40 behind the best"), on);
+assert.strictEqual(trailFirst(4000, 4015, [25, 10]), false, "gold 1:1: target 15 away, trail from 25 - no trail ladder");
+assert.strictEqual(trailFirst(4000, 3985, [25, 10]), false, "...a sell too");
+assert.strictEqual(trailFirst(4000, 4050, [25, 10]), true, "a far target: the trail ladder");
 console.log("ok:trail");
 '''
     rr = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
     check("the ladder: 'Trail starts' at entry -/+ the start distance, 'Target', the stop and its gap",
           "ok:trail" in rr.stdout, (rr.stdout + rr.stderr)[-600:])
-check("both ladders use it (open ticket and live reading) and the T1 / T2 rungs are gone for it",
-      "trailRungs(base, sgn, tk.atr_trail" in wsrc and "trailRungs(base, r.option_type" in wsrc)
+check("both ladders use it (open ticket and live reading) only when the trail comes before the target",
+      "trailRungs(base, sgn, tk.atr_trail" in wsrc and "trailRungs(base, r.option_type" in wsrc
+      and "const trl = cfd && tk.atr_trail && trailFirst(base, tg[2], tk.atr_trail);" in wsrc
+      and "r.option_type && trailFirst(base, tg[2], r.rule_trail)" in wsrc)
 
 print()
 print("CFD TV RULE TEST PASSED" if not fails else f"CFD TV RULE TEST FAILED: {fails}")

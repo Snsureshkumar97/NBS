@@ -346,6 +346,9 @@ def _rule_explain(rec):
     # safety target - not the one-stop-one-target words of the other Exness rules.
     cfdtv = info.get("kind") == "tv_rating"
     act, off = (info.get("trail_atr") or [None, None])[:2] if cfdtv else (None, None)
+    # ...unless its target comes before the trail can start (gold at 1:1 since 15 Oct 2026): then one stop, one target
+    import cfd_rules
+    far = cfdtv and cfd_rules.trail_first(info)
     tail = ((f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
              f"{info.get('target_r'):g} x the risk; "
              + ("the stop moves to T1 at T1 and to T2 at T2 once that 15-minute candle closes, then follows the "
@@ -354,7 +357,10 @@ def _rule_explain(rec):
              + "out at the target or the day's close.") if tr else
             (f" Stop {info.get('stop_atr'):g} x ATR from the entry; once {act:g} x ATR in profit the stop trails "
              f"{off:g} x ATR behind the best price; an opposite Strong reading closes it and trades the other way; out "
-             f"at a far target, {info.get('target_atr'):g} x ATR, if it comes first; out after 24 hours.") if cfdtv else
+             f"at a far target, {info.get('target_atr'):g} x ATR, if it comes first; out after 24 hours.") if far else
+            (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_atr'):g} x ATR "
+             f"({info.get('target_r'):g}:1 with the stop); an opposite Strong reading closes it and trades the other "
+             "way; out after 24 hours.") if cfdtv else
             (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
              "distance; nothing moves the stop on the way, out after 24 hours."))
     if not info.get("ready"):
@@ -385,11 +391,16 @@ def _rule_explain(rec):
                   + ("it steps to T1 and T2 as they are reached." if steps else "it stays there until close to T2."),
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "
                   f"(T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
-    elif side and sl is not None and tg[2] is not None and cfdtv:
+    elif side and sl is not None and tg[2] is not None and far:
         levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; once {act:g} x ATR in "
                   f"profit it trails {off:g} x ATR behind the best price.",
                   f"TARGET {_n(tg[2], 2)} - a far target, {info.get('target_atr'):g} x ATR; the trail or an opposite "
                   "reading usually ends the trade before it."]
+    elif side and sl is not None and tg[2] is not None and cfdtv:
+        levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; it stays there.",
+                  f"TARGET {_n(tg[2], 2)} - {info.get('target_atr'):g} x ATR, {info.get('target_r'):g}:1 with the stop, "
+                  f"the trade's only exit target (T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there); an "
+                  "opposite Strong reading closes it sooner."]
     elif side and sl is not None and tg[2] is not None:
         levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; it stays there.",
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the stop distance, the trade's only exit "

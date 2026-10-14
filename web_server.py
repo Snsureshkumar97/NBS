@@ -6360,6 +6360,11 @@ function lotQty(r){
 // 10 / 20 / 30 x ATR only because Exness never takes an order without a target, and were never reached in 3 years -
 // shown as rungs they read as "targets way too far" (the user, 14 Oct 2026). Its ladder instead: where the trail starts,
 // the safety target, and the stop. trail = [start distance, gap] in price; sgn +1 for a buy, -1 for a sell.
+// Does the trail start before the target closes the trade? Not for gold at 1:1 (since 15 Oct 2026: target 3 x ATR,
+// trail from 5 x ATR) - its ladder is the plain T1 / T2 / T3 and the stop.
+function trailFirst(base, target, trail){
+  return !!trail && base != null && target != null && Math.abs(target - base) > trail[0];
+}
 function trailRungs(base, sgn, trail, safety, stop, active){
   return [["Trail", "Trail starts" + (active ? " · trailing" : ""), base == null ? null : base + sgn * trail[0], "var(--up)"],
           ["T3", "Target", safety, "var(--up)"],
@@ -6400,7 +6405,7 @@ function ladder(r, tk){
     // (tk.stepped), and a waiting one said with the time it lands
     const trailedRung = beforeExit.slice().reverse().find(rung => tk.stepped ? tk.stepped.includes(rung) : (tk.hit || {})[rung]);
     const waitStep = (tk.stop_pending || []).slice(-1)[0];
-    const trl = cfd && tk.atr_trail;
+    const trl = cfd && tk.atr_trail && trailFirst(base, tg[2], tk.atr_trail);
     const rungs = trl ? trailRungs(base, sgn, tk.atr_trail, tg[2], tk.stop, tk.trail_active)
                : [["T1","T1",tg[0],"var(--up)"],["T2","T2",tg[1],"var(--up)"],
                  ["T3","T3",tg[2],"var(--up)"],
@@ -6454,10 +6459,13 @@ function ladder(r, tk){
     const waitNote = waitStep ? ` ${esc(waitStep.rung)} was crossed: the stop moves up to it at ${esc(waitStep.at)}, when `
       + `that 15-minute candle closes - a flicker back under it before then does not close the trade.` : "";
     $("lnote").innerHTML = trl
-      ? `Gold's TradingView rule: once the trade is <b>${num(tk.atr_trail[0], 2)}</b> in profit the stop follows `
+      ? `TradingView MA rule: once the trade is <b>${num(tk.atr_trail[0], 2)}</b> in profit the stop follows `
         + `<b>${num(tk.atr_trail[1], 2)}</b> behind the best price` + (tk.trail_active ? " - <b>trailing now</b>" : "")
         + `; an opposite Strong reading closes it; out after 24 hours. The ${num(tg[2], 2)} target is far `
-        + `(10 x ATR) - most trades end on the trail or an opposite signal before it.`
+        + `- most trades end on the trail or an opposite signal before it.`
+      : (cfd && tk.atr_trail)
+      ? `TradingView MA rule: one target, <b>${num(tg[2], 2)}</b> - as far as the stop (1:1) - and the stop; `
+        + `an opposite Strong reading closes it sooner; out after 24 hours.`
       : (prem
       ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
@@ -6499,7 +6507,7 @@ function ladder(r, tk){
   const exitAt = (r.exit_at || "T2").toUpperCase();
   const lbl = k => k === exitAt ? k + " · exit"
                  : k === "T3"   ? "T3 · room check" : k;
-  const trlR = cfd && r.rule_trail && r.option_type
+  const trlR = cfd && r.rule_trail && r.option_type && trailFirst(base, tg[2], r.rule_trail)
     ? trailRungs(base, r.option_type === "PE" ? -1 : 1, r.rule_trail, tg[2], stop, false) : null;
   const rungs = trlR ? trlR.map(([k, , v, c]) => [k, v, c])
              : [["T1",tg[0],"var(--up)"],["T2",tg[1],"var(--up)"],

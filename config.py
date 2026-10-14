@@ -875,9 +875,13 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 1.0}, "GOLD": {"plain_r": 1.0}}
 # The target 10 x ATR from 14 Oct 2026 evening (was 30), the user: "switch to 10 atr and restart", after
 # gold_tp_study.py - per gold lot, first two years / held-out: 30 x ATR +48,403 / +145,212, 10 x ATR +49,499 / +156,633
 # (about level - most trades end on an opposite reading or the trail); 3 and 5 x ATR lost, 8 x ATR mixed.
+# The target 3 x ATR - 1:1 with the 3 x ATR stop - from 15 Oct 2026, the user: "i want to make gold target 1:1 risk and
+# reward", told first what gold_tp_study.py measured for exactly this (3 x ATR, the trail unchanged), per gold lot:
+# +2,174 / +55,620 against 10 x ATR's +49,499 / +156,633 - still a profit, much smaller. The trail (from 5 x ATR) now
+# never starts: the target closes the trade first. BTC's TradingView MA option keeps 10 x ATR (CRYPTO_SYSTEMS).
 CFD_RULES = {
     "GOLD": {"label": "TradingView MA rating", "kind": "tv_rating", "basis": "ma",
-             "stop_atr": 3.0, "trail_atr": (5.0, 2.0), "target_atr": 10.0},
+             "stop_atr": 3.0, "trail_atr": (5.0, 2.0), "target_atr": 3.0},
 }
 CFD_RULES_RETIRED = {
     "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],
@@ -911,15 +915,15 @@ def cfd_rule(index_key):
 # per BTC / per gold lot, first two years / held-out:
 #   BTC   engine -34,831 / -3,057 (crypto_engine_votes_study)   RSI-2 bounce +25,729 / +25,228 (the retired rule, $10
 #         spread floor)   TradingView MA rating -59,602 / -15,806 (crypto_tv_ratings_study, MAs only, 30 x ATR target)
-#   GOLD  TradingView MA rating +49,499 / +156,633 (gold_tp_study, 10 x ATR)   engine -30,347 / -33,445   gold trend
-#         rule +108,722 / +47,774 (the retired rule)
+#   GOLD  TradingView MA rating +2,174 / +55,620 at 1:1 (3 x ATR, live from 15 Oct; +49,499 / +156,633 at 10 x ATR -
+#         gold_tp_study)   engine -30,347 / -33,445   gold trend rule +108,722 / +47,774 (the retired rule)
 # A rule offered here never carries the retired BTC rule's forward-test guard (it would switch live orders off on a
 # record that started on 4 Oct under other rules).
 _TV_MA = CFD_RULES["GOLD"]
 CRYPTO_SYSTEMS = {
     "BTC": {"engine": None,
             "rsi2": {k: v for k, v in CFD_RULES_RETIRED["BTC"].items() if k != "forward_test"},
-            "tv_ma": dict(_TV_MA)},
+            "tv_ma": dict(_TV_MA, target_atr=10.0)},      # BTC keeps the far target; gold went 1:1 on 15 Oct
     "GOLD": {"tv_ma": _TV_MA, "engine": None, "gold_trend": CFD_RULES_RETIRED["GOLD"]},
 }
 CRYPTO_SYSTEM_LABELS = {"engine": "Tool votes (EMA, MACD, VWAP)", "tv_ma": "TradingView MA rating",
