@@ -1,0 +1,22 @@
+============================================================================================================================================================================
+ FAST ADX (DX over 3) FOR THE TREND RIDER AND THE TRADINGVIEW RATING - Nifty + Bank Nifty, 5-minute walk, live exits. Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ TREND RIDER, Nifty + Bank Nifty
+    STANDARD ADX                                  992   35% ₹  +275,631 PF 1.31 DD ₹  52,106 day ₹ -12,398  |  618   35% ₹  +121,022 PF 1.25 DD ₹  42,588 day ₹ -13,522
+    FAST ADX                                     1228   36% ₹  +329,288 PF 1.30 DD ₹  49,322 day ₹ -16,740  |  707   35% ₹  +102,971 PF 1.18 DD ₹  48,276 day ₹ -14,558
+      NIFTY STANDARD                              489   35% ₹  +157,331 PF 1.43 DD ₹  20,739 day ₹  -6,747  |  319   36% ₹   +70,163 PF 1.34 DD ₹  20,175 day ₹  -4,933
+      NIFTY FAST                                  617   36% ₹  +163,805 PF 1.33 DD ₹  33,746 day ₹ -11,462  |  353   35% ₹   +40,583 PF 1.16 DD ₹  30,074 day ₹  -8,683
+      BANKNIFTY STANDARD                          503   36% ₹  +118,299 PF 1.23 DD ₹  48,095 day ₹ -10,719  |  299   35% ₹   +50,859 PF 1.18 DD ₹  34,680 day ₹  -8,981
+      BANKNIFTY FAST                              611   37% ₹  +165,483 PF 1.27 DD ₹  44,285 day ₹ -10,750  |  354   36% ₹   +62,387 PF 1.19 DD ₹  34,576 day ₹  -8,854
+ TRADINGVIEW RATING, Nifty + Bank Nifty
+    STANDARD ADX                                 1567   38% ₹  +448,955 PF 1.32 DD ₹  69,261 day ₹ -21,540  |  844   39% ₹  +219,244 PF 1.32 DD ₹  72,140 day ₹ -17,051
+    FAST ADX                                     1565   38% ₹  +446,461 PF 1.32 DD ₹  73,642 day ₹ -25,401  |  851   37% ₹  +173,594 PF 1.24 DD ₹  75,457 day ₹ -17,969
+      NIFTY STANDARD                              763   39% ₹  +267,670 PF 1.46 DD ₹  26,758 day ₹  -8,877  |  404   39% ₹  +143,011 PF 1.51 DD ₹  33,562 day ₹  -6,133
+      NIFTY FAST                                  768   38% ₹  +250,283 PF 1.43 DD ₹  25,292 day ₹ -11,818  |  411   37% ₹  +110,681 PF 1.36 DD ₹  31,088 day ₹  -6,516
+      BANKNIFTY STANDARD                          804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+      BANKNIFTY FAST                              797   38% ₹  +196,178 PF 1.24 DD ₹  59,701 day ₹ -13,583  |  440   37% ₹   +62,913 PF 1.15 DD ₹  57,548 day ₹ -11,453
+
+ VERDICT - the fast ADX kept only if more than the standard in BOTH periods (Nifty + Bank Nifty)
+  drop  Trend Rider: fast ADX                        profit: in-sample   +53,657  held-out   -18,051   worst drop:   -2,785 /   +5,688   worst day:   -4,342 /   -1,036
+  drop  TradingView rating: fast ADX                 profit: in-sample    -2,493  held-out   -45,651   worst drop:   +4,381 /   +3,317   worst day:   -3,861 /     -918
