@@ -2,7 +2,8 @@
 """The crypto market's entry since 6 Oct 2026 (the user: "for the crypto market votes i want to remove them and add EMA
 20/50 vwap macd and adx gate above 25 only these and room to run with risk reward back to 1:1"): no special rule for
 BTC or gold - the engine, voting Trend (EMA 20/50), MACD and VWAP only, all three agreeing, ADX 25+, the room-to-run
-check at 1:1, out at one target at 1:1. The Indian market untouched."""
+check at 1:1, out at one target at 1:1. The Indian market untouched. (Gold left the engine on 14 Oct 2026 for
+TradingView's moving-average rating - cfd_tv_rule_test.py.)"""
 import os
 import sys
 import tempfile
@@ -19,7 +20,9 @@ def check(name, cond, extra=""):
         fails.append(name)
 
 print("1. THE SETTINGS")
-check("no special rule for BTC or gold any more (the engine decides)", config.cfd_rule("BTC") is None and config.cfd_rule("GOLD") is None)
+check("no special rule for BTC (the engine decides); gold on TradingView's moving-average rating since 14 Oct 2026 "
+      "(the user: \"change gold to trading view moving averages\" - cfd_tv_rule_test.py)",
+      config.cfd_rule("BTC") is None and (config.cfd_rule("GOLD") or {}).get("kind") == "tv_rating")
 check("...the retired rules kept for a rollback", "BTC" in config.CFD_RULES_RETIRED and "GOLD" in config.CFD_RULES_RETIRED)
 check("EMA 20 / 50 behind the Trend vote", (config.EMA_FAST, config.EMA_SLOW) == (20, 50))
 for k in ("BTC", "GOLD"):

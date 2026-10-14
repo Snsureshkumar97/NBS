@@ -851,7 +851,19 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 1.0}, "GOLD": {"plain_r": 1.0}}
 # (VOTE_OVERRIDES["crypto"] drops RSI), ADX 25 or more, the room-to-run check with reward:risk at least 1:1
 # (MIN_REWARD_RISK_T3["crypto"]), out at one target at 1:1 (CFD_EXIT_PLAN). The rules are kept below, unused, for a
 # rollback: CFD_RULES = CFD_RULES_RETIRED.
-CFD_RULES = {}
+#
+# GOLD SINCE 14 OCT 2026 - the user, after crypto_tv_ratings_study.py: "change gold to trading view moving averages".
+# TradingView's own Technical Ratings strategy on its 15 moving-average votes (cfd_rules._apply_tv, tv_rating.ratings):
+# Strong Buy -> buy, Strong Sell -> sell, at a 15-minute close with nothing open; stop 3 x ATR; once 5 x ATR in profit
+# the stop trails 2 x ATR behind the best price; an opposite Strong reading reverses; no wait after an exit; 24 hours at
+# most; a far safety target at 30 x ATR (Exness never gets an order without one). On Exness's real ticks, per gold lot
+# after spread and swap, first two years / held-out: +48,403 / +145,212 (worst drop 29,508 / 74,577) against the engine
+# it replaces -30,347 / -33,445 - but its first-two-years profit was the buys in gold's rally (its sells lost 21,560);
+# in the held-out year both sides made money. No coin-flip test. BTC stays on the engine.
+CFD_RULES = {
+    "GOLD": {"label": "TradingView MA rating", "kind": "tv_rating", "basis": "ma",
+             "stop_atr": 3.0, "trail_atr": (5.0, 2.0), "target_atr": 30.0},
+}
 CFD_RULES_RETIRED = {
     "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],
             "stop_atr": 3.0, "target_r": 0.2, "max_spread_share": 0.2,

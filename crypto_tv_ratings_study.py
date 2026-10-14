@@ -43,7 +43,10 @@ RESULT (14 Oct 2026, ticks to Aug 2026; crypto_tv_ratings_study_results.txt), fi
     both made money (buys +105,531, sells +39,681). TV votes + the tool's exit -26,329 / -37,955. The retired gold
     trend rule: +108,722 / +47,774. No coin-flip test run; earlier gold searches failed it on the rally.
   Oscillators only reach Strong almost never (2 BTC, 9 gold trades in 3 years). "Right an hour later": 45-50% for
-  every system, the tool included - no better than a coin. Nothing changed live.
+  every system, the tool included - no better than a coin.
+  BUILT for gold the same day (the user: "change gold to trading view moving averages"; config.CFD_RULES["GOLD"],
+  cfd_rules._apply_tv): "MAs only, as built" - with the 30 x ATR safety target every Exness order needs - is the same
+  trade for trade, +48,403 / +145,212: the target was never reached in 3 years. BTC unchanged (the engine).
 
     python3 crypto_tv_ratings_study.py
 """
@@ -59,7 +62,11 @@ SYMBOLS = {"BTCUSD": ("BTC", 1.0), "XAUUSD": ("GOLD", 100.0)}
 STRONG = 0.5
 TOOL_FIGS = {"BTCUSD": (-34831, -3057), "XAUUSD": (-30347, -33445)}   # crypto_engine_votes_study_results.txt, plain 1R
 RETIRED = {"BTCUSD": ("RSI-2 rule (retired 6 Oct)", 25729, 25228), "XAUUSD": ("gold trend rule (retired 6 Oct)", 108722, 47774)}
-VARIANTS = ("tv_all", "tv_ma", "tv_osc", "tv_ours")
+VARIANTS = ("tv_all", "tv_ma", "tv_osc", "tv_ours", "tv_ma_tp")
+# added 14 Oct 2026 when the user chose the MAs-only rating for gold: the same with a far take-profit, 30 x ATR - the
+# Exness executor never sends an order without a target resting at Exness (the 4 Oct incident guard), so the live
+# rule carries one, set before this was run where it should almost never be reached inside 24 hours
+TP_ATR = 30.0
 
 
 def engine_stop(pre, i, side, entry):
@@ -95,7 +102,7 @@ def _prep(sym):
     import tv_rating
     key = SYMBOLS[sym][0]
     df = ed.load(sym)[["Open", "High", "Low", "Close", "Volume"]]
-    path = os.path.join(ed._dir(), f"tvratings_{sym}_{len(df)}.pkl")
+    path = os.path.join(ed._dir(), f"tvratings2_{sym}_{len(df)}.pkl")
     if os.path.exists(path):
         return sym, path
     rt = tv_rating.ratings(df)
@@ -105,7 +112,7 @@ def _prep(sym):
                for b in ("all", "ma", "osc")}
     atr_tv = rt["atr"].to_numpy()
     cands = {v: [] for v in VARIANTS}
-    for v, basis in (("tv_all", "all"), ("tv_ma", "ma"), ("tv_osc", "osc"), ("tv_ours", "all")):
+    for v, basis in (("tv_all", "all"), ("tv_ma", "ma"), ("tv_osc", "osc"), ("tv_ours", "all"), ("tv_ma_tp", "ma")):
         sides = side_of[basis]
         for i in range(250, len(df) - 1):
             s = sides[i]
@@ -127,7 +134,7 @@ def _prep(sym):
     return sym, path
 
 
-def walk_trail(T, M, S, bar_start, cl, i, side, entry, stop, act, off, opp, max_bars=96):
+def walk_trail(T, M, S, bar_start, cl, i, side, entry, stop, act, off, opp, max_bars=96, target=None):
     """TradingView's own exit on ticks: the fixed stop, and once the best tick is `act` in profit a trailing stop `off`
     behind the best tick (Pine's trail_points / trail_offset); an opposite Strong reading at a close -> out at that
     close (the reversal); 24 hours at most. -> (exit price, exit candle, via, exit spread or nan)."""
@@ -143,10 +150,14 @@ def walk_trail(T, M, S, bar_start, cl, i, side, entry, stop, act, off, opp, max_
                 run = np.maximum.accumulate(np.maximum(mid, best))
                 eff = np.where(run - entry >= act, np.maximum(stop, run - off), stop)
                 hit = t.first(mid <= eff)
+                g_hit = t.first(mid >= target) if target is not None else None
             else:
                 run = np.minimum.accumulate(np.minimum(mid, best))
                 eff = np.where(entry - run >= act, np.minimum(stop, run + off), stop)
                 hit = t.first(mid >= eff)
+                g_hit = t.first(mid <= target) if target is not None else None
+            if g_hit is not None and (hit is None or g_hit < hit):
+                return target, j, "target", S[a + g_hit]
             if hit is not None:
                 return mid[hit], j, ("trail" if eff[hit] != stop else "stop"), S[a + hit]
             best = run[-1]
@@ -183,7 +194,7 @@ def _job(args):
     bar_start = idx_utc.asi8
     out = []
     for v in VARIANTS:
-        opp = d["opp"]["all" if v in ("tv_all", "tv_ours") else v[3:]]
+        opp = d["opp"]["all" if v in ("tv_all", "tv_ours") else "ma" if v == "tv_ma_tp" else v[3:]]
         for c in d["cands"][v]:
             i = c["i"]
             if not (lo_i <= i < hi_i):
@@ -194,8 +205,10 @@ def _job(args):
                 px, j, via, xs = t.walk(T, M, S, bar_start, cl, i, c["side"], c["entry"], c["stop"], None, tgt,
                                         None, opp, ratchet=False, trail=False, be_bars=0)
             else:
+                tp = (None if v != "tv_ma_tp" else
+                      c["entry"] + TP_ATR * c["atr"] if c["side"] == "CE" else c["entry"] - TP_ATR * c["atr"])
                 px, j, via, xs = walk_trail(T, M, S, bar_start, cl, i, c["side"], c["entry"], c["stop"],
-                                            5 * c["atr"], 2 * c["atr"], opp)
+                                            5 * c["atr"], 2 * c["atr"], opp, target=tp)
             xs = sp_c[j] if not (xs == xs) else xs
             sign = 1 if c["side"] == "CE" else -1
             net = (sign * (px - c["entry"]) - sp_c[i] / 2 - xs / 2) * mult
@@ -240,7 +253,8 @@ def main():
     months = ed.months_until(t.LAST)
     workers = max(1, min(6, (os.cpu_count() or 2) - 1))
     got = {}
-    for sym in SYMBOLS:
+    only = [x for x in os.environ.get("STUDY_SYMBOLS", "").split(",") if x]
+    for sym in [x for x in SYMBOLS if not only or x in only]:
         df = ed.load(sym)[["Open", "High", "Low", "Close", "Volume"]]
         with open(paths[sym], "rb") as fh:
             n_tool, n_mism = pickle.load(fh)["stop_check"]
@@ -266,7 +280,8 @@ def main():
         got[sym] = (res, n_tool)
     label = {"tool": "THE TOOL as it runs today", "tv_all": "TradingView strategy, rating All",
              "tv_ma": "TradingView strategy, MAs only", "tv_osc": "TradingView strategy, oscillators only",
-             "tv_ours": "TradingView All votes + the tool's exit"}
+             "tv_ours": "TradingView All votes + the tool's exit",
+             "tv_ma_tp": "MAs only, as built (target 30 x ATR)"}
     W = 176
     for sym, (res, n_tool) in got.items():
         key, _ = SYMBOLS[sym]

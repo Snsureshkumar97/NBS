@@ -342,12 +342,19 @@ def _rule_explain(rec):
     tvr = info.get("system") == "tv_rating"
     tr = info.get("system") == "trend_rider" or tvr
     steps = tvr or getattr(config, "TREND_RIDER_EXIT", "ladder") == "rules"
+    # A TradingView-rating CFD rule (cfd_rules._apply_tv - gold since 14 Oct 2026): a trailing stop, a reversal, a far
+    # safety target - not the one-stop-one-target words of the other Exness rules.
+    cfdtv = info.get("kind") == "tv_rating"
+    act, off = (info.get("trail_atr") or [None, None])[:2] if cfdtv else (None, None)
     tail = ((f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
              f"{info.get('target_r'):g} x the risk; "
              + ("the stop moves to T1 at T1 and to T2 at T2 once that 15-minute candle closes, then follows the "
                 "Supertrend, and to the entry after 2 hours without T1; " if steps else
                 "close to T2 the stop moves up to T1, close to T3 up to T2; ")
              + "out at the target or the day's close.") if tr else
+            (f" Stop {info.get('stop_atr'):g} x ATR from the entry; once {act:g} x ATR in profit the stop trails "
+             f"{off:g} x ATR behind the best price; an opposite Strong reading closes it and trades the other way; a far "
+             f"safety target at {info.get('target_atr'):g} x ATR; out after 24 hours.") if cfdtv else
             (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
              "distance; nothing moves the stop on the way, out after 24 hours."))
     if not info.get("ready"):
@@ -357,11 +364,15 @@ def _rule_explain(rec):
         word = ("BUY CE" if side > 0 else "BUY PE") if tr else ("BUY" if side > 0 else "SELL")
         verdict = (f"TradingView's overall rating is {(info.get('tag') or '').split(' · ')[-1] or 'Strong'} on the last "
                    f"15-minute close: {word}." if tvr else
+                   f"{info.get('tag') or info.get('label')} on the last 15-minute close: {word}." if cfdtv else
                    f"Every condition holds, for the first time, on the last 15-minute close: {word}." if tr else
                    f"Every vote and filter agrees on the last 15-minute close: {word}.") + tail
         headline = f"{word} - {info.get('label')}"
     elif tr:
         verdict = " ".join(rec.get("blockers") or [f"No fresh {info.get('label')} signal on the last 15-minute close."])
+        headline = f"No trade - {info.get('label')} waiting"
+    elif cfdtv:
+        verdict = " ".join(rec.get("blockers") or ["No Strong rating on the last 15-minute close."])
         headline = f"No trade - {info.get('label')} waiting"
     else:
         verdict = ("Not every vote and filter agrees on the last 15-minute close, so no trade. The rule decides "
@@ -374,6 +385,11 @@ def _rule_explain(rec):
                   + ("it steps to T1 and T2 as they are reached." if steps else "it stays there until close to T2."),
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "
                   f"(T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
+    elif side and sl is not None and tg[2] is not None and cfdtv:
+        levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; once {act:g} x ATR in "
+                  f"profit it trails {off:g} x ATR behind the best price.",
+                  f"TARGET {_n(tg[2], 2)} - a far safety target, {info.get('target_atr'):g} x ATR (Exness never gets an "
+                  "order without one); the trail or an opposite reading normally ends it first."]
     elif side and sl is not None and tg[2] is not None:
         levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; it stays there.",
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the stop distance, the trade's only exit "

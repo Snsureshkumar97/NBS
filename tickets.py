@@ -1021,8 +1021,32 @@ class TicketBook:
                 trade[sl_field] = tightened
                 ratcheted = True
 
+        # THE ATR TRAIL of a TradingView-rating CFD rule (cfd_rules._apply_tv; crypto_tv_ratings_study.walk_trail): the
+        # best price so far, and once it is atr_trail[0] in profit the stop follows atr_trail[1] behind it - only ever
+        # tighter. Exness's own stop is moved too ("trailed"), but only when it has moved a quarter of that distance
+        # since the last move sent: the ticket closes the position itself at its exact stop, and a move per tick would
+        # flood MetaApi (the 4-5 Oct 429 freezes).
+        at = trade.get("atr_trail")
+        if at and not trade["sl_hit"] and price is not None and trade.get("trail_best") is not None:
+            act, off = at
+            best = max(trade["trail_best"], price) if opt == "CE" else min(trade["trail_best"], price)
+            trade["trail_best"] = best
+            ent = trade["entry_spot"]
+            if (best - ent if opt == "CE" else ent - best) >= act:
+                cur = trade[sl_field]
+                new = tighten(cur, best - off if opt == "CE" else best + off)
+                if new != cur:
+                    trade[sl_field] = new
+                    trade["trail_active"] = True
+                    sent = trade.get("trail_sent")
+                    if sent is None or abs(new - sent) >= 0.25 * off:
+                        trade["trail_sent"] = new
+                        ratcheted = True
+
         if trade["hit"][exit_key]:
             trade["status"] = f"CLOSED — {exit_key} hit (full target reached)"
+        elif trade["sl_hit"] and trade.get("trail_active"):
+            trade["status"] = "CLOSED — trailing stop hit"
         elif trade["sl_hit"]:
             # the last rung whose step had TAKEN EFFECT - a touch whose step was still waiting moved nothing
             trailed_to = next((k for k in reversed(TARGET_KEYS[:exit_i])
@@ -1076,9 +1100,22 @@ class TicketBook:
         the session and the daily brake, a closed market, one position at a time, ONE decision
         per closed 15-minute candle taken in the first cfd_rules.RULE_ENTRY_WINDOW_S after it,
         and REENTRY_COOLDOWN_MIN after an exit."""
+        done = []                       # a reversal's close, returned with whatever follows it
+
         def hold(code, short, why):
             book.wait_reason = (code, short, why)
-            return []
+            return list(done)
+        # A rule that reverses (a TradingView-rating CFD rule, cfd_rules._apply_tv - as TradingView's own strategy
+        # does): an opposite reading at a close ends the open ticket at the price now - an exit, so before any entry
+        # gate - and the same close may then open the other way.
+        info = rec.get("rule") or {}
+        tr_ = book.trade
+        if (info.get("reverse") and tr_ is not None and tr_["status"] == "OPEN" and tr_.get("rule_strategy")
+                and info.get("ready") and info.get("fresh") and info.get("side")
+                and ("CE" if info["side"] > 0 else "PE") != tr_["option_type"]
+                and getattr(book, "last_rule_bar", None) != info.get("bar_close") and rec.get("spot") is not None):
+            tr_["status"] = "CLOSED — opposite signal (reversed)"
+            done.append(self._close(book, tr_, rec["spot"], rec))
         block = self.entry_block(book.name)
         if block is not None:
             return hold(*block)
@@ -1124,7 +1161,7 @@ class TicketBook:
         book.last_bias_signature = (rec["bias"], rec["option_type"])
         book.wait_reason = None
         self._open(book, rec)
-        return [{"kind": "opened", "index": book.name, "rearmed": False, "trade": self._public_trade(book.trade)}]
+        return done + [{"kind": "opened", "index": book.name, "rearmed": False, "trade": self._public_trade(book.trade)}]
 
     def _consider(self, book, rec):
         """Whether to issue a ticket. The five gates, in the order the desktop
@@ -1610,6 +1647,11 @@ class TicketBook:
             # rule's ticket has no reversal exit either.
             "plain_exit": rec.get("target_basis") in ("plain_r", "rule"),
             "rule_strategy": rec.get("target_basis") == "rule",
+            # A TradingView-rating CFD rule's trailing stop (cfd_rules._apply_tv): [how far in profit before it starts,
+            # how far behind the best price it follows], in price, frozen from the entry's ATR; the best price so far.
+            "atr_trail": (list(rec["rule_trail"]) if cfd and rec.get("target_basis") == "rule" and rec.get("rule_trail")
+                          else None),
+            "trail_best": rec["spot"] if cfd and rec.get("rule_trail") else None,
             # Which system issued it: "trend_rider" (trend_rider.py), else the tool's own rules - the page's TR badge.
             "system": (rec.get("rule") or {}).get("system") or "rules",
             # A rule's reward:risk is fixed with its levels (target over stop); frozen so the open

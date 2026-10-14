@@ -122,6 +122,8 @@ def evaluate(index_key, df, now=None):
     closed = df.iloc[:-1]
     if len(closed) < 250:
         return {"ready": False, "why": f"only {len(closed)} closed candles - 250 needed"}
+    if plan.get("kind") == "tv_rating":
+        return _evaluate_tv(index_key, plan, closed, now)
     key = (index_key, closed.index[-1], float(closed["Close"].iloc[-1]), float(closed["Volume"].iloc[-1]), len(closed))
     a = _CACHE.get(key)
     if a is None:
@@ -151,6 +153,8 @@ def apply(rec, ev, index_key):
     plan = config.cfd_rule(index_key)
     if not plan or ev is None:
         return rec
+    if plan.get("kind") == "tv_rating":
+        return _apply_tv(rec, ev, plan)
     info = {"label": plan.get("label", "Exness rule"), "stop_atr": plan["stop_atr"], "target_r": plan["target_r"],
             "ready": ev.get("ready", False), "why": ev.get("why"),
             "votes": [{"key": k, "name": LABELS.get(k, k), "vote": (ev.get("votes") or {}).get(k)} for k in plan["votes"]],
@@ -232,3 +236,93 @@ def _why_not(info, ev, plan):
         else:
             out.append(f"{f.get('name')}: no.")
     return out or ["The rule's votes and filters do not all agree on the last 15-minute close."]
+
+
+# ---------------------------------------------------------------- TradingView's rating as a CFD rule
+# The user, 14 Oct 2026, after crypto_tv_ratings_study.py: "change gold to trading view moving averages". A plan with
+# kind "tv_rating" (config.CFD_RULES) trades TradingView's Technical Ratings - tv_rating.ratings(), the function the
+# study used - on its `basis` group ("ma": the 15 moving-average votes) as TradingView's own strategy does: Strong Buy
+# (over +0.5) -> buy, Strong Sell -> sell, at any 15-minute close with nothing open; stop stop_atr x ATR(14); once
+# trail_atr[0] x ATR in profit, a stop trail_atr[1] x ATR behind the best price (tickets._check_price); an opposite
+# Strong reading at a close ends the ticket and trades the other way (tickets._consider_rule); no wait after an exit;
+# out after 24 hours. One far target, target_atr x ATR, because no order goes to Exness without one resting there
+# (exness_orders._enter) - the study measured the rule with it ("MAs only, as built").
+TV_LABEL = {"ma": "moving-average", "osc": "oscillator", "all": "overall"}
+
+
+def _evaluate_tv(index_key, plan, closed, now):
+    import tv_rating
+    basis = plan.get("basis", "ma")
+    key = ("tv", index_key, closed.index[-1], float(closed["Close"].iloc[-1]), float(closed["Volume"].iloc[-1]),
+           len(closed))
+    r = _CACHE.get(key)
+    if r is None:
+        r = tv_rating.ratings(closed[["Open", "High", "Low", "Close", "Volume"]]).iloc[-1].to_dict()
+        if len(_CACHE) > 64:
+            _CACHE.clear()
+        _CACHE[key] = r
+    x = float(r[basis])
+    side = 1 if x > tv_rating.STRONG else -1 if x < -tv_rating.STRONG else 0
+    bar_close = closed.index[-1] + BAR
+    values = {"rating": x, "basis": basis, "close": float(closed["Close"].iloc[-1]),
+              "buy": int(r[basis + "_buy"]), "sell": int(r[basis + "_sell"]), "n": int(r[basis + "_n"])}
+    out = {"ready": True, "votes": {}, "filters": {}, "side": side, "atr": float(r["atr"]), "values": values,
+           "close": values["close"], "bar_close": bar_close.isoformat(),
+           "fresh": (now - bar_close).total_seconds() <= RULE_ENTRY_WINDOW_S}
+    _LAST_READY[index_key] = out
+    return out
+
+
+def _apply_tv(rec, ev, plan):
+    import tv_rating
+    v = ev.get("values") or {}
+    x, basis = v.get("rating"), v.get("basis", plan.get("basis", "ma"))
+    act, off = plan["trail_atr"]
+    word = TV_LABEL.get(basis, basis)
+    rows = []
+    if ev.get("ready") and x is not None:
+        lean = 1 if x >= 0 else -1
+        rows = [{"key": "tv_" + basis, "name": f"TradingView {word} rating",
+                 "ok": (x > tv_rating.STRONG) if lean > 0 else (x < -tv_rating.STRONG),
+                 "reading": f"{x:+.2f} {tv_rating.label(x)}",
+                 "texts": (f"TradingView's {word} rating is {x:+.2f} - {tv_rating.label(x)}: the rule's one condition.",
+                           f"TradingView's {word} rating is {x:+.2f} - {tv_rating.label(x)}; a trade needs Strong Buy "
+                           "(over +0.5) or Strong Sell (under -0.5).")},
+                {"key": "tv_" + basis + "_n", "name": "Its votes", "ok": (x > 0) if lean > 0 else (x < 0),
+                 "reading": f"{v.get('buy')} buy · {v.get('sell')} sell · {v.get('n', 0) - v.get('buy', 0) - v.get('sell', 0)} neutral",
+                 "texts": (f"{v.get('buy')} of the {v.get('n')} {word} votes say buy, {v.get('sell')} say sell.",) * 2}]
+    info = {"label": plan.get("label", "TradingView rating"), "kind": "tv_rating", "system": "tv_ma",
+            "stop_atr": plan["stop_atr"], "target_r": plan["target_atr"] / plan["stop_atr"],
+            "target_atr": plan["target_atr"], "trail_atr": [act, off], "reverse": True, "no_cooldown": True,
+            "ready": ev.get("ready", False), "why": ev.get("why"), "votes": [], "filters": rows,
+            "side": ev.get("side", 0), "bar_close": ev.get("bar_close"), "fresh": ev.get("fresh", False),
+            "values": v, "tag": f"TradingView {word} rating · {tv_rating.label(x)}",
+            "note": (f"TradingView {word} rating: TradingView's own Technical Ratings strategy on its {word} votes - "
+                     "a buy at a 15-minute close where the rating is Strong Buy (over +0.5), a sell at Strong Sell "
+                     f"(under -0.5), with nothing open. Stop {plan['stop_atr']:g} x ATR; once {act:g} x ATR in profit "
+                     f"the stop trails {off:g} x ATR behind the best price; an opposite Strong reading closes it and "
+                     f"trades the other way; a far safety target at {plan['target_atr']:g} x ATR; out after 24 hours.")}
+    rec["rule"] = info
+    rec.update(suggested_strike=None, strike_swap=None, strike_taken=False, premium_targets=[None, None, None],
+               premium_stop_loss=None, premium_source=None, live_ltp=None)
+    side = ev.get("side", 0) if ev.get("ready") else 0
+    spot, atr = rec.get("spot"), ev.get("atr") or 0
+    if side and spot is not None and atr > 0:
+        R, T = plan["stop_atr"] * atr, plan["target_atr"] * atr
+        rec.update(bias="BULLISH" if side > 0 else "BEARISH", option_type="CE" if side > 0 else "PE",
+                   index_stop_loss=round(spot - side * R, 2), risk_points=round(R, 2),
+                   index_targets=[round(spot + side * T * f / 3, 2) for f in (1, 2, 3)],
+                   reach_to_risk=info["target_r"], reach_points=None, target_basis="rule", gate_targets=None,
+                   confidence="Rule", rule_trail=[round(act * atr, 2), round(off * atr, 2)],
+                   action=f"{'BUY' if side > 0 else 'SELL'} - {info['label']}: {tv_rating.label(x)} on the 15-minute close")
+        why = []
+    else:
+        why = ([f"Waiting - {ev.get('why') or 'no reading yet'}."] if not ev.get("ready") or x is None else
+               [f"TradingView's {word} rating is {x:+.2f} ({tv_rating.label(x)}) on the last 15-minute close - a trade "
+                "needs Strong Buy (over +0.5) or Strong Sell (under -0.5)."])
+        rec.update(bias="NEUTRAL", option_type=None, index_stop_loss=None, risk_points=None, reach_to_risk=None,
+                   reach_points=None, index_targets=[None, None, None], target_basis="rule", confidence="N/A",
+                   rule_trail=None, action="NO TRADE - WAIT (" + "; ".join(w.rstrip(".") for w in why) + ")")
+    rec.update(blockers=why, adx_blocked=False, macd_blocked=False, not_worth_it=False)
+    info["side"] = 0 if rec["bias"] == "NEUTRAL" else (1 if rec["option_type"] == "CE" else -1)   # the final decision
+    return rec

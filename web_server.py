@@ -9941,7 +9941,8 @@ function paperPnl(s){
 }
 // The Trend Rider's trades (trend_rider.py) and the TradingView rating's (tv_rating.py), badged apart from the tool's own.
 const trTag = t => t && t.system === "trend_rider" ? ' <span class="jbadge tr" title="Taken by the Trend Rider">TR</span>'
-  : t && t.system === "tv_rating" ? ' <span class="jbadge tv" title="Taken by the TradingView rating">TV</span>' : "";
+  : t && (t.system === "tv_rating" || t.system === "tv_ma")       // tv_ma: gold's TradingView MA rule (cfd_rules)
+    ? ' <span class="jbadge tv" title="Taken by the TradingView rating">TV</span>' : "";
 // Which kind a trade is, on every line that shows one: the Journal's own badges.
 const tradeTag = t => t && (t.entry_real || t.live)
   ? ' <span class="jbadge live" title="A real order: placed at the broker">Live</span>'
