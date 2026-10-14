@@ -1,0 +1,60 @@
+==============================================================================================================================================================================================
+ TRADINGVIEW TECHNICAL RATINGS (26-indicator vote) vs THE TOOL - at the money, real expiry, 0.25% slippage, every charge, per lot.  columns: trades, won, total, profit factor, worst drop, worst DAY; 'right 1h' = the index moved the call's way an hour later
+==============================================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR                                              | right 1h
+ ALL FOUR INDICES
+    THE TOOL as it runs today                    2409   38% ₹  +592,784 PF 1.26 DD ₹  81,087 day ₹ -25,047  | 1396   36% ₹  +323,517 PF 1.26 DD ₹  77,460 day ₹ -33,724  |  52% /  52%
+    TradingView strategy, rating All             1989   43% ₹  +773,635 PF 1.26 DD ₹ 156,507 day ₹ -42,834  | 1084   45% ₹  +296,107 PF 1.18 DD ₹ 153,789 day ₹ -35,483  |  51% /  53%
+    TradingView strategy, MAs only               2735   41% ₹+1,067,646 PF 1.27 DD ₹ 154,351 day ₹ -37,908  | 1463   43% ₹  +302,841 PF 1.14 DD ₹ 207,504 day ₹ -35,483  |  51% /  52%
+    TradingView strategy, oscillators only          6   17% ₹   -15,235 PF 0.06 DD ₹  16,231 day ₹  -6,858  |    3    0% ₹    -5,255 PF 0.00 DD ₹   5,255 day ₹  -2,878  |  17% /  33%
+    TradingView All votes + the tool's exit      3055   38% ₹  +748,556 PF 1.26 DD ₹ 111,799 day ₹ -32,930  | 1653   39% ₹  +373,907 PF 1.26 DD ₹ 117,403 day ₹ -32,391  |  50% /  52%
+    (info) TV votes, fresh signal only, tool exit  2896   38% ₹  +664,534 PF 1.25 DD ₹ 132,761 day ₹ -36,119  | 1596   39% ₹  +348,103 PF 1.26 DD ₹ 133,948 day ₹ -32,391  |  51% /  52%
+    (info) Trend Rider, re-entering while it holds  1336   36% ₹  +373,924 PF 1.32 DD ₹  47,991 day ₹ -16,778  |  798   37% ₹  +119,679 PF 1.18 DD ₹  50,808 day ₹ -13,522  |  52% /  51%
+ NIFTY  (5-minute walk)
+    THE TOOL as it runs today                     489   35% ₹  +157,331 PF 1.43 DD ₹  20,739 day ₹  -6,747  |  319   36% ₹   +70,163 PF 1.34 DD ₹  20,175 day ₹  -4,933  |  54% /  55%
+    TradingView strategy, rating All              480   42% ₹  +257,582 PF 1.42 DD ₹  34,684 day ₹ -11,149  |  261   46% ₹   +95,278 PF 1.29 DD ₹  43,350 day ₹  -7,867  |  50% /  55%
+    TradingView strategy, MAs only                667   40% ₹  +314,289 PF 1.37 DD ₹  40,144 day ₹ -13,295  |  356   42% ₹  +105,416 PF 1.23 DD ₹  43,221 day ₹ -11,028  |  51% /  53%
+    TradingView strategy, oscillators only          1  100% ₹      +996 PF  inf DD ₹       0 day ₹    +996  |    1    0% ₹    -1,958 PF 0.00 DD ₹   1,958 day ₹  -1,958  |   0% /   0%
+    TradingView All votes + the tool's exit       749   38% ₹  +259,199 PF 1.46 DD ₹  26,758 day ₹  -8,877  |  392   40% ₹  +143,379 PF 1.53 DD ₹  33,562 day ₹  -6,133  |  51% /  54%
+    (info) TV votes, fresh signal only, tool exit   718   38% ₹  +216,401 PF 1.40 DD ₹  23,621 day ₹ -10,202  |  384   39% ₹  +128,793 PF 1.48 DD ₹  33,741 day ₹  -6,133  |  52% /  53%
+    (info) Trend Rider, re-entering while it holds   670   37% ₹  +242,641 PF 1.49 DD ₹  19,064 day ₹  -7,215  |  410   38% ₹   +79,193 PF 1.28 DD ₹  19,872 day ₹  -8,209  |  53% /  52%
+ BANKNIFTY  (5-minute walk)
+    THE TOOL as it runs today                     503   36% ₹  +118,299 PF 1.23 DD ₹  48,095 day ₹ -10,719  |  299   35% ₹   +50,859 PF 1.18 DD ₹  34,680 day ₹  -8,981  |  52% /  51%
+    TradingView strategy, rating All              509   42% ₹  +200,823 PF 1.25 DD ₹ 104,680 day ₹ -13,377  |  276   44% ₹   +64,138 PF 1.15 DD ₹  49,925 day ₹ -12,210  |  49% /  55%
+    TradingView strategy, MAs only                682   40% ₹  +307,230 PF 1.31 DD ₹  71,500 day ₹ -13,404  |  387   43% ₹   +38,637 PF 1.06 DD ₹  92,855 day ₹ -12,696  |  53% /  54%
+    TradingView strategy, oscillators only          1    0% ₹    -5,203 PF 0.00 DD ₹   5,203 day ₹  -5,203  |    0    0% ₹        +0 PF 0.00 DD ₹       0 day ₹      +0  | 100% /   0%
+    TradingView All votes + the tool's exit       789   37% ₹  +165,801 PF 1.21 DD ₹  67,795 day ₹ -13,583  |  433   38% ₹   +77,144 PF 1.20 DD ₹  53,533 day ₹ -11,453  |  47% /  53%
+    (info) TV votes, fresh signal only, tool exit   747   37% ₹  +126,539 PF 1.17 DD ₹  76,618 day ₹ -13,583  |  414   39% ₹   +72,627 PF 1.19 DD ₹  62,019 day ₹ -11,453  |  47% /  54%
+    (info) Trend Rider, re-entering while it holds   666   35% ₹  +131,283 PF 1.20 DD ₹  51,709 day ₹ -10,959  |  388   36% ₹   +40,486 PF 1.11 DD ₹  50,772 day ₹ -10,027  |  52% /  49%
+ SENSEX  (5-minute walk)
+    THE TOOL as it runs today                     666   37% ₹  +122,814 PF 1.23 DD ₹  32,015 day ₹  -7,410  |  385   35% ₹  +108,374 PF 1.39 DD ₹  27,763 day ₹  -7,928  |  48% /  52%
+    TradingView strategy, rating All              486   42% ₹  +299,027 PF 1.48 DD ₹  27,556 day ₹ -11,480  |  272   42% ₹   +82,736 PF 1.25 DD ₹  47,699 day ₹  -8,836  |  52% /  47%
+    TradingView strategy, MAs only                676   39% ₹  +372,376 PF 1.45 DD ₹  44,604 day ₹ -10,323  |  354   43% ₹  +146,235 PF 1.35 DD ₹  46,055 day ₹ -10,116  |  49% /  53%
+    TradingView strategy, oscillators only          1    0% ₹    -1,036 PF 0.00 DD ₹   1,036 day ₹  -1,036  |    0    0% ₹        +0 PF 0.00 DD ₹       0 day ₹      +0  |   0% /   0%
+    TradingView All votes + the tool's exit       754   38% ₹  +272,193 PF 1.46 DD ₹  22,558 day ₹ -14,719  |  419   37% ₹   +77,586 PF 1.25 DD ₹  26,225 day ₹  -6,525  |  51% /  48%
+    (info) TV votes, fresh signal only, tool exit   716   38% ₹  +270,511 PF 1.50 DD ₹  19,856 day ₹  -9,297  |  406   37% ₹   +77,665 PF 1.27 DD ₹  26,269 day ₹  -6,525  |  51% /  48%
+ MIDCPNIFTY  (15-minute walk)
+    THE TOOL as it runs today                     751   43% ₹  +194,339 PF 1.23 DD ₹  29,211 day ₹ -11,161  |  393   37% ₹   +94,122 PF 1.21 DD ₹  39,630 day ₹ -12,274  |  52% /  48%
+    TradingView strategy, rating All              514   45% ₹   +16,203 PF 1.02 DD ₹  77,483 day ₹ -21,877  |  275   47% ₹   +53,955 PF 1.11 DD ₹  43,148 day ₹ -12,085  |  52% /  54%
+    TradingView strategy, MAs only                710   44% ₹   +73,751 PF 1.06 DD ₹  82,303 day ₹ -19,548  |  366   44% ₹   +12,553 PF 1.02 DD ₹  71,086 day ₹ -24,012  |  51% /  50%
+    TradingView strategy, oscillators only          3    0% ₹    -9,992 PF 0.00 DD ₹   9,992 day ₹  -6,858  |    2    0% ₹    -3,296 PF 0.00 DD ₹   3,296 day ₹  -2,878  |   0% /  50%
+    TradingView All votes + the tool's exit       763   39% ₹   +51,362 PF 1.06 DD ₹  68,223 day ₹ -18,220  |  409   41% ₹   +75,797 PF 1.17 DD ₹  31,761 day ₹ -12,844  |  52% /  54%
+    (info) TV votes, fresh signal only, tool exit   715   39% ₹   +51,083 PF 1.06 DD ₹  80,226 day ₹ -18,220  |  392   42% ₹   +69,018 PF 1.16 DD ₹  33,063 day ₹ -12,844  |  52% /  55%
+
+ VERDICT - TradingView better than the tool only if more profit in BOTH periods (all four pooled)
+  drop  TradingView strategy, rating All             profit: in-sample  +180,852  held-out   -27,410   worst drop:  +75,420 /  +76,330   worst day:  -17,787 /   -1,759
+  drop  TradingView strategy, MAs only               profit: in-sample  +474,863  held-out   -20,676   worst drop:  +73,264 / +130,044   worst day:  -12,861 /   -1,759
+  drop  TradingView strategy, oscillators only       profit: in-sample  -608,018  held-out  -328,772   worst drop:  -64,857 /  -72,205   worst day:  +18,188 /  +30,846
+  KEEP  TradingView All votes + the tool's exit      profit: in-sample  +155,772  held-out   +50,390   worst drop:  +30,711 /  +39,943   worst day:   -7,883 /   +1,333
+  KEEP  (info) TV votes, fresh signal only, tool exit profit: in-sample   +71,751  held-out   +24,586   worst drop:  +51,673 /  +56,489   worst day:  -11,072 /   +1,333
+
+ WHOSE VOTES, LIKE FOR LIKE - Nifty + Bank Nifty, the same exit (the Trend Rider's live one) on both
+    THE TOOL as it runs today                     992   35% ₹  +275,631 PF 1.31 DD ₹  52,106 day ₹ -12,398  |  618   35% ₹  +121,022 PF 1.25 DD ₹  42,588 day ₹ -13,522  |  53% /  53%
+    (info) TV votes, fresh signal only, tool exit  1465   37% ₹  +342,940 PF 1.26 DD ₹  86,407 day ₹ -21,540  |  798   39% ₹  +201,420 PF 1.31 DD ₹  86,461 day ₹ -17,051  |  49% /  53%
+    (info) Trend Rider, re-entering while it holds  1336   36% ₹  +373,924 PF 1.32 DD ₹  47,991 day ₹ -16,778  |  798   37% ₹  +119,679 PF 1.18 DD ₹  50,808 day ₹ -13,522  |  52% /  51%
+    TradingView All votes + the tool's exit      1538   38% ₹  +425,001 PF 1.31 DD ₹  70,864 day ₹ -21,540  |  825   39% ₹  +220,523 PF 1.33 DD ₹  70,405 day ₹ -17,051  |  49% /  53%
+  KEEP  fresh signals: TV votes vs the Trend Rider's profit: in-sample   +67,309  held-out   +80,398   worst drop:  +34,301 /  +43,873   worst day:   -9,142 /   -3,530
+  KEEP  while it holds: TV votes vs the Trend Rider's profit: in-sample   +51,077  held-out  +100,844   worst drop:  +22,874 /  +19,597   worst day:   -4,762 /   -3,530
+
+ HOW THE TRADINGVIEW TRADES CLOSED (all four, rating All, its own exit)
+   square-off: 2270, stop: 667, reverse: 136
