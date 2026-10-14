@@ -1,0 +1,46 @@
+============================================================================================================================================================================
+ FOUR IDEAS FROM THE PASTED NOTE, on the rules as live runs them from 14 Oct 2026 (Sensex + Midcap, 15-minute). Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+    BASE                                         1459   41% ₹  +489,948 PF 1.34 DD ₹  38,377 day ₹ -17,343  |  832   39% ₹  +204,688 PF 1.25 DD ₹  49,424 day ₹ -20,384
+    VIX80                                        1061   41% ₹  +329,007 PF 1.34 DD ₹  38,377 day ₹ -13,358  |  681   38% ₹   +92,216 PF 1.15 DD ₹  49,424 day ₹  -9,093
+    STOP_EMA20                                   1547   41% ₹  +513,351 PF 1.35 DD ₹  43,283 day ₹ -16,220  |  872   38% ₹  +207,054 PF 1.25 DD ₹  50,907 day ₹ -20,464
+    STOP_VWAP                                    1603   39% ₹  +518,622 PF 1.37 DD ₹  38,041 day ₹ -12,688  |  936   35% ₹  +164,870 PF 1.19 DD ₹  56,502 day ₹ -14,021
+    TGT_PIVOT                                     939   50% ₹  +205,968 PF 1.24 DD ₹  32,403 day ₹ -16,543  |  541   51% ₹   +91,061 PF 1.18 DD ₹  32,328 day ₹ -13,875
+    TGT_VWAP2SD                                  1109   44% ₹  +479,378 PF 1.45 DD ₹  38,920 day ₹ -16,173  |  610   39% ₹  +103,691 PF 1.17 DD ₹  46,710 day ₹ -13,913
+    EXP_SKIP                                     1277   42% ₹  +334,955 PF 1.26 DD ₹  46,674 day ₹ -23,642  |  721   39% ₹  +140,276 PF 1.20 DD ₹  60,073 day ₹ -20,384
+    EXP_1_5R                                     1487   42% ₹  +444,518 PF 1.31 DD ₹  36,166 day ₹ -17,343  |  853   41% ₹  +231,350 PF 1.28 DD ₹  45,264 day ₹ -20,384
+    EXP_HALF                                     1459   41% ₹  +413,312 PF 1.30 DD ₹  36,511 day ₹ -17,343  |  832   39% ₹  +171,081 PF 1.22 DD ₹  48,516 day ₹ -20,384
+ SENSEX
+    BASE                                          696   40% ₹  +225,647 PF 1.39 DD ₹  28,671 day ₹  -6,848  |  425   37% ₹  +119,188 PF 1.36 DD ₹  22,330 day ₹  -8,110
+    VIX80                                         512   40% ₹  +151,854 PF 1.39 DD ₹  17,509 day ₹  -6,848  |  345   35% ₹   +55,716 PF 1.22 DD ₹  22,330 day ₹  -7,021
+    STOP_EMA20                                    740   38% ₹  +185,698 PF 1.31 DD ₹  26,754 day ₹  -8,743  |  445   36% ₹  +126,681 PF 1.39 DD ₹  20,404 day ₹  -8,584
+    STOP_VWAP                                     772   37% ₹  +184,635 PF 1.31 DD ₹  46,682 day ₹  -7,414  |  476   34% ₹   +75,053 PF 1.21 DD ₹  22,920 day ₹  -6,236
+    TGT_PIVOT                                     444   49% ₹  +107,039 PF 1.33 DD ₹  26,067 day ₹  -5,723  |  263   46% ₹   +64,496 PF 1.33 DD ₹  18,652 day ₹  -5,721
+    TGT_VWAP2SD                                   526   42% ₹  +207,712 PF 1.49 DD ₹  25,543 day ₹  -6,890  |  317   38% ₹   +92,768 PF 1.40 DD ₹  21,483 day ₹  -5,772
+    EXP_SKIP                                      551   39% ₹   +85,109 PF 1.18 DD ₹  42,128 day ₹  -8,440  |  332   39% ₹   +84,021 PF 1.32 DD ₹  17,508 day ₹  -8,110
+    EXP_1_5R                                      714   41% ₹  +188,418 PF 1.33 DD ₹  30,024 day ₹  -6,848  |  444   41% ₹  +156,676 PF 1.48 DD ₹  19,256 day ₹  -8,110
+    EXP_HALF                                      696   40% ₹  +158,023 PF 1.30 DD ₹  30,514 day ₹  -6,848  |  425   37% ₹   +96,002 PF 1.32 DD ₹  18,787 day ₹  -8,110
+ MIDCPNIFTY
+    BASE                                          763   43% ₹  +264,301 PF 1.31 DD ₹  30,131 day ₹ -15,202  |  407   40% ₹   +85,500 PF 1.18 DD ₹  35,525 day ₹ -13,714
+    VIX80                                         549   43% ₹  +177,153 PF 1.31 DD ₹  27,388 day ₹ -11,467  |  336   40% ₹   +36,500 PF 1.10 DD ₹  35,525 day ₹ -13,714
+    STOP_EMA20                                    807   43% ₹  +327,653 PF 1.39 DD ₹  36,531 day ₹ -10,308  |  427   40% ₹   +80,373 PF 1.16 DD ₹  44,594 day ₹ -12,517
+    STOP_VWAP                                     831   41% ₹  +333,987 PF 1.42 DD ₹  35,006 day ₹ -10,208  |  460   36% ₹   +89,817 PF 1.18 DD ₹  41,129 day ₹ -10,449
+    TGT_PIVOT                                     495   50% ₹   +98,929 PF 1.19 DD ₹  45,047 day ₹ -11,473  |  278   55% ₹   +26,565 PF 1.09 DD ₹  31,637 day ₹  -9,561
+    TGT_VWAP2SD                                   583   47% ₹  +271,666 PF 1.43 DD ₹  36,476 day ₹ -12,134  |  293   39% ₹   +10,923 PF 1.03 DD ₹  33,121 day ₹ -10,117
+    EXP_SKIP                                      726   44% ₹  +249,846 PF 1.30 DD ₹  30,131 day ₹ -15,202  |  389   40% ₹   +56,254 PF 1.12 DD ₹  45,462 day ₹ -13,714
+    EXP_1_5R                                      773   43% ₹  +256,099 PF 1.30 DD ₹  30,131 day ₹ -15,202  |  409   40% ₹   +74,674 PF 1.15 DD ₹  35,525 day ₹ -13,714
+    EXP_HALF                                      763   43% ₹  +255,289 PF 1.30 DD ₹  30,131 day ₹ -15,202  |  407   40% ₹   +75,078 PF 1.16 DD ₹  36,749 day ₹ -13,714
+
+ BASE's expiry-day trades: 305 of 2291
+    BASE, expiry days only                        186   40% ₹  +153,273 PF 2.02 DD ₹  11,684 day ₹  -5,183  |  119   36% ₹   +67,214 PF 1.68 DD ₹  13,065 day ₹  -4,234
+
+ VERDICT - kept only if more than BASE in BOTH periods (Sensex + Midcap)
+  drop  VIX80                                        profit: in-sample  -160,941  held-out  -112,472   worst drop:       -0 /       +0   worst day:   +3,985 /  +11,291
+  KEEP  STOP_EMA20                                   profit: in-sample   +23,402  held-out    +2,366   worst drop:   +4,906 /   +1,483   worst day:   +1,123 /      -79
+  drop  STOP_VWAP                                    profit: in-sample   +28,674  held-out   -39,817   worst drop:     -336 /   +7,078   worst day:   +4,655 /   +6,363
+  drop  TGT_PIVOT                                    profit: in-sample  -283,980  held-out  -113,627   worst drop:   -5,975 /  -17,095   worst day:     +800 /   +6,509
+  drop  TGT_VWAP2SD                                  profit: in-sample   -10,570  held-out  -100,997   worst drop:     +543 /   -2,714   worst day:   +1,170 /   +6,472
+  drop  EXP_SKIP                                     profit: in-sample  -154,994  held-out   -64,412   worst drop:   +8,297 /  +10,649   worst day:   -6,299 /       +0
+  drop  EXP_1_5R                                     profit: in-sample   -45,431  held-out   +26,662   worst drop:   -2,211 /   -4,160   worst day:       +0 /       +0
+  drop  EXP_HALF                                     profit: in-sample   -76,636  held-out   -33,607   worst drop:   -1,866 /     -908   worst day:       +0 /       +0
