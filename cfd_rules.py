@@ -301,7 +301,7 @@ def _apply_tv(rec, ev, plan):
                      "a buy at a 15-minute close where the rating is Strong Buy (over +0.5), a sell at Strong Sell "
                      f"(under -0.5), with nothing open. Stop {plan['stop_atr']:g} x ATR; once {act:g} x ATR in profit "
                      f"the stop trails {off:g} x ATR behind the best price; an opposite Strong reading closes it and "
-                     f"trades the other way; a far safety target at {plan['target_atr']:g} x ATR; out after 24 hours.")}
+                     f"trades the other way; out at a far target, {plan['target_atr']:g} x ATR, if it comes first; out after 24 hours.")}
     rec["rule"] = info
     rec.update(suggested_strike=None, strike_swap=None, strike_taken=False, premium_targets=[None, None, None],
                premium_stop_loss=None, premium_source=None, live_ltp=None)

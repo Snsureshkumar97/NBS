@@ -353,8 +353,8 @@ def _rule_explain(rec):
                 "close to T2 the stop moves up to T1, close to T3 up to T2; ")
              + "out at the target or the day's close.") if tr else
             (f" Stop {info.get('stop_atr'):g} x ATR from the entry; once {act:g} x ATR in profit the stop trails "
-             f"{off:g} x ATR behind the best price; an opposite Strong reading closes it and trades the other way; a far "
-             f"safety target at {info.get('target_atr'):g} x ATR; out after 24 hours.") if cfdtv else
+             f"{off:g} x ATR behind the best price; an opposite Strong reading closes it and trades the other way; out "
+             f"at a far target, {info.get('target_atr'):g} x ATR, if it comes first; out after 24 hours.") if cfdtv else
             (f" Stop {info.get('stop_atr'):g} x ATR from the entry, one target at {info.get('target_r'):g} x the stop "
              "distance; nothing moves the stop on the way, out after 24 hours."))
     if not info.get("ready"):
@@ -388,8 +388,8 @@ def _rule_explain(rec):
     elif side and sl is not None and tg[2] is not None and cfdtv:
         levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; once {act:g} x ATR in "
                   f"profit it trails {off:g} x ATR behind the best price.",
-                  f"TARGET {_n(tg[2], 2)} - a far safety target, {info.get('target_atr'):g} x ATR (Exness never gets an "
-                  "order without one); the trail or an opposite reading normally ends it first."]
+                  f"TARGET {_n(tg[2], 2)} - a far target, {info.get('target_atr'):g} x ATR; the trail or an opposite "
+                  "reading usually ends the trade before it."]
     elif side and sl is not None and tg[2] is not None:
         levels = [f"STOP {_n(sl, 2)} - {info.get('stop_atr'):g} x ATR(14) from the entry; it stays there.",
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the stop distance, the trade's only exit "

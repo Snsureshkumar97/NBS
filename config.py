@@ -868,13 +868,16 @@ CFD_EXIT_PLAN = {"BTC": {"plain_r": 1.0}, "GOLD": {"plain_r": 1.0}}
 # TradingView's own Technical Ratings strategy on its 15 moving-average votes (cfd_rules._apply_tv, tv_rating.ratings):
 # Strong Buy -> buy, Strong Sell -> sell, at a 15-minute close with nothing open; stop 3 x ATR; once 5 x ATR in profit
 # the stop trails 2 x ATR behind the best price; an opposite Strong reading reverses; no wait after an exit; 24 hours at
-# most; a far safety target at 30 x ATR (Exness never gets an order without one). On Exness's real ticks, per gold lot
+# most; a far target - 30 x ATR until 14 Oct 2026, then 10 x ATR (below). On Exness's real ticks, per gold lot
 # after spread and swap, first two years / held-out: +48,403 / +145,212 (worst drop 29,508 / 74,577) against the engine
 # it replaces -30,347 / -33,445 - but its first-two-years profit was the buys in gold's rally (its sells lost 21,560);
 # in the held-out year both sides made money. No coin-flip test. BTC stays on the engine.
+# The target 10 x ATR from 14 Oct 2026 evening (was 30), the user: "switch to 10 atr and restart", after
+# gold_tp_study.py - per gold lot, first two years / held-out: 30 x ATR +48,403 / +145,212, 10 x ATR +49,499 / +156,633
+# (about level - most trades end on an opposite reading or the trail); 3 and 5 x ATR lost, 8 x ATR mixed.
 CFD_RULES = {
     "GOLD": {"label": "TradingView MA rating", "kind": "tv_rating", "basis": "ma",
-             "stop_atr": 3.0, "trail_atr": (5.0, 2.0), "target_atr": 30.0},
+             "stop_atr": 3.0, "trail_atr": (5.0, 2.0), "target_atr": 10.0},
 }
 CFD_RULES_RETIRED = {
     "BTC": {"label": "RSI-2 bounce (87%)", "votes": ["rsi2"], "filters": ["adx25"],

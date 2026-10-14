@@ -6360,7 +6360,7 @@ function lotQty(r){
 // the safety target, and the stop. trail = [start distance, gap] in price; sgn +1 for a buy, -1 for a sell.
 function trailRungs(base, sgn, trail, safety, stop, active){
   return [["Trail", "Trail starts" + (active ? " · trailing" : ""), base == null ? null : base + sgn * trail[0], "var(--up)"],
-          ["T3", "Safety target", safety, "var(--up)"],
+          ["T3", "Target", safety, "var(--up)"],
           ["Stop", "Stop" + (active ? ` · ${num(trail[1], 2)} behind the best` : ` · then trails ${num(trail[1], 2)} behind`),
            stop, "var(--down)"]];
 }
@@ -6454,8 +6454,8 @@ function ladder(r, tk){
     $("lnote").innerHTML = trl
       ? `Gold's TradingView rule: once the trade is <b>${num(tk.atr_trail[0], 2)}</b> in profit the stop follows `
         + `<b>${num(tk.atr_trail[1], 2)}</b> behind the best price` + (tk.trail_active ? " - <b>trailing now</b>" : "")
-        + `; an opposite Strong reading closes it; out after 24 hours. The ${num(tg[2], 2)} target is only a safety `
-        + `level Exness needs - the trail is the real exit.`
+        + `; an opposite Strong reading closes it; out after 24 hours. The ${num(tg[2], 2)} target is far `
+        + `(10 x ATR) - most trades end on the trail or an opposite signal before it.`
       : (prem
       ? `Tracked on the live premium of <b>${esc(String(tk.strike))} ${esc(tk.option_type)}</b>, `
         + `frozen at entry. Closes on <b>${esc(tk.exit_at||"T3")}</b> or the stop.`
@@ -6528,7 +6528,7 @@ function ladder(r, tk){
     const od = r.odds || {};
     const ch = od[k === "Stop" ? "stop" : k.toLowerCase()];
     return `<div class="rung"><div class="k" title="${trlLbl ? (k === "T3"
-        ? "a safety target only - the trailing stop is the real exit" : "") : k === exitAt
+        ? "a far target - most trades end on the trail or an opposite signal first" : "") : k === exitAt
         ? "the trade closes here" : k === "T3"
         ? "not an exit - the room-to-run check that decides whether a ticket is issued at all"
         : ""}">${trlLbl ? esc(trlLbl[k]) : lbl(k)}</div>
