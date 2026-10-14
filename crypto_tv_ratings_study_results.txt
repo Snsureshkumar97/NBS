@@ -1,0 +1,49 @@
+Reading TradingView's ratings on Exness's candles and walking every trade on real ticks...
+
+================================================================================================================================================================================
+ EXNESS BTCUSD ON REAL TICKS - TradingView's Technical Ratings vs the tool; $ per 1 BTC, after spread and swap.  columns: trades, won, total, profit factor, worst drop | right 1h = moved the call's way an hour later
+ (the engine's stop, recomputed, equals its own on all 6246 of its trades)
+================================================================================================================================================================================
+                                              FIRST TWO YEARS (to 15 Aug 2025)                 | HELD-OUT YEAR                                    | right 1h
+   THE TOOL as it runs today                   2121   51% $    -34,831 PF 0.94 DD $   38,389 |  1215   50% $     -3,057 PF 0.99 DD $   19,415 |  45% /  49%
+   TradingView strategy, rating All            1980   34% $    -26,552 PF 0.97 DD $   59,268 |  1030   36% $    +26,421 PF 1.06 DD $   15,108 |  48% /  46%
+   TradingView strategy, MAs only              3739   26% $    -59,602 PF 0.94 DD $   65,597 |  2010   26% $    -15,806 PF 0.97 DD $   42,367 |  49% /  48%
+   TradingView strategy, oscillators only         2   50% $       +701 PF 10.45 DD $       74 |     0    0% $         +0 PF 0.00 DD $        0 |  50% /   0%
+   TradingView All votes + the tool's exit     4194   51% $    -37,126 PF 0.97 DD $   41,594 |  2186   51% $     -7,690 PF 0.99 DD $   26,135 |  47% /  48%
+   (for scale) RSI-2 rule (retired 6 Oct)                 $    +25,729                            |             $    +25,228
+  VERDICT - better than the tool only if more in BOTH periods
+   KEEP  TradingView strategy, rating All           vs the tool:      +8,280 /     +29,479   profitable both periods: no
+   drop  TradingView strategy, MAs only             vs the tool:     -24,771 /     -12,749   profitable both periods: no
+   KEEP  TradingView strategy, oscillators only     vs the tool:     +35,533 /      +3,057   profitable both periods: no
+   drop  TradingView All votes + the tool's exit    vs the tool:      -2,295 /      -4,633   profitable both periods: no
+  BUYS vs SELLS (first two years / held-out) - a system that mostly buys looks good in a rally
+   THE TOOL as it runs today                  buys  1092 $    -4,515 /   586 $   -22,452   sells  1029 $   -30,316 /   629 $   +19,395
+   TradingView strategy, rating All           buys  1053 $   +15,510 /   499 $      +246   sells   927 $   -42,062 /   531 $   +26,176
+   TradingView strategy, MAs only             buys  1907 $    +4,299 /   986 $   -25,159   sells  1832 $   -63,902 /  1024 $    +9,352
+   TradingView strategy, oscillators only     buys     2 $      +701 /     0 $        +0   sells     0 $        +0 /     0 $        +0
+   TradingView All votes + the tool's exit    buys  2279 $    -3,701 /  1077 $   -19,197   sells  1915 $   -33,424 /  1109 $   +11,507
+   how TradingView's own strategy (All) closed: reverse: 1039, stop: 907, trail: 907, other: 157
+
+================================================================================================================================================================================
+ EXNESS XAUUSD ON REAL TICKS - TradingView's Technical Ratings vs the tool; $ per gold lot, after spread and swap.  columns: trades, won, total, profit factor, worst drop | right 1h = moved the call's way an hour later
+ (the engine's stop, recomputed, equals its own on all 3829 of its trades)
+================================================================================================================================================================================
+                                              FIRST TWO YEARS (to 15 Aug 2025)                 | HELD-OUT YEAR                                    | right 1h
+   THE TOOL as it runs today                   1406   50% $    -30,347 PF 0.94 DD $   43,923 |   667   51% $    -33,445 PF 0.95 DD $   86,500 |  48% /  50%
+   TradingView strategy, rating All            1311   34% $     -3,105 PF 1.00 DD $   56,438 |   693   35% $   +194,423 PF 1.18 DD $   68,952 |  50% /  46%
+   TradingView strategy, MAs only              2403   27% $    +48,403 PF 1.06 DD $   29,508 |  1316   27% $   +145,212 PF 1.11 DD $   74,577 |  48% /  50%
+   TradingView strategy, oscillators only         6   17% $     -4,467 PF 0.26 DD $    6,017 |     3   33% $       -235 PF 0.94 DD $    3,838 |  50% /  33%
+   TradingView All votes + the tool's exit     2840   50% $    -26,329 PF 0.97 DD $   61,152 |  1589   49% $    -37,955 PF 0.98 DD $  122,565 |  49% /  48%
+   (for scale) gold trend rule (retired 6 Oct)             $   +108,722                            |             $    +47,774
+  VERDICT - better than the tool only if more in BOTH periods
+   KEEP  TradingView strategy, rating All           vs the tool:     +27,242 /    +227,868   profitable both periods: no
+   KEEP  TradingView strategy, MAs only             vs the tool:     +78,750 /    +178,657   profitable both periods: yes
+   KEEP  TradingView strategy, oscillators only     vs the tool:     +25,880 /     +33,211   profitable both periods: no
+   drop  TradingView All votes + the tool's exit    vs the tool:      +4,018 /      -4,510   profitable both periods: no
+  BUYS vs SELLS (first two years / held-out) - a system that mostly buys looks good in a rally
+   THE TOOL as it runs today                  buys   782 $    -1,042 /   341 $   -12,523   sells   624 $   -29,305 /   326 $   -20,922
+   TradingView strategy, rating All           buys   712 $   +38,981 /   365 $  +106,278   sells   599 $   -42,086 /   328 $   +88,145
+   TradingView strategy, MAs only             buys  1250 $   +69,963 /   665 $  +105,531   sells  1153 $   -21,560 /   651 $   +39,681
+   TradingView strategy, oscillators only     buys     4 $    -4,464 /     1 $    -2,228   sells     2 $        -4 /     2 $    +1,993
+   TradingView All votes + the tool's exit    buys  1636 $    +4,482 /   852 $    -6,740   sells  1204 $   -30,811 /   737 $   -31,216
+   how TradingView's own strategy (All) closed: reverse: 679, stop: 645, trail: 602, other: 78
