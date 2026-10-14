@@ -1,0 +1,71 @@
+============================================================================================================================================================================
+ MARKET BREADTH AS A VOTE, on the rules as live runs them from 14 Oct 2026 (15-minute). Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + SENSEX (the verdict)
+    BASE                                         1411   39% ₹  +394,292 PF 1.34 DD ₹  73,094 day ₹ -12,244  |  850   37% ₹  +191,738 PF 1.29 DD ₹  44,888 day ₹ -17,148
+    EQ50                                         1308   40% ₹  +371,805 PF 1.35 DD ₹  64,541 day ₹ -12,244  |  788   37% ₹  +152,801 PF 1.24 DD ₹  41,999 day ₹ -17,148
+    EQ60                                         1136   39% ₹  +359,471 PF 1.38 DD ₹  37,666 day ₹ -12,244  |  688   35% ₹  +147,657 PF 1.27 DD ₹  42,107 day ₹ -17,148
+    WT50                                         1316   40% ₹  +422,841 PF 1.40 DD ₹  56,675 day ₹ -12,814  |  786   37% ₹  +195,239 PF 1.32 DD ₹  44,028 day ₹ -17,148
+    OPEN50                                       1179   40% ₹  +355,677 PF 1.36 DD ₹  43,526 day ₹ -12,244  |  726   37% ₹  +148,796 PF 1.27 DD ₹  40,646 day ₹ -12,650
+    VETO40                                       1374   39% ₹  +389,227 PF 1.35 DD ₹  59,715 day ₹ -12,244  |  827   37% ₹  +190,515 PF 1.29 DD ₹  45,749 day ₹ -17,148
+ NIFTY
+    BASE                                          715   39% ₹  +168,645 PF 1.29 DD ₹  44,422 day ₹  -8,555  |  425   38% ₹   +72,551 PF 1.21 DD ₹  27,577 day ₹  -9,038
+    EQ50                                          663   39% ₹  +159,211 PF 1.29 DD ₹  34,888 day ₹  -6,946  |  395   37% ₹   +49,399 PF 1.16 DD ₹  22,756 day ₹  -9,038
+    EQ60                                          574   39% ₹  +147,319 PF 1.31 DD ₹  30,387 day ₹  -6,946  |  339   35% ₹   +51,606 PF 1.19 DD ₹  22,565 day ₹  -9,038
+    WT50                                          667   40% ₹  +192,873 PF 1.36 DD ₹  33,583 day ₹  -6,003  |  395   37% ₹   +66,630 PF 1.21 DD ₹  29,702 day ₹ -12,985
+    OPEN50                                        601   39% ₹  +156,936 PF 1.31 DD ₹  32,164 day ₹  -6,946  |  362   37% ₹   +49,073 PF 1.18 DD ₹  17,028 day ₹  -7,734
+    VETO40                                        695   39% ₹  +178,876 PF 1.32 DD ₹  33,145 day ₹  -6,946  |  415   36% ₹   +51,621 PF 1.15 DD ₹  30,186 day ₹  -9,038
+ SENSEX
+    BASE                                          696   40% ₹  +225,647 PF 1.39 DD ₹  28,671 day ₹  -6,848  |  425   37% ₹  +119,188 PF 1.36 DD ₹  22,330 day ₹  -8,110
+    EQ50                                          645   40% ₹  +212,594 PF 1.40 DD ₹  29,653 day ₹  -6,848  |  393   36% ₹  +103,402 PF 1.33 DD ₹  31,408 day ₹  -8,110
+    EQ60                                          562   39% ₹  +212,152 PF 1.46 DD ₹  23,477 day ₹  -6,241  |  349   36% ₹   +96,051 PF 1.35 DD ₹  25,367 day ₹  -8,110
+    WT50                                          649   40% ₹  +229,968 PF 1.43 DD ₹  23,352 day ₹  -7,494  |  391   37% ₹  +128,608 PF 1.44 DD ₹  26,316 day ₹  -8,110
+    OPEN50                                        578   40% ₹  +198,740 PF 1.41 DD ₹  23,601 day ₹  -6,848  |  364   37% ₹   +99,723 PF 1.36 DD ₹  26,361 day ₹  -8,110
+    VETO40                                        679   39% ₹  +210,351 PF 1.38 DD ₹  27,470 day ₹  -6,848  |  412   38% ₹  +138,893 PF 1.44 DD ₹  21,212 day ₹  -8,110
+ BANKNIFTY
+    BASE                                          729   39% ₹  +193,495 PF 1.26 DD ₹  48,071 day ₹ -13,169  |  418   41% ₹   +41,165 PF 1.10 DD ₹  38,749 day ₹ -10,589
+    EQ50                                          677   38% ₹  +123,461 PF 1.17 DD ₹  46,929 day ₹ -13,169  |  383   40% ₹   +19,141 PF 1.05 DD ₹  46,098 day ₹ -10,589
+    EQ60                                          574   37% ₹  +126,910 PF 1.21 DD ₹  50,919 day ₹ -12,492  |  321   38% ₹   +17,690 PF 1.05 DD ₹  43,527 day ₹ -10,589
+    WT50                                          672   37% ₹  +109,696 PF 1.15 DD ₹  54,678 day ₹ -13,169  |  378   39% ₹   +19,400 PF 1.05 DD ₹  44,264 day ₹ -10,589
+    OPEN50                                        634   37% ₹  +100,248 PF 1.14 DD ₹  47,837 day ₹ -13,169  |  364   40% ₹    +7,324 PF 1.02 DD ₹  36,122 day ₹ -10,589
+    VETO40                                        694   37% ₹  +128,119 PF 1.18 DD ₹  49,684 day ₹ -13,169  |  399   41% ₹   +34,999 PF 1.09 DD ₹  44,442 day ₹ -10,589
+
+ HOW OFTEN BREADTH ALREADY AGREES with BASE's trades (share of the index's stocks moving the trade's way), and what each group earned
+ NIFTY: 1140 trades, stock data on 1139 of them
+    under 40% agree                                32   41% ₹   +11,033 PF 1.37 DD ₹   9,270 day ₹  -3,862  |   18   56% ₹   +23,135 PF 3.00 DD ₹   3,397 day ₹  -2,717
+    40-50%                                         54   39% ₹    -1,416 PF 0.96 DD ₹  12,392 day ₹  -2,903  |   33   45% ₹   +16,210 PF 1.74 DD ₹   5,887 day ₹  -2,445
+    50-60%                                        118   40% ₹   +11,174 PF 1.12 DD ₹  26,810 day ₹  -4,525  |   77   32% ₹   -31,143 PF 0.54 DD ₹  31,143 day ₹  -5,200
+    60%+ agree                                    511   39% ₹  +147,854 PF 1.34 DD ₹  29,818 day ₹  -6,946  |  296   37% ₹   +67,330 PF 1.29 DD ₹  25,910 day ₹  -9,038
+ SENSEX: 1121 trades, stock data on 1118 of them
+    under 40% agree                                32   38% ₹   +10,443 PF 1.35 DD ₹   5,550 day ₹  -3,078  |   21   24% ₹    -4,599 PF 0.76 DD ₹  13,223 day ₹  -2,837
+    40-50%                                         60   35% ₹    -6,865 PF 0.87 DD ₹  16,064 day ₹  -3,503  |   34   44% ₹   +14,547 PF 1.55 DD ₹   9,317 day ₹  -3,161
+    50-60%                                        109   40% ₹   +12,103 PF 1.12 DD ₹  31,580 day ₹  -4,533  |   69   42% ₹   +19,624 PF 1.45 DD ₹  13,185 day ₹  -3,924
+    60%+ agree                                    495   40% ₹  +209,967 PF 1.53 DD ₹  18,643 day ₹  -6,241  |  298   36% ₹   +93,501 PF 1.39 DD ₹  22,391 day ₹  -8,110
+ BANKNIFTY: 1147 trades, stock data on 1146 of them
+    under 40% agree                                50   54% ₹   +68,149 PF 3.06 DD ₹   7,002 day ₹  -3,709  |   34   32% ₹    -7,989 PF 0.80 DD ₹  23,368 day ₹  -4,110
+    40-50%                                         31   29% ₹    -9,152 PF 0.77 DD ₹  14,257 day ₹  -6,135  |   21   62% ₹   +16,413 PF 3.15 DD ₹   3,113 day ₹  -3,027
+    50-60%                                        127   40% ₹   +26,820 PF 1.24 DD ₹  16,202 day ₹  -6,099  |   79   52% ₹   +40,734 PF 1.63 DD ₹  11,304 day ₹  -5,350
+    60%+ agree                                    521   37% ₹  +107,679 PF 1.19 DD ₹  47,391 day ₹  -8,498  |  283   37% ₹   -10,454 PF 0.97 DD ₹  42,688 day ₹ -10,589
+
+ VERDICT - kept only if more than BASE in BOTH periods (Nifty + Sensex pooled), and then on each index too
+  drop  EQ50                                         profit: in-sample   -22,488  held-out   -38,937   worst drop:   -8,553 /   -2,889   worst day:       +0 /       +0
+      drop  EQ50 NIFTY                                   profit: in-sample    -9,435  held-out   -23,152   worst drop:   -9,534 /   -4,821   worst day:   +1,609 /       +0
+      drop  EQ50 SENSEX                                  profit: in-sample   -13,053  held-out   -15,785   worst drop:     +981 /   +9,078   worst day:       +0 /       +0
+      drop  EQ50 BANKNIFTY                               profit: in-sample   -70,034  held-out   -22,024   worst drop:   -1,141 /   +7,350   worst day:       +0 /       +0
+  drop  EQ60                                         profit: in-sample   -34,822  held-out   -44,081   worst drop:  -35,428 /   -2,781   worst day:       +0 /       +0
+      drop  EQ60 NIFTY                                   profit: in-sample   -21,326  held-out   -20,945   worst drop:  -14,035 /   -5,012   worst day:   +1,609 /       +0
+      drop  EQ60 SENSEX                                  profit: in-sample   -13,495  held-out   -23,136   worst drop:   -5,195 /   +3,037   worst day:     +608 /       +0
+      drop  EQ60 BANKNIFTY                               profit: in-sample   -66,585  held-out   -23,475   worst drop:   +2,849 /   +4,778   worst day:     +677 /       +0
+  KEEP  WT50                                         profit: in-sample   +28,548  held-out    +3,500   worst drop:  -16,419 /     -860   worst day:     -570 /       +0
+      drop  WT50 NIFTY                                   profit: in-sample   +24,228  held-out    -5,920   worst drop:  -10,839 /   +2,125   worst day:   +2,552 /   -3,948
+      KEEP  WT50 SENSEX                                  profit: in-sample    +4,321  held-out    +9,421   worst drop:   -5,319 /   +3,986   worst day:     -646 /       +0
+      drop  WT50 BANKNIFTY                               profit: in-sample   -83,800  held-out   -21,766   worst drop:   +6,607 /   +5,515   worst day:       +0 /       +0
+  drop  OPEN50                                       profit: in-sample   -38,616  held-out   -42,942   worst drop:  -29,568 /   -4,242   worst day:       +0 /   +4,497
+      drop  OPEN50 NIFTY                                 profit: in-sample   -11,709  held-out   -23,478   worst drop:  -12,258 /  -10,548   worst day:   +1,609 /   +1,304
+      drop  OPEN50 SENSEX                                profit: in-sample   -26,907  held-out   -19,464   worst drop:   -5,070 /   +4,031   worst day:       +0 /       +0
+      drop  OPEN50 BANKNIFTY                             profit: in-sample   -93,247  held-out   -33,841   worst drop:     -233 /   -2,627   worst day:       +0 /       +0
+  drop  VETO40                                       profit: in-sample    -5,066  held-out    -1,224   worst drop:  -13,379 /     +861   worst day:       +0 /       +0
+      drop  VETO40 NIFTY                                 profit: in-sample   +10,231  held-out   -20,929   worst drop:  -11,277 /   +2,610   worst day:   +1,609 /       +0
+      drop  VETO40 SENSEX                                profit: in-sample   -15,296  held-out   +19,706   worst drop:   -1,202 /   -1,118   worst day:       +0 /       +0
+      drop  VETO40 BANKNIFTY                             profit: in-sample   -65,376  held-out    -6,166   worst drop:   +1,614 /   +5,693   worst day:       +0 /       +0
