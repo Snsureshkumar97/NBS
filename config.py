@@ -333,7 +333,17 @@ ADX_LENGTH = 14
 # Per market. Tested on the three Indian indices only: BTC keeps Wilder's ADX
 # (None) until it has been measured with it - a rule is not switched onto a
 # market it was never tested on.
-ADX_DX_SMOOTHING = {"nse_index": 3, "crypto": None}
+# 6 from 14 Oct 2026, the user's choice ("yes switch to 6 and restart") after
+# adx_speed_sweep_study.py, on the rules as they run from 15 Oct (T3 exit, steps at
+# the candle close, T1-exit re-entry, the room from the day's range alone). Sensex +
+# Midcap, per lot after costs, first two years | held-out:
+#   DX over 3 (until now)  +489,948 PF 1.34 DD 38k | +204,688 PF 1.25 DD 49k
+#   DX over 6 (this)       +649,069 PF 1.47 DD 37k | +320,345 PF 1.42 DD 32k
+# Sensex on 5-minute candles +210,022 | +109,993 against +199,733 | +63,091. Every
+# speed from 4 to 10 beat 3 in both periods (12 and 14 fell back): 3 was the edge of
+# a plateau, 6 its middle. Chosen after the sweep (its pre-declared rule, about 7,
+# kept 3) - the whole 4-10 band is what makes it more than a lucky point.
+ADX_DX_SMOOTHING = {"nse_index": 6, "crypto": None}
 
 
 def adx_dx_smoothing(index_key=None):

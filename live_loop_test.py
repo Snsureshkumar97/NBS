@@ -163,7 +163,7 @@ moved = lambda i: sum(1 for a, b in zip(seen, seen[1:]) if a[i] != b[i])
 check("one recompute after each price move: spot, RSI, MACD histogram and VWAP gap all follow it",
       all(moved(i) == len(seen) - 1 for i in range(4)), seen)
 check("ADX moves as the forming candle makes new highs and lows", moved(4) >= 2, [s[4] for s in seen])
-check("on the Indian indices ADX is the fast measure (trend averaged over 3)", config.adx_dx_smoothing("NIFTY") == 3)
+check("on the Indian indices ADX is the fast measure (trend averaged over 6 since 14 Oct 2026)", config.adx_dx_smoothing("NIFTY") == 6)
 
 r1 = h.reading("NIFTY")
 check("the reading carries the public card and the votes behind the gauges",

@@ -43,12 +43,12 @@ check("it follows a new trend faster, which is the point",
 
 print("2. ONLY WHERE IT WAS TESTED")
 for k in ("NIFTY", "BANKNIFTY", "SENSEX"):
-    check(f"{k} uses DX over 3", config.adx_dx_smoothing(k) == 3)
+    check(f"{k} uses DX over 6 (3 until 14 Oct 2026 - adx_speed_sweep_study.py)", config.adx_dx_smoothing(k) == 6)
 check("BTC keeps Wilder's ADX - never measured with the faster one", config.adx_dx_smoothing("BTC") is None)
 check("no instrument named means the default market (the NSE-only desktop and main.py)",
-      config.adx_dx_smoothing() == 3)
+      config.adx_dx_smoothing() == 6)
 check("the engine's gate reads it per instrument",
-      se.compute_technical_signal(df, "NIFTY")["adx"] == round(float(ind.adx(df, 14, 3).iloc[-1]), 1)
+      se.compute_technical_signal(df, "NIFTY")["adx"] == round(float(ind.adx(df, 14, 6).iloc[-1]), 1)
       and se.compute_technical_signal(df, "BTC")["adx"] == round(float(wilder.iloc[-1]), 1))
 
 print("3. EVERY PATH PASSES THE INSTRUMENT")

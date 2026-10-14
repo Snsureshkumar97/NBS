@@ -257,8 +257,8 @@ check("the account, the session's identity and the broker fields never appear an
       and "XYZ001" not in mb.build_context(SNAP_OPEN, "nse_index", "NIFTY"))
 check("the rules block matches config", ctx["rules"]["exit_target"] == config.EXIT_AT_TARGET
       and ctx["rules"]["trend_gate_adx"] == config.strictness()["adx"])
-check("the trend measure is reported per index (fast on NSE, since 17 Sep 2026)",
-      "3 candles" in ctx["rules"]["trend_measure"])
+check("the trend measure is reported per index (fast on NSE, since 17 Sep 2026; over 6 candles since 14 Oct)",
+      "6 candles" in ctx["rules"]["trend_measure"])
 # 17 Sep 2026: session_today had no per-index breakdown, so a day when more than
 # one index traded left the bot unable to reconcile its own session tally against
 # the selected index's own trades - it correctly said so rather than guessing,

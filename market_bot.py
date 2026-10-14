@@ -434,7 +434,7 @@ def build_context(snap, market, index, now=None, user=None):
             "exit_target": getattr(config, "EXIT_AT_TARGET", "T2"),
             "min_reward_to_risk_T3": config.min_reward_risk_t3(index),
             "trend_gate_adx": config.strictness().get("adx"),
-            "trend_measure": ("ADX with its trend reading averaged over 3 candles"
+            "trend_measure": (f"ADX with its trend reading averaged over {config.adx_dx_smoothing(index)} candles"
                               if config.adx_dx_smoothing(index) else "ADX over 14 candles"),
             "opening_range_wait": bool(getattr(config, "REGIME_OR_BREAK", False)),
             "max_tickets_per_day": getattr(config, "MAX_TRADES_PER_DAY", None),
