@@ -1065,7 +1065,10 @@ def active_instruments():
 # after costs, first two years / held-out: Sensex + Midcap +489,948 / +204,688 against +287,984 / +142,514 with the cap;
 # Sensex on 5-minute candles +199,733 / +63,091 against +13,713 / +19,727. Only the Indian rules use the room (the Trend
 # Rider and the TradingView rating set their own targets); crypto was not studied and keeps "all".
-ROOM_LIMITS = {"nse_index": "range", "crypto": "all"}
+# BACK TO "all" on 15 Oct 2026, before the open - the user, after the far targets were explained ("what if the target is
+# farway and it never reaches"): "no change it what it use to be". Live since 14 Oct 18:07, it never traded a session.
+# "range" stays here as a switch; the numbers above are what it measured.
+ROOM_LIMITS = {"nse_index": "all", "crypto": "all"}
 
 
 def room_limits(index_key=None):

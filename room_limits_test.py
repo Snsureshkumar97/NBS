@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""config.ROOM_LIMITS - the room to run on the Indian indices from the day's range alone (the user, 14 Oct 2026: "build
-the room fix", after room_fix_study.py). The expected move and the OI walls are still worked out and shown, but neither
+"""config.ROOM_LIMITS - LIVE: "all" everywhere again since 15 Oct 2026 (the user: "no change it what it use to be") - the
+room is the tightest of the expected move, the OI walls and the day's range left, as before 14 Oct. The "range" switch
+(the user, 14 Oct 2026: "build the room fix", after room_fix_study.py) is kept and tested here: The expected move and the OI walls are still worked out and shown, but neither
 limits nor floors the room there; crypto keeps all three; live's room equals the variant measured (the day's range on
 the live normal day, no chain) on real Sensex history; the targets and the reward:risk gate grow with it."""
 import datetime as dt
@@ -26,8 +27,11 @@ def check(name, cond, extra=""):
         fails.append(name)
 
 print("1. THE SETTING")
-check("Indian indices: the day's range alone; crypto: all three limits", config.ROOM_LIMITS == {"nse_index": "range", "crypto": "all"})
-check("per instrument", [config.room_limits(k) for k in ("NIFTY", "SENSEX", "MIDCPNIFTY", "BTC", "GOLD")]
+check("LIVE: all three limits everywhere, as before 14 Oct", config.ROOM_LIMITS == {"nse_index": "all", "crypto": "all"})
+check("per instrument", [config.room_limits(k) for k in ("NIFTY", "SENSEX", "MIDCPNIFTY", "BTC", "GOLD")] == ["all"] * 5)
+LIVE = dict(config.ROOM_LIMITS)
+config.ROOM_LIMITS = dict(LIVE, nse_index="range")          # sections 2-5: the "range" switch, as built on 14 Oct
+check("switched to 'range': the Indian indices only", [config.room_limits(k) for k in ("NIFTY", "SENSEX", "MIDCPNIFTY", "BTC", "GOLD")]
       == ["range"] * 3 + ["all"] * 2)
 check("an unknown or missing instrument keeps all three", config.room_limits(None) == "all" and config.room_limits("XYZ") == "all")
 
@@ -111,6 +115,15 @@ config.ROOM_LIMITS = was
 check("a call's T3 is the day's range left (72,600), not the expected move's", rec["bias"] == "BULLISH"
       and rec["index_targets"][2] == round(72000.0 + room, 2) and rec_a["index_targets"][2] < rec["index_targets"][2],
       (rec["index_targets"], rec_a["index_targets"]))
+
+print("6. LIVE IS THE OLD ROOM AGAIN")
+config.ROOM_LIMITS = LIVE
+rl = se.compute_reachability(72000.0, chain, df, now, **kw)
+check("the live room equals the old one (the tighter expected move or wall), not the range's", rl["room_limits"] == "all"
+      and (rl["reach_up"], rl["reach_down"], rl["cap_up"]) == (ra["reach_up"], ra["reach_down"], ra["cap_up"])
+      and rl["reach_up"] < room, (rl["reach_up"], rl["cap_up"]))
+rec_l = se.build_recommendation("SENSEX", tech, oi0, 100, reach=rl)
+check("...and so are the targets", rec_l["index_targets"] == rec_a["index_targets"], rec_l["index_targets"])
 
 print()
 print("ROOM LIMITS TEST PASSED" if not fails else f"ROOM LIMITS TEST FAILED: {fails}")
