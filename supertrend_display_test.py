@@ -90,8 +90,9 @@ print("5. EVERY THEME DEFINES ITS OWN LINE COLOUR - A FOURTH ONE FORGOTTEN WOULD
 check("the chart reads it the same way as every other indicator colour",
       'supertrend: css("--supertrend")' in SRC)
 theme_blocks = SRC.count("--supertrend:")
-check("all three theme blocks that define --adx also define --supertrend (same count, not fewer)",
-      theme_blocks == SRC.count("--adx:") == 3, theme_blocks)
+# five: the base, Kite white and Kite dark, and the redesign's white and dark (16 Oct 2026)
+check("all five theme blocks that define --adx also define --supertrend (same count, not fewer)",
+      theme_blocks == SRC.count("--adx:") == 5, theme_blocks)
 
 print("6. THE BACKEND CALL SITE USES THE REAL INDEX KEY, NOT THE MARKET STRING "
       "(Bank Nifty's own multiplier would otherwise be silently dropped)")

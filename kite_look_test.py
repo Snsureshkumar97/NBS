@@ -176,9 +176,10 @@ check("every base rule that paints a dark surface or a pale-on-dark colour is na
 check("the two notices are pale tints with dark type in white and tinted dark with light type in dark - all tokens, none a literal",
       ".notice.risk{background:var(--note-bg);border:1px solid var(--note-bd);color:var(--note-ink);padding:7px 14px;font-size:13px}" in KITE
       and ".notice.stale{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--ink-2)}" in KITE)
+# a line of nothing but custom properties is a scheme's token block (the redesign of 16 Oct 2026 adds two), not a rule painting a literal
 check("no rule of the look paints a colour literal except white type on a coloured button and the live-orders red",
       not [l for l in re.findall(r"[^\n]*#[0-9a-fA-F]{3,6}\b[^\n]*", re.sub(r"/\*.*?\*/", "", KITE.split(":root[data-look=\"kite\"] *,")[1], flags=re.S))
-           if not re.search(r"color:#fff|#c62828", l)], [l.strip()[:80] for l in re.findall(r"[^\n]*#[0-9a-fA-F]{3,6}\b[^\n]*", KITE.split(":root[data-look=\"kite\"] *,")[1]) if not re.search(r"color:#fff|#c62828", l)][:4])
+           if not re.search(r"color:#fff|#c62828", l) and not re.fullmatch(r"\s*(--[\w-]+:[^;]+;\s*)+", l)], [l.strip()[:80] for l in re.findall(r"[^\n]*#[0-9a-fA-F]{3,6}\b[^\n]*", KITE.split(":root[data-look=\"kite\"] *,")[1]) if not re.search(r"color:#fff|#c62828", l) and not re.fullmatch(r"\s*(--[\w-]+:[^;]+;\s*)+", l)][:4])
 check("the survey found the rules it should (so the test is not passing on an empty list)", len(dark) >= 15 and len(light) >= 6, (len(dark), len(light)))
 
 print("5. THE SWITCH: WHITE AND DARK")

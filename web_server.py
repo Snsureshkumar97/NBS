@@ -521,6 +521,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(nbs_site.FAVICON, "image/svg+xml")
             if path == "/vendor/lightweight-charts.js":
                 return self._vendor("lightweight-charts.standalone.production.js")
+            if path.startswith("/vendor/fonts/"):
+                return self._font(path[len("/vendor/fonts/"):])
             if path == "/robots.txt":
                 return self._send(nbs_site.robots_txt(self._base()), "text/plain")
             if path == "/sitemap.xml":
@@ -2429,6 +2431,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # Exactly the files this may serve - a name is looked up here, never joined
     # onto a path, so nothing outside vendor/ can be reached whoever calls it.
     _VENDOR_FILES = frozenset({"lightweight-charts.standalone.production.js"})
+
+    # The redesign's three typefaces (16 Oct 2026), latin subsets as Google Fonts serves them, under the SIL Open Font
+    # License (vendor/fonts/OFL-*.txt). Served from here because the page loads nothing from anywhere else.
+    _FONT_FILES = frozenset({"geist.woff2", "geist-mono.woff2", "bricolage.woff2"})
+    _FONTS = {}
+
+    def _font(self, name):
+        if name not in self._FONT_FILES:
+            return self._send("not found", "text/plain", 404)
+        body = self._FONTS.get(name)
+        if body is None:
+            try:
+                with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor", "fonts", name), "rb") as fh:
+                    body = self._FONTS[name] = fh.read()
+            except OSError:
+                return self._send("not found", "text/plain", 404)
+        return self._send(body, "font/woff2")
 
     def _vendor(self, name):
         """A vendored library, served as it was downloaded (see vendor/README.md)."""
@@ -5166,6 +5185,120 @@ button.mgroup:hover{color:var(--ink-2)}
 @media (max-width:340px){
   .botnav{gap:0;padding-left:2px;padding-right:2px}
   .botnav button{padding-left:0;padding-right:0}
+}
+/* =====================================================================
+   THE REDESIGN (16 Oct 2026) - the user, after the clickable preview: "yes i like this ... work the same theme
+   design on website also", "dont remove any of the tab section keep the data as like it is".
+   One layer over the Zerodha look: every page, panel and figure stays where it was, with the same data; what changes
+   is the type (Geist for text, Geist Mono for figures, Bricolage Grotesque for headlines - all three served from
+   vendor/fonts, OFL), the colours (deep layered panels in dark, a cool off-white in light; one blue for actions,
+   green and red only ever for profit and loss) and the shapes (rounded panels with a soft shadow, a floating menu
+   bar). Still nothing moves and nothing glows. redesign_test.py checks the contrast of both schemes.
+   ===================================================================== */
+@font-face{font-family:"Geist";src:url("/vendor/fonts/geist.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Geist Mono";src:url("/vendor/fonts/geist-mono.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Bricolage Grotesque";src:url("/vendor/fonts/bricolage.woff2") format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+:root[data-look="kite"]{
+  --f-ui:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  --f-mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --f-disp:"Bricolage Grotesque","Geist",-apple-system,BlinkMacSystemFont,sans-serif;
+  --bg:#f4f5f9; --surface:#ffffff; --raised:#f6f7fb; --sunken:#eceef4;
+  --bd:#e2e5ec; --bd-soft:#eceef3;
+  --ink:#0d1220; --ink-2:#4a5468; --ink-3:#5f687c;
+  --up:#0a7d53; --down:#c93535; --warn:#9a5900; --accent:#4b5ce6;
+  --brand:#4b5ce6; --accent-strong:#3a4bd6; --accent-text:#3a4bd6;
+  --ema-fast:#4b5ce6; --ema-slow:#9a5900; --vwap:#8e44ad;
+  --rsi:#0f8a7e; --macd-line:#b0305c; --macd-signal:#5c6f8a; --adx:#a1840a; --supertrend:#0a7d53;
+  --note-bg:#fff7e0; --note-bd:#efd9a0; --note-ink:#5f4b00; --note-strong:#8a5a00;
+  --warn-bg:#fff1ec; --warn-bd:#ffd0bd; --warn-strong:#c2410c;
+  --ok-bg:#e6f4ee; --ok-bd:#b5dcc8; --hold-bg:#fff3d6;
+  --atm:#eef0fd; --track:#c9cdd6; --knob:#ffffff; --scrim:rgba(13,18,32,.35);
+  --wash-a:rgba(10,125,83,.07); --wash-b:rgba(75,92,230,.07);
+  --shadow:0 1px 2px rgba(15,20,40,.05),0 18px 36px -26px rgba(15,20,40,.28);
+  --r:14px; --r-sm:10px; --r-lg:18px;
+}
+:root[data-look="kite"][data-scheme="dark"]{
+  --bg:#07090d; --surface:#0f131a; --raised:#141922; --sunken:#0b0e14;
+  --bd:#1f2530; --bd-soft:#181d26;
+  --ink:#eef1f6; --ink-2:#aab3c2; --ink-3:#8a93a4;
+  --up:#2fd39a; --down:#ff6b6b; --warn:#f5b84a; --accent:#8b9bff;
+  --brand:#8b9bff; --accent-strong:#5263e4; --accent-text:#9aa8ff;
+  --ema-fast:#8b9bff; --ema-slow:#f5b84a; --vwap:#c08adf;
+  --rsi:#2dd4bf; --macd-line:#f06595; --macd-signal:#9fb0c9; --adx:#e6c229; --supertrend:#2fd39a;
+  --note-bg:#1d1a10; --note-bd:#3a3218; --note-ink:#e8dca8; --note-strong:#f5b84a;
+  --warn-bg:#2a1a16; --warn-bd:#4d2c22; --warn-strong:#ff8a65;
+  --ok-bg:#0f2a21; --ok-bd:#1f4d3b; --hold-bg:#2a2312;
+  --atm:#18203a; --track:#3a404c; --knob:#eef1f6; --scrim:rgba(0,0,0,.6);
+  --wash-a:rgba(47,211,154,.08); --wash-b:rgba(93,111,240,.09);
+  --shadow:0 1px 0 rgba(255,255,255,.035) inset,0 20px 40px -26px rgba(0,0,0,.85);
+}
+/* -- type -- */
+:root[data-look="kite"] body{font-family:var(--f-ui);font-size:14px;line-height:1.5;
+  background:radial-gradient(1100px 520px at 12% -8%,var(--wash-b),transparent 62%),
+             radial-gradient(900px 480px at 100% 0%,var(--wash-a),transparent 60%),var(--bg);background-attachment:fixed}
+:root[data-look="kite"] :is(h1,h2,.htitle,.welcome h1){font-family:var(--f-disp);font-weight:700;letter-spacing:-.6px}
+:root[data-look="kite"] :is(h3){font-weight:600;letter-spacing:-.1px}
+:root[data-look="kite"] .herocard #bias{font-family:var(--f-disp);font-weight:800;letter-spacing:-1.6px;line-height:1}
+:root[data-look="kite"] :is(.tile .v,.daymove .big,.mkt .px,.rung .n,.ticker .tk-p,.psum b,.pdet b,.rrfig b,.rr-p,.rr-to,.gv){
+  font-family:var(--f-mono);letter-spacing:-.4px}
+:root[data-look="kite"] :is(td,.knum,.kr b,.tile .v,.mkt .px){font-variant-numeric:tabular-nums}
+:root[data-look="kite"] :is(.tile .v,.knum){font-weight:500}
+:root[data-look="kite"] .kd-mkt b{font-family:var(--f-ui);letter-spacing:-.2px}
+:root[data-look="kite"] :is(.psum span,.pdet span,.rrfig span){text-transform:none;letter-spacing:0;font-weight:500}
+/* the strip of index prices under the menu: on the page's own ground, not a grey band */
+:root[data-look="kite"] .ticker{background:transparent;border-bottom:0}
+/* labels: small, grey, sentence case - the capitals of the old look shouted over the figures they name */
+:root[data-look="kite"] :is(table th,.tile .l,.session .l,.mkt .nm,.kh,.eyebrow,.rr-h){text-transform:none;letter-spacing:0;font-weight:500}
+:root[data-look="kite"] :is(.kh,.eyebrow,.rr-h){font-size:13px;color:var(--ink-2);font-weight:600}
+:root[data-look="kite"] #markets::before{text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink-2)}
+/* -- panels: the sections become rounded panels again, each a step above the page -- */
+:root[data-look="kite"] .pane > :is(.card,.top3 > .card,.grid > .card,.grid2 > .card),
+:root[data-look="kite"] .pane > :is(.grid,.grid2) > .card,
+:root[data-look="kite"] :is(.kbox,.kstick > #markets,.tile,.tstat,.risk,.gmk .q,.dcard,.session){
+  background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-lg);box-shadow:var(--shadow) !important}
+:root[data-look="kite"] .pane > .card,:root[data-look="kite"] .pane > :is(.grid,.grid2) > .card{padding:18px 20px;margin-bottom:16px}
+:root[data-look="kite"] .pane[data-pane="signal"] .top3{gap:16px;border-bottom:0;padding-bottom:0}
+:root[data-look="kite"] .pane[data-pane="signal"] .top3 .card{background:var(--surface);border:1px solid var(--bd);
+  border-radius:var(--r-lg);box-shadow:var(--shadow) !important;padding:16px 18px !important}
+:root[data-look="kite"] .herocard#sigcard{background:radial-gradient(900px 360px at 0% 0%,var(--wash-a),transparent 60%),var(--surface);
+  border:1px solid var(--bd);border-radius:20px;box-shadow:var(--shadow) !important;padding:22px 24px !important}
+:root[data-look="kite"] :is(.tile,.tstat,.risk){background:var(--raised);box-shadow:none !important;border-radius:var(--r)}
+:root[data-look="kite"] .kh{border-bottom:1px solid var(--bd-soft)}
+:root[data-look="kite"] :is(.scrwrap,.chainwrap,.watchwrap,.tvframe){border-radius:var(--r);overflow:hidden}
+:root[data-look="kite"] :is(table.scr th,table.chain th,th){background:var(--raised)}
+:root[data-look="kite"] :is(.rung .bar,.gauge .gt,.sectbar,.mvbar){border-radius:999px}
+:root[data-look="kite"] :is(.rung .bar i,.gauge .gt i){border-radius:999px}
+/* -- controls -- */
+:root[data-look="kite"] :is(.lbtn,.chip,.pill,.navbtn,.status,button,select,input:not([type=checkbox]):not([type=radio]),textarea){border-radius:var(--r-sm)}
+:root[data-look="kite"] :is(.lbtn,.navbtn){font-weight:500}
+:root[data-look="kite"] :is(.tag,.badge){border-radius:999px;font-weight:600}
+:root[data-look="kite"] :is(.lbtn.on,.lbtn.tf.on,.aipicker .lbtn.on,.acct i,.bmsg.user,.skip,.looksw button.on){background:var(--accent-strong);
+  border-color:var(--accent-strong);color:#fff}
+:root[data-look="kite"] .notice.risk{border-radius:var(--r)}
+/* -- the menu: a floating bar with the page you are on as a lifted pill, not an orange underline -- */
+@media (min-width:901px){
+  :root[data-look="kite"] .side{top:12px;left:24px;right:24px;height:56px;border:1px solid var(--bd);border-radius:16px;
+    background:var(--surface);box-shadow:var(--shadow) !important;padding:0 8px 0 16px}
+  :root[data-look="kite"] .sbrand b,:root[data-look="kite"] .sbrand strong{font-family:var(--f-disp);font-weight:800;letter-spacing:-.3px}
+  :root[data-look="kite"] .menu{height:56px;align-items:center;gap:2px}
+  :root[data-look="kite"] .menu .tab,:root[data-look="kite"] button.mgroup.mtoggle{height:38px;padding:0 12px;border:0;border-radius:10px;
+    font-size:13.5px;font-weight:500;color:var(--ink-2)}
+  :root[data-look="kite"] .menu .tab:hover,:root[data-look="kite"] button.mgroup.mtoggle:hover{background:var(--raised);color:var(--ink)}
+  :root[data-look="kite"] .menu .tab.on,:root[data-look="kite"] .mgrp:has(.tab.on) > .mtoggle{background:var(--raised);color:var(--ink);
+    border-bottom-color:transparent;box-shadow:0 0 0 1px var(--bd) inset !important}
+  :root[data-look="kite"] .mgrp-items{top:50px;border-radius:14px;padding:6px;box-shadow:0 18px 40px -14px rgba(0,0,0,.45) !important}
+  :root[data-look="kite"] .mgrp-items .tab{height:auto;border-left:0;border-radius:9px;padding:9px 12px}
+  :root[data-look="kite"] .mgrp-items .tab.on{border-left-color:transparent;box-shadow:none !important}
+  :root[data-look="kite"] .main{padding-top:84px}
+  :root[data-look="kite"] .wrap > .kcol{margin-top:4px}
+  :root[data-look="kite"] .kcol > .kstick{top:84px;max-height:calc(100vh - 96px)}
+  :root[data-look="kite"] #markets .mkt{background:transparent}
+  :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
+  :root[data-look="kite"] .kstick > #markets{overflow:hidden}
+}
+@media (max-width:900px){
+  :root[data-look="kite"] .botnav{border-top:1px solid var(--bd);box-shadow:0 -12px 30px -20px rgba(0,0,0,.5) !important}
+  :root[data-look="kite"] .botnav button.on{color:var(--accent)}
 }
 </style>
 <script>
