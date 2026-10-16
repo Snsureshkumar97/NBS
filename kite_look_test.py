@@ -400,7 +400,7 @@ check("the left column is a wrapper (not a box of its own in a narrow layout), h
       and '<div class="markets" id="markets" role="tablist"></div>\n   <div class="kside" id="kside"></div>' in SRC
       and ".kcol,.kstick{display:contents}" in CSS and ".kside,.kdash{display:none}" in CSS)
 check("(8) the strip under the top bar is gone on a wide screen - its state is in the left column", ':root[data-look="kite"] header{display:none}' in KITE)
-sig_order = ["> .thead", "> .hero", "#twhy", "#tstats", "#tiles", "#tcontract", "#tissued", "#tlivestat", "#lswitch", "#ladder", "#laddernote", "#lnote", "#rr",
+sig_order = ["> .thead", "> .hero", "#twhy", "#tstats", "#tiles", "#tcontract", "#tissued", "#tlivestat", "#lswitch", "#ladder", "#ladabout", "#rr",
              "#reason", "#tovernight", "#gauges", "#room", "#sigmovers", "#risk", "#gnote"]
 orders = []
 for sel in sig_order:
