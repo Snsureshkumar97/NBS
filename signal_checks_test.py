@@ -257,65 +257,11 @@ check("Bitcoin's flow says how much tape there is when it is short, and the heav
       and {i["key"]: i["short"] for i in allc[5]["items"]}["heavyweights"] == "30% up · 10% down"
       and {i["key"]: i["short"] for i in sc.evaluate(r_btc, None, tf(+25.0, complete=False, covers=9.5), "crypto", "BTC")["items"]}["flow"] == "tape 9.5 of 15 min")
 
-print("12. THE PAGE: ROWS IN THE WHY CARD, RUN FOR REAL IN NODE")
+print("12. THE SIGNAL PAGE NO LONGER SHOWS THEM (the user, 16 Oct 2026: \"in the signal tab remove the section ai desk check\")")
 WS = open(os.path.join(HERE, "web_server.py")).read()
-check("the Signal page adds the checklist rows to its Why card", "rows += checksRows(r.checks);" in WS and "function checksRows(c){" in WS)
-NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
-if not NODE:
-    check("node is available", False, "install node")
-else:
-    a = WS.index("const CHECK_GLYPH"); b = WS.index("function render(s){")
-    prog = "const assert = require('assert');\nconst esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n" + WS[a:b] + r'''
-assert.strictEqual(checksRows(null), "", "no checklist, no rows");
-assert.strictEqual(checksRows({items: []}), "");
-const c = {side: "PE", summary: "2 agree · 1 against", note: "Not used by the rules.",
-  items: [{label: "Gann room", status: "agrees", detail: "Past the first target."},
-          {label: "OI wall", status: "against", detail: "<script>x</script> in the way."},
-          {label: "Volume", status: "neutral", detail: "Flat."},
-          {label: "Taker flow", status: "no_data", detail: "Tape holds 9 minutes."}]};
-const h = checksRows(c);
-assert.ok(h.includes("2 agree · 1 against") && h.includes("for a put") && !h.includes("not a signal"), "summary and the side in words");
-assert.ok(checksRows(Object.assign({}, c, {waiting: true})).includes("The rules are waiting, so this is what the checks would say if they leaned that way - not a signal"), "a what-if says it is one");
-assert.ok(h.includes("✓") && h.includes("✕") && h.includes("·") && h.includes("–"), "a glyph for each answer");
-assert.ok(h.includes("<b>agrees.</b>") && h.includes("<b>against.</b>") && h.includes("<b>neutral.</b>") && h.includes("<b>no data.</b>"), "and the word, so colour is not the only carrier");
-assert.ok(!h.includes("<script>") && h.includes("&lt;script&gt;"), "a detail is escaped, never run");
-assert.ok(h.includes("Not used by the rules."), "the note under the rows");
-assert.ok(checksRows({side: "CE", items: [{label: "x", status: "weird", detail: "d"}]}).includes("no data"), "an unknown status degrades to no data");
-console.log("ok");
-'''
-    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
-    check("rows for each answer, in words and glyphs, escaped, with the summary and the note", r.returncode == 0 and r.stdout.strip() == "ok", (r.stderr or r.stdout)[-400:])
-
-    print("13. THE SAME CHECKS AS BARS IN THE SIGNAL SECTION, RUN FOR REAL IN NODE")
-    check("the Signal section has its box, draws it under Room to run, and the bars are styled like the gauges",
-          'id="checksbox"' in WS and "checkGauges(r.checks);" in WS and ".gauge.wide{" in WS and "function checkGauges(c){" in WS)
-    a = WS.index("function checkGauges(c){"); b = WS.index("// The checklist beside the rule signal")
-    prog2 = "const assert = require('assert');\nconst esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\nconst EL = {};\nfunction $(id){ return EL[id] || (EL[id] = {innerHTML: ''}); }\n" + WS[a:b] + r'''
-const items = [{label: "Gann room", status: "agrees", short: "4,323 · 21 pts", detail: "d1"},
-               {label: "Volume", status: "against", short: "fading -24.5%", detail: "d2"},
-               {label: "Spread", status: "neutral", short: "7.03% of 8%", detail: "d3"},
-               {label: "Taker flow", status: "no_data", short: "tape 9 of 15 min", detail: "<b>x</b>"}];
-checkGauges({side: "PE", summary: "1 agree · 1 against", items, waiting: false});
-let h = EL.checksbox.innerHTML;
-assert.ok(h.includes("The AI desk's checks · for a put") && h.includes("1 agree · 1 against"), "heading, side and count");
-assert.strictEqual((h.match(/class="gauge wide"/g) || []).length, 4, "one bar row per check");
-assert.ok(/left:50%;width:25%;background:var\(--up\)/.test(h), "an agreeing check draws a green bar to the right of centre");
-assert.ok(/left:25%;width:25%;background:var\(--down\)/.test(h), "one that is against draws a red bar to the left");
-assert.strictEqual((h.match(/width:0%/g) || []).length, 2, "neutral and no data draw no bar");
-assert.ok(h.includes("✓ 4,323 · 21 pts") && h.includes("✕ fading -24.5%") && h.includes("· 7.03% of 8%") && h.includes("– tape 9 of 15 min"), "a glyph and the words on each row");
-assert.ok(h.includes('title="d1"') && !h.includes("<b>x</b>") && h.includes("&lt;b&gt;x&lt;/b&gt;"), "the full sentence is the tooltip, escaped");
-assert.ok(h.includes("Reference only: the rules do not use these") && !h.includes("not a signal"), "the note, and no what-if warning on a real signal");
-checkGauges({side: "CE", summary: "s", items, waiting: true});
-assert.ok(EL.checksbox.innerHTML.includes("The rules are waiting, so this is what the checks would say if they leaned that way - not a signal."), "a what-if says so");
-checkGauges({side: "CE", summary: "s", items: [{label: "x", status: "weird", short: "", detail: ""}]});
-assert.ok(EL.checksbox.innerHTML.includes("– —"), "an unknown status degrades to no data, and an empty reading to a dash");
-checkGauges(null); assert.strictEqual(EL.checksbox.innerHTML, "", "no checklist clears the box");
-checkGauges({side: "CE", items: []}); assert.strictEqual(EL.checksbox.innerHTML, "");
-console.log("ok");
-'''
-    r2 = subprocess.run([NODE, "-e", prog2], capture_output=True, text=True, timeout=60)
-    check("bars for each answer with glyphs and words, escaped tooltips, a what-if warning, and cleared when there is no checklist",
-          r2.returncode == 0 and r2.stdout.strip() == "ok", (r2.stderr or r2.stdout)[-500:])
+check("no 'AI desk's checks' box, no rows in the Why card, nothing left drawing either - the checks are still worked out "
+      "above for the AI desk", 'id="checksbox"' not in WS and "checkGauges" not in WS and "checksRows" not in WS
+      and "The AI desk's checks" not in WS and '"checks": rec.get("checks")' in open(os.path.join(HERE, "feeds.py")).read())
 
 print("SIGNAL CHECKS TEST PASSED" if not fails else f"SIGNAL CHECKS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

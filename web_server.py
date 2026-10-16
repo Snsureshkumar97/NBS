@@ -3684,10 +3684,6 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   transition:left .35s ease,width .35s ease,background .25s ease}
 .gauge .gt u{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;
   background:var(--bd);transform:translateX(-.5px)}
-.gauge.wide{grid-template-columns:110px 1fr minmax(130px,250px)}
-.gauge.wide .gv{white-space:normal}
-.ck-sum{color:var(--ink-3);font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px}
-@media (max-width:560px){.gauge.wide{grid-template-columns:96px 1fr}.gauge.wide .gv{grid-column:1/-1;text-align:left}}
 .gauge .gv{text-align:right;font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums}
 .gnote{color:var(--ink-3);font-size:12px;margin-top:9px}
@@ -3862,7 +3858,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .mv-r .mv-b{height:6px;border-radius:3px}
 .mv-r .r{text-align:right;font-variant-numeric:tabular-nums}
 .mv-note{font-size:12px;color:var(--ink-3);margin-top:8px}
-.kdmov:not(:empty){margin-bottom:24px}
+#kdgates .gt-row:last-child{border-bottom:0}
+.kdmov .mv-h{margin-top:0}
 @media (max-width:700px){
   .gt-stage small{max-width:190px}
   .mv-cols{grid-template-columns:1fr;gap:4px}
@@ -4948,7 +4945,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .notice.stale b{color:var(--warn-strong)}
 /* 10. no data yet: one quiet line, not a headline over empty rows */
 :root[data-look="kite"] #sigcard[data-state="blank"] #bias{font-size:18px;font-weight:500}
-:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#checksbox,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
+:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#sigmovers,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
 /* 4. the live-orders control is a switch, with its state in colour */
 :root[data-look="kite"] #tlive,:root[data-look="kite"] #ailive{position:relative;padding-left:50px;font-weight:600}
 :root[data-look="kite"] #tlive::before,:root[data-look="kite"] #ailive::before{content:"";position:absolute;left:12px;top:50%;
@@ -5028,7 +5025,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #tovernight{order:15}
   :root[data-look="kite"] #gauges{order:16;grid-column:1;grid-row:span 2}
   :root[data-look="kite"] #room{order:17;grid-column:2}
-  :root[data-look="kite"] #checksbox{order:18;grid-column:2}
+  :root[data-look="kite"] #sigmovers{order:18;grid-column:2}
   :root[data-look="kite"] #risk{order:19}
   :root[data-look="kite"] #gnote{order:20}
   /* 12. the Dashboard: Kite's two big figures, then every index at a glance, the wider markets after */
@@ -5080,29 +5077,12 @@ button.mgroup:hover{color:var(--ink-2)}
 }
 /* in the half-width column the room-to-run rows take the phone's form: name, points and level, the note under them */
 @media (min-width:901px) and (max-width:1499px){
-  :root[data-look="kite"] #room .rr,:root[data-look="kite"] #checksbox .rr{grid-template-columns:72px 1fr 1fr}
+  :root[data-look="kite"] #room .rr{grid-template-columns:72px 1fr 1fr}
   :root[data-look="kite"] #room .rr-c,:root[data-look="kite"] #room .rr-tag{grid-column:1 / -1}
 }
-/* 11. a very wide screen: the signal and the chart side by side, as a trader wants them */
-@media (min-width:1500px){
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    column-gap:40px;align-items:start}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"]{display:block;position:sticky;top:64px;
-    grid-column:2;grid-row:2 / span 6;order:1}
-  /* the signal pane gives its pieces to the grid, so the three cards can run across both columns and the rest stay on the left */
-  /* The chart is here to be read whole, not scrolled to: it fits the window (the user, 25 Sep 2026: "to see the full chart
-     like this I have to scroll all the way down"). Today's range is said elsewhere on this page (the day move's low and
-     high, the VWAP row), so its card gives the height back to the chart. */
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #colR{display:none}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="chart"] #cv{height:clamp(460px,calc(100vh - 300px),1000px)}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) > .pane[data-pane="signal"]{display:contents}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) .top3{grid-column:1 / -1;grid-row:1}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) :is(#sigcard,#posgkcard){grid-column:1}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #sigcard{grid-template-columns:minmax(0,1fr)}
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #gauges,
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #room,
-  :root[data-look="kite"] .panes:has(.pane[data-pane="signal"].on) #checksbox{grid-column:1;grid-row:auto}
-}
+/* 11. (removed 16 Oct 2026 - the user: "remove the chart from the signal section so everything can have more room".
+   On a very wide screen the chart used to sit beside the signal; the Signal page now keeps the whole width at every
+   size, and the chart lives on its own Chart tab.) */
 
 /* the theme switch, in the sidebar footer (the drawer's, on a phone) - every look */
 .looksw{display:flex;align-items:center;gap:4px;margin:auto 0 8px;padding:10px 10px 0;font-size:12px;color:var(--ink-3)}
@@ -5237,6 +5217,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
    <div class="mgrp-items">
+    <button class="tab" data-tab="gates" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3"/></svg></i>Gate tracks</button>
     <button class="tab" data-tab="market" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></i>Market</button>
     <button class="tab" data-tab="pulse" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></i>Market pulse</button>
     <button class="tab" data-tab="screener" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i>Screener</button>
@@ -5374,8 +5355,6 @@ button.mgroup:hover{color:var(--ink-2)}
 
  <section class="pane on" data-pane="home">
   <div class="kdash" id="kdash"></div>
-  <div class="kdgates" id="kdgates"></div>
-  <div class="kdmov" id="kdmov"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5458,7 +5437,7 @@ button.mgroup:hover{color:var(--ink-2)}
   </div>
   <div class="gauges" id="gauges"></div>
   <div class="room" id="room"></div>
-  <div class="room" id="checksbox"></div>
+  <div class="room" id="sigmovers"></div>
   <div class="gnote" id="gnote"></div>
   </div>
   <div class="top3" data-panel="trend">
@@ -5564,6 +5543,20 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="psum chainkpi" id="chainkpi"></div>
   <div class="chainwrap"><table class="chain" id="chain"></table></div>
   <div class="chainbar" id="chainbar"></div>
+  </div>
+ </section>
+
+ <!-- Gate tracks and today's movers, a page of their own (the user, 16 Oct 2026: "can you add a separate tab for this") -->
+ <section class="pane" data-pane="gates">
+  <div class="card" data-panel="gates" id="gatescard">
+   <p class="eyebrow" role="heading" aria-level="2">Gate tracks &middot; where each index stands before a trade</p>
+   <div class="kdgates" id="kdgates"></div>
+   <div class="gnote">Each dot is a check the tool makes before it issues a ticket, in its order. Filled: passed. The amber
+    one is where it waits; the ones after it are not reached yet (a ring: already met). Display only - the same checks
+    the Signal page shows; tap a row to open it.</div>
+  </div>
+  <div class="card" data-panel="movers" id="moverscard">
+   <div class="kdmov" id="kdmov"></div>
   </div>
  </section>
 
@@ -8896,53 +8889,6 @@ $("cvout").onclick   = () => chartZoom(1.3);
 $("cvreset").onclick = () => chartReset();
 addEventListener("resize", () => { sparkline(); heatMap(true); });
 
-// The same checks as bars, in the Signal section itself, drawn like the
-// indicator gauges: a bar to the right for agrees, to the left for against, none
-// for neutral or no data, and the few words that matter beside it. The glyph
-// carries the answer too, so it never rests on colour alone.
-function checkGauges(c){
-  const el = $("checksbox");
-  if(!el) return;
-  if(!c || !(c.items || []).length){ el.innerHTML = ""; return; }
-  const V = {agrees: 1, against: -1, neutral: 0, no_data: null};
-  const COL = {agrees: "var(--up)", against: "var(--down)", neutral: "var(--ink-3)", no_data: "var(--ink-3)"};
-  const MARK = {agrees: "✓", against: "✕", neutral: "·", no_data: "–"};
-  const rows = (c.items || []).map(i => {
-    const st = i.status in V ? i.status : "no_data";
-    const vote = V[st];
-    const w = vote == null || vote === 0 ? 0 : 25;
-    const left = vote > 0 ? 50 : 50 - w;
-    return `<div class="gauge wide" title="${esc(i.detail || "")}">
-      <div class="gn">${esc(i.label)}</div>
-      <div class="gt"><u></u><i style="left:${left}%;width:${w}%;background:${COL[st]}"></i></div>
-      <div class="gv" style="color:${COL[st]}">${MARK[st]} ${esc(i.short || "—")}</div>
-    </div>`;
-  }).join("");
-  el.innerHTML = `<div class="rr-h">The AI desk's checks · for a ${esc(c.side === "CE" ? "call" : "put")}`
-    + `<span class="ck-sum">${esc(c.summary || "")}</span></div>` + rows
-    + `<div class="gnote">${c.waiting ? "The rules are waiting, so this is what the checks would say if they leaned that way - not a signal. " : ""}`
-    + `Reference only: the rules do not use these to enter or skip a trade.</div>`;
-}
-
-// The checklist beside the rule signal: what the AI desk looks at, each as
-// agrees / against / neutral / no data. Reference only - the rules do not use
-// it to enter or skip a trade (signal_checks.py says why). Glyph and word, so
-// the meaning never rests on colour alone.
-const CHECK_GLYPH = {agrees: ["✓", "var(--up)", "agrees"], against: ["✕", "var(--down)", "against"],
-                     neutral: ["·", "var(--ink-3)", "neutral"], no_data: ["–", "var(--ink-3)", "no data"]};
-function checksRows(c){
-  if(!c || !(c.items || []).length) return "";
-  let h = `<div class="wrow verdict"><div class="g" style="color:var(--accent)">=</div>
-    <div class="n">The AI desk's checks</div><div class="t">${esc(c.summary || "")} - for a ${esc(c.side === "CE" ? "call" : "put")}${c.waiting
-      ? ". The rules are waiting, so this is what the checks would say if they leaned that way - not a signal" : ""}.</div></div>`;
-  (c.items || []).forEach(i => {
-    const g = CHECK_GLYPH[i.status] || CHECK_GLYPH.no_data;
-    h += `<div class="wrow"><div class="g" style="color:${g[1]}">${g[0]}</div>
-      <div class="n">${esc(i.label)}</div><div class="t"><b>${esc(g[2])}.</b> ${esc(i.detail)}</div></div>`;
-  });
-  return h + `<div class="gnote" style="margin-top:8px">${esc(c.note || "")}</div>`;
-}
-
 // Exness (Bitcoin and gold since 3 Oct 2026) has no options: no chain and no Greeks to show.
 function venueTabs(s){
   const noOpt = !!(s && s.cfd);
@@ -9156,6 +9102,7 @@ function render(s){
   if(TAB === "news") newsFetch();
   recapDraw(s);
   if(TAB === "home") homeDraw(s);
+  if(TAB === "gates") gatesDraw(s);
   if(TAB === "positions") posPane(s);
   if(TAB === "tradeset") lotsDash(s);
 
@@ -9181,7 +9128,6 @@ function render(s){
   const w=(s.why||{})[CUR];
   gauges(r, w);
   roomRun(r);
-  checkGauges(r.checks);
   ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.
@@ -9201,7 +9147,6 @@ function render(s){
       rows+=`<div class="wrow"><div class="g" style="color:var(--warn)">${i?"·":"▸"}</div>
         <div class="n">${i?"":"Levels"}</div><div class="t">${esc(l)}</div></div>`;
     });
-    rows += checksRows(r.checks);
     $("why").innerHTML=rows;
   }
 
@@ -9270,7 +9215,7 @@ async function heatMap(force){
   }catch(e){ return; }
   if(d.index !== CUR) return;              // the user switched mid-flight
   MAPDATA = d;
-  screenDraw(); sectorDraw(); moverDraw(); pulseDraw();
+  screenDraw(); sectorDraw(); moverDraw(); pulseDraw(); sigMovers();
   if(blind) return;
 
   if(!d.tiles || !d.tiles.length){
@@ -9356,6 +9301,7 @@ async function markets_(){
     MKT_ROWS = crypto ? d.rows.filter(r => r.group === "world") : d.rows;
     renderTicker(d.rows);
     if(TAB === "home") homeDraw(LAST);
+    if(TAB === "gates") gatesDraw(LAST);
   }catch(e){}
 }
 
@@ -9832,9 +9778,9 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "positions", "tradeset", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk"];
+              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk", "gates"];
 const TAB_LABEL = {home:"Home", positions:"Positions", tradeset:"Trade settings", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
-                   market:"Market", pulse:"Market pulse", sector:"Sector scope",
+                   gates:"Gate tracks", market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels", gann:"Gann levels", tradingview:"TradingView",
                    internals:"Internals", strength:"Relative strength",
@@ -9861,7 +9807,6 @@ try{ NAVG = JSON.parse(localStorage.getItem(GKEY) || "{}"); }catch(e){}
 // when it is clicked, never because the page you are on lives in it, and it does not touch the saved folds.
 const KITE_NAV = matchMedia("(min-width:901px)").matches;
 // a very wide screen shows the chart beside the signal (CSS does it; the chart is told it has room)
-const KITE_SPLIT = () => matchMedia("(min-width:1500px)").matches;
 function navGroup(el, open, byUser){
   if(KITE_NAV && open && !byUser) open = false;
   el.dataset.open = open ? "true" : "false";
@@ -9902,7 +9847,7 @@ function showTab(name, push){
   // none: they are wired again on the way in, which is a no-op for any panel
   // that already has one.
   try{ wireDrag(); }catch(e){}
-  if(name === "chart" || (name === "signal" && KITE_SPLIT())){ try{ chartDraw(); sparkline(); }catch(e){} }
+  if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }       // its own tab only - no longer beside the signal
   if(name === "market") heatMap(true);
   if(name === "sector") heatMap(true);
   if(name === "pulse"){ pulseDraw(); screenFetch(); }
@@ -9935,6 +9880,7 @@ function showTab(name, push){
   if(name === "aidesk"){ aiFetch(); sellerFetch(); }
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
+  if(name === "gates") gatesDraw(LAST, true);
   gateTabs();
 }
 document.querySelectorAll(".tab").forEach(b =>
@@ -10321,7 +10267,7 @@ function gateTracks(s){
   if(!el || !s) return;
   const order = s.order || Object.keys(s.indices || {});
   const rows = order.map(k => { const r = (s.indices || {})[k]; return r ? gateRow(k, r, (s.tickets || {})[k]) : ""; }).join("");
-  const h = rows ? `<div class="gt-h">Gate tracks<small>each check before a ticket &middot; the first one not met is where it waits</small></div>${rows}` : "";
+  const h = rows || `<div class="gnote">Waiting for the first reading.</div>`;
   if(h === GT_HTML) return;
   GT_HTML = h;
   el.innerHTML = h;
@@ -10343,11 +10289,31 @@ function moversRank(tiles, n){
   const max = Math.max(0.01, ...t.map(x => Math.abs(x.pct)));
   return {up, down, max, total: t.length};
 }
+function moverRow(x, max){
+  const c = x.pct > 0 ? "var(--up)" : "var(--down)";
+  return `<div class="mv-r"><div><b>${esc(x.sym)}</b><small>${esc(x.sector || "")}</small></div>`
+    + `<div><div class="mv-b" style="width:${Math.max(4, Math.round(100 * Math.abs(x.pct) / max))}%;background:${c}"></div></div>`
+    + `<div class="r" style="color:${c}">${x.pct > 0 ? "+" : "\u2212"}${num(Math.abs(x.pct), 2)}%</div></div>`;
+}
+// ...and on the Signal page, where the AI desk's checks were (the user, 16 Oct 2026: "instead of ai desk you can add those
+// top movers over there per index"): the index on screen's 5 rising and 5 falling most, from the constituent prices the
+// heat map has just fetched for it (MAPDATA) - no fetch of its own. Nothing for an index with no stock list, or Exness.
+function sigMovers(){
+  const el = $("sigmovers");
+  if(!el) return;
+  const d = MAPDATA, m = d && d.index === CUR ? moversRank(d.tiles, 5) : null;
+  if(!m || !m.total){ if(el.innerHTML) el.innerHTML = ""; return; }
+  const b = d.breadth;
+  el.innerHTML = `<div class="rr-h">Today's movers &middot; ${esc(CUR)}'s stocks</div>`
+    + (m.up.length ? m.up.map(x => moverRow(x, m.max)).join("") : '<div class="mv-note">none up</div>')
+    + (m.down.length ? m.down.map(x => moverRow(x, m.max)).join("") : '<div class="mv-note">none down</div>')
+    + `<div class="mv-note">${b ? `${b.up} up &middot; ${b.down} down of ${b.total} &middot; ` : ""}context only - not part of the signal</div>`;
+}
 const MV_INDICES = ["NIFTY", "BANKNIFTY", "SENSEX"];      // the indices market_map.py has a stock list for
 let MV_IDX = null, MV_AT = 0, MV_HTML = "";
 async function moversDraw(force){
   const el = $("kdmov");
-  if(!el || !LAST || TAB !== "home" || document.hidden) return;
+  if(!el || !LAST || TAB !== "gates" || document.hidden) return;
   const cfd = Object.values(LAST.indices || {}).some(r => r && r.cfd);
   if(cfd){ if(MV_HTML){ MV_HTML = ""; el.innerHTML = ""; } return; }
   if(!MV_IDX) MV_IDX = MV_INDICES.includes(CUR) ? CUR : "NIFTY";
@@ -10358,11 +10324,7 @@ async function moversDraw(force){
   try{ d = await (await fetch(`/api/map/${encodeURIComponent(k)}?w=600&h=400`, {cache: "no-store"})).json(); }
   catch(e){ return; }
   if(k !== MV_IDX) return;                         // switched while it was on its way
-  const m = moversRank(d.tiles, 10), b = d.breadth;
-  const row = x => `<div class="mv-r"><div><b>${esc(x.sym)}</b><small>${esc(x.sector || "")}</small></div>`
-    + `<div><div class="mv-b" style="width:${Math.max(4, Math.round(100 * Math.abs(x.pct) / m.max))}%;`
-    + `background:${x.pct > 0 ? "var(--up)" : "var(--down)"}"></div></div>`
-    + `<div class="r" style="color:${x.pct > 0 ? "var(--up)" : "var(--down)"}">${x.pct > 0 ? "+" : "\u2212"}${num(Math.abs(x.pct), 2)}%</div></div>`;
+  const m = moversRank(d.tiles, 10), b = d.breadth, row = x => moverRow(x, m.max);
   const tabs = MV_INDICES.map(i => `<button class="lbtn${i === k ? " on" : ""}" type="button" data-mv="${esc(i)}">${esc(i)}</button>`).join("");
   const body = m.total
     ? `<div class="mv-cols"><div><h3>Rising most</h3>${m.up.map(row).join("") || '<div class="mv-note">none up</div>'}</div>`
@@ -10383,10 +10345,13 @@ async function moversDraw(force){
     });
   }
 }
+// The Gate tracks page (its own tab since 16 Oct 2026): both, from the same state poll.
+function gatesDraw(s, force){
+  gateTracks(s);
+  moversDraw(!!force);
+}
 function homeDraw(s){
   kiteDash(s);
-  gateTracks(s);
-  moversDraw(false);
   const g = $("gmk");
   if(g && MKT_ROWS){
     g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {

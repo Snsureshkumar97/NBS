@@ -401,7 +401,7 @@ check("the left column is a wrapper (not a box of its own in a narrow layout), h
       and ".kcol,.kstick{display:contents}" in CSS and ".kside,.kdash{display:none}" in CSS)
 check("(8) the strip under the top bar is gone on a wide screen - its state is in the left column", ':root[data-look="kite"] header{display:none}' in KITE)
 sig_order = ["> .thead", "> .hero", "#twhy", "#tstats", "#tiles", "#tcontract", "#tissued", "#tlivestat", "#lswitch", "#ladder", "#laddernote", "#lnote", "#rr",
-             "#reason", "#tovernight", "#gauges", "#room", "#checksbox", "#risk", "#gnote"]
+             "#reason", "#tovernight", "#gauges", "#room", "#sigmovers", "#risk", "#gnote"]
 orders = []
 for sel in sig_order:
     m = re.search(r':root\[data-look="kite"\] ' + (r"#sigcard " if sel.startswith(">") else "") + re.escape(sel) + r"\{order:(\d+)", KITE)
@@ -412,7 +412,8 @@ check("(2) and the page: the signal first; the session block and its counts are 
       ":root[data-look=\"kite\"] #sigcard{order:1}" in KITE and "#session{" not in KITE and "#sfeed" not in KITE)
 check("(3) the indicators are the left column of the card and the room to run the right one; the bars no longer span the page",
       "#sigcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:44px}" in KITE
-      and "#gauges{order:16;grid-column:1;grid-row:span 2}" in KITE and "#room{order:17;grid-column:2}" in KITE and "#checksbox{order:18;grid-column:2}" in KITE)
+      and "#gauges{order:16;grid-column:1;grid-row:span 2}" in KITE and "#room{order:17;grid-column:2}" in KITE
+      and "#sigmovers{order:18;grid-column:2}" in KITE)
 check("(4) the live-orders control is a switch with its state in colour, on the card and in the left column",
       "#tlive::before,:root[data-look=\"kite\"] #ailive::before" in KITE and ".klive.on{color:#fff;background:#c62828" in KITE)
 check("(5) the day's move and the trend's strength are said once (their own card beside the signal), the tile that repeated them is hidden",
@@ -427,11 +428,10 @@ check("(9) the session block is gone: no strip, no per-index chips, no runs-all-
       and "_do_always_on" not in SRC)
 check("(10) no data: one quiet line, the empty rows hidden - and the card says when it has none, and when it has some",
       '#sigcard[data-state="blank"] #bias{font-size:18px' in KITE and 'sc.dataset.state = "blank"' in SRC and 'sc.dataset.state = ""; }' in SRC)
-check("(11) from 1500px the signal and the chart sit side by side, and the chart is told it has room",
-      "@media (min-width:1500px){" in KITE and ".panes:has(.pane[data-pane=\"signal\"].on){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);" in KITE
-      and re.search(r'> \.pane\[data-pane="chart"\]\{display:block;position:sticky;top:64px;\s*grid-column:2;grid-row:2 / span 6', KITE)
-      and 'if(name === "chart" || (name === "signal" && KITE_SPLIT())){ try{ chartDraw(); sparkline(); }catch(e){} }' in SRC
-      and 'const KITE_SPLIT = () => matchMedia("(min-width:1500px)").matches;' in SRC)
+check("(11) the Signal page keeps the whole width at every size - the chart no longer sits beside it (16 Oct 2026: \"remove "
+      "the chart from the signal section so everything can have more room\"); the chart is drawn on its own tab only",
+      "min-width:1500px" not in SRC and "KITE_SPLIT" not in SRC and '> .pane[data-pane="chart"]{display:block;position:sticky' not in KITE
+      and 'if(name === "chart"){ try{ chartDraw(); sparkline(); }catch(e){} }' in SRC)
 check("(12) the Dashboard leads with its two big figures and every index in a row; the Today recap and the side panels that repeat them step aside, "
       "and the wider markets come last",
       ".kdash{display:block;order:2;" in KITE and ".hsec:has(#htoday){display:none}" in KITE and ":has(.pane[data-pane=\"home\"].on) .kside :is(.kb-today,.kb-funds){display:none}" in KITE
@@ -583,17 +583,10 @@ print("8. THE TREND, THE DAY'S MOVE AND THE CONFIDENCE ARE A BAND ACROSS THE TOP
 check("on a wide screen they come first on the Signal page, three across, with a rule under them",
       re.search(r'\.pane\[data-pane="signal"\] \.top3\{order:0;gap:36px;[^}]*grid-template-columns:1fr 1\.3fr \.8fr\}', KITE) is not None
       and ".top3 .card{margin:0;border-bottom:0;" in KITE)  # margin:0 - the sibling rule `.card + .card` would push the 2nd and 3rd 14px lower than the 1st
-check("from 1500px, where the chart sits beside the signal, the band runs across BOTH columns and everything else stays under it on the left",
-      '> .pane[data-pane="signal"]{display:contents}' in KITE and ".top3{grid-column:1 / -1;grid-row:1}" in KITE
-      and ":is(#sigcard,#posgkcard){grid-column:1}" in KITE)
 check("nothing of the band is left in the old three-across-half-width form", ".top3{grid-template-columns:1fr 1fr}" not in KITE)
 check("the confidence ring sits beside its words in the band, so the band is no taller than its other two cards",
       ".top3 .ring{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;" in KITE and ".top3 .ring svg{grid-row:1 / span 2}" in KITE)
-print("9. THE CHART FITS THE WINDOW BESIDE THE SIGNAL (25 Sep 2026: 'to see the full chart like this i have to scroll all the way down')")
-check("from 1500px the pinned chart pane gives up Today's range and its canvas is sized to the window, so the whole chart is in view once it pins",
-      '> .pane[data-pane="chart"] #colR{display:none}' in KITE
-      and '> .pane[data-pane="chart"] #cv{height:clamp(460px,calc(100vh - 300px),1000px)}' in KITE
-      and "position:sticky;top:64px;" in KITE)
+print("9. THE LEFT COLUMN")
 check("the left column cannot slide over the footer: its sticky part is inside a full-height wrapper",
       ".wrap > .kcol{display:block;grid-column:1;grid-row:1 / span 6;align-self:stretch;margin-top:16px}" in KITE
       and ".kcol > .kstick{display:flex;" in KITE)

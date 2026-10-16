@@ -29,8 +29,15 @@ check("/api/state's reading has adx_needed beside adx", pub.get("adx_needed") ==
 
 print("2. THE PAGE (node)")
 src = open(os.path.join(HERE, "web_server.py")).read()
-check("the Dashboard has places for both, and homeDraw draws both",
-      'id="kdgates"' in src and 'id="kdmov"' in src and "  gateTracks(s);\n  moversDraw(false);" in src)
+pane = src[src.index('<section class="pane" data-pane="gates">'):src.index("</section>", src.index('data-pane="gates"'))]
+home = src[src.index('<section class="pane on" data-pane="home">'):src.index("</section>", src.index('data-pane="home"'))]
+check("a tab of its own: the button (in the Market menu), the page with both, its name, and it draws them",
+      'data-tab="gates"' in src and 'id="kdgates"' in pane and 'id="kdmov"' in pane and '"gates"' in src[src.index("const TABS"):]
+      and 'gates:"Gate tracks"' in src and 'if(TAB === "gates") gatesDraw(s);' in src and 'if(name === "gates") gatesDraw(LAST, true);' in src
+      and "function gatesDraw(s, force){\n  gateTracks(s);\n  moversDraw(!!force);" in src)
+check("the Dashboard is back as it was - neither is drawn there", 'id="kdgates"' not in home and 'id="kdmov"' not in home
+      and "gateTracks(s)" not in src[src.index("function homeDraw(s){"):src.index("\n}\n", src.index("function homeDraw(s){"))])
+check("the movers only fetch while their page is on screen", 'TAB !== "gates" || document.hidden' in src)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if not NODE:
     check("node is available", False)
@@ -119,6 +126,40 @@ console.log("ok:movers");
                       ("tr", "a Trend Rider index: its own conditions are the track, named"),
                       ("movers", "movers: top rising and falling by today's move, no-price stocks left out")):
         check(name, f"ok:{tag}" in out, out[-500:] if f"ok:{tag}" not in out else "")
+
+print("3. TODAY'S MOVERS ON THE SIGNAL PAGE, WHERE THE AI DESK'S CHECKS WERE (\"add those top movers over there per index\")")
+sig = src[src.index('<section class="pane" data-pane="signal">'):src.index("</section>", src.index('data-pane="signal">'))]
+check("its box sits right after room to run on the Signal card, and the heat map's own fetch draws it (no fetch of its own)",
+      '<div class="room" id="room"></div>\n  <div class="room" id="sigmovers"></div>' in sig
+      and "moverDraw(); pulseDraw(); sigMovers();" in src and "#sigmovers{order:18;grid-column:2}" in src)
+if NODE:
+    a1 = src.index("function moversRank(")
+    a2 = src.index("const MV_INDICES")
+    prog2 = r'''
+const assert = require("assert");
+const esc = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c]));
+const num = (v, d = 2) => Number(v).toFixed(d);
+const EL = {sigmovers: {innerHTML: ""}}; const $ = id => EL[id];
+let MAPDATA = null, CUR = "NIFTY";
+''' + src[a1:a2] + r'''
+const tiles = [["A", 1.2], ["B", -2.5], ["C", 0.4], ["D", 3.1], ["E", -0.2], ["F", 2.2], ["G", 0.9], ["H", -1.1], ["I", -0.7],
+               ["J", 0.1], ["K", -3.0], ["L", 0.05]].map(([s, p]) => ({sym: s, pct: p, sector: "x"}));
+MAPDATA = {index: "NIFTY", tiles, breadth: {up: 7, down: 5, flat: 0, total: 12}};
+sigMovers();
+let h = EL.sigmovers.innerHTML;
+assert.ok(h.includes("Today's movers &middot; NIFTY's stocks"), "titled for the index on screen");
+assert.strictEqual((h.match(/class="mv-r"/g) || []).length, 10, "5 rising and 5 falling");
+assert.ok(h.indexOf(">D<") < h.indexOf(">F<") && h.indexOf(">K<") < h.indexOf(">B<"), "biggest first on each side");
+assert.ok(h.includes("7 up &middot; 5 down of 12") && h.includes("not part of the signal"), "breadth line, marked context");
+MAPDATA = {index: "BANKNIFTY", tiles}; sigMovers();
+assert.strictEqual(EL.sigmovers.innerHTML, "", "another index's data is never shown under this one");
+MAPDATA = {index: "NIFTY", tiles: []}; sigMovers();
+assert.strictEqual(EL.sigmovers.innerHTML, "", "no stock list (Midcap) or Exness: nothing");
+console.log("ok:sig");
+'''
+    r2 = subprocess.run([NODE, "-e", prog2], capture_output=True, text=True, timeout=60)
+    check("the index on screen's 5 rising and 5 falling, biggest first, never another index's, nothing without a stock list",
+          "ok:sig" in r2.stdout, (r2.stdout + r2.stderr)[-500:])
 
 print()
 print("GATE TRACKS TEST PASSED" if not fails else f"GATE TRACKS TEST FAILED: {fails}")
