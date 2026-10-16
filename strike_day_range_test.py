@@ -91,6 +91,7 @@ def fresh(h):
     """A handler with its own, empty strike-live cache - the cache is a class
     attribute, shared unless each test clears it."""
     h._STRIKE_LIVE_CACHE = {}
+    h._STRIKE_LIVE_BUSY = set()
     return h
 
 
@@ -156,7 +157,8 @@ check("a second call inside the cache window reuses the answer - the provider is
 check("a DIFFERENT contract is its own cache entry, asked for separately",
       h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23500, "CE", "2026-09-24") is not None
       and len(prov.fetched) == 2, prov.fetched)
-key = ("NIFTY", 23400, "CE", "2026-09-24")
+key = ("NIFTY", 23400, "CE", "2026-09-24", NOW.date())
+check("the cache entry is today's own (the date is in its key)", key in h._STRIKE_LIVE_CACHE, list(h._STRIKE_LIVE_CACHE))
 stamp, val = h._STRIKE_LIVE_CACHE[key]
 h._STRIKE_LIVE_CACHE[key] = (stamp - (web_server.Handler._STRIKE_LIVE_CACHE_S + 1), val)
 h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24")
@@ -242,6 +244,73 @@ two = {"NIFTY": {"ticket": mk_ticket(strike=23400)},
 h._attach_strike_day_range("me@example.com", "nse_index", two)
 check("more than one open ticket: each is asked for, by its own index name",
       sorted((c[2], c[3]) for c in rec.calls) == [("BANKNIFTY", 50000), ("NIFTY", 23400)], rec.calls)
+
+print("7. ONE FETCH PER CONTRACT AT A TIME (16 Oct 2026: 221 of 222 request threads piled up here)")
+import threading
+
+
+class SlowProvider(FakeProvider):
+    """Holds its candle fetch open until released, like a slow Kite call under load."""
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.go, self.inside = threading.Event(), threading.Event()
+        self.started = 0                     # counted on the way IN - fetched is only filled once one finishes
+
+    def candles_for_token(self, token, interval="day", days=90):
+        self.started += 1
+        self.inside.set()
+        self.go.wait(10)
+        return super().candles_for_token(token, interval, days)
+
+
+h = fresh(handler())
+slow = SlowProvider()
+feeds.for_user = lambda email, mkt=None, start=True: FakeFeed(slow)
+got = {}
+a = threading.Thread(target=lambda: got.setdefault("a", h._strike_day_range_live(
+    "me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24")))
+a.start()
+slow.inside.wait(5)
+t0 = time.time()
+others = [h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24") for _ in range(25)]
+waited = time.time() - t0
+check("25 polls while the first fetch is still running: each answers at once (nothing known yet), none waits",
+      others == [(None, None)] * 25 and waited < 1.0, (others[:2], round(waited, 3)))
+check("...and only ONE fetch was started, not 26", slow.started == 1, slow.started)
+slow.go.set()
+a.join(5)
+check("the one fetch finishes with the real range and fills the cache", got.get("a") == (115.0, 90.0)
+      and h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24") == (115.0, 90.0)
+      and len(slow.fetched) == 1, (got, slow.fetched))
+check("nothing is left marked busy", h._STRIKE_LIVE_BUSY == set(), h._STRIKE_LIVE_BUSY)
+
+key = ("NIFTY", 23400, "CE", "2026-09-24", NOW.date())
+stamp, val = h._STRIKE_LIVE_CACHE[key]
+h._STRIKE_LIVE_CACHE[key] = (stamp - (web_server.Handler._STRIKE_LIVE_CACHE_S + 1), val)   # due a refresh
+slow2 = SlowProvider()
+feeds.for_user = lambda email, mkt=None, start=True: FakeFeed(slow2)
+b = threading.Thread(target=lambda: h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24"))
+b.start()
+slow2.inside.wait(5)
+during = h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24")
+check("a poll during a REFRESH gets today's last known range at once, not a blank", during == (115.0, 90.0), during)
+slow2.go.set()
+b.join(5)
+
+h._STRIKE_LIVE_CACHE[key] = (h._STRIKE_LIVE_CACHE[key][0] - (web_server.Handler._STRIKE_LIVE_CACHE_S + 1), (115.0, 90.0))
+feeds.for_user = lambda email, mkt=None, start=True: FakeFeed(FakeProvider(boom_candles="Kite is rate-limited"))
+check("a refresh that fails keeps today's last range rather than blanking the cell",
+      h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24") == (115.0, 90.0))
+check("...and a failed fetch never leaves the contract stuck as busy", h._STRIKE_LIVE_BUSY == set(), h._STRIKE_LIVE_BUSY)
+
+h = fresh(handler())
+yesterday = (NOW - pd.Timedelta(days=1)).date()
+h._STRIKE_LIVE_CACHE[("NIFTY", 23400, "CE", "2026-09-24", yesterday)] = (time.time(), (999.0, 1.0))
+prov = FakeProvider()
+feeds.for_user = lambda email, mkt=None, start=True: FakeFeed(prov)
+check("yesterday's cached range is never served today, even fresh in time - today is fetched",
+      h._strike_day_range_live("me@example.com", "nse_index", "NIFTY", 23400, "CE", "2026-09-24") == (115.0, 90.0)
+      and len(prov.fetched) == 1, prov.fetched)
 
 web_server.now_ist = _real_now_ist
 print("STRIKE DAY RANGE TEST PASSED" if not fails else f"STRIKE DAY RANGE TEST FAILED: {fails}")

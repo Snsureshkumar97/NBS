@@ -2586,6 +2586,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     _STRIKE_LIVE_CACHE = {}
     _STRIKE_LIVE_CACHE_S = 60      # a day-so-far range does not need to be fresher than this
+    # ONE fetch per contract at a time (16 Oct 2026). The cache was only filled once a fetch FINISHED, so every
+    # /api/state poll that landed while one was running (every open tab, every 3 s) started its own Kite call and
+    # minute-candle parse; under that load each parse slowed (dateutil's timezone factory is a shared lock), more
+    # polls piled in behind it, and 221 of 222 request threads ended up here - pages stopped loading. Now a poll that
+    # finds this contract already being fetched answers at once with what is known, and never waits for it.
+    _STRIKE_LIVE_LOCK = threading.Lock()
+    _STRIKE_LIVE_BUSY = set()
 
     def _strike_day_range_live(self, user, market, key, strike, side, expiry):
         """(day_high, day_low) of ONE option contract's own premium so far TODAY - live, unlike
@@ -2600,32 +2607,42 @@ class Handler(http.server.BaseHTTPRequestHandler):
         3 historical calls a second across the WHOLE server (record_options.py's own comment), so
         this must never call it uncached. Never raises - a Kite hiccup here must not take the
         ticket panel down with it, the same discipline news.py applies to headlines."""
-        ck = (key, strike, side, str(expiry))
+        today = now_ist().date()
+        ck = (key, strike, side, str(expiry), today)        # today's own entry: yesterday's range is never served
         hit = self._STRIKE_LIVE_CACHE.get(ck)
         if hit and time.time() - hit[0] < self._STRIKE_LIVE_CACHE_S:
             return hit[1]
-        result = (None, None)
+        with self._STRIKE_LIVE_LOCK:
+            if ck in self._STRIKE_LIVE_BUSY:
+                return hit[1] if hit else (None, None)        # being fetched right now: answer, don't queue
+            self._STRIKE_LIVE_BUSY.add(ck)
         try:
-            if config.MARKETS.get(market, {}).get("market_provider") in ("kite", "delta"):
-                feed = feeds.for_user(user, market)
-                provider, _state, _detail = feed._provider()
-                if provider is not None and hasattr(provider, "candles_for_token"):
-                    token = provider.option_token(key, strike, side, expiry)
-                    if token:
-                        df = provider.candles_for_token(
-                            int(token) if str(token).isdigit() else token, interval="minute", days=1)
-                        if df is not None and len(df):
-                            today = now_ist().date()
-                            todays = df[[getattr(ts, "date", lambda: None)() == today for ts in df["ts"]]]
-                            if len(todays):
-                                result = (float(todays["high"].max()), float(todays["low"].min()))
-        except Exception:
-            pass
-        self._STRIKE_LIVE_CACHE[ck] = (time.time(), result)
-        if len(self._STRIKE_LIVE_CACHE) > 64:
-            for k, _v in sorted(self._STRIKE_LIVE_CACHE.items(), key=lambda kv: kv[1][0])[:32]:
-                self._STRIKE_LIVE_CACHE.pop(k, None)
-        return result
+            result = (None, None)
+            try:
+                if config.MARKETS.get(market, {}).get("market_provider") in ("kite", "delta"):
+                    feed = feeds.for_user(user, market)
+                    provider, _state, _detail = feed._provider()
+                    if provider is not None and hasattr(provider, "candles_for_token"):
+                        token = provider.option_token(key, strike, side, expiry)
+                        if token:
+                            df = provider.candles_for_token(
+                                int(token) if str(token).isdigit() else token, interval="minute", days=1)
+                            if df is not None and len(df):
+                                todays = df[[getattr(ts, "date", lambda: None)() == today for ts in df["ts"]]]
+                                if len(todays):
+                                    result = (float(todays["high"].max()), float(todays["low"].min()))
+            except Exception:
+                pass
+            if result == (None, None) and hit:
+                result = hit[1]               # a refresh that failed keeps today's last range rather than blanking it
+            self._STRIKE_LIVE_CACHE[ck] = (time.time(), result)
+            if len(self._STRIKE_LIVE_CACHE) > 64:
+                for k, _v in sorted(self._STRIKE_LIVE_CACHE.items(), key=lambda kv: kv[1][0])[:32]:
+                    self._STRIKE_LIVE_CACHE.pop(k, None)
+            return result
+        finally:
+            with self._STRIKE_LIVE_LOCK:
+                self._STRIKE_LIVE_BUSY.discard(ck)
 
     def _candles(self, user, key, qs=None):
         """The bars themselves, as JSON, for the interactive chart.
