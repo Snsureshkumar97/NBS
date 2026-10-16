@@ -65,7 +65,21 @@ for name, t in (("white", light), ("dark", dark)):
     check(f"{name}: white type on the action blue reads at 4.5 : 1", ratio("#ffffff", t["accent-strong"]) >= 4.5,
           ratio("#ffffff", t["accent-strong"]))
 
-print("3. STILL NOTHING MOVES")
+print("3. THE MARKETS NEVER SHARE A SCREEN, AND THE SWITCH IS IN THE BAR")
+check("a switch in the menu bar, built from the markets this server runs (hidden with only one)",
+      '<div class="mseg" id="mseg" role="group" aria-label="Market" hidden></div>' in SRC
+      and "ms.hidden = opts.length < 2;" in SRC)
+check("...named the way the user says it: Indian markets, Crypto & Gold",
+      '({nse_index: "Indian markets", crypto: "Crypto & Gold"})' in SRC)
+check("...and it switches through the same /market post as the dropdowns (the server keeps one market per session)",
+      'if(b && b.getAttribute("aria-pressed") !== "true") switchMarketOn({value: b.dataset.mseg});' in SRC
+      and 'const body = new URLSearchParams({market: sel.value});' in SRC)
+check("on a wide screen the watchlist itself moves into the row of tiles under the menu - the same element, so its "
+      "clicks and prices are the watchlist's own",
+      'rail.appendChild(mk);' in SRC and ".mrail > #markets{display:grid;" in BLOCK)
+check("...and the left column keeps its other boxes (open trade, today, funds)", '<div class="kside" id="kside"></div>' in SRC)
+
+print("4. STILL NOTHING MOVES")
 check("the redesign adds no animation and no transition", "animation" not in BLOCK.split("*/", 1)[1]
       and "transition" not in BLOCK.split("*/", 1)[1])
 

@@ -5243,7 +5243,7 @@ button.mgroup:hover{color:var(--ink-2)}
   font-family:var(--f-mono);letter-spacing:-.4px}
 :root[data-look="kite"] :is(td,.knum,.kr b,.tile .v,.mkt .px){font-variant-numeric:tabular-nums}
 :root[data-look="kite"] :is(.tile .v,.knum){font-weight:500}
-:root[data-look="kite"] .kd-mkt b{font-family:var(--f-ui);letter-spacing:-.2px}
+:root[data-look="kite"] .psum .kd-mkt b{font-family:var(--f-ui);letter-spacing:-.2px}
 :root[data-look="kite"] :is(.psum span,.pdet span,.rrfig span){text-transform:none;letter-spacing:0;font-weight:500}
 /* the strip of index prices under the menu: on the page's own ground, not a grey band */
 :root[data-look="kite"] .ticker{background:transparent;border-bottom:0}
@@ -5295,6 +5295,38 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #markets .mkt{background:transparent}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
   :root[data-look="kite"] .kstick > #markets{overflow:hidden}
+}
+/* -- the market switch in the bar, and the watchlist as a row of tiles across the top (stage 2) -- */
+.mseg{display:none}
+@media (min-width:901px){
+  :root[data-look="kite"] .mseg:not([hidden]){display:flex;gap:2px;background:var(--raised);border:1px solid var(--bd);border-radius:11px;
+    padding:3px;margin-left:4px;flex:none}
+  :root[data-look="kite"] .mseg button{display:flex;align-items:center;gap:6px;border:0;background:transparent;border-radius:8px;
+    padding:6px 11px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-3);cursor:pointer;white-space:nowrap}
+  :root[data-look="kite"] .mseg button:hover{color:var(--ink)}
+  :root[data-look="kite"] .mseg button[aria-pressed="true"]{background:var(--accent-strong);color:#fff}
+  :root[data-look="kite"] .mseg small{font-family:var(--f-mono);font-weight:500;opacity:.8}
+  :root[data-look="kite"] .wrap > .mrail{grid-column:1 / -1;grid-row:1;margin-top:16px}
+  :root[data-look="kite"] .wrap > .kcol{grid-row:2 / span 6;margin-top:14px}
+  /* with the switch in the bar there is no room for the wordmark and roomy tabs until a very wide screen */
+  :root[data-look="kite"] .side:has(.mseg:not([hidden])) .menu .tab,
+  :root[data-look="kite"] .side:has(.mseg:not([hidden])) button.mgroup.mtoggle{padding:0 9px}
+  @media (max-width:1600px){:root[data-look="kite"] .side:has(.mseg:not([hidden])) .sbrand > div{display:none}
+    :root[data-look="kite"] .side:has(.mseg:not([hidden])) .sbrand{padding-right:10px}}
+  @media (max-width:1280px){:root[data-look="kite"] .mseg small{display:none}
+    :root[data-look="kite"] .side:has(.mseg:not([hidden])) .menu .tab,
+    :root[data-look="kite"] .side:has(.mseg:not([hidden])) button.mgroup.mtoggle{padding:0 7px;font-size:13px}}
+  :root[data-look="kite"] .mrail > #markets{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:0;
+    border:0;background:none;box-shadow:none !important;overflow:visible}
+  :root[data-look="kite"] .mrail > #markets::before{display:none}
+  :root[data-look="kite"] .mrail #markets .mkt{border:1px solid var(--bd);border-radius:var(--r);background:var(--surface);
+    padding:12px 14px;box-shadow:var(--shadow) !important;position:relative;overflow:hidden}
+  :root[data-look="kite"] .mrail #markets .mkt:last-child{border-bottom:1px solid var(--bd)}
+  :root[data-look="kite"] .mrail #markets .mkt:hover{border-color:var(--ink-3)}
+  :root[data-look="kite"] .mrail #markets .mkt[aria-selected="true"]{border-color:var(--accent);
+    background:linear-gradient(180deg,var(--atm),var(--surface) 75%)}
+  :root[data-look="kite"] .mrail #markets .mkt[aria-selected="true"]::before{display:none}
+  :root[data-look="kite"] .mrail #markets .mkt .px{font-size:18px}
 }
 @media (max-width:900px){
   :root[data-look="kite"] .botnav{border-top:1px solid var(--bd);box-shadow:0 -12px 30px -20px rgba(0,0,0,.5) !important}
@@ -5354,6 +5386,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#1b1b20" stroke="#2a2a31"/><rect x="4.6" y="11.5" width="2.2" height="6" rx="1" fill="#3a4050"/><rect x="8.3" y="9.5" width="2.2" height="8" rx="1" fill="#3a4050"/><rect x="12" y="6.5" width="2.6" height="11" rx="1.1" fill="#4d94e8"/><rect x="16.4" y="12.5" width="2.2" height="5" rx="1" fill="#3a4050"/><circle cx="13.3" cy="4.4" r="2.1" fill="#4caf50"/><path d="M12.4 4.4l.7.7 1.3-1.4" stroke="#0d1117" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <div>TradePicker<small id="sidesub">Nifty · Bank Nifty · Sensex · Bitcoin</small></div>
  </a>
+ <div class="mseg" id="mseg" role="group" aria-label="Market" hidden></div>
  <div class="sidechips" id="sidechips">
   <select class="chip" id="sidemkt" hidden aria-label="Switch market"></select>
   <a class="chip" id="sidekite" href="/connect" hidden>Connect Zerodha</a>
@@ -9129,6 +9162,19 @@ function render(s){
   // The phone menu's own copy - the header's select is hidden entirely below 901px (no room for
   // it there), so the slide-out menu carries its own independent dropdown, same options, same
   // change handler, rather than pointing at a select the phone can never actually show.
+  // The redesign's switch in the menu bar (16 Oct 2026, the user: "dont mix crypto and indian market"): the two
+  // markets as one control you can always see, the one you are in lit - it posts to /market like the selects do.
+  const ms = $("mseg");
+  if(ms){
+    const opts = Object.entries(s.market_options || {});
+    ms.hidden = opts.length < 2;
+    const key = opts.map(([k]) => k).join(",") + "|" + s.market;
+    if(!ms.hidden && ms.dataset.key !== key){
+      ms.dataset.key = key;
+      ms.innerHTML = opts.map(([k, label]) => `<button type="button" data-mseg="${esc(k)}" aria-pressed="${k === s.market}">`
+        + `${esc(({nse_index: "Indian markets", crypto: "Crypto & Gold"})[k] || label)}<small>${k === "crypto" ? "$" : "&#8377;"}</small></button>`).join("");
+    }
+  }
   const sm = $("sidemkt");
   if(sm){
     sm.hidden = !s.market_label;
@@ -12745,6 +12791,23 @@ function switchMarketOn(sel){
   const sel = document.getElementById(id);
   if(sel) sel.addEventListener("change", () => switchMarketOn(sel));
 });
+{ const ms = document.getElementById("mseg");
+  if(ms) ms.addEventListener("click", e => {
+    const b = e.target.closest("[data-mseg]");
+    if(b && b.getAttribute("aria-pressed") !== "true") switchMarketOn({value: b.dataset.mseg});
+  }); }
+// The redesign: on a wide screen the watchlist leaves the left column for a row of tiles under the menu, as in the
+// preview the user approved; the left column keeps the open trade, today and the funds. The same element moves -
+// every tile, its click and its live price are the watchlist's own. A phone already shows it as a row.
+if(typeof matchMedia === "function" && matchMedia("(min-width:901px)").matches){
+  const mk = document.getElementById("markets"), kc = document.getElementById("kcol");
+  if(mk && kc && kc.parentNode){
+    const rail = document.createElement("div");
+    rail.className = "mrail"; rail.id = "mrail";
+    kc.parentNode.insertBefore(rail, kc.parentNode.firstElementChild);
+    rail.appendChild(mk);
+  }
+}
 // The Funds box's own "Switch market" button and the command palette's entry are a SECOND way
 // to switch, not the select itself - and trying to reach the select indirectly (focus it, or
 // showPicker() it) turned out not to work: showPicker() is missing on older browsers and on
