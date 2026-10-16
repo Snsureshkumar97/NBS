@@ -71,30 +71,26 @@ def _macd_reason(tech):
 
 
 def _rsi_reason(tech):
+    # Worded so no line reads as "don't enter" when it is not a check that stops one (the user, 16 Oct 2026, after a Nifty
+    # ticket at RSI 72: "the ticket was saying when rsi was high ... why the tool still entered"). Past the outer
+    # bands RSI simply does not vote; it never blocks a ticket on its own. rsi_cap_study.py (2 Oct 2026): refusing
+    # trades past the line lost money in both periods at every level swept (60/40 to 75/25, calls and puts alike).
     score = tech.get("rsi_score", 0)
     r = tech.get("last_rsi")
     if r is None:
         return {"name": "RSI", "vote": 0, "reading": "", "text": "RSI unavailable."}
+    lo, mid, hi = config.RSI_OVERSOLD, config.RSI_BULL_MIN, config.RSI_OVERBOUGHT
     if score > 0:
-        text = (f"RSI is {r:.0f}, inside the {config.RSI_BULL_MIN}-"
-                f"{config.RSI_OVERBOUGHT} band the tool treats as bullish: strong "
-                f"enough to mean buyers are in control, not so stretched that it's "
-                f"about to snap back.")
+        text = (f"RSI is {r:.0f}, between {mid} and {hi}: a vote for a call - buyers are in control.")
     elif score < 0:
-        text = (f"RSI is {r:.0f}, inside the {config.RSI_OVERSOLD}-"
-                f"{config.RSI_BEAR_MAX} band the tool treats as bearish: weak "
-                f"enough to mean sellers are in control, not so oversold that a "
-                f"bounce is due.")
-    elif r >= config.RSI_OVERBOUGHT:
-        text = (f"RSI is {r:.0f}, above {config.RSI_OVERBOUGHT} — overbought. The "
-                f"move up is real but too stretched to call a fresh entry, so RSI "
-                f"abstains rather than voting bullish into a likely pullback.")
-    elif r <= config.RSI_OVERSOLD:
-        text = (f"RSI is {r:.0f}, below {config.RSI_OVERSOLD} — oversold. The move "
-                f"down is real but too stretched to call a fresh entry, so RSI "
-                f"abstains rather than voting bearish into a likely bounce.")
+        text = (f"RSI is {r:.0f}, between {lo} and {config.RSI_BEAR_MAX}: a vote for a put - sellers are in control.")
+    elif r >= hi or r <= lo:
+        side = "above" if r >= hi else "below"
+        text = (f"RSI is {r:.0f}, {side} {hi if r >= hi else lo}: RSI does not vote either way at this level. That never "
+                f"stops a trade on its own - the other votes decide. Tested on 3 years, refusing trades while RSI "
+                f"was this stretched lost money in both test periods: strong trends keep RSI here.")
     else:
-        text = f"RSI is {r:.0f}, sitting right at the midline — genuinely neutral."
+        text = f"RSI is {r:.0f}, right at the midline: no vote either way."
     return {"name": "RSI", "vote": score, "reading": f"{r:.0f}", "text": text}
 
 

@@ -3823,6 +3823,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .psum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;padding-bottom:12px}
 /* GATE TRACKS + TODAY'S MOVERS on the Dashboard (16 Oct 2026) - one track per index: each check before a ticket as a
    dot on a line, passed ones filled, the first unmet one the HOLD, the rest not reached yet */
+.trendnote{margin-top:6px;font-size:12px;color:var(--ink-3);line-height:1.45}
 .gt-h,.mv-h{margin:22px 0 2px;font-size:15px;color:var(--ink-2)}
 .gt-h small,.mv-h small{font-size:12px;color:var(--ink-3);margin-left:8px}
 .gt-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name stage" "track track";
@@ -5446,6 +5447,8 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="hero"><div class="v" id="trend"
   style="font-size:23px;letter-spacing:-.5px">—</div></div>
   <div class="sub" id="trendsub" style="margin-top:5px"></div>
+  <div class="sub trendnote">A description of the market, not one of the tool's checks - it never stops or starts a
+   trade. The tool's own trend check is the ADX gate (Gate tracks).</div>
   </div>
   <div class="card">
   <p class="eyebrow" role="heading" aria-level="2">Day move</p>
