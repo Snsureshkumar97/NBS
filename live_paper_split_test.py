@@ -118,7 +118,7 @@ else:
             + grab("function ccyLocale(){", "\n") + grab("function money(v, signed){") + grab("function fundsLabel(f){")
             + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\nconst lotsDash = s => {};   // per_index_lots_test.py\n" + helpers
             + grab("function kiteSide(s){") + grab("function posTable(s){") + grab("function posCount(s){") + "let KPOS_HTML = '';\n"
-            + grab("function posPane(s){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
+            + grab("function posPane(s){") + grab("function brokerCards(s, lv){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
             + r'''
 const els = {};
 const $ = id => els[id] || (els[id] = {id, innerHTML: "", textContent: "", dataset: {}, style: {}, className: "",

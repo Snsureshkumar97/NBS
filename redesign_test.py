@@ -92,7 +92,20 @@ check("Exness: every connected account, demo or real said plainly, with equity, 
 check("not connected: the card says so and links to the connect page", 'tag: "Not connected"' in SRC
       and 'href="${esc(br.connect_url || "#")}">Connect ${esc(name)}</a>' in SRC)
 
-print("5. STILL NOTHING MOVES")
+print("5. THE SIGNAL PAGE: THE LADDER AS A TRADE SLIP, THE VOTES AS A RING, RISK AGAINST REWARD AS BARS")
+check("the ladder reads from the furthest target down to the stop, each level a step (only for the four-rung ladder)",
+      '#ladder:has(> .rung:nth-child(4):last-child) > .rung:nth-child(3){order:1}' in BLOCK
+      and '#ladder > .rung.done::before{background:var(--up);border-color:var(--up)}' in BLOCK)
+check("the vote ring sits over the votes' own rows and is drawn from them, never a vote of its own",
+      "The votes</div>` + voteRing(rows) + rows.map(" in SRC and "function voteRing(rows){" in SRC)
+check("...and says how many lean which way, the no-votes counted apart",
+      '`<span>${up} up &middot; ${dn} down &middot; ${n - up - dn} no vote</span>' in SRC)
+check("the risk box draws the risk and the reward on one scale, from the figures it already shows",
+      'bar("Risk", rk, "var(--down)"' in SRC and "bar(`Reward at ${x.k}`, gn," in SRC)
+check("the chart stays off the Signal page (the user, 16 Oct 2026: \"remove the chart from the signal section\")",
+      "KITE_SPLIT" not in SRC)
+
+print("6. STILL NOTHING MOVES")
 check("the redesign adds no animation and no transition", "animation" not in BLOCK.split("*/", 1)[1]
       and "transition" not in BLOCK.split("*/", 1)[1])
 

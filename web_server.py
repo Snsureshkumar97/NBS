@@ -5298,6 +5298,41 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
   :root[data-look="kite"] .kstick > #markets{overflow:hidden}
 }
+/* -- the Signal page (stage 4): the ladder as a trade slip, highest target at the top down to the stop, each level a step
+   on one line; the votes summed up as a ring over their rows -- */
+:root[data-look="kite"] #ladder{display:flex;flex-direction:column;gap:0;background:var(--raised);border:1px solid var(--bd);
+  border-radius:var(--r);padding:6px 16px;margin-top:6px}
+:root[data-look="kite"] #ladder:has(> .rung:nth-child(4):last-child) > .rung:nth-child(1){order:3}
+:root[data-look="kite"] #ladder:has(> .rung:nth-child(4):last-child) > .rung:nth-child(2){order:2}
+:root[data-look="kite"] #ladder:has(> .rung:nth-child(4):last-child) > .rung:nth-child(3){order:1}
+:root[data-look="kite"] #ladder:has(> .rung:nth-child(4):last-child) > .rung:nth-child(4){order:4}
+:root[data-look="kite"] #ladder > .rung{display:grid;grid-template-columns:22px minmax(0,1fr) auto 52px minmax(70px,auto);
+  grid-template-areas:"d k n od rs" ". bar bar bar bar";align-items:center;column-gap:12px;row-gap:7px;padding:11px 0;
+  position:relative;border:0;margin:0;background:transparent}
+:root[data-look="kite"] #ladder > .rung + .rung{border-top:1px dashed var(--bd)}
+:root[data-look="kite"] #ladder > .rung::before{content:"";grid-area:d;justify-self:center;width:12px;height:12px;border-radius:50%;
+  border:2px solid var(--ink-3);background:var(--surface)}
+:root[data-look="kite"] #ladder > .rung.done::before{background:var(--up);border-color:var(--up)}
+:root[data-look="kite"] #ladder > .rung:nth-child(4):last-child::before{border-color:var(--down)}
+:root[data-look="kite"] #ladder > .rung > .k{grid-area:k;font-weight:600;font-size:13.5px;min-width:0}
+:root[data-look="kite"] #ladder > .rung > .bar{grid-area:bar;height:5px;margin:0}
+:root[data-look="kite"] #ladder > .rung > .n{grid-area:n;font-size:15px;text-align:right}
+:root[data-look="kite"] #ladder > .rung > .od{grid-area:od;text-align:right;font-family:var(--f-mono);font-size:12.5px}
+:root[data-look="kite"] #ladder > .rung > .rs{grid-area:rs;text-align:right;font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums}
+@media (max-width:560px){:root[data-look="kite"] #ladder > .rung{grid-template-columns:18px minmax(0,1fr) auto auto;
+  grid-template-areas:"d k n rs" ". bar bar bar"}
+  :root[data-look="kite"] #ladder > .rung > .od{display:none}}
+:root[data-look="kite"] details.about > summary{text-transform:none;letter-spacing:0;font-size:13px;font-weight:500}
+:root[data-look="kite"] .vring{display:flex;align-items:center;gap:14px;padding:6px 0 10px;margin-bottom:4px;border-bottom:1px solid var(--bd-soft)}
+:root[data-look="kite"] .vring svg{width:76px;height:76px;flex:0 0 76px}
+:root[data-look="kite"] .vring-n{font-family:var(--f-disp);font-weight:800;font-size:19px;fill:var(--ink)}
+:root[data-look="kite"] .vring b{display:block;font-size:15px;font-weight:600}
+:root[data-look="kite"] .vring span{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+:root[data-look="kite"] .rrbars{display:flex;flex-direction:column;gap:8px;margin:2px 0 14px;max-width:560px}
+:root[data-look="kite"] .rrb{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+:root[data-look="kite"] .rrb i{display:block;height:9px;border-radius:999px;background:var(--sunken);overflow:hidden}
+:root[data-look="kite"] .rrb u{display:block;height:100%;border-radius:999px}
+:root[data-look="kite"] .rrb b{font-family:var(--f-mono);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
 /* -- the Dashboard's broker cards (stage 3) -- */
 :root[data-look="kite"] .bkrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:16px;margin:4px 0 22px}
 :root[data-look="kite"] .bk{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-lg);box-shadow:var(--shadow) !important;
@@ -5308,7 +5343,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .bk-h > div{min-width:0}
 :root[data-look="kite"] .bk-h b{display:block;font-size:15px;font-weight:600}
 :root[data-look="kite"] .bk-h > div span{display:block;font-size:12.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-:root[data-look="kite"] .bk-h .tag{margin-left:auto;flex:none;font-size:11.5px;padding:3px 9px;border:1px solid var(--bd)}
+:root[data-look="kite"] .bk-h .tag{margin-left:auto;flex:none;font-size:12px;padding:3px 9px;border:1px solid var(--bd)}
 :root[data-look="kite"] .bk-h .tag.open{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
 :root[data-look="kite"] .bk-h .tag.hold{background:var(--hold-bg);color:var(--note-strong);border-color:var(--note-bd)}
 :root[data-look="kite"] .bk-h .tag.warn{background:var(--warn-bg);color:var(--warn-strong);border-color:var(--warn-bd)}
@@ -7703,6 +7738,14 @@ function rrBox(r, tk){
       + f("Wins needed", "over " + x.be.toFixed(0) + "%")
       + (x.od != null && odds.stop != null ? f(`Chance ${x.k} / stop`, `${x.od}% / ${odds.stop}%`) : "")
       + `</div>`;
+    // the same two figures as bars on one scale (the redesign): how much bigger the reward is than the risk, at a glance
+    const rk = qty ? loss : risk, gn = qty ? x.gain : x.move;
+    if(rk > 0 && gn > 0){
+      const mx = Math.max(rk, gn), bar = (l, v, c, t) => `<div class="rrb"><span>${l}</span><i><u style="width:${(v / mx * 100).toFixed(1)}%;`
+        + `background:${c}"></u></i><b>${t}</b></div>`;
+      figs += `<div class="rrbars">` + bar("Risk", rk, "var(--down)", qty ? money(loss, false) : num(risk, dp) + pts)
+        + bar(`Reward at ${x.k}`, gn, "var(--up)", qty ? money(x.gain, false) : num(x.move, dp) + pts) + `</div>`;
+    }
   }
   el.innerHTML = `<p class="eyebrow" role="heading" aria-level="2">Risk and reward on this ${open ? "ticket" : "trade"}</p>`
     + warn + figs
@@ -8427,6 +8470,24 @@ function ftBox(r){
           + `${Math.round(g.expect_win * 100)}%, or the drop passes $${Math.round(g.max_dd_per_btc).toLocaleString("en-US")} per BTC. `
           + `They are never switched back on for you.`) + `</div>`;
 }
+// The votes at a glance (the redesign, 16 Oct 2026): one ring, a segment per row below in that row's own colour, and how
+// many lean the way most of them do. A picture of the rows, never a vote of its own - the rows stay the reading.
+function voteRing(rows){
+  const n = rows.length;
+  if(n < 2) return "";
+  const up = rows.filter(r => r[1] > 0).length, dn = rows.filter(r => r[1] < 0).length;
+  const lean = up === dn ? 0 : up > dn ? 1 : -1, most = Math.max(up, dn);
+  const R = 34, C = 44, seg = 2 * Math.PI / n, gap = n > 6 ? .07 : .1;
+  const arc = i => { const a0 = -Math.PI / 2 + i * seg + gap / 2, a1 = a0 + seg - gap, f = v => v.toFixed(2);
+    return `M ${f(C + R * Math.cos(a0))} ${f(C + R * Math.sin(a0))} A ${R} ${R} 0 0 1 ${f(C + R * Math.cos(a1))} ${f(C + R * Math.sin(a1))}`; };
+  const paths = rows.map((r, i) => `<path d="${arc(i)}" fill="none" stroke="${r[3]}" stroke-width="8" stroke-linecap="round"`
+    + `${r[1] == null || r[1] === 0 ? ' opacity=".35"' : ""}/>`).join("");
+  const word = lean > 0 ? "lean up" : lean < 0 ? "lean down" : "are split";
+  return `<div class="vring" role="img" aria-label="${most} of ${n} ${word}"><svg viewBox="0 0 88 88" aria-hidden="true">${paths}`
+    + `<text x="44" y="50" text-anchor="middle" class="vring-n">${lean ? most : up}/${n}</text></svg>`
+    + `<div><b style="color:${lean > 0 ? "var(--up)" : lean < 0 ? "var(--down)" : "var(--ink-2)"}">${lean ? most + " of " + n + " " + word : "The votes " + word}</b>`
+    + `<span>${up} up &middot; ${dn} down &middot; ${n - up - dn} no vote</span></div></div>`;
+}
 function gauges(r, why){
   ftBox(r);
   const rows = [];
@@ -8449,7 +8510,7 @@ function gauges(r, why){
   }
   if(!rows.length){ $("gauges").innerHTML=""; $("gnote").textContent=""; return; }
 
-  $("gauges").innerHTML = `<div class="rr-h gh" title="A dash is an input that abstained - it is ignored, not counted as neutral.">The votes</div>` + rows.map(([name,vote,reading,colour]) => {
+  $("gauges").innerHTML = `<div class="rr-h gh" title="A dash is an input that abstained - it is ignored, not counted as neutral.">The votes</div>` + voteRing(rows) + rows.map(([name,vote,reading,colour]) => {
     // Magnitude is capped: these votes are small integers, and a bar that
     // grew without limit would say more about the scale than the reading.
     const mag = vote==null ? 0 : Math.min(1, Math.abs(vote)/2);
