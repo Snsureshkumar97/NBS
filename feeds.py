@@ -560,6 +560,7 @@ def _public_base(rec, name=None):
         "votes": rec.get("votes") or {},
         "agree": rec.get("agree"), "dissent": rec.get("dissent"),
         "adx": tech.get("adx"), "adx_ok": tech.get("adx_ok"),
+        "adx_needed": rec.get("adx_needed"),     # the ADX this reading had to reach (the Dashboard's gate tracks say it)
         # Not an entry input - drives tickets.py's post-T1 trail only (config.
         # TRAIL_AFTER_T1_SUPERTREND). The page never had anywhere to show it;
         # the user, 2 Oct 2026: "where can i see the supertrend".

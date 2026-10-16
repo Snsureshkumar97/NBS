@@ -3825,6 +3825,48 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
    label / value rows - two columns wide, one on a phone. */
 .tstats{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd-soft)}
 .psum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;padding-bottom:12px}
+/* GATE TRACKS + TODAY'S MOVERS on the Dashboard (16 Oct 2026) - one track per index: each check before a ticket as a
+   dot on a line, passed ones filled, the first unmet one the HOLD, the rest not reached yet */
+.gt-h,.mv-h{margin:22px 0 2px;font-size:15px;color:var(--ink-2)}
+.gt-h small,.mv-h small{font-size:12px;color:var(--ink-3);margin-left:8px}
+.gt-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name stage" "track track";
+  gap:12px 14px;align-items:start;padding:14px 4px;border-bottom:1px solid var(--bd-soft);cursor:pointer}
+.gt-name{grid-area:name} .gt-stage{grid-area:stage} .gt-track{grid-area:track}
+.gt-row:hover{background:var(--raised)}
+.gt-name b{font-size:14px;margin-right:8px}
+.gt-name small{font-size:12px;color:var(--ink-3)}
+.gt-track{list-style:none;margin:0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);position:relative}
+.gt-track li{position:relative;text-align:center;padding-top:20px;font-size:12px;color:var(--ink-3);line-height:1.3;min-width:0}
+.gt-track li::before{content:"";position:absolute;top:6px;left:0;right:0;height:2px;background:var(--bd)}
+.gt-track li:first-child::before{left:50%}
+.gt-track li:last-child::before{right:50%}
+.gt-track li.gt-done::before{background:var(--up)}
+.gt-track li i{position:absolute;top:0;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;
+  border:2px solid var(--bd);background:var(--bg,transparent);box-sizing:border-box}
+.gt-track li.gt-done i{background:var(--up);border-color:var(--up)}
+.gt-track li.gt-hold i{border-color:var(--warn);background:var(--warn);box-shadow:0 0 0 4px color-mix(in srgb,var(--warn) 25%,transparent)}
+.gt-track li.gt-hold{color:var(--ink)}
+.gt-track li.gt-met i{border-color:var(--up)}
+.gt-track li span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 3px}
+.gt-stage{text-align:right}
+.gt-stage b{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;
+  border-radius:4px;border:1px solid currentColor}
+.gt-stage small{display:block;font-size:12px;color:var(--ink-3);margin-top:5px;line-height:1.4;max-width:300px;margin-left:auto}
+.gt-up{color:var(--up)} .gt-warn{color:var(--warn)} .gt-mute{color:var(--ink-3)}
+.mv-bar{display:flex;gap:6px;margin:8px 0 4px;flex-wrap:wrap}
+.mv-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.mv-cols h3{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-3);margin:8px 0 4px}
+.mv-r{display:grid;grid-template-columns:110px minmax(0,1fr) 64px;gap:10px;align-items:center;padding:6px 0;
+  border-bottom:1px solid var(--bd-soft);font-size:13px}
+.mv-r small{display:block;font-size:12px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv-r .mv-b{height:6px;border-radius:3px}
+.mv-r .r{text-align:right;font-variant-numeric:tabular-nums}
+.mv-note{font-size:12px;color:var(--ink-3);margin-top:8px}
+.kdmov:not(:empty){margin-bottom:24px}
+@media (max-width:700px){
+  .gt-stage small{max-width:190px}
+  .mv-cols{grid-template-columns:1fr;gap:4px}
+}
 .psum > div + div{border-left:1px solid var(--bd-soft);padding-left:16px}
 .psum span,.pdet span{font-size:12px;color:var(--ink-3)}
 .psum span{display:block;letter-spacing:.6px;text-transform:uppercase;font-weight:700}
@@ -5332,6 +5374,8 @@ button.mgroup:hover{color:var(--ink-2)}
 
  <section class="pane on" data-pane="home">
   <div class="kdash" id="kdash"></div>
+  <div class="kdgates" id="kdgates"></div>
+  <div class="kdmov" id="kdmov"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -10214,8 +10258,135 @@ function kiteDash(s){
   }
 }
 
+// GATE TRACKS (the user, 16 Oct 2026, after AITOS's "gate tracks" screen: "yes" to drawing the tool's own checks that
+// way). One track per index: the checks the tool applies before a ticket, in its order - the reading's own (the rules'
+// votes, ADX, room and reward:risk, or a Trend Rider / TradingView rule's conditions), then the ticket's own hold and the
+// session. The first one not met is the HOLD and the ones after it are not reached yet. Display only: built from the
+// same reading and ticket hold the Signal card shows - nothing here decides a trade.
+const GT_SESSION = {closed: 1, early: 1, auction: 1, maxed: 1, won: 1, loss_limit: 1};
+const GT_LONG = {Votes: "the votes to agree", ADX: "trend strength (ADX)", Room: "room to run",
+                 "R:R": "reward to risk", Data: "a live price"};
+function gateSteps(r, ts){
+  const wait = (ts && ts.wait) || null, code = wait && wait.code;
+  const steps = [{n: "Data", ok: r.spot != null, d: r.spot != null ? "price live" : "no price yet"}];
+  const rows = r.rule && Array.isArray(r.rule.filters) ? r.rule.filters : null;
+  if(rows && rows.length){
+    for(const f of rows) steps.push({n: String(f.name || "").replace(/^TradingView /, "TV "), ok: f.ok == null ? null : !!f.ok,
+                                     d: f.reading || ""});
+  } else {
+    const lined = r.bias === "BULLISH" || r.bias === "BEARISH" || !!r.adx_blocked || !!r.not_worth_it || !!r.macd_blocked;
+    steps.push({n: "Votes", ok: lined, d: `${r.agree || 0} for \u00b7 ${r.dissent || 0} against`});
+    const need = r.adx_needed;
+    steps.push({n: "ADX", ok: r.adx == null ? null : !r.adx_blocked && (need == null || r.adx >= need),
+                d: r.adx == null ? "" : `ADX ${num(r.adx, 1)}` + (need != null ? ` \u00b7 needs ${num(need, 0)}` : "")});
+    steps.push({n: "Room", ok: !r.not_worth_it, d: r.reach_points != null ? `${num(r.reach_points, 0)} pts` : ""});
+    const rr = r.ticket_gate_ratio, rn = r.ticket_gate_need;
+    steps.push({n: "R:R", ok: rr == null || rn == null ? null : rr >= rn,
+                d: rr == null ? "" : `${num(rr, 2)}x` + (rn != null ? ` \u00b7 needs ${num(rn, 1)}x` : "")});
+  }
+  const sess = !!(code && GT_SESSION[code]);
+  const held = !!(code && !sess && code !== "neutral" && code !== "position_open");
+  steps.push({n: "Ticket", ok: !held, d: held ? (wait.badge || "") : ""});
+  steps.push({n: "Market", ok: !sess, d: sess ? (wait.badge || "") : "open"});
+  return {steps, sess, held, wait};
+}
+// One index's stage: [label, tone, the line under it, the index of the HOLD step or -1, in trade]
+function gateStage(r, ts, g){
+  const tk = ts && ts.ticket, open = !!(tk && (tk.open || tk.status === "OPEN")), st = g.steps;
+  if(open) return ["In trade", "up", `${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""} \u00b7 ${money(tk.pnl || 0)}`, -1, true];
+  if(g.sess) return [g.wait.badge || "Closed", "mute", g.wait.base || g.wait.why || "", st.length - 1, false];
+  const hold = st.findIndex(x => x.ok === false);
+  if(hold < 0) return ["Entry ready", "up", "every check passes", -1, false];
+  if(st[hold].n === "Ticket") return [g.wait.badge || "Waiting", "warn", g.wait.base || g.wait.why || "", hold, false];
+  return [hold <= 1 ? "Watching" : "Building", hold <= 1 ? "mute" : "warn",
+          `Waiting for ${GT_LONG[st[hold].n] || st[hold].n}${st[hold].d ? " \u2014 " + st[hold].d : ""}`, hold, false];
+}
+function gateRow(k, r, ts){
+  const g = gateSteps(r, ts), [stage, tone, why, hold, open] = gateStage(r, ts, g);
+  const sys = r.rule ? (r.rule.system === "tv_rating" ? "TradingView" : r.rule.label || "Rule") : "Rules";
+  const dots = g.steps.map((x, i) => {
+    const cls = open ? "done" : g.sess ? (i === hold ? "hold" : "ahead")
+      : hold < 0 || i < hold ? (x.ok === null ? "ahead" : "done") : i === hold ? "hold" : (x.ok ? "met" : "ahead");
+    const t = esc(x.n + (x.d ? " \u00b7 " + x.d : "")).replace(/"/g, "&quot;");
+    return `<li class="gt-${cls}" title="${t}"><i></i><span>${esc(x.n)}</span>`
+      + `</li>`;
+  }).join("");
+  return `<div class="gt-row" data-k="${esc(k)}"><div class="gt-name"><b>${esc(k)}</b><small>${esc(sys)}</small></div>`
+    + `<ol class="gt-track">${dots}</ol>`
+    + `<div class="gt-stage"><b class="gt-${tone}">${esc(stage)}</b>${why ? `<small>${esc(why)}</small>` : ""}</div></div>`;
+}
+let GT_HTML = "";
+function gateTracks(s){
+  const el = $("kdgates");
+  if(!el || !s) return;
+  const order = s.order || Object.keys(s.indices || {});
+  const rows = order.map(k => { const r = (s.indices || {})[k]; return r ? gateRow(k, r, (s.tickets || {})[k]) : ""; }).join("");
+  const h = rows ? `<div class="gt-h">Gate tracks<small>each check before a ticket &middot; the first one not met is where it waits</small></div>${rows}` : "";
+  if(h === GT_HTML) return;
+  GT_HTML = h;
+  el.innerHTML = h;
+  if(!el.dataset.wired){
+    el.dataset.wired = "1";
+    el.addEventListener("click", e => {
+      const row = e.target.closest(".gt-row[data-k]"); if(!row) return;
+      selectIndex(row.dataset.k); showTab("signal");
+    });
+  }
+}
+// TODAY'S MOVERS (the user, 16 Oct 2026: "yes" to AITOS's "flow up / flow down top 20"): one index's own stocks ranked
+// by today's move, from the market map's streamed prices (/api/map) - the 10 rising most and the 10 falling most.
+// Context only: breadth was tested as a vote (breadth_study.py) and did not improve the trades.
+function moversRank(tiles, n){
+  const t = (tiles || []).filter(x => x && x.pct != null && isFinite(x.pct));
+  const up = t.filter(x => x.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, n);
+  const down = t.filter(x => x.pct < 0).sort((a, b) => a.pct - b.pct).slice(0, n);
+  const max = Math.max(0.01, ...t.map(x => Math.abs(x.pct)));
+  return {up, down, max, total: t.length};
+}
+const MV_INDICES = ["NIFTY", "BANKNIFTY", "SENSEX"];      // the indices market_map.py has a stock list for
+let MV_IDX = null, MV_AT = 0, MV_HTML = "";
+async function moversDraw(force){
+  const el = $("kdmov");
+  if(!el || !LAST || TAB !== "home" || document.hidden) return;
+  const cfd = Object.values(LAST.indices || {}).some(r => r && r.cfd);
+  if(cfd){ if(MV_HTML){ MV_HTML = ""; el.innerHTML = ""; } return; }
+  if(!MV_IDX) MV_IDX = MV_INDICES.includes(CUR) ? CUR : "NIFTY";
+  if(!force && Date.now() - MV_AT < 15000) return;
+  MV_AT = Date.now();
+  const k = MV_IDX;
+  let d;
+  try{ d = await (await fetch(`/api/map/${encodeURIComponent(k)}?w=600&h=400`, {cache: "no-store"})).json(); }
+  catch(e){ return; }
+  if(k !== MV_IDX) return;                         // switched while it was on its way
+  const m = moversRank(d.tiles, 10), b = d.breadth;
+  const row = x => `<div class="mv-r"><div><b>${esc(x.sym)}</b><small>${esc(x.sector || "")}</small></div>`
+    + `<div><div class="mv-b" style="width:${Math.max(4, Math.round(100 * Math.abs(x.pct) / m.max))}%;`
+    + `background:${x.pct > 0 ? "var(--up)" : "var(--down)"}"></div></div>`
+    + `<div class="r" style="color:${x.pct > 0 ? "var(--up)" : "var(--down)"}">${x.pct > 0 ? "+" : "\u2212"}${num(Math.abs(x.pct), 2)}%</div></div>`;
+  const tabs = MV_INDICES.map(i => `<button class="lbtn${i === k ? " on" : ""}" type="button" data-mv="${esc(i)}">${esc(i)}</button>`).join("");
+  const body = m.total
+    ? `<div class="mv-cols"><div><h3>Rising most</h3>${m.up.map(row).join("") || '<div class="mv-note">none up</div>'}</div>`
+      + `<div><h3>Falling most</h3>${m.down.map(row).join("") || '<div class="mv-note">none down</div>'}</div></div>`
+      + (b ? `<div class="mv-note">${b.up} up &middot; ${b.down} down &middot; ${b.flat} flat of ${b.total} &middot; weighted ${b.weighted >= 0 ? "+" : "\u2212"}${num(Math.abs(b.weighted), 2)}%`
+             + ` &middot; context only - breadth did not improve the tool's trades when tested</div>` : "")
+    : `<div class="mv-note">${d.ready ? "No prices for these stocks yet - they arrive once the market is open." : "The stock prices are not streaming yet."}</div>`;
+  const h = `<div class="mv-h">Today's movers<small>${esc(k)}'s own stocks, ranked by today's move</small></div>`
+    + `<div class="mv-bar">${tabs}</div>${body}`;
+  if(h === MV_HTML) return;
+  MV_HTML = h;
+  el.innerHTML = h;
+  if(!el.dataset.wired){
+    el.dataset.wired = "1";
+    el.addEventListener("click", e => {
+      const btn = e.target.closest("[data-mv]"); if(!btn) return;
+      MV_IDX = btn.dataset.mv; moversDraw(true);
+    });
+  }
+}
 function homeDraw(s){
   kiteDash(s);
+  gateTracks(s);
+  moversDraw(false);
   const g = $("gmk");
   if(g && MKT_ROWS){
     g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {
