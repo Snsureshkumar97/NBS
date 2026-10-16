@@ -3313,7 +3313,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .rr-c{color:var(--ink-3);font-size:12px}
 .rr-tag{font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
   color:var(--accent);border:1px solid rgba(77,148,232,.4);border-radius:999px;
-  padding:1px 8px}
+  padding:1px 8px;justify-self:end;white-space:nowrap}
+.rr-c:empty{display:none}
 @media(max-width:640px){.rr{grid-template-columns:72px 1fr 1fr}
   .rr-c,.rr-tag{grid-column:1/-1}}
 .feedtag{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
@@ -3870,12 +3871,16 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .psum span{display:block;letter-spacing:.6px;text-transform:uppercase;font-weight:700}
 .psum b{display:block;font-size:22px;font-weight:700;letter-spacing:-.4px;margin-top:4px;font-variant-numeric:tabular-nums;
   white-space:nowrap}
-.pdet{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;border-top:1px solid var(--bd-soft)}
-.pdet > div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;
-  border-bottom:1px solid var(--bd-soft)}
-.pdet b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+/* the details under the headline, as small figures in one aligned grid - label above, value below (16 Oct 2026: the user,
+   "they are lot of text ... it doesnt look its aligned"); they wrap to whole cells, never a half-empty row of pairs */
+.pdet{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:2px 20px;border-top:1px solid var(--bd-soft);
+  padding-top:10px}
+.pdet > div{display:block;padding:4px 0 6px;min-width:0}
+.pdet span{display:block;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.pdet b{display:block;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
 @media (max-width:560px){
-  .pdet{grid-template-columns:minmax(0,1fr)}
+  .pdet{grid-template-columns:repeat(2,minmax(0,1fr))}
   .psum{column-gap:10px}
   .psum > div + div{padding-left:10px}
   .psum b{font-size:18px}
@@ -3903,7 +3908,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .whyhold.clock{display:flex;align-items:baseline;justify-content:space-between;gap:6px 18px;flex-wrap:wrap}
 .whyhold .holdclock{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--warn);white-space:nowrap}
 .whyhold .holdclock small{font-size:12px;font-weight:400;color:var(--ink-3)}
-.rung .k .tick{color:var(--up);font-weight:700}
+.rung .k .tick{display:block;color:var(--up);font-weight:600;letter-spacing:0;margin-top:1px}
 .rung.done .k{color:var(--up)}
 
 /* ---------- the session strip ---------- */
@@ -4184,6 +4189,20 @@ details.about > summary::before{content:"+";display:inline-block;width:14px;text
 details.about[open] > summary::before{content:"\2212"}
 details.about > summary:hover{color:var(--ink-2)}
 details.about > :not(summary){font-size:13px;line-height:1.6;color:var(--ink-2);margin:8px 0 0}
+/* nothing to say about the ladder (no signal): no fold at all */
+#ladabout:not(:has(#laddernote:not(:empty))):not(:has(#lnote:not(:empty))){display:none}
+/* the risk box's key figures, in place of its paragraph */
+.rrfig{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:2px 20px;margin:4px 0 12px}
+.rrfig > div{padding:4px 0}
+.rrfig span{display:block;font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.rrfig b{display:block;font-size:16px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rrwarn{font-size:13px;color:var(--down);margin:4px 0 10px;line-height:1.5}
+/* the Trend Rider / TradingView / Exness rules' votes: a wider reading column (put back 16 Oct 2026) */
+.gauge.wide{grid-template-columns:110px 1fr minmax(130px,250px)}
+.gauge.wide .gv{white-space:normal}
+@media (max-width:560px){.gauge.wide{grid-template-columns:96px 1fr}.gauge.wide .gv{grid-column:1/-1;text-align:left}}
+/* room to run: its limit said once under the heading when both sides share it; the open-trade mark a small tag */
+.rr-cap{font-size:12px;color:var(--ink-3);margin:-2px 0 6px}
 .calcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .calcgrid label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-3)}
 .calcgrid input{background:var(--raised);border:1px solid var(--bd);border-radius:9px;
@@ -5019,8 +5038,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #ftbox{order:8}
   :root[data-look="kite"] #lswitch{order:9}
   :root[data-look="kite"] #ladder{order:10}
-  :root[data-look="kite"] #laddernote{order:11}
-  :root[data-look="kite"] #lnote{order:12}
+  :root[data-look="kite"] #ladabout{order:11}
   :root[data-look="kite"] #rr{order:13}
   :root[data-look="kite"] #reason{order:14}
   :root[data-look="kite"] #tovernight{order:15}
@@ -5078,8 +5096,9 @@ button.mgroup:hover{color:var(--ink-2)}
 }
 /* in the half-width column the room-to-run rows take the phone's form: name, points and level, the note under them */
 @media (min-width:901px) and (max-width:1499px){
-  :root[data-look="kite"] #room .rr{grid-template-columns:72px 1fr 1fr}
-  :root[data-look="kite"] #room .rr-c,:root[data-look="kite"] #room .rr-tag{grid-column:1 / -1}
+  :root[data-look="kite"] #room .rr{grid-template-columns:64px 1fr 1fr auto}
+  :root[data-look="kite"] #room .rr-c{grid-column:1 / -1}
+  :root[data-look="kite"] #room .rr-c:empty{display:none}
 }
 /* 11. (removed 16 Oct 2026 - the user: "remove the chart from the signal section so everything can have more room".
    On a very wide screen the chart used to sit beside the signal; the Signal page now keeps the whole width at every
@@ -5131,6 +5150,10 @@ button.mgroup:hover{color:var(--ink-2)}
   .thead > .lbtn,.thead > .ailots{flex:1 1 100%;justify-content:center;text-align:center}
   .thead > .ailots{display:flex;justify-content:space-between;align-items:center}
   .thead > .ailots select{flex:0 1 55%}
+  /* ...but the Signal ticket's own head stays one row - its name, the OPEN tag and Clear ticket on the right, a thumb's
+     height - and only the live-orders switch takes a row of its own (16 Oct 2026: "rearrange ... alignments") */
+  #sigcard > .thead > .eyebrow{flex:0 1 auto}
+  #sigcard > .thead > .lbtn.tclear{flex:0 0 auto;margin-left:auto;min-height:44px;padding:0 16px}
   /* -- the bottom bar: labels always visible, the current section clear -- */
   .botnav{padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
   .botnav button{min-height:52px;font-size:12px;gap:2px}
@@ -5430,8 +5453,10 @@ button.mgroup:hover{color:var(--ink-2)}
   </div>
   </div>
   <div class="ladder" id="ladder"></div>
+  <details class="about ladabout" id="ladabout"><summary>How the ladder works</summary>
   <div class="gnote" id="laddernote"></div>
   <div class="lnote" id="lnote"></div>
+  </details>
   <div class="rrcard" id="rr"></div>
   <div class="risk" id="risk">
   <div class="riskline" id="riskline"></div>
@@ -5447,8 +5472,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="hero"><div class="v" id="trend"
   style="font-size:23px;letter-spacing:-.5px">—</div></div>
   <div class="sub" id="trendsub" style="margin-top:5px"></div>
-  <div class="sub trendnote">A description of the market, not one of the tool's checks - it never stops or starts a
-   trade. The tool's own trend check is the ADX gate (Gate tracks).</div>
+  <div class="sub trendnote">A description, not one of the tool's checks - it never stops or starts a trade.</div>
   </div>
   <div class="card">
   <p class="eyebrow" role="heading" aria-level="2">Day move</p>
@@ -7468,10 +7492,28 @@ function rrBox(r, tk){
            + `market has room to run against the stop; the Ticket gate tile is room to run all the way to T3 `
            + `against the stop, held to a higher bar.`);
 
+  // The paragraph's numbers as figures (16 Oct 2026: "they are lot of text ... replace those with something that looks
+  // good"); the sentences themselves fold under "What these numbers mean". A trade that cannot pay for itself is said
+  // in the open, never folded away.
+  let figs = "", warn = "";
+  if(x && qty && !(x.gain > 0)) warn = `<div class="rrwarn">${sum}</div>`;
+  else if(x){
+    const ratio = qty ? x.gain / loss : x.R;
+    const f = (l, v, c) => `<div><span>${l}</span><b${c ? ` style="color:${c}"` : ""}>${v}</b></div>`;
+    figs = `<div class="rrfig">`
+      + f("You risk", qty ? money(loss, false) : num(risk, dp) + pts, "var(--down)")
+      + f(`To make at ${x.k}`, qty ? money(x.gain, false) : num(x.move, dp) + pts, "var(--up)")
+      + f("Reward : risk", ratio.toFixed(2) + " : 1")
+      + f("Wins needed", "over " + x.be.toFixed(0) + "%")
+      + (x.od != null && odds.stop != null ? f(`Chance ${x.k} / stop`, `${x.od}% / ${odds.stop}%`) : "")
+      + `</div>`;
+  }
   el.innerHTML = `<p class="eyebrow" role="heading" aria-level="2">Risk and reward on this ${open ? "ticket" : "trade"}</p>`
-    + (sum ? `<div class="rrsum">${sum}</div>` : "")
+    + warn + figs
     + `<div class="scrwrap"><table class="scr rrtbl">${head}<tbody>${body}</tbody></table></div>`
-    + `<div class="gnote">${notes.join(" ")}</div>`;
+    + `<details class="about"><summary>What these numbers mean</summary>`
+    + (sum && !warn ? `<div class="rrsum">${sum}</div>` : "")
+    + `<div class="gnote">${notes.join(" ")}</div></details>`;
 }
 
 $("lb-index").onclick   = () => { LMODE="index";   if(LAST) render(LAST); };
@@ -7888,19 +7930,17 @@ function ticketBox(r, state){
 
   const c = $("tcontract");
   if(open){
+    // One line (16 Oct 2026: "they are lot of text"): the contract, what it is tracked on and when it was issued. The expiry
+    // is in the chip beside the verdict, so it is not said twice; "levels frozen at entry" is the line's tooltip.
     c.style.display = "";
-    const ex = expiryText(tk.expiry);
+    c.title = "The ticket's levels were frozen when it was issued.";
     c.innerHTML = `<b>${esc(contractName(tk.index, String(tk.strike), tk.option_type, tk.cfd))}</b>`
-                + (ex ? ` · expiry <b>${esc(ex)}</b>` : "")
-                + (tk.cfd ? ` · tracked on the live price · spread paid ${tk.entry_spread != null ? esc(num(tk.entry_spread, 2)) : "—"}`
-                   : ` · tracked on ${tk.tracked_on === "premium" ? "live premium" : "the index"}`
-                     + ` <button class="lbtn ocbtn" type="button" data-k="${esc(String(tk.index))}"`
-                     + ` data-strike="${esc(String(tk.strike))}" data-side="${esc(String(tk.option_type))}"`
-                     + ` data-expiry="${esc(String(tk.expiry || ""))}" onclick="ocOpenFrom(this)">View chart</button>`);
-    $("tissued").style.display = "";
-    $("tissued").textContent = `Issued ${tk.entry_time} IST · levels frozen at entry`
-      + entryNote(tk, tk.tracked_on === "premium" ? 2 : 0)
-      + (tk.cooldown_skipped ? " · cooldown skipped by you" : "");
+                + (tk.cfd ? ` · live price · spread paid ${tk.entry_spread != null ? esc(num(tk.entry_spread, 2)) : "—"}`
+                   : ` · ${tk.tracked_on === "premium" ? "live premium" : "on the index"}`)
+                + ` · issued ${esc(String(tk.entry_time || "").slice(0, 5))}`
+                + esc(entryNote(tk, tk.tracked_on === "premium" ? 2 : 0))
+                + (tk.cooldown_skipped ? " · cooldown skipped by you" : "");
+    $("tissued").style.display = "none";
   } else {
     c.style.display = "none"; $("tissued").style.display = "none";
   }
@@ -8150,6 +8190,7 @@ function roomRun(r){
   const tk = ((LAST && LAST.tickets) || {})[CUR];
   const open = tk && tk.ticket && tk.ticket.open !== false && tk.ticket.option_type;
   const side = open ? (tk.ticket.option_type === "CE" ? "up" : "down") : rm.side;
+  const shared = !!rm.up_cap && rm.up_cap === rm.down_cap;       // one limit for both sides: said once, under the heading
   const line = dir => {
     const pts = rm[dir], to = rm[dir + "_to"], cap = rm[dir + "_cap"];
     const mine = side === dir;
@@ -8158,11 +8199,12 @@ function roomRun(r){
       + `<span class="rr-d" style="color:${col}">${ARROW[dir]} ${dir === "up" ? "Up" : "Down"}</span>`
       + `<span class="rr-p">${pts == null ? "\u2014" : num(pts,0) + " pts"}</span>`
       + `<span class="rr-to">${to == null ? "" : "to <b>" + num(to,0) + "</b>"}</span>`
-      + `<span class="rr-c">${cap ? "limited by " + esc(cap) : ""}</span>`
+      + `<span class="rr-c">${cap && !shared ? "limited by " + esc(cap) : ""}</span>`
       + (mine ? `<span class="rr-tag">${open ? "open trade" : "this trade"}</span>` : "")
       + `</div>`;
   };
-  el.innerHTML = `<div class="rr-h">Room to run</div>` + line("up") + line("down");
+  el.innerHTML = `<div class="rr-h">Room to run</div>`
+    + (shared ? `<div class="rr-cap">limited by ${esc(rm.up_cap)}</div>` : "") + line("up") + line("down");
 }
 
 // The forward test's own record so far (exness_orders.forward_record) and its guard - the user, 4 Oct 2026:
@@ -8211,7 +8253,7 @@ function gauges(r, why){
   }
   if(!rows.length){ $("gauges").innerHTML=""; $("gnote").textContent=""; return; }
 
-  $("gauges").innerHTML = `<div class="rr-h gh">The votes</div>` + rows.map(([name,vote,reading,colour]) => {
+  $("gauges").innerHTML = `<div class="rr-h gh" title="A dash is an input that abstained - it is ignored, not counted as neutral.">The votes</div>` + rows.map(([name,vote,reading,colour]) => {
     // Magnitude is capped: these votes are small integers, and a bar that
     // grew without limit would say more about the scale than the reading.
     const mag = vote==null ? 0 : Math.min(1, Math.abs(vote)/2);
@@ -8232,7 +8274,7 @@ function gauges(r, why){
       + (ft ? ` FORWARD TEST on the demo account since ${ft.since} - not proven. In the 3-year test: about `
               + `${ft.trades_a_month} trades a month, ${ft.win} won, about +$${ft.per_trade} a trade per BTC, and coin `
               + `flips did as well ${ft.luck_pct}% of the time. A few months of results cannot prove it either way.` : "")
-    : "A dash is an input that abstained — it is ignored, not counted as neutral.";
+    : "";
 }
 
 // =====================================================================
@@ -9019,17 +9061,21 @@ function render(s){
                             : r.strike+" "+(r.option_type==="CE"?"Call":"Put"))+" · ":"")+r.confidence+" confidence";
   } else $("conftag").style.display="none";
 
-  // The contract this signal names, on the button that opens its own chart.
+  // The contract this signal names, on the button that opens its own chart - or, with a ticket running, the TICKET's
+  // contract (the one actually held; the signal may name another strike by now). One button: the contract line under
+  // the figures no longer carries a second one (16 Oct 2026).
   {
     const ob = $("ocopen");
     if(ob){
-      const has = (bull || bear) && r.strike != null && !!r.option_type;
+      const tko = ((s.tickets||{})[CUR]||{}).ticket;
+      const held = !!(tko && tko.open && !tko.cfd && tko.strike != null && tko.option_type);
+      const has = held || ((bull || bear) && r.strike != null && !!r.option_type);
       ob.style.display = has ? "" : "none";
       if(has){
         ob.dataset.k = CUR;
-        ob.dataset.strike = String(r.strike);
-        ob.dataset.side = r.option_type;
-        ob.dataset.expiry = r.expiry || "";
+        ob.dataset.strike = String(held ? tko.strike : r.strike);
+        ob.dataset.side = held ? tko.option_type : r.option_type;
+        ob.dataset.expiry = (held ? tko.expiry : r.expiry) || "";
       }
     }
   }
@@ -9051,8 +9097,10 @@ function render(s){
     } else et.style.display = "none";
   }
 
-  $("reason").innerHTML = (bull||bear)
-    ? `Risking <b>${num(r.risk_points, r.cfd ? 2 : 0)}</b> points to a stop at <b>${num(r.stop, r.cfd ? 2 : 0)}</b>.`
+  // With a call in force the risk box says the risk (its "You risk" figure, and for an open ticket the TICKET's stop -
+  // this line read the live signal's, which can differ once the ticket's stop has stepped up); the line is kept for
+  // what holds a signal back.
+  $("reason").innerHTML = (bull||bear) ? ""
     : ((r.blockers&&r.blockers.length) ? esc(r.blockers.join("  ")) : esc(r.action||""));
 
   const tr=r.trend||{}, dc=tr.day_change, dp=tr.day_change_pct;

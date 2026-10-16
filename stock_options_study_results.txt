@@ -1,0 +1,54 @@
+============================================================================================================================================================================
+ BUY THE OPTION OF THE DAY'S STRONGEST / WEAKEST STOCK AFTER THE OPEN - 56 F&O stocks, 15-minute, option prices from a model (see the docstring). Per lot, after costs.
+  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR (to 14 Oct 2026)
+    MAIN                                          817   40% ₹  +352,827 PF 1.23 DD ₹  91,778 day ₹ -15,509  |  501   45% ₹  +179,135 PF 1.22 DD ₹ 107,874 day ₹ -10,941
+       MAIN CE only                               441   38% ₹    -8,823 PF 0.99 DD ₹ 118,227 day ₹ -10,872  |  264   45% ₹   +99,654 PF 1.21 DD ₹  97,686 day ₹  -9,625
+       MAIN PE only                               376   42% ₹  +361,650 PF 1.60 DD ₹  68,837 day ₹ -10,904  |  237   45% ₹   +79,480 PF 1.22 DD ₹  45,754 day ₹  -7,176
+    NO_STOP                                       817   43% ₹  +406,331 PF 1.26 DD ₹  86,315 day ₹ -20,309  |  501   48% ₹  +218,758 PF 1.26 DD ₹  86,116 day ₹ -11,749
+       NO_STOP CE only                            441   41% ₹   +12,292 PF 1.01 DD ₹ 105,549 day ₹ -20,309  |  264   48% ₹  +149,117 PF 1.31 DD ₹  88,738 day ₹  -9,710
+       NO_STOP PE only                            376   45% ₹  +394,039 PF 1.64 DD ₹  69,923 day ₹ -16,180  |  237   46% ₹   +69,641 PF 1.18 DD ₹  62,846 day ₹ -11,805
+    TARGET_2R                                     817   41% ₹  +115,908 PF 1.08 DD ₹ 142,250 day ₹ -15,509  |  501   46% ₹  +162,299 PF 1.20 DD ₹ 108,851 day ₹ -10,941
+       TARGET_2R CE only                          441   39% ₹   -26,895 PF 0.97 DD ₹ 135,304 day ₹ -10,872  |  264   45% ₹  +105,102 PF 1.22 DD ₹  97,294 day ₹  -9,625
+       TARGET_2R PE only                          376   43% ₹  +142,803 PF 1.24 DD ₹  63,534 day ₹ -10,904  |  237   46% ₹   +57,196 PF 1.16 DD ₹  55,220 day ₹  -7,176
+    FIRST_HOUR                                    868   46% ₹  +270,133 PF 1.20 DD ₹  65,817 day ₹ -20,184  |  521   45% ₹  +128,303 PF 1.17 DD ₹  75,001 day ₹ -11,176
+       FIRST_HOUR CE only                         449   44% ₹  +108,592 PF 1.14 DD ₹  58,555 day ₹ -21,008  |  270   43% ₹   -20,851 PF 0.95 DD ₹  63,924 day ₹  -8,266
+       FIRST_HOUR PE only                         419   47% ₹  +161,541 PF 1.27 DD ₹  75,419 day ₹ -13,258  |  251   48% ₹  +149,155 PF 1.50 DD ₹  53,403 day ₹  -8,829
+    FROM_OPEN                                     847   43% ₹   +60,724 PF 1.04 DD ₹ 188,080 day ₹ -15,509  |  504   49% ₹  +289,437 PF 1.35 DD ₹  53,115 day ₹ -10,702
+       FROM_OPEN CE only                          436   41% ₹    +1,221 PF 1.00 DD ₹ 210,048 day ₹ -10,872  |  258   47% ₹  +108,557 PF 1.23 DD ₹  69,404 day ₹  -9,625
+       FROM_OPEN PE only                          411   45% ₹   +59,503 PF 1.09 DD ₹  59,250 day ₹ -11,200  |  246   51% ₹  +180,880 PF 1.48 DD ₹  60,241 day ₹ -10,702
+    LIQUID                                        663   41% ₹  +291,508 PF 1.24 DD ₹ 102,566 day ₹ -17,529  |  438   49% ₹  +218,762 PF 1.33 DD ₹  80,410 day ₹  -9,800
+       LIQUID CE only                             374   39% ₹   +81,089 PF 1.11 DD ₹  91,868 day ₹ -17,529  |  242   49% ₹  +129,390 PF 1.34 DD ₹  67,780 day ₹  -9,625
+       LIQUID PE only                             289   44% ₹  +210,419 PF 1.46 DD ₹  66,183 day ₹ -10,904  |  196   49% ₹   +89,372 PF 1.32 DD ₹  26,109 day ₹  -8,561
+    SLIP_1PCT                                     817   39% ₹  +232,279 PF 1.15 DD ₹ 108,834 day ₹ -15,943  |  501   43% ₹  +102,119 PF 1.12 DD ₹ 121,126 day ₹ -11,320
+       SLIP_1PCT CE only                          441   37% ₹   -72,823 PF 0.92 DD ₹ 160,956 day ₹ -11,102  |  264   43% ₹   +58,809 PF 1.12 DD ₹ 105,585 day ₹  -9,832
+       SLIP_1PCT PE only                          376   41% ₹  +305,102 PF 1.48 DD ₹  75,867 day ₹ -11,073  |  237   43% ₹   +43,311 PF 1.12 DD ₹  63,116 day ₹  -7,237
+
+ THE STOCK ITSELF, from the entry to the exit (in the trade's direction), MAIN's picks - does the morning's leader keep going?
+   first two years  CE:  441 trades, stock moved -0.12% on average (median -0.44%), further the right way on 39%  exits {'close': 315, 'stop': 126}
+   first two years  PE:  376 trades, stock moved +0.12% on average (median -0.24%), further the right way on 44%  exits {'close': 279, 'stop': 97}
+   held-out year    CE:  264 trades, stock moved +0.07% on average (median -0.14%), further the right way on 47%  exits {'close': 204, 'stop': 60}
+   held-out year    PE:  237 trades, stock moved +0.05% on average (median -0.06%), further the right way on 48%  exits {'close': 182, 'stop': 55}
+
+ MAIN's median premium per lot at entry: Rs 13,206
+
+ VERDICT (MAIN only, fixed beforehand): money after costs in BOTH periods, and still at 1% slippage
+   PASS  MAIN +352,827 / +179,135   at 1% slippage +232,279 / +102,119
+
+============================================================================================================================================================================
+ CHECKS ADDED AFTER THE FIRST RUN - how much of MAIN's profit is the option model
+============================================================================================================================================================================
+ 1. THE SAME RULE ON THE STOCK ITSELF (no option; ~0.06% round trip, like futures):
+    first two years  817 trades, -0.071% a trade after costs, 41% won
+    held-out year    501 trades, -0.004% a trade after costs, 46% won
+ 2. MAIN / 1% slippage under each time-decay clock and with the picked stock's options dearer than a normal day (a mover's volatility is usually bid up):
+    calendar clock (the studies' own)  vol x1.00   MAIN   +352,827 PF 1.23 /   +179,135 PF 1.22    1% slippage   +232,279 /   +102,119
+    calendar clock (the studies' own)  vol x1.25   MAIN   +192,846 PF 1.12 /   +130,992 PF 1.15    1% slippage    +43,715 /    +35,348
+    calendar clock (the studies' own)  vol x1.50   MAIN    +61,471 PF 1.04 /    +57,978 PF 1.06    1% slippage   -116,319 /    -56,091
+    trading clock                      vol x1.00   MAIN    -46,481 PF 0.97 /    -41,357 PF 0.96    1% slippage   -171,121 /   -118,905
+    trading clock                      vol x1.25   MAIN   -298,859 PF 0.84 /   -196,585 PF 0.81    1% slippage   -453,064 /   -292,536
+    trading clock                      vol x1.50   MAIN   -524,064 PF 0.74 /   -336,427 PF 0.70    1% slippage   -707,975 /   -450,861
+    real-price blend (0.53 calendar)   vol x1.00   MAIN   +158,146 PF 1.10 /    +96,497 PF 1.11    1% slippage    +35,575 /    +19,053
+    real-price blend (0.53 calendar)   vol x1.25   MAIN    -45,742 PF 0.97 /    -22,941 PF 0.98    1% slippage   -197,340 /   -118,765
+    real-price blend (0.53 calendar)   vol x1.50   MAIN   -222,459 PF 0.88 /   -127,206 PF 0.87    1% slippage   -403,227 /   -241,491
