@@ -79,7 +79,20 @@ check("on a wide screen the watchlist itself moves into the row of tiles under t
       'rail.appendChild(mk);' in SRC and ".mrail > #markets{display:grid;" in BLOCK)
 check("...and the left column keeps its other boxes (open trade, today, funds)", '<div class="kside" id="kside"></div>' in SRC)
 
-print("4. STILL NOTHING MOVES")
+print("4. THE DASHBOARD NAMES THE BROKER AND SHOWS ITS BALANCE")
+check("a card per broker account behind this market, between the day's figures and the markets table",
+      "+ brokerCards(s, lv)\n    + `<div class=\"kd-l kd-tabh\">Markets</div>`" in SRC and "function brokerCards(s, lv){" in SRC)
+check("Zerodha: available margin, opening balance, used margin, the client id masked, when it connected and the order IP",
+      all(x in SRC for x in ('bigL: "Available margin"', 'cell("Opening balance"', 'cell("Used margin"',
+                              '"Client " + esc(mask(br.user_id))', "Order IP <b>", '"user_id": info.get("user_id") or ""')))
+check("...read from the same margins() reply Kite already gives (no extra call)",
+      'opening = (m.get("available") or {}).get("opening_balance")' in open(os.path.join(HERE, "user_kite.py")).read())
+check("Exness: every connected account, demo or real said plainly, with equity, balance, free margin and leverage",
+      all(x in SRC for x in ('bigL: "Equity"', 'cell("Balance"', 'cell("Free margin"', 'cell("Leverage"', 'Demo money only')))
+check("not connected: the card says so and links to the connect page", 'tag: "Not connected"' in SRC
+      and 'href="${esc(br.connect_url || "#")}">Connect ${esc(name)}</a>' in SRC)
+
+print("5. STILL NOTHING MOVES")
 check("the redesign adds no animation and no transition", "animation" not in BLOCK.split("*/", 1)[1]
       and "transition" not in BLOCK.split("*/", 1)[1])
 

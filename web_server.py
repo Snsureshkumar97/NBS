@@ -3019,7 +3019,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             funds = user_kite.funds(user) if (user and info.get("connected") and _state["mode"] != "free") else None
             return {"name": "Zerodha", "connect_url": "/connect", "connected": bool(info.get("connected")),
                     "state": info.get("state"), "detail": info.get("detail") or "",
-                    "needed_for": "prices and live orders", "funds": funds}
+                    "needed_for": "prices and live orders", "funds": funds,
+                    "user_id": info.get("user_id") or "", "since": info.get("since") or "",
+                    "order_ip": info.get("order_ip") or ""}
         import user_delta
         info = user_delta.summary(user) if user else {"state": "missing", "detail": "", "connected": False}
         wallet = info.get("wallet") or []
@@ -5296,6 +5298,34 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #markets .mkt[aria-selected="true"]{background:var(--raised)}
   :root[data-look="kite"] .kstick > #markets{overflow:hidden}
 }
+/* -- the Dashboard's broker cards (stage 3) -- */
+:root[data-look="kite"] .bkrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:16px;margin:4px 0 22px}
+:root[data-look="kite"] .bk{background:var(--surface);border:1px solid var(--bd);border-radius:var(--r-lg);box-shadow:var(--shadow) !important;
+  display:flex;flex-direction:column;min-width:0;overflow:hidden}
+:root[data-look="kite"] .bk-h{display:flex;align-items:center;gap:12px;padding:16px 18px 0}
+:root[data-look="kite"] .bk-logo{width:40px;height:40px;flex:0 0 40px;border-radius:11px;display:grid;place-items:center;color:#fff;
+  font-family:var(--f-disp);font-weight:800;font-size:15px}
+:root[data-look="kite"] .bk-h > div{min-width:0}
+:root[data-look="kite"] .bk-h b{display:block;font-size:15px;font-weight:600}
+:root[data-look="kite"] .bk-h > div span{display:block;font-size:12.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root[data-look="kite"] .bk-h .tag{margin-left:auto;flex:none;font-size:11.5px;padding:3px 9px;border:1px solid var(--bd)}
+:root[data-look="kite"] .bk-h .tag.open{background:var(--ok-bg);color:var(--up);border-color:var(--ok-bd)}
+:root[data-look="kite"] .bk-h .tag.hold{background:var(--hold-bg);color:var(--note-strong);border-color:var(--note-bd)}
+:root[data-look="kite"] .bk-h .tag.warn{background:var(--warn-bg);color:var(--warn-strong);border-color:var(--warn-bd)}
+:root[data-look="kite"] .bk-bal{padding:14px 18px 0}
+:root[data-look="kite"] .bk-bal span{font-size:12.5px;color:var(--ink-3)}
+:root[data-look="kite"] .bk-bal b{display:block;font-family:var(--f-disp);font-weight:800;font-size:36px;letter-spacing:-1.3px;line-height:1.1}
+:root[data-look="kite"] .bk-bar{height:8px;border-radius:999px;background:var(--sunken);margin:12px 18px 0;overflow:hidden}
+:root[data-look="kite"] .bk-bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+:root[data-look="kite"] .bk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px 18px 16px}
+:root[data-look="kite"] .bk-grid span{display:block;font-size:12px;color:var(--ink-3)}
+:root[data-look="kite"] .bk-grid b{display:block;font-family:var(--f-mono);font-weight:500;font-size:14.5px;margin-top:2px;white-space:nowrap;
+  letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+:root[data-look="kite"] .bk-f{margin-top:auto;border-top:1px solid var(--bd-soft);padding:11px 18px;display:flex;align-items:center;gap:6px 16px;
+  flex-wrap:wrap;font-size:12.5px;color:var(--ink-3)}
+:root[data-look="kite"] .bk-f b{color:var(--ink-2);font-weight:500}
+:root[data-look="kite"] .bk-f .lbtn{text-decoration:none;padding:7px 12px}
+@media (max-width:520px){:root[data-look="kite"] .bk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* -- the market switch in the bar, and the watchlist as a row of tiles across the top (stage 2) -- */
 .mseg{display:none}
 @media (min-width:901px){
@@ -10370,6 +10400,65 @@ function posPane(s){
   $("kposn").textContent = c.n ? `${c.open} open · ${c.closed} closed` : "";
   box.innerHTML = posTable(s);
 }
+// The broker accounts behind this market, as cards (the redesign, 16 Oct 2026 - the user: "i want dashboard which have to
+// show balance and tell the broker name"). Only this market's broker: Zerodha for the Indian indices; Exness (each
+// connected account, demo or real) or Delta Exchange for crypto and gold - the two markets never share a card.
+// Every figure is one the server already reads for the Funds box; nothing new is fetched for it.
+function brokerCards(s, lv){
+  const br = s.broker || {};
+  if(!br.name) return "";
+  const mask = id => { id = String(id || ""); return id.length > 4 ? id.slice(0, 2) + "\u2022\u2022" + id.slice(-2) : id; };
+  const usd = v => v == null ? "\u2014" : "$" + num(v, 2);
+  const inr = v => v == null ? "\u2014" : "\u20b9" + num(v, 0);
+  const cell = (l, v, c) => `<div><span>${l}</span><b${c ? ` style="color:${c}"` : ""}>${v}</b></div>`;
+  const pnl = lv ? cell("Today's P&amp;L", esc(money(lv.net)), lv.net > 0 ? "var(--up)" : lv.net < 0 ? "var(--down)" : "")
+                 : cell("Today's P&amp;L", esc(money(0)), "var(--ink-3)");
+  const card = (o) => `<div class="bk"><div class="bk-h"><span class="bk-logo" style="background:${o.logoBg}">${o.logo}</span>`
+    + `<div><b>${o.name}</b><span>${o.sub}</span></div><span class="tag ${o.tagCls}">${o.tag}</span></div>`
+    + (o.big != null ? `<div class="bk-bal"><span>${o.bigL}</span><b>${o.big}</b></div>` : "")
+    + (o.bar != null ? `<div class="bk-bar" title="${o.barT || ""}"><i style="width:${Math.max(0, Math.min(100, o.bar)).toFixed(1)}%"></i></div>` : "")
+    + (o.cells ? `<div class="bk-grid">${o.cells}</div>` : "")
+    + (o.foot ? `<div class="bk-f">${o.foot}</div>` : "") + `</div>`;
+  const off = (name, logo, bg) => card({name: esc(name), logo, logoBg: bg, sub: esc(br.detail || "Not connected to this account"),
+    tag: "Not connected", tagCls: "warn",
+    foot: `<a class="lbtn on" href="${esc(br.connect_url || "#")}">Connect ${esc(name)}</a><span>needed for ${esc(br.needed_for || "")}</span>`});
+  let out = "";
+  if(br.name === "Zerodha"){
+    const f = br.funds;
+    if(!br.connected) out = off("Zerodha", "Z", "#387ed1");
+    else out = card({name: "Zerodha &middot; Kite", logo: "Z", logoBg: "#387ed1",
+      sub: br.user_id ? "Client " + esc(mask(br.user_id)) + " &middot; Indian index options" : "Indian index options",
+      tag: "Connected", tagCls: "open",
+      big: f ? esc(inr(f.available)) : "\u2014", bigL: "Available margin",
+      bar: f && f.opening ? (f.used || 0) / f.opening * 100 : null,
+      barT: f && f.opening ? `Used ${inr(f.used || 0)} of ${inr(f.opening)}` : "",
+      cells: cell("Opening balance", esc(f && f.opening != null ? inr(f.opening) : "\u2014"))
+        + cell("Used margin", esc(f && f.used != null ? inr(f.used) : "\u2014")) + pnl,
+      foot: (br.since ? `<span>Connected <b>${esc(String(br.since).replace("T", " ").slice(0, 16))}</b></span>` : "")
+        + (br.order_ip ? `<span>Order IP <b>${esc(br.order_ip)}</b> registered</span>` : "")
+        + (f ? "" : `<span>Balance shows once the tool reads it from Zerodha</span>`)});
+  } else if(br.name === "Exness"){
+    const accs = (br.accounts || []);
+    if(!accs.length) out = off("Exness", "ex", "#1c1c1c");
+    else out = accs.map(a => card({name: "Exness", logo: "ex", logoBg: "#1c1c1c",
+      sub: `${a.kind === "real" ? "Real" : "Demo"} ${esc(mask(a.id))}${a.server ? " &middot; " + esc(a.server) : ""}${a.shared ? " &middot; the server's own" : ""}`,
+      tag: a.ok ? (a.kind === "real" ? "Real money" : "Demo") : "Not reachable", tagCls: a.ok ? (a.kind === "real" ? "open" : "hold") : "warn",
+      big: a.ok ? esc(usd(a.equity != null ? a.equity : a.balance)) : "\u2014", bigL: "Equity",
+      bar: a.ok && a.equity ? (a.margin || 0) / a.equity * 100 : null, barT: a.ok ? `Margin in use ${usd(a.margin || 0)}` : "",
+      cells: a.ok ? cell("Balance", esc(usd(a.balance))) + cell("Free margin", esc(usd(a.freeMargin)))
+                    + cell("Leverage", a.leverage ? "1:" + esc(String(a.leverage)) : "\u2014") : "",
+      foot: a.ok ? (a.kind === "real" ? "<span>Live orders can use this account</span>" : "<span>Demo money only</span>")
+                 : `<span>${esc(a.detail || "The account did not answer")}</span>`})).join("");
+  } else {
+    const f = br.funds;
+    if(!br.connected) out = off(br.name, "&Delta;", "#f7931a");
+    else out = card({name: esc(br.name), logo: "&Delta;", logoBg: "#f7931a", sub: "Bitcoin options", tag: "Connected", tagCls: "open",
+      big: f ? esc(usd(f.available)) : "\u2014", bigL: "Available",
+      cells: cell("Wallet balance", esc(f ? usd(f.balance) : "\u2014")) + cell("In rupees", esc(f && f.inr != null ? inr(f.inr) : "\u2014")) + pnl,
+      foot: "<span>Prices need no key; the account is for live orders</span>"});
+  }
+  return `<div class="kd-l kd-tabh">Broker account${(br.accounts || []).length > 1 ? "s" : ""}</div><div class="bkrow">${out}</div>`;
+}
 // The Dashboard's summary: today's result and the funds as the two big figures, then every index in a row.
 function kiteDash(s){
   const el = $("kdash");
@@ -10418,6 +10507,7 @@ function kiteDash(s){
     + fig("Funds available", esc(fundsV), "", fundsS)
     + (s.market_label ? fig("Market", esc(s.market_label), "", sw, "kd-mkt") : "")
     + `</div>`
+    + brokerCards(s, lv)
     + `<div class="kd-l kd-tabh">Markets</div>`
     + `<table class="kd-tab"><thead><tr><th>${cfd ? "Market" : "Index"}</th>${cfd ? '<th class="r">Price</th>' : '<th class="r">Index price</th>'}<th>Signal</th><th>Open trade</th><th class="r">Result</th></tr></thead>`
     + `<tbody>${rows}</tbody></table>`;

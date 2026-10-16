@@ -269,6 +269,14 @@ def funds(email, force=False):
         net = m.get("net")
         out = {"asset": "INR", "available": round(float(avail if avail is not None else (net or 0)), 2),
                "net": round(float(net or 0), 2)}
+        # the Dashboard's broker card (16 Oct 2026): the day's opening balance and the margin in use, as Kite's
+        # own Funds screen shows them - from the same reply, so no extra call
+        opening = (m.get("available") or {}).get("opening_balance")
+        used = (m.get("utilised") or {}).get("debits")
+        if opening is not None:
+            out["opening"] = round(float(opening), 2)
+        if used is not None:
+            out["used"] = round(float(used), 2)
     except Exception:
         out = None
     with _lock:
