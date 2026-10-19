@@ -420,6 +420,16 @@ def explain(rec):
     oi = rec.get("option_chain", {}) or {}
     votes = [_trend_reason(tech), _macd_reason(tech), _rsi_reason(tech),
              _vwap_reason(tech), _pcr_reason(oi)]
+    # Only the votes this instrument's decision counts. Crypto drops RSI (config.VOTE_OVERRIDES) and a CFD has no
+    # options at all, so no PCR - yet both were listed, RSI with a coloured vote the decision ignored, PCR as "no
+    # option-chain data is reaching the tool", and the ring over the rows counted them (the user, 19 Oct 2026: "in
+    # crypto market if the market doest have PCR why are we still counting pcr as the vote"). An Indian index keeps
+    # its PCR row when its chain is missing: there that is a fault worth seeing.
+    name = rec.get("index")
+    left_out = set(config.vote_overrides(name).get("drop", ())) if name else set()
+    if name and config.is_cfd(name):
+        left_out.add("PCR")
+    votes = [v for v in votes if v["name"] not in left_out]
 
     bias = rec.get("bias")
     if bias == "BULLISH":

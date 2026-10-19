@@ -54,6 +54,25 @@ check("a note under it: a description of the market, not one of the tool's check
       'class="sub trendnote"' in card and "not one of the tool's checks" in card and "never stops or starts a" in card
       and ".trendnote{" in src)
 
+print("4. ONLY THE VOTES THE DECISION COUNTS ARE LISTED (19 Oct 2026)")
+# "in crypto market if the market doest have PCR why are we still counting pcr as the vote" - a CFD has no options,
+# and crypto drops RSI (config.VOTE_OVERRIDES); both rows were listed and the ring over the rows counted them.
+def rows(index, oi=None):
+    rec = {"index": index, "technical": tech_up, "option_chain": oi or {}, "bias": "NEUTRAL", "adx": 30.0}
+    return [v["name"] for v in explain.explain(rec)["votes"]]
+for name in ("BTC", "GOLD"):
+    if config.is_cfd(name):
+        got = rows(name)
+        counted = [v for v in ("Trend", "MACD", "RSI", "VWAP") if v not in config.vote_overrides(name).get("drop", ())]
+        check(f"{name} (a CFD, no options): no PCR row, no RSI row - exactly the votes its decision counts",
+              got == counted and "PCR" not in got, got)
+got = rows("NIFTY")
+check("Nifty with its chain missing still lists PCR (n/a) - a fault worth seeing there - and RSI",
+      got == ["Trend", "MACD", "RSI", "VWAP", "PCR"], got)
+got = rows("NIFTY", {"available": True, "pcr": 1.31, "oi_score": 1})
+check("Nifty with its chain: all five, PCR among them", got == ["Trend", "MACD", "RSI", "VWAP", "PCR"], got)
+check("a recommendation with no index (older callers) keeps all five rows", rows(None) == ["Trend", "MACD", "RSI", "VWAP", "PCR"])
+
 print()
 print("SIGNAL WORDING TEST PASSED" if not fails else f"SIGNAL WORDING TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
