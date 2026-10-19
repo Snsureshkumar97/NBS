@@ -159,11 +159,15 @@ def line(name, rows):
 
 
 def verdict(name, rows, base):
+    """KEEP / drop on the two-period rule, and under it (since 20 Oct 2026) robustness.py's walk-forward half-years
+    and Monte Carlo 95% worst drop - a KEEP that fails them is marked FRAGILE."""
+    import robustness
     r, b = split(rows), split(base)
     di, do = r["is"]["total"] - b["is"]["total"], r["oos"]["total"] - b["oos"]["total"]
     return (f"   {'KEEP' if di > 0 and do > 0 else 'drop'}  {name:44s} profit: in-sample {di:>+9,.0f}  held-out {do:>+9,.0f}"
             f"   worst drop: {r['is']['dd'] - b['is']['dd']:>+8,.0f} / {r['oos']['dd'] - b['oos']['dd']:>+8,.0f}"
-            f"   worst day: {r['is']['worst_day'] - b['is']['worst_day']:>+8,.0f} / {r['oos']['worst_day'] - b['oos']['worst_day']:>+8,.0f}")
+            f"   worst day: {r['is']['worst_day'] - b['is']['worst_day']:>+8,.0f} / {r['oos']['worst_day'] - b['oos']['worst_day']:>+8,.0f}"
+            "\n" + robustness.verdict_line(rows, base, SPLIT, "₹", passed=di > 0 and do > 0))
 
 
 _CTX = {}

@@ -1,0 +1,46 @@
+==========================================================================================================================================================================
+ 1. RISK OF EACH LIVE SYSTEM - Monte Carlo on its trading days (5,000 redraws): the worst drop, typical and in 95 of 100, and the chance the period ends in a loss
+==========================================================================================================================================================================
+ Indian rules, Nifty + Sensex + Midcap (per lot each, ₹)
+    today                                        1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+        first two years: worst drop ₹59,954 typical / ₹106,874 in 95 of 100, chance of a loss 0%;  held-out: worst drop ₹54,931 typical / ₹103,025 in 95 of 100, chance of a loss 2%;  all three years: worst drop ₹71,366 typical / ₹121,442 in 95 of 100, chance of a loss 0%
+    NIFTY                                         560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+        first two years: worst drop ₹32,110 typical / ₹63,492 in 95 of 100, chance of a loss 9%;  held-out: worst drop ₹21,042 typical / ₹41,478 in 95 of 100, chance of a loss 6%;  all three years: worst drop ₹34,531 typical / ₹63,455 in 95 of 100, chance of a loss 2%
+    SENSEX                                        527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+        first two years: worst drop ₹27,106 typical / ₹49,852 in 95 of 100, chance of a loss 4%;  held-out: worst drop ₹20,820 typical / ₹39,783 in 95 of 100, chance of a loss 5%;  all three years: worst drop ₹30,420 typical / ₹53,952 in 95 of 100, chance of a loss 0%
+    MIDCPNIFTY                                    700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+        first two years: worst drop ₹36,545 typical / ₹63,690 in 95 of 100, chance of a loss 0%;  held-out: worst drop ₹37,219 typical / ₹72,104 in 95 of 100, chance of a loss 6%;  all three years: worst drop ₹44,403 typical / ₹76,375 in 95 of 100, chance of a loss 0%
+    BANK NIFTY (TradingView rating)               804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+        first two years: worst drop ₹60,390 typical / ₹111,152 in 95 of 100, chance of a loss 4%;  held-out: worst drop ₹45,667 typical / ₹88,947 in 95 of 100, chance of a loss 12%;  all three years: worst drop ₹69,141 typical / ₹125,531 in 95 of 100, chance of a loss 2%
+ GOLD, TradingView MA rating 1:1 ($ per gold lot)
+        first two years: worst drop $63,070 typical / $124,392 in 95 of 100, chance of a loss 48%;  held-out: worst drop $91,696 typical / $181,911 in 95 of 100, chance of a loss 29%;  all three years: worst drop $109,082 typical / $221,358 in 95 of 100, chance of a loss 31%
+ BITCOIN, the tool's crypto votes ($ per BTC)
+        first two years: worst drop $51,112 typical / $88,754 in 95 of 100, chance of a loss 89%;  held-out: worst drop $25,296 typical / $49,782 in 95 of 100, chance of a loss 56%;  all three years: worst drop $60,179 typical / $108,489 in 95 of 100, chance of a loss 85%
+
+==========================================================================================================================================================================
+ 2. DECISIONS RE-CHECKED - the two-period verdict as it was, with the walk-forward and Monte Carlo line under it
+==========================================================================================================================================================================
+  KEEP  T3 exit (t3re) vs T2 (t2re) - LIVE           profit: in-sample   +76,062  held-out   +35,789   worst drop:   -1,249 /   -2,900   worst day:       +0 /       +0
+        walk-forward: beats today's in 7 of 7 half-years;  first two years: 95% worst drop ₹106,874 (today's ₹119,062), chance of a loss 0%;  held-out: 95% worst drop ₹103,025 (today's ₹111,299), chance of a loss 2%  -> STEADY
+  KEEP  T1-exit re-entry (t3re) vs none (t3) - LIVE  profit: in-sample   +28,893  held-out   +46,865   worst drop:   +2,528 /   -2,461   worst day:       +0 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹106,874 (today's ₹105,202), chance of a loss 0%;  held-out: 95% worst drop ₹103,025 (today's ₹114,144), chance of a loss 2%  -> KEEP, FRAGILE (wins too few half-years)
+  KEEP  room from the day's range (C) vs today's (B) profit: in-sample  +310,147  held-out   +82,911   worst drop:  +12,737 /  -24,622   worst day:   +7,693 /       +0
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹143,208 (today's ₹106,874), chance of a loss 0%;  held-out: 95% worst drop ₹137,063 (today's ₹103,025), chance of a loss 2%  -> KEEP, FRAGILE (deeper 95% drop)
+      KEEP  room C vs B NIFTY                            profit: in-sample  +108,183  held-out   +20,737   worst drop:  +12,980 /     +261   worst day:   -1,067 /       +0
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹65,854 (today's ₹63,492), chance of a loss 1%;  held-out: 95% worst drop ₹56,926 (today's ₹41,478), chance of a loss 6%  -> KEEP, FRAGILE (deeper 95% drop)
+      KEEP  room C vs B SENSEX                           profit: in-sample  +147,549  held-out   +63,585   worst drop:     -411 /   -1,604   worst day:   +1,592 /       +0
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹61,755 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹52,510 (today's ₹39,783), chance of a loss 1%  -> KEEP, FRAGILE (deeper 95% drop)
+      drop  room C vs B MIDCPNIFTY                       profit: in-sample   +54,415  held-out    -1,411   worst drop:   -3,071 /  -20,200   worst day:   -4,499 /   -1,440
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹94,469 (today's ₹63,690), chance of a loss 0%;  held-out: 95% worst drop ₹94,632 (today's ₹72,104), chance of a loss 11%
+  KEEP  Bank Nifty FVG (declined)                    profit: in-sample   +13,005  held-out   +24,428   worst drop:  -29,561 /  -16,806   worst day:       +0 /   +2,098
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹81,122 (today's ₹111,152), chance of a loss 1%;  held-out: 95% worst drop ₹60,309 (today's ₹88,947), chance of a loss 4%  -> STEADY
+   (gold) 1:1 target (live, the user's choice 15 Oct) vs 30 x ATR:
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop $124,392 (today's $92,747), chance of a loss 48%;  held-out: 95% worst drop $181,911 (today's $174,147), chance of a loss 29%
+
+==========================================================================================================================================================================
+ 3. WALK-FORWARD PICK - re-choosing every half-year the setting that made the most over the year before
+==========================================================================================================================================================================
+   GOLD take-profit: re-chosen $+198,135  |  fixed, same half-years: 3 x ATR $+89,341  5 x ATR $+144,650  8 x ATR $+226,682  10 x ATR $+210,544  30 x ATR $+200,926
+     choices: 2024-H2 10 x ATR  2025-H1 5 x ATR  2025-H2 30 x ATR  2026-H1 10 x ATR  2026-H2 8 x ATR
+   INDIAN exit: re-chosen ₹+509,549  |  fixed, same half-years: t2re ₹+423,019  t3 ₹+450,798  t3re ₹+509,549
+     choices: 2024-H2 t3re  2025-H1 t3re  2025-H2 t3re  2026-H1 t3re  2026-H2 t3re
