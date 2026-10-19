@@ -61,14 +61,16 @@ def now_ist() -> dt.datetime:
 
 
 # ---------------------------------------------------------------------------
-# NSE/BSE TRADING HOLIDAYS
+# NSE/BSE TRADING HOLIDAYS - THE FALLBACK
 # Sourced from NSE's published 2026 equity/derivatives holiday calendar
 # (cross-checked against two independent listings, both agreeing on these
-# 16 dates). This does NOT auto-update — someone needs to add next year's
-# dates here every December, or this silently goes stale and the tool will
-# think a holiday is a normal trading day again. Muhurat Trading (a special
-# one-hour Diwali session, Nov 08 2026) is deliberately NOT listed as a
-# holiday since the exchange is technically open that evening.
+# 16 dates). Since 20 Oct 2026 the server reads NSE's own list live
+# (market_calendar.py) and that wins for every year it has; this list only
+# stands for a year it has not loaded - no network, or a process that never
+# starts the refresh (tests, studies, the desktop app). Muhurat Trading (a
+# special one-hour Diwali session, Sunday Nov 08 2026) is NOT listed here;
+# NSE's own list marks it "Diwali Laxmi Pujan*", and the tool sits it out
+# and says so (tickets.py, "SPECIAL SESSION").
 #
 # Each date maps to NSE's own published name for it (date -> name, not a
 # bare set), so the TOOL can say why the market is shut, not just that it
@@ -100,17 +102,24 @@ NSE_HOLIDAYS_BY_YEAR = {
 
 def is_nse_holiday(d: dt.date) -> bool:
     """True if `d` is a known NSE/BSE trading holiday. Returns False (not
-    "unknown") for any year not in NSE_HOLIDAYS_BY_YEAR, so an un-updated
-    calendar degrades to the old weekend-only behavior rather than
-    guessing — check the comment above NSE_HOLIDAYS_BY_YEAR if this list
-    needs a new year added."""
-    return d in NSE_HOLIDAYS_BY_YEAR.get(d.year, {})
+    "unknown") for any year neither list has, so an un-updated calendar
+    degrades to the old weekend-only behavior rather than guessing.
+
+    NSE's own list, read live by market_calendar (20 Oct 2026: "anything in
+    future it happens it have show whatever zerodha shows"), is the truth for
+    every year it has - a holiday NSE adds mid-year, next year's list the day
+    NSE publishes it, a special session (Muhurat trading) marked as such.
+    NSE_HOLIDAYS_BY_YEAR below stands for a year NSE's list has not loaded."""
+    return nse_holiday_name(d) is not None
 
 
 def nse_holiday_name(d: dt.date) -> str:
     """NSE's own published reason `d` is a trading holiday, or None if it is
-    not one (or the year is not in NSE_HOLIDAYS_BY_YEAR at all - the same
-    "degrade quietly, never guess" rule is_nse_holiday() follows)."""
+    not one (or neither list covers its year - the same "degrade quietly,
+    never guess" rule is_nse_holiday() follows)."""
+    import market_calendar
+    if d.year in market_calendar.years():
+        return market_calendar.holiday_name(d)
     return NSE_HOLIDAYS_BY_YEAR.get(d.year, {}).get(d)
 
 

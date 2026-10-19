@@ -675,15 +675,30 @@ class TicketBook:
                         "issued from the open.")
             hours = (f"{o[0]:02d}:{o[1]:02d} to {c[0]:02d}:{c[1]:02d}" if o and c
                      else "market hours")
+            # What the exchange itself says, word for word, and a special session named
+            # as one (the user, 20 Oct 2026: "anything in future it happens it have show
+            # whatever zerodha shows") - read live by market_calendar from NSE.
+            import market_calendar
+            nse = market_calendar.status(now) if m.get("holidays") else None
+            said = f" NSE right now: {nse['text']}." if nse and nse.get("text") else ""
+            special = market_calendar.special_session(now.date(), now) if m.get("holidays") else None
+            if special is not None:
+                day = (f"Today is {special}, and NSE holds a special trading session" if special
+                       else "NSE is holding a special trading session today, on a day its calendar has shut")
+                return ("closed", "SPECIAL SESSION",
+                        f"{day}, at hours it sets by circular (Diwali's is Muhurat trading).{said} The tool "
+                        "sits special sessions out - they are short and thin, and none is in "
+                        "its tests - so no ticket is issued today. The analysis keeps "
+                        "running so you can see where things are.")
             if holiday:
                 return ("closed", "MARKET CLOSED",
                         f"Today is {holiday}, an NSE trading holiday - the exchange "
                         "is shut for the day. The analysis keeps running so you can "
                         f"see where things ended, but tickets are only issued from "
-                        f"{hours} on a trading day.")
+                        f"{hours} on a trading day.{said}")
             return ("closed", "MARKET CLOSED",
                     "The session is over. The analysis keeps running so you can see "
-                    f"where things ended, but tickets are only issued from {hours}.")
+                    f"where things ended, but tickets are only issued from {hours}.{said}")
 
         # The closing auction. The market is open and the premium is still
         # moving, so every check below would pass - but from 15:15 the index

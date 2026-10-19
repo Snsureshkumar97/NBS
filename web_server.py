@@ -56,6 +56,7 @@ import config
 import feeds
 import kite_auth
 import market_ticker
+import market_calendar
 import btc_seller
 import real_entry
 import nbs_site
@@ -979,9 +980,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                   # only by a restart - which is the operator's call to make.
                   "tick_engine": feeds.tick_engine_problem(),
                   "streams": feeds.stream_problems(),
-                  # Years the NSE holiday calendar covers. A year missing from
-                  # it makes every holiday look like a trading day.
-                  "holiday_years": sorted(__import__("main").NSE_HOLIDAYS_BY_YEAR)}
+                  # Years the NSE holiday calendar covers - NSE's own list read
+                  # live (market_calendar) and main's fallback. A year missing
+                  # from both makes every holiday look like a trading day.
+                  "holiday_years": sorted(set(__import__("main").NSE_HOLIDAYS_BY_YEAR)
+                                          | market_calendar.years()),
+                  "holiday_live_years": sorted(market_calendar.years()),
+                  "nse_status": (lambda s: s and s["text"])(market_calendar.status())}
         return self._send(json.dumps({"users": rows, "server": server, "me": user,
                                       "today": accounts.today_ist().isoformat()}),
                           "application/json")
@@ -11949,10 +11954,13 @@ function adminPaint(){
         const due = !years.includes(y) ? y
                   : (now.getMonth() === 11 || (now.getMonth() === 10 && now.getDate() >= 15)) && !years.includes(y + 1) ? y + 1 : null;
         const have = years.length ? years.join(", ") : "none";
+        const live = (sv.holiday_live_years || []).length ? ` (read from NSE: ${sv.holiday_live_years.join(", ")})`
+                   : " (NSE's own list not read yet - the built-in one is in use)";
         return statRow("NSE holiday list", due
-          ? `${have} - add ${due} to NSE_HOLIDAYS_BY_YEAR in main.py once NSE publishes it`
-          : `covers ${have}`, due ? "var(--warn)" : "");
+          ? `${have}${live} - ${due} is read from NSE once it publishes it; until then it is missing`
+          : `covers ${have}${live}`, due ? "var(--warn)" : "");
       })()
+    + statRow("NSE right now", esc(sv.nse_status || "not read yet"))
     + statRow("Running since", esc(sv.started || "—"))
     + statRow("Build", esc(sv.commit || "—"));
 }
@@ -13165,6 +13173,9 @@ def main():
 
     # Kept warm in the background so no page load ever waits on Yahoo.
     market_ticker.start_background(_stop_ticker)
+    # NSE's own holiday list and live market status (market_calendar.py) - read in the
+    # background, so the tool shows what the exchange shows and no page waits on NSE.
+    market_calendar.start_background(_stop_ticker)
     # The BTC option seller - PAPER ONLY (btc_seller.py): one server-wide book that
     # records what the backtested short-straddle rule would do. Places nothing.
     btc_seller.start_background(_stop_ticker)
