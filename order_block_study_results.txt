@@ -1,0 +1,114 @@
+============================================================================================================================================================================
+ ORDER BLOCKS / STRUCTURE / FAIR-VALUE GAPS on every live system. Indian: per lot after costs, ₹. columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ INDIAN RULES: NIFTY + SENSEX + MIDCAP (the verdict)
+    BASE                                         1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+    STRUCT                                       1523   50% ₹  +286,680 PF 1.23 DD ₹  42,429 day ₹ -15,340  |  956   50% ₹  +144,505 PF 1.18 DD ₹  72,663 day ₹ -29,422
+    OB_PATH                                      1273   49% ₹  +131,678 PF 1.12 DD ₹  51,214 day ₹ -15,162  |  749   49% ₹   +75,941 PF 1.12 DD ₹  78,190 day ₹ -12,275
+    OB_NEAR                                       510   50% ₹   +80,510 PF 1.20 DD ₹  34,967 day ₹ -15,162  |  275   50% ₹   +37,177 PF 1.16 DD ₹  47,260 day ₹  -8,833
+    FVG                                          1381   50% ₹  +237,328 PF 1.20 DD ₹  39,031 day ₹ -14,472  |  841   51% ₹  +199,725 PF 1.31 DD ₹  62,262 day ₹ -22,328
+    OBSTOP                                       1788   51% ₹  +352,406 PF 1.25 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,664 PF 1.22 DD ₹  84,323 day ₹ -29,422
+ NIFTY
+    BASE                                          560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    STRUCT                                        491   51% ₹   +49,893 PF 1.14 DD ₹  37,447 day ₹  -6,003  |  305   50% ₹   +38,981 PF 1.19 DD ₹  28,355 day ₹  -9,038
+    OB_PATH                                       405   52% ₹   +46,362 PF 1.17 DD ₹  24,595 day ₹  -6,003  |  236   47% ₹    -1,200 PF 0.99 DD ₹  30,221 day ₹  -4,384
+    OB_NEAR                                       150   48% ₹   -17,907 PF 0.85 DD ₹  35,456 day ₹  -6,003  |   81   51% ₹   +12,257 PF 1.23 DD ₹  16,285 day ₹  -3,840
+    FVG                                           420   51% ₹   +80,695 PF 1.28 DD ₹  18,209 day ₹  -5,162  |  267   50% ₹   +59,515 PF 1.34 DD ₹  16,063 day ₹  -8,164
+    OBSTOP                                        560   52% ₹   +61,050 PF 1.16 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,865 PF 1.23 DD ₹  27,315 day ₹  -9,038
+ SENSEX
+    BASE                                          527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    STRUCT                                        444   47% ₹   +35,023 PF 1.11 DD ₹  35,055 day ₹  -6,241  |  292   50% ₹   +36,198 PF 1.19 DD ₹  24,284 day ₹  -8,110
+    OB_PATH                                       381   46% ₹   +15,794 PF 1.06 DD ₹  32,853 day ₹  -6,241  |  230   49% ₹   +11,559 PF 1.07 DD ₹  18,166 day ₹  -8,110
+    OB_NEAR                                       160   42% ₹   -18,610 PF 0.86 DD ₹  44,067 day ₹  -6,241  |   82   55% ₹    -1,939 PF 0.97 DD ₹  28,092 day ₹  -4,561
+    FVG                                           407   48% ₹   +45,628 PF 1.15 DD ₹  33,626 day ₹  -7,494  |  246   53% ₹   +57,075 PF 1.38 DD ₹  17,556 day ₹  -5,677
+    OBSTOP                                        527   49% ₹   +78,551 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,888 PF 1.26 DD ₹  23,934 day ₹  -8,110
+ MIDCPNIFTY
+    BASE                                          700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    STRUCT                                        588   51% ₹  +201,763 PF 1.36 DD ₹  31,142 day ₹  -7,602  |  359   50% ₹   +69,325 PF 1.18 DD ₹  44,941 day ₹ -12,274
+    OB_PATH                                       487   48% ₹   +69,522 PF 1.13 DD ₹  37,105 day ₹ -11,467  |  283   49% ₹   +65,582 PF 1.22 DD ₹  48,494 day ₹  -8,186
+    OB_NEAR                                       200   58% ₹  +117,028 PF 1.83 DD ₹  21,337 day ₹  -4,612  |  112   46% ₹   +26,859 PF 1.25 DD ₹  14,834 day ₹  -6,405
+    FVG                                           554   51% ₹  +111,005 PF 1.19 DD ₹  28,781 day ₹ -10,703  |  328   51% ₹   +83,136 PF 1.26 DD ₹  49,406 day ₹ -12,274
+    OBSTOP                                        701   51% ₹  +212,805 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+ BANK NIFTY: TradingView rating + the Trend Rider's exit
+    BASE                                          804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+    STRUCT                                        692   37% ₹  +168,993 PF 1.24 DD ₹  63,072 day ₹ -10,719  |  371   37% ₹   +48,613 PF 1.14 DD ₹  66,661 day ₹  -8,962
+    OB_PATH                                       480   36% ₹  +101,776 PF 1.20 DD ₹  66,770 day ₹ -10,719  |  267   42% ₹   +53,437 PF 1.22 DD ₹  40,287 day ₹ -11,453
+    OB_NEAR                                       283   32% ₹  -104,002 PF 0.68 DD ₹ 115,326 day ₹  -7,953  |  136   31% ₹   -24,377 PF 0.81 DD ₹  35,178 day ₹  -7,577
+    FVG                                           489   37% ₹  +194,290 PF 1.39 DD ₹  38,578 day ₹ -13,583  |  280   34% ₹  +100,662 PF 1.40 DD ₹  36,430 day ₹  -9,355
+
+ WHAT EACH CONDITION WOULD HAVE SAID OF TODAY'S INDIAN RULES TRADES (BASE), and what each group earned
+   STRUCT: lets through 2413 of 2878
+       let through                               1485   50% ₹  +283,089 PF 1.24 DD ₹  44,349 day ₹ -15,340  |  928   50% ₹  +133,511 PF 1.17 DD ₹  71,497 day ₹ -29,422
+       blocked                                    302   55% ₹   +65,358 PF 1.27 DD ₹  34,403 day ₹ -11,086  |  163   56% ₹   +60,817 PF 1.57 DD ₹  22,007 day ₹ -10,623
+   OB_PATH: lets through 1735 of 2878
+       let through                               1110   49% ₹  +114,300 PF 1.12 DD ₹  51,569 day ₹ -15,162  |  625   50% ₹   +80,706 PF 1.15 DD ₹  62,668 day ₹ -12,275
+       blocked                                    677   54% ₹  +234,147 PF 1.46 DD ₹  30,276 day ₹ -15,927  |  466   52% ₹  +113,622 PF 1.33 DD ₹  33,366 day ₹ -21,312
+   OB_NEAR: lets through 522 of 2878
+       let through                                345   50% ₹   +50,372 PF 1.19 DD ₹  32,129 day ₹ -15,162  |  177   49% ₹   +16,374 PF 1.10 DD ₹  30,385 day ₹  -8,833
+       blocked                                   1442   51% ₹  +298,075 PF 1.25 DD ₹  42,755 day ₹ -20,779  |  914   51% ₹  +177,954 PF 1.25 DD ₹  65,913 day ₹ -23,017
+   FVG: lets through 1931 of 2878
+       let through                               1185   50% ₹  +193,262 PF 1.19 DD ₹  48,834 day ₹ -16,420  |  746   50% ₹  +141,652 PF 1.24 DD ₹  52,339 day ₹ -20,610
+       blocked                                    602   52% ₹  +155,184 PF 1.36 DD ₹  22,581 day ₹ -10,006  |  345   53% ₹   +52,676 PF 1.19 DD ₹  57,392 day ₹  -9,658
+ GOLD: TradingView MA rating, 1:1 (live) - $ per gold lot, Exness ticks
+    BASE                                         3236   38% $    +2,174 PF  1.00 DD $   47,590  |  1752   37% $   +55,620 PF  1.03 DD $  104,332
+    STRUCT                                       2528   40% $   -22,561 PF  0.98 DD $   71,072  |  1372   41% $   +90,386 PF  1.06 DD $   98,886
+    OB_PATH                                      2128   38% $   -46,671 PF  0.95 DD $   55,855  |  1096   41% $  +161,329 PF  1.13 DD $   59,387
+    OB_NEAR                                      1704   36% $   -31,490 PF  0.95 DD $   44,418  |   993   36% $   +56,430 PF  1.06 DD $   70,486
+    FVG                                          2550   40% $   +22,674 PF  1.02 DD $   32,880  |  1407   39% $   +35,171 PF  1.02 DD $  126,211
+      (BASE trades STRUCT lets through: 3450)    2218   40% $   -14,820 PF  0.98 DD $   49,437  |  1232   41% $   +67,077 PF  1.04 DD $   95,688
+      (BASE trades STRUCT blocks: 1538)          1018   32% $   +16,995 PF  1.06 DD $   14,585  |   520   27% $   -11,458 PF  0.97 DD $   51,395
+      (BASE trades OB_PATH lets through: 2470)   1635   37% $   -34,685 PF  0.95 DD $   45,847  |   835   42% $  +200,644 PF  1.23 DD $   43,382
+      (BASE trades OB_PATH blocks: 2518)         1601   38% $   +36,860 PF  1.06 DD $   36,223  |   917   33% $  -145,025 PF  0.86 DD $  216,706
+      (BASE trades OB_NEAR lets through: 1630)   1001   33% $   -22,857 PF  0.93 DD $   39,472  |   629   34% $  +109,890 PF  1.21 DD $   32,219
+      (BASE trades OB_NEAR blocks: 3358)         2235   40% $   +25,031 PF  1.03 DD $   27,692  |  1123   39% $   -54,270 PF  0.96 DD $  139,413
+      (BASE trades FVG lets through: 2440)       1598   41% $   +21,292 PF  1.03 DD $   40,151  |   842   40% $   -92,529 PF  0.91 DD $  141,276
+      (BASE trades FVG blocks: 2548)             1638   35% $   -19,118 PF  0.97 DD $   32,173  |   910   35% $  +148,148 PF  1.18 DD $   72,533
+ BITCOIN: the tool's crypto votes (default) - $ per BTC, Exness ticks
+    BASE                                         2121   51% $   -34,831 PF  0.94 DD $   38,389  |  1215   50% $    -3,057 PF  0.99 DD $   19,415
+    STRUCT                                       2034   51% $   -37,478 PF  0.93 DD $   41,582  |  1167   50% $    -2,247 PF  0.99 DD $   17,560
+    OB_PATH                                      1210   49% $   -46,669 PF  0.87 DD $   51,329  |   738   50% $       -89 PF  1.00 DD $   15,602
+    OB_NEAR                                       674   49% $   -14,790 PF  0.91 DD $   19,760  |   410   47% $   -19,261 PF  0.83 DD $   24,663
+    FVG                                          1376   51% $   -21,196 PF  0.94 DD $   28,444  |   841   51% $      +505 PF  1.00 DD $   14,166
+      (BASE trades STRUCT lets through: 3172)    2013   51% $   -38,242 PF  0.93 DD $   42,604  |  1159   50% $    -3,181 PF  0.99 DD $   19,046
+      (BASE trades STRUCT blocks: 164)            108   55% $    +3,411 PF  1.15 DD $    3,199  |    56   54% $      +123 PF  1.01 DD $    4,199
+      (BASE trades OB_PATH lets through: 1743)   1080   50% $   -37,492 PF  0.88 DD $   43,769  |   663   50% $    +5,179 PF  1.03 DD $   13,686
+      (BASE trades OB_PATH blocks: 1593)         1041   52% $    +2,661 PF  1.01 DD $   16,330  |   552   51% $    -8,236 PF  0.94 DD $   15,190
+      (BASE trades OB_NEAR lets through: 776)     477   49% $   -11,074 PF  0.91 DD $   15,193  |   299   49% $    -5,599 PF  0.93 DD $   16,302
+      (BASE trades OB_NEAR blocks: 2560)         1644   51% $   -23,757 PF  0.95 DD $   30,787  |   916   51% $    +2,542 PF  1.01 DD $   22,274
+      (BASE trades FVG lets through: 1998)       1252   52% $   -14,539 PF  0.96 DD $   22,163  |   746   51% $    +6,708 PF  1.03 DD $   14,057
+      (BASE trades FVG blocks: 1338)              869   49% $   -20,292 PF  0.91 DD $   24,364  |   469   49% $    -9,765 PF  0.93 DD $   15,799
+
+ VERDICT - kept only if more than today's system in BOTH periods
+  drop  STRUCT Indian rules pooled                   profit: in-sample   -61,767  held-out   -49,823   worst drop:   -8,943 /  -11,660   worst day:  +11,086 /       +0
+      drop  STRUCT NIFTY                                 profit: in-sample   -10,569  held-out   -12,833   worst drop:   +6,004 /   +1,039   worst day:   +1,485 /       +0
+      drop  STRUCT SENSEX                                profit: in-sample   -43,075  held-out   -19,405   worst drop:   +5,972 /     +349   worst day:   +2,199 /       +0
+      drop  STRUCT MIDCPNIFTY                            profit: in-sample    -8,123  held-out   -17,586   worst drop:   -2,061 /  -10,784   worst day:   +3,102 /       +0
+  drop  OB_PATH Indian rules pooled                  profit: in-sample  -216,769  held-out  -118,387   worst drop:     -159 /   -6,133   worst day:  +11,264 /  +17,147
+      drop  OB_PATH NIFTY                                profit: in-sample   -14,100  held-out   -53,015   worst drop:   -6,847 /   +2,906   worst day:   +1,485 /   +4,654
+      drop  OB_PATH SENSEX                               profit: in-sample   -62,304  held-out   -44,044   worst drop:   +3,770 /   -5,768   worst day:   +2,199 /       +0
+      drop  OB_PATH MIDCPNIFTY                           profit: in-sample  -140,364  held-out   -21,328   worst drop:   +3,902 /   -7,231   worst day:     -763 /   +4,088
+  drop  OB_NEAR Indian rules pooled                  profit: in-sample  -267,936  held-out  -157,151   worst drop:  -16,406 /  -37,064   worst day:  +11,264 /  +20,589
+      drop  OB_NEAR NIFTY                                profit: in-sample   -78,369  held-out   -39,558   worst drop:   +4,014 /  -11,030   worst day:   +1,485 /   +5,198
+      drop  OB_NEAR SENSEX                               profit: in-sample   -96,708  held-out   -57,542   worst drop:  +14,984 /   +4,158   worst day:   +2,199 /   +3,549
+      drop  OB_NEAR MIDCPNIFTY                           profit: in-sample   -92,859  held-out   -60,052   worst drop:  -11,866 /  -40,891   worst day:   +6,091 /   +5,869
+  drop  FVG Indian rules pooled                      profit: in-sample  -111,119  held-out    +5,397   worst drop:  -12,342 /  -22,061   worst day:  +11,954 /   +7,094
+      KEEP  FVG NIFTY                                    profit: in-sample   +20,233  held-out    +7,700   worst drop:  -13,234 /  -11,252   worst day:   +2,325 /     +874
+      drop  FVG SENSEX                                   profit: in-sample   -32,469  held-out    +1,472   worst drop:   +4,544 /   -6,378   worst day:     +945 /   +2,433
+      drop  FVG MIDCPNIFTY                               profit: in-sample   -98,882  held-out    -3,775   worst drop:   -4,422 /   -6,319   worst day:       +0 /       +0
+  KEEP  OBSTOP Indian rules pooled                   profit: in-sample    +3,959  held-out      +335   worst drop:       +0 /       +0   worst day:       +0 /       +0
+      KEEP  OBSTOP NIFTY                                 profit: in-sample      +588  held-out       +50   worst drop:       +0 /       +0   worst day:       +0 /       +0
+      KEEP  OBSTOP SENSEX                                profit: in-sample      +453  held-out      +285   worst drop:       +0 /       +0   worst day:       +0 /       +0
+      drop  OBSTOP MIDCPNIFTY                            profit: in-sample    +2,918  held-out        +0   worst drop:       +0 /       +0   worst day:       +0 /       +0
+  drop  STRUCT Bank Nifty (TradingView)              profit: in-sample   -12,291  held-out   -27,620   worst drop:   -5,067 /  +13,425   worst day:   +2,864 /   +2,492
+  drop  OB_PATH Bank Nifty (TradingView)             profit: in-sample   -79,509  held-out   -22,796   worst drop:   -1,370 /  -12,949   worst day:   +2,864 /       +0
+  drop  OB_NEAR Bank Nifty (TradingView)             profit: in-sample  -285,286  held-out  -100,611   worst drop:  +47,187 /  -18,057   worst day:   +5,630 /   +3,876
+  KEEP  FVG Bank Nifty (TradingView)                 profit: in-sample   +13,005  held-out   +24,428   worst drop:  -29,561 /  -16,806   worst day:       +0 /   +2,098
+   drop  STRUCT XAUUSD                                 profit: in-sample   -24,736  held-out   +34,766
+   drop  OB_PATH XAUUSD                                 profit: in-sample   -48,845  held-out  +105,709
+   drop  OB_NEAR XAUUSD                                 profit: in-sample   -33,665  held-out      +810
+   drop  FVG XAUUSD                                 profit: in-sample   +20,499  held-out   -20,449
+   drop  STRUCT BTCUSD                                 profit: in-sample    -2,647  held-out      +810
+   drop  OB_PATH BTCUSD                                 profit: in-sample   -11,838  held-out    +2,968
+   drop  OB_NEAR BTCUSD                                 profit: in-sample   +20,041  held-out   -16,204
+   KEEP  FVG BTCUSD                                 profit: in-sample   +13,635  held-out    +3,563

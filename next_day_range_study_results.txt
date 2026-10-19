@@ -1,0 +1,55 @@
+================================================================================================================================================================
+ A RANGE FOR THE DAY - previous close +/- k x daily ATR(14), k set so 80% of days in the first two years had their high AND low inside; the held-out year measured with k untouched
+================================================================================================================================================================
+              band                           k   inside: first two yrs   HELD-OUT       days   width / day range  held-out: high out / low out
+ NIFTY        close +/- k x ATR(14)       1.15                  80.0%      79.2%   456/265      3.11x / 3.06x           8.3% / 12.5%
+ NIFTY        close +/- m x 10-day range  1.35                  80.9%      78.9%   461/265      3.31x / 3.08x           7.2% / 14.0%
+ BANKNIFTY    close +/- k x ATR(14)       1.10                  80.0%      78.9%   456/265      2.84x / 2.82x           9.8% / 11.3%
+ BANKNIFTY    close +/- m x 10-day range  1.23                  80.3%      77.0%   461/265      2.90x / 2.80x          10.2% / 12.8%
+ SENSEX       close +/- k x ATR(14)       1.14                  80.5%      78.9%   456/265      3.08x / 3.03x           9.1% / 12.1%
+ SENSEX       close +/- m x 10-day range  1.30                  80.7%      78.5%   461/265      3.18x / 2.95x           8.3% / 13.2%
+ MIDCPNIFTY   close +/- k x ATR(14)       1.12                  80.3%      77.7%   456/265      2.93x / 2.92x           7.5% / 14.7%
+ MIDCPNIFTY   close +/- m x 10-day range  1.23                  80.0%      78.5%   461/265      3.00x / 2.85x           7.2% / 14.3%
+ BTC          close +/- k x ATR(14)       1.16                  80.2%      83.0%   696/412      2.90x / 3.07x           7.8% / 9.5%
+ BTC          close +/- m x 10-day range  1.18                  80.0%      81.6%   701/412      2.95x / 3.06x           8.7% / 10.0%
+ GOLD         close +/- k x ATR(14)       1.12                  80.8%      80.4%   489/291      2.55x / 2.64x          11.3% / 8.9%
+ GOLD         close +/- m x 10-day range  1.10                  80.2%      77.0%   494/291      2.50x / 2.54x          12.7% / 11.0%
+
+================================================================================================================================================================
+ THE BAND AS ROOM TO RUN on the Indian rules as live runs them (per lot after costs, ₹; columns: trades, won, total, profit factor, worst drop, worst day)
+================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + SENSEX + MIDCAP (the verdict)
+    TODAY (live room)                            1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+    BANDCAP (also capped at the band)            1605   51% ₹  +269,818 PF 1.21 DD ₹  64,679 day ₹ -26,426  |  953   53% ₹  +199,713 PF 1.28 DD ₹  63,773 day ₹ -12,275
+    BAND (the band is the room)                  2037   42% ₹  +402,151 PF 1.21 DD ₹  74,345 day ₹ -18,251  | 1156   42% ₹  +308,618 PF 1.31 DD ₹  72,670 day ₹ -16,967
+ NIFTY  (band k = 1.15)
+    TODAY (live room)                             560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    BANDCAP (also capped at the band)             494   50% ₹   +36,445 PF 1.11 DD ₹  31,129 day ₹  -7,487  |  306   54% ₹   +64,881 PF 1.35 DD ₹  28,825 day ₹  -5,751
+    BAND (the band is the room)                   676   41% ₹  +130,995 PF 1.24 DD ₹  35,731 day ₹  -9,377  |  389   43% ₹   +99,769 PF 1.36 DD ₹  27,680 day ₹  -8,832
+ SENSEX  (band k = 1.14)
+    TODAY (live room)                             527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    BANDCAP (also capped at the band)             490   50% ₹   +63,676 PF 1.18 DD ₹  35,452 day ₹  -8,440  |  302   55% ₹   +70,871 PF 1.38 DD ₹  22,955 day ₹  -4,561
+    BAND (the band is the room)                   651   39% ₹  +134,293 PF 1.25 DD ₹  27,748 day ₹  -7,264  |  396   40% ₹  +113,798 PF 1.40 DD ₹  32,302 day ₹ -10,014
+ MIDCPNIFTY  (band k = 1.12)
+    TODAY (live room)                             700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    BANDCAP (also capped at the band)             621   52% ₹  +169,697 PF 1.29 DD ₹  30,831 day ₹ -10,703  |  345   51% ₹   +63,961 PF 1.19 DD ₹  41,547 day ₹  -7,224
+    BAND (the band is the room)                   710   44% ₹  +136,863 PF 1.17 DD ₹  40,334 day ₹ -14,931  |  371   43% ₹   +95,050 PF 1.23 DD ₹  36,180 day ₹  -9,071
+
+ HOW TRADES ENDED (all three indices) - share closed AT THE TARGET, at the stop, and otherwise
+   TODAY (live room)                    first two years  target  3.1%   stop 19.8%   other (trail, breakeven, close) 77.2%   of 1787
+   TODAY (live room)                    held-out         target  2.6%   stop 17.0%   other (trail, breakeven, close) 80.5%   of 1091
+   BANDCAP (also capped at the band)    first two years  target  3.6%   stop 20.2%   other (trail, breakeven, close) 76.2%   of 1605
+   BANDCAP (also capped at the band)    held-out         target  2.5%   stop 17.1%   other (trail, breakeven, close) 80.4%   of 953
+   BAND (the band is the room)          first two years  target  2.5%   stop 21.3%   other (trail, breakeven, close) 76.2%   of 2037
+   BAND (the band is the room)          held-out         target  2.3%   stop 18.7%   other (trail, breakeven, close) 79.0%   of 1156
+
+ VERDICT - kept only if more than TODAY in BOTH periods (pooled), and then on each index too
+  drop  BANDCAP pooled                               profit: in-sample   -78,628  held-out    +5,384   worst drop:  +13,306 /  -20,551   worst day:       +0 /  +17,147
+      drop  BANDCAP NIFTY                                profit: in-sample   -24,017  held-out   +13,067   worst drop:     -313 /   +1,510   worst day:       +0 /   +3,287
+      drop  BANDCAP SENSEX                               profit: in-sample   -14,422  held-out   +15,268   worst drop:   +6,369 /     -979   worst day:       +0 /   +3,549
+      drop  BANDCAP MIDCPNIFTY                           profit: in-sample   -40,189  held-out   -22,950   worst drop:   -2,372 /  -14,178   worst day:       +0 /   +5,050
+  KEEP  BAND pooled                                  profit: in-sample   +53,705  held-out  +114,290   worst drop:  +22,972 /  -11,654   worst day:   +8,175 /  +12,455
+      KEEP  BAND NIFTY                                   profit: in-sample   +70,533  held-out   +47,955   worst drop:   +4,289 /     +365   worst day:   -1,890 /     +206
+      KEEP  BAND SENSEX                                  profit: in-sample   +56,195  held-out   +58,195   worst drop:   -1,335 /   +8,368   worst day:   +1,176 /   -1,904
+      drop  BAND MIDCPNIFTY                              profit: in-sample   -73,024  held-out    +8,139   worst drop:   +7,131 /  -19,545   worst day:   -4,227 /   +3,204

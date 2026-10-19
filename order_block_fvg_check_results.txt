@@ -1,0 +1,40 @@
+FVG WINDOW CHECK (a check, not a decision) - per lot after costs, first two years | held-out
+ BANKNIFTY TradingView rating
+    today (no FVG)                                804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+    FVG in the last 1 candle(s)                   391   37% ₹  +178,016 PF 1.45 DD ₹  33,805 day ₹ -10,244  |  239   33% ₹   +59,619 PF 1.24 DD ₹  56,043 day ₹  -9,355
+    FVG in the last 2 candle(s)                   452   38% ₹  +207,462 PF 1.45 DD ₹  37,360 day ₹ -13,583  |  261   33% ₹   +94,842 PF 1.38 DD ₹  44,228 day ₹  -9,355
+    FVG in the last 3 candle(s)                   489   37% ₹  +194,290 PF 1.39 DD ₹  38,578 day ₹ -13,583  |  280   34% ₹  +100,662 PF 1.40 DD ₹  36,430 day ₹  -9,355
+    FVG in the last 4 candle(s)                   521   38% ₹  +211,207 PF 1.40 DD ₹  42,199 day ₹ -13,583  |  298   35% ₹  +101,535 PF 1.39 DD ₹  32,944 day ₹  -9,355
+    FVG in the last 5 candle(s)                   549   37% ₹  +190,934 PF 1.34 DD ₹  41,173 day ₹ -13,583  |  315   35% ₹   +96,814 PF 1.34 DD ₹  37,070 day ₹  -9,355
+     drop  FVG 1 vs today                               profit: in-sample    -3,268  held-out   -16,614   worst drop:  -34,335 /   +2,807   worst day:   +3,339 /   +2,098
+     KEEP  FVG 2 vs today                               profit: in-sample   +26,177  held-out   +18,609   worst drop:  -30,779 /   -9,007   worst day:       +0 /   +2,098
+     KEEP  FVG 3 vs today                               profit: in-sample   +13,005  held-out   +24,428   worst drop:  -29,561 /  -16,806   worst day:       +0 /   +2,098
+     KEEP  FVG 4 vs today                               profit: in-sample   +29,922  held-out   +25,302   worst drop:  -25,940 /  -20,291   worst day:       +0 /   +2,098
+     KEEP  FVG 5 vs today                               profit: in-sample    +9,650  held-out   +20,580   worst drop:  -26,966 /  -16,166   worst day:       +0 /   +2,098
+     by half-year, FVG(3) minus today: 2023-H2 -12,194  2024-H1 -39,829  2024-H2 +49,611  2025-H1 +7,179  2025-H2 +10,725  2026-H1 +5,588  2026-H2 +16,355
+ NIFTY TradingView rating
+    today (no FVG)                                763   39% ₹  +267,670 PF 1.46 DD ₹  26,758 day ₹  -8,877  |  404   39% ₹  +143,011 PF 1.51 DD ₹  33,562 day ₹  -6,133
+    FVG in the last 1 candle(s)                   411   35% ₹  +149,504 PF 1.44 DD ₹  21,900 day ₹  -6,795  |  229   32% ₹   +74,655 PF 1.47 DD ₹  12,281 day ₹  -5,614
+    FVG in the last 2 candle(s)                   450   36% ₹  +195,356 PF 1.54 DD ₹  22,438 day ₹  -8,988  |  262   32% ₹  +103,662 PF 1.56 DD ₹  12,818 day ₹  -5,347
+    FVG in the last 3 candle(s)                   494   36% ₹  +245,703 PF 1.64 DD ₹  22,216 day ₹  -8,988  |  277   32% ₹  +100,797 PF 1.51 DD ₹  16,033 day ₹  -5,347
+    FVG in the last 4 candle(s)                   528   38% ₹  +243,359 PF 1.59 DD ₹  24,624 day ₹  -8,988  |  291   34% ₹  +122,291 PF 1.60 DD ₹  19,173 day ₹  -5,598
+    FVG in the last 5 candle(s)                   558   37% ₹  +242,179 PF 1.56 DD ₹  25,086 day ₹  -8,988  |  303   35% ₹  +134,685 PF 1.64 DD ₹  21,603 day ₹  -5,598
+     drop  FVG 1 vs today                               profit: in-sample  -118,166  held-out   -68,356   worst drop:   -4,857 /  -21,282   worst day:   +2,083 /     +519
+     drop  FVG 2 vs today                               profit: in-sample   -72,314  held-out   -39,349   worst drop:   -4,319 /  -20,744   worst day:     -111 /     +786
+     drop  FVG 3 vs today                               profit: in-sample   -21,967  held-out   -42,214   worst drop:   -4,541 /  -17,529   worst day:     -111 /     +786
+     drop  FVG 4 vs today                               profit: in-sample   -24,311  held-out   -20,720   worst drop:   -2,134 /  -14,389   worst day:     -111 /     +535
+     drop  FVG 5 vs today                               profit: in-sample   -25,491  held-out    -8,326   worst drop:   -1,672 /  -11,959   worst day:     -111 /     +535
+     by half-year, FVG(3) minus today: 2023-H2 -11,971  2024-H1 +24,988  2024-H2 +7,033  2025-H1 -33,167  2025-H2 -17,068  2026-H1 -33,476  2026-H2 -520
+ NIFTY rules
+    today (no FVG)                                560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    FVG in the last 1 candle(s)                   314   51% ₹   +57,405 PF 1.26 DD ₹  19,577 day ₹  -5,162  |  205   45% ₹   +18,614 PF 1.12 DD ₹  24,924 day ₹  -5,751
+    FVG in the last 2 candle(s)                   375   51% ₹   +70,501 PF 1.27 DD ₹  19,675 day ₹  -5,162  |  244   48% ₹   +41,135 PF 1.24 DD ₹  18,113 day ₹  -8,164
+    FVG in the last 3 candle(s)                   420   51% ₹   +80,695 PF 1.28 DD ₹  18,209 day ₹  -5,162  |  267   50% ₹   +59,515 PF 1.34 DD ₹  16,063 day ₹  -8,164
+    FVG in the last 4 candle(s)                   455   51% ₹   +88,416 PF 1.29 DD ₹  17,254 day ₹  -6,003  |  287   49% ₹   +47,943 PF 1.25 DD ₹  15,982 day ₹  -8,164
+    FVG in the last 5 candle(s)                   480   51% ₹   +83,996 PF 1.26 DD ₹  21,119 day ₹  -7,487  |  300   48% ₹   +41,197 PF 1.20 DD ₹  22,293 day ₹  -8,164
+     drop  FVG 1 vs today                               profit: in-sample    -3,057  held-out   -33,200   worst drop:  -11,865 /   -2,391   worst day:   +2,325 /   +3,287
+     drop  FVG 2 vs today                               profit: in-sample   +10,039  held-out   -10,679   worst drop:  -11,767 /   -9,202   worst day:   +2,325 /     +874
+     KEEP  FVG 3 vs today                               profit: in-sample   +20,233  held-out    +7,700   worst drop:  -13,234 /  -11,252   worst day:   +2,325 /     +874
+     drop  FVG 4 vs today                               profit: in-sample   +27,954  held-out    -3,872   worst drop:  -14,188 /  -11,334   worst day:   +1,485 /     +874
+     drop  FVG 5 vs today                               profit: in-sample   +23,534  held-out   -10,617   worst drop:  -10,323 /   -5,022   worst day:       +0 /     +874
+     by half-year, FVG(3) minus today: 2023-H2 -2,644  2024-H1 +9,622  2024-H2 +19,078  2025-H1 -4,691  2025-H2 -8,004  2026-H1 +20,497  2026-H2 -5,924
