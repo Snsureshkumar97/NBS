@@ -49,13 +49,28 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 def _kite():
     from kiteconnect import KiteConnect
     users = accounts.always_on_users()
-    # every live account is "always on" now, so take the first one that has a Zerodha token today
-    token = next((t for t in (user_kite.token_for(u) for u in users) if t), None)
-    if not token:
-        raise SystemExit("No Zerodha token today - connect Zerodha in the tool, then re-run.")
-    k = KiteConnect(api_key=config.KITE_API_KEY)
-    k.set_access_token(token)
-    return k
+    # Every live account is "always on" now, so use one that has a Zerodha token. A token works only with the app
+    # it was issued through, and an account with its OWN Kite Connect app (user_kite.app_for) has a token the
+    # server's key refuses: from 16 Oct 2026, the day an account saved its own app, every run here got "Incorrect
+    # `api_key` or `access_token`" and recorded nothing. So each token goes with its own app's key, accounts on the
+    # server's app first, and the first one Zerodha accepts is used (a token from an earlier day is refused too).
+    users = sorted(users, key=lambda u: user_kite.app_for(u)[2])
+    tried = 0
+    for u in users:
+        token = user_kite.token_for(u)
+        if not token:
+            continue
+        tried += 1
+        k = KiteConnect(api_key=user_kite.api_key_for(u))
+        k.set_access_token(token)
+        try:
+            k.profile()
+        except Exception as exc:
+            print(f"  a Zerodha login was refused ({type(exc).__name__}) - trying the next account")
+            continue
+        return k
+    raise SystemExit("No Zerodha token today - connect Zerodha in the tool, then re-run." if not tried else
+                     f"Zerodha refused all {tried} saved logins - reconnect Zerodha in the tool, then re-run.")
 
 
 def _hist(k, token, day, interval="minute", oi=True):

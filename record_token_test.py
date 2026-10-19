@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""record_options picks a Zerodha token from the first account that HAS one.
+"""record_options picks a Zerodha token from an account that HAS one, with that token's own app key.
 
 Running all session is automatic for every live account (25 Sep 2026), so accounts.always_on_users() is every live
 account, not only the ones that had switched it on. The recorder used to take the first of them; with two accounts
 and only the second connected today, that would have been "no token" - it now takes the first that has one.
+From 16 Oct 2026 an account had its OWN Kite Connect app, and its token went out with the server's key: Zerodha
+refused it ("Incorrect `api_key` or `access_token`") and nothing was recorded. Each token now goes with its own
+app's key, accounts on the server's app first, and a refused login moves on to the next account.
 No network: kiteconnect is replaced by a stand-in.
 """
 import os
@@ -19,16 +22,31 @@ def check(name, cond, extra=""):
         fails.append(name)
 
 seen = {}
+refused = set()          # tokens Zerodha refuses (stale, or paired with the wrong key)
 class FakeKite:
     def __init__(self, api_key=None): seen["key"] = api_key
     def set_access_token(self, t): seen["token"] = t
+    def profile(self):
+        if seen.get("token") in refused:
+            raise RuntimeError("Incorrect `api_key` or `access_token`.")
+        return {"user_id": "XX0000"}
+def shown():
+    """What was used, with the server's real key masked - the test prints it."""
+    return {"key": "server's key" if seen.get("key") == config.KITE_API_KEY else seen.get("key"), "token": seen.get("token")}
 fake = types.ModuleType("kiteconnect"); fake.KiteConnect = FakeKite
 sys.modules["kiteconnect"] = fake
 
 import accounts
+import config
 import record_options
 import user_kite
 
+own_apps = {}            # email -> its own app's key
+user_kite.app_for = lambda email: ((own_apps[email], "secret", True) if email in own_apps
+                                   else (config.KITE_API_KEY, config.KITE_API_SECRET, False))
+user_kite.api_key_for = lambda email: user_kite.app_for(email)[0]
+
+print("1. THE FIRST ACCOUNT WITH A TOKEN")
 tokens = {"a@example.com": None, "b@example.com": "TOKEN-B", "c@example.com": "TOKEN-C"}
 accounts.always_on_users = lambda: ["a@example.com", "b@example.com", "c@example.com"]
 user_kite.token_for = lambda email: tokens.get(email)
@@ -49,5 +67,30 @@ try:
 except SystemExit as e:
     ok = "No Zerodha token today" in str(e)
 check("no accounts at all: the same", ok)
+
+print("2. AN ACCOUNT WITH ITS OWN APP (16 Oct 2026)")
+accounts.always_on_users = lambda: ["own@example.com", "site@example.com"]
+own_apps.update({"own@example.com": "OWN-KEY"})
+tokens.update({"own@example.com": "TOKEN-OWN", "site@example.com": "TOKEN-SITE"}); seen.clear()
+record_options._kite()
+check("the account on the server's app goes first, with the server's key",
+      seen.get("token") == "TOKEN-SITE" and seen.get("key") == config.KITE_API_KEY, shown())
+tokens["site@example.com"] = None; seen.clear()
+record_options._kite()
+check("only the own-app account has a token: it goes with ITS OWN key, never the server's",
+      seen.get("token") == "TOKEN-OWN" and seen.get("key") == "OWN-KEY", shown())
+
+print("3. A REFUSED LOGIN")
+tokens["site@example.com"] = "TOKEN-SITE"; refused.add("TOKEN-SITE"); seen.clear()
+record_options._kite()
+check("the server-app token is refused (an earlier day's): the next account's is used",
+      seen.get("token") == "TOKEN-OWN" and seen.get("key") == "OWN-KEY", shown())
+refused.add("TOKEN-OWN")
+try:
+    record_options._kite(); ok = False; msg = ""
+except SystemExit as e:
+    msg = str(e); ok = "refused all 2" in msg and "reconnect Zerodha" in msg
+check("every saved login refused: it stops and says so, not 'no token'", ok, msg)
+
 print("RECORD TOKEN TEST PASSED" if not fails else f"RECORD TOKEN TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
