@@ -82,6 +82,46 @@ def status(now=None):
     return st
 
 
+def session_note(market, now=None):
+    """Why this market is shut today, in the exchange's own terms - or None on an ordinary day (and always for a market
+    that never closes). The user, 20 Oct 2026, on Dussehra: "The holiday message is not on the dashboard thats the main
+    part" - it was only on the Signal card's ticket hold. {"kind": "holiday" | "special" | "weekend", "short": a few
+    words for the header, "title", "text", "nse": NSE's live words or None, "next": the next regular open}."""
+    m = config.MARKETS.get(market) or {}
+    if m.get("always_open") or not m.get("holidays"):
+        return None
+    import main as _main
+    now = now or _main.now_ist()
+    d = now.date()
+    st = status(now)
+    nse = st["text"] if st and st.get("text") else None
+    o = _main.MARKET_OPEN_TIME
+    nx = now.replace(hour=o[0], minute=o[1], second=0, microsecond=0)
+    if now >= nx:
+        nx += dt.timedelta(days=1)
+    while nx.weekday() >= 5 or _main.is_nse_holiday(nx.date()):
+        nx += dt.timedelta(days=1)
+    nxt = f"{nx:%A} {nx.day} {nx:%b}, {nx:%H:%M}"
+    special = special_session(d, now)
+    if special is not None:
+        name = special or "a special session"
+        return {"kind": "special", "short": special or "special session", "nse": nse, "next": nxt,
+                "title": f"Special trading session today - {name}",
+                "text": ("NSE holds a short special session today, at hours it sets by circular (Diwali's is Muhurat "
+                         "trading). The tool sits special sessions out - they are short and thin, and none is in its "
+                         f"tests - so no ticket is issued today. Regular trading resumes {nxt}.")}
+    holiday = _main.nse_holiday_name(d)
+    if holiday:
+        return {"kind": "holiday", "short": holiday, "nse": nse, "next": nxt,
+                "title": f"Market closed today - {holiday}",
+                "text": (f"Today is {holiday}, an NSE trading holiday: no equity or F&O trading on NSE or BSE. "
+                         f"The next session opens {nxt}.")}
+    if not m.get("weekends") and d.weekday() >= 5:
+        return {"kind": "weekend", "short": "weekend", "nse": nse, "next": nxt,
+                "title": "Market closed - weekend", "text": f"The next session opens {nxt}."}
+    return None
+
+
 # ---------------------------------------------------------------- taking NSE's replies in
 def _date(s):
     for fmt in ("%d-%b-%Y %H:%M", "%d-%b-%Y"):

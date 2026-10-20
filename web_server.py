@@ -264,6 +264,7 @@ def kite_chart_url(segment, tradingsymbol, token):
             + urllib.parse.quote(str(tradingsymbol), safe="") + "/" + str(int(token)))
 
 
+
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "TradePicker"
 
@@ -710,6 +711,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "state": "ok", "detail": "", "connected": True, "user_id": "", "since": ""}
         payload = {
             "market_open": snap["market_open"],
+            # A holiday, a special session or a weekend, named, with NSE's own words and the
+            # next open - for the Dashboard and the header (market_calendar.session_note).
+            "session_note": market_calendar.session_note(market),
             "posgreeks": self._position_greeks(user, market,
                                                snap.get("tickets") or {}),
             "closing_auction": snap.get("closing_auction", False),
@@ -3848,6 +3852,13 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
    label / value rows - two columns wide, one on a phone. */
 .tstats{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd-soft)}
 .psum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;padding-bottom:12px}
+/* why the market is shut today (session_note) - first thing on the Dashboard */
+.kd-note{display:flex;flex-direction:column;gap:4px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--bd);border-left:4px solid var(--warn);border-radius:10px;background:var(--raised)}
+.kd-note b{font-size:15px;color:var(--ink)}
+.kd-note span{font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.kd-note small{font-size:12.5px;color:var(--ink-3)}
+.kd-note-special{border-left-color:var(--up)}
+.kd-note-weekend{border-left-color:var(--bd)}
 /* GATE TRACKS + TODAY'S MOVERS on the Dashboard (16 Oct 2026) - one track per index: each check before a ticket as a
    dot on a line, passed ones filled, the first unmet one the HOLD, the rest not reached yet */
 .trendnote{margin-top:6px;font-size:12px;color:var(--ink-3);line-height:1.45}
@@ -5076,6 +5087,7 @@ button.mgroup:hover{color:var(--ink-2)}
   /* 12. the Dashboard: Kite's two big figures, then every index at a glance, the wider markets after */
   :root[data-look="kite"] .pane[data-pane="home"].on{display:flex;flex-direction:column}
   :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
+  :root[data-look="kite"] .sessnote{order:2}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
@@ -5614,6 +5626,7 @@ button.mgroup:hover{color:var(--ink-2)}
  <div class="panes">
 
  <section class="pane on" data-pane="home">
+  <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
@@ -9226,13 +9239,15 @@ function render(s){
   try{ posGreeks(s); }catch(e){}
   try{ overnightWarn(s); }catch(e){}
   $("beat").className = "beat" + (s.market_open && !s.stale && !cas ? " live" : "");
+  const sn = s.session_note;
   $("mkt").textContent = s.stale ? "feed down"
-    : (cas ? "Closing auction" : (s.market_open?"Market open":"Market closed"));
+    : (cas ? "Closing auction" : (s.market_open ? "Market open"
+       : sn ? (sn.kind === "special" ? "Special session" : "Closed · " + sn.short) : "Market closed"));
   $("mkt").title = cas
     ? "From 15:15 every constituent is in NSE's closing auction, so the index "
       + "holds one value until the closing prices publish around 15:35. "
       + "Options trade until 15:40, so an open ticket is still tracked."
-    : "";
+    : (!s.market_open && sn ? sn.title + ". " + sn.text : "");
   $("upd").textContent = s.updated ? s.updated+" IST" : "—";
   // Which market this session is in. Shown always, not only when there is a
   // choice: on a screen where every number is a currency, "which market am I
@@ -10738,6 +10753,18 @@ function gatesDraw(s, force){
 }
 function homeDraw(s){
   kiteDash(s);
+  // Why the market is shut today - a holiday, a special session (Muhurat), a weekend - in the exchange's own words,
+  // first thing on the Dashboard (the user, 20 Oct 2026: "The holiday message is not on the dashboard thats the main
+  // part"). Its own slot, not inside #kdash, which phones do not show. From the server's session_note; empty on an
+  // ordinary day.
+  const ns = $("sessnote");
+  if(ns){
+    const sn = s && s.session_note;
+    const h = sn ? `<div class="kd-note kd-note-${esc(sn.kind)}" role="status"><b>${esc(sn.title)}</b>`
+      + `<span>${esc(sn.text)}</span>`
+      + (sn.nse ? `<small>NSE right now: ${esc(sn.nse)}</small>` : "") + `</div>` : "";
+    if(ns.innerHTML !== h) ns.innerHTML = h;
+  }
   const g = $("gmk");
   if(g && MKT_ROWS){
     g.innerHTML = MKT_ROWS.slice(0, 12).map(r => {
@@ -10756,7 +10783,9 @@ function homeDraw(s){
     const cell = (l, v, col) => `<div class="r"><div class="l">${esc(l)}</div>`
       + `<div class="v"${col ? ` style="color:${col}"` : ""}>${v}</div></div>`;
     const lv = livePnl(s), pp = paperPnl(s), lvn = lv ? lv.net : 0;
-    t.innerHTML = cell("Market", s && s.market_open ? "Open" : "Closed",
+    const sn = s && s.session_note;
+    t.innerHTML = cell("Market", s && s.market_open ? "Open"
+                       : sn ? esc(sn.kind === "special" ? "Special session" : "Closed · " + sn.short) : "Closed",
                        s && s.market_open ? "var(--up)" : "var(--ink-3)")
       + cell("Tickets today", ses.issued == null ? "—" : ses.issued)
       + cell("Live trades", money(lvn), lvn > 0 ? "var(--up)" : lvn < 0 ? "var(--down)" : "")

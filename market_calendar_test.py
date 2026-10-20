@@ -115,6 +115,35 @@ check("a Saturday the exchange says is open: SPECIAL SESSION, not a plain weeken
 mc.ingest_status(status_reply(True, "21-Oct-2026 11:00"), at=time.time())
 check("an ordinary trading day's 'open' is no special session", mc.special_session(D(2026, 10, 21)) is None)
 
+print("6. THE DASHBOARD'S NOTE (the user, 20 Oct 2026: \"The holiday message is not on the dashboard thats the main part\")")
+mc.ingest_status(status_reply(False, "19-Oct-2026 15:30"), at=when.timestamp())
+n = mc.session_note("nse_index", when)
+check("Dussehra: a holiday note, named, with NSE's words and the next open in plain words",
+      n and n["kind"] == "holiday" and n["title"] == "Market closed today - Dussehra" and n["short"] == "Dussehra"
+      and n["nse"] == "Market is Closed" and n["next"] == "Wednesday 21 Oct, 09:15" and "Wednesday 21 Oct, 09:15" in n["text"], n)
+mc.ingest_status(status_reply(True, "08-Nov-2026 14:30"), at=muhurat.timestamp())
+n = mc.session_note("nse_index", muhurat)
+check("Muhurat: a special-session note, sat out, regular trading resumes Monday 9 Nov",
+      n and n["kind"] == "special" and "Diwali Laxmi Pujan" in n["title"] and "sits special sessions out" in n["text"]
+      and n["next"] == "Monday 9 Nov, 09:15" and n["nse"] == "Market is Open", n)
+n = mc.session_note("nse_index", dt.datetime(2026, 10, 24, 11, 0, tzinfo=IST))
+check("a plain Saturday: a weekend note, next open Monday 26 Oct",
+      n and n["kind"] == "weekend" and n["next"] == "Monday 26 Oct, 09:15", n)
+check("an ordinary trading day: no note", mc.session_note("nse_index", dt.datetime(2026, 10, 21, 11, 0, tzinfo=IST)) is None)
+check("after the close on a trading day: no note (the header already says closed)",
+      mc.session_note("nse_index", dt.datetime(2026, 10, 21, 16, 30, tzinfo=IST)) is None)
+check("crypto never closes: no note, even on Dussehra", mc.session_note("crypto", when) is None)
+src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
+page = src[src.index('data-pane="home"'):]
+check("the page has its own slot for it, ahead of #kdash (which phones do not show)",
+      'id="sessnote"' in page and page.index('id="sessnote"') < page.index('id="kdash"'))
+home = src[src.index("function homeDraw(s){"):src.index("function homeDraw(s){") + 1500]
+check("homeDraw fills the slot from session_note: title, text and NSE's words",
+      '$("sessnote")' in home and "s.session_note" in home and "sn.title" in home and "NSE right now" in home)
+check("the header names the reason: 'Closed · <holiday>' / 'Special session'",
+      '"Closed · " + sn.short' in src and '"Special session"' in src)
+check("the state the page reads carries it", '"session_note": market_calendar.session_note(market)' in src)
+
 print()
 print("MARKET CALENDAR TEST PASSED" if not fails else f"MARKET CALENDAR TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)
