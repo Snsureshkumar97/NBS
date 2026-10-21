@@ -1,0 +1,56 @@
+============================================================================================================================================================================
+ ROOM TO RUN FROM THE PIVOT LEVELS (R1-R3 / S1-S3) - the rules as live runs them, per lot after costs, ₹ (columns: trades, won, total, profit factor, worst drop, worst day)
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + SENSEX + MIDCAP (the verdict)
+    TODAY                                        1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+    PIV_NEXT                                      944   55% ₹  +161,040 PF 1.22 DD ₹  22,247 day ₹ -10,890  |  601   54% ₹   +74,000 PF 1.16 DD ₹  51,978 day ₹ -13,875
+    PIV_R2                                       1514   52% ₹  +255,371 PF 1.21 DD ₹  37,125 day ₹ -26,426  |  937   53% ₹  +157,872 PF 1.21 DD ₹  55,843 day ₹ -24,925
+    PIV_ONLY                                     1387   51% ₹  +203,329 PF 1.18 DD ₹  32,888 day ₹ -20,361  |  831   50% ₹   +93,849 PF 1.14 DD ₹  50,232 day ₹ -13,875
+ NIFTY
+    TODAY                                         560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    PIV_NEXT                                      288   56% ₹   +39,584 PF 1.22 DD ₹  14,699 day ₹  -5,162  |  178   46% ₹    -8,512 PF 0.93 DD ₹  20,749 day ₹  -3,765
+    PIV_R2                                        470   51% ₹   +21,631 PF 1.06 DD ₹  40,573 day ₹  -7,487  |  297   48% ₹   +25,376 PF 1.13 DD ₹  42,010 day ₹  -4,540
+    PIV_ONLY                                      437   51% ₹   +46,608 PF 1.15 DD ₹  23,334 day ₹  -6,012  |  260   44% ₹      +479 PF 1.00 DD ₹  21,919 day ₹  -4,269
+ SENSEX
+    TODAY                                         527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    PIV_NEXT                                      270   56% ₹   +58,347 PF 1.34 DD ₹  20,276 day ₹  -5,531  |  169   54% ₹   +12,727 PF 1.12 DD ₹  16,970 day ₹  -4,314
+    PIV_R2                                        436   52% ₹   +63,433 PF 1.21 DD ₹  26,380 day ₹  -8,440  |  275   55% ₹   +57,397 PF 1.33 DD ₹  18,789 day ₹  -8,110
+    PIV_ONLY                                      429   50% ₹   +65,163 PF 1.21 DD ₹  25,597 day ₹  -5,531  |  271   47% ₹   +21,434 PF 1.12 DD ₹  17,149 day ₹  -5,721
+ MIDCPNIFTY
+    TODAY                                         700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    PIV_NEXT                                      386   54% ₹   +63,110 PF 1.17 DD ₹  20,326 day ₹  -8,230  |  254   59% ₹   +69,785 PF 1.29 DD ₹  25,895 day ₹  -9,561
+    PIV_R2                                        608   53% ₹  +170,306 PF 1.30 DD ₹  22,683 day ₹ -10,703  |  365   54% ₹   +75,099 PF 1.20 DD ₹  38,361 day ₹ -12,274
+    PIV_ONLY                                      521   51% ₹   +91,559 PF 1.17 DD ₹  38,272 day ₹ -11,473  |  300   57% ₹   +71,937 PF 1.23 DD ₹  21,532 day ₹  -9,561
+
+ HOW TRADES ENDED (all three) - closed AT THE TARGET / at the stop / otherwise (trail, breakeven, close)
+   TODAY      target  2.9%   stop 18.7%   other 78.4%   of 2878
+   PIV_NEXT   target  4.2%   stop 18.2%   other 77.6%   of 1545
+   PIV_R2     target  3.6%   stop 19.0%   other 77.4%   of 2451
+   PIV_ONLY   target  4.1%   stop 17.7%   other 78.2%   of 2218
+
+ VERDICT - kept only if more than TODAY in BOTH periods (pooled), then on each index
+  drop  PIV_NEXT pooled                              profit: in-sample  -187,406  held-out  -120,328   worst drop:  -29,126 /  -32,345   worst day:  +15,536 /  +15,547
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹75,200 (today's ₹106,874), chance of a loss 1%;  held-out: 95% worst drop ₹86,887 (today's ₹103,025), chance of a loss 11%
+      drop  PIV_NEXT NIFTY                               profit: in-sample   -20,879  held-out   -60,326   worst drop:  -16,743 /   -6,567   worst day:   +2,325 /   +5,272
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹38,645 (today's ₹63,492), chance of a loss 9%;  held-out: 95% worst drop ₹50,227 (today's ₹41,478), chance of a loss 66%
+      drop  PIV_NEXT SENSEX                              profit: in-sample   -19,751  held-out   -42,876   worst drop:   -8,807 /   -6,964   worst day:   +2,909 /   +3,796
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹35,354 (today's ₹49,852), chance of a loss 3%;  held-out: 95% worst drop ₹33,759 (today's ₹39,783), chance of a loss 26%
+      drop  PIV_NEXT MIDCPNIFTY                          profit: in-sample  -146,777  held-out   -17,126   worst drop:  -12,877 /  -29,830   worst day:   +2,474 /   +2,714
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹66,532 (today's ₹63,690), chance of a loss 9%;  held-out: 95% worst drop ₹54,713 (today's ₹72,104), chance of a loss 6%
+  drop  PIV_R2 pooled                                profit: in-sample   -93,076  held-out   -36,457   worst drop:  -14,247 /  -28,481   worst day:       +0 /   +4,497
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹112,630 (today's ₹106,874), chance of a loss 1%;  held-out: 95% worst drop ₹91,737 (today's ₹103,025), chance of a loss 2%
+      drop  PIV_R2 NIFTY                                 profit: in-sample   -38,831  held-out   -26,439   worst drop:   +9,131 /  +14,695   worst day:       +0 /   +4,497
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹75,490 (today's ₹63,492), chance of a loss 30%;  held-out: 95% worst drop ₹42,075 (today's ₹41,478), chance of a loss 17%
+      drop  PIV_R2 SENSEX                                profit: in-sample   -14,665  held-out    +1,794   worst drop:   -2,702 /   -5,145   worst day:       +0 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹48,437 (today's ₹49,852), chance of a loss 5%;  held-out: 95% worst drop ₹34,756 (today's ₹39,783), chance of a loss 3%
+      drop  PIV_R2 MIDCPNIFTY                            profit: in-sample   -39,580  held-out   -11,812   worst drop:  -10,520 /  -17,364   worst day:       +0 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹64,107 (today's ₹63,690), chance of a loss 1%;  held-out: 95% worst drop ₹69,237 (today's ₹72,104), chance of a loss 8%
+  drop  PIV_ONLY pooled                              profit: in-sample  -145,117  held-out  -100,479   worst drop:  -18,485 /  -34,092   worst day:   +6,065 /  +15,547
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹110,390 (today's ₹106,874), chance of a loss 2%;  held-out: 95% worst drop ₹94,364 (today's ₹103,025), chance of a loss 9%
+      drop  PIV_ONLY NIFTY                               profit: in-sample   -13,854  held-out   -51,336   worst drop:   -8,108 /   -5,396   worst day:   +1,475 /   +4,768
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹57,857 (today's ₹63,492), chance of a loss 13%;  held-out: 95% worst drop ₹52,881 (today's ₹41,478), chance of a loss 49%
+      drop  PIV_ONLY SENSEX                              profit: in-sample   -12,935  held-out   -34,169   worst drop:   -3,486 /   -6,785   worst day:   +2,909 /   +2,389
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹50,574 (today's ₹49,852), chance of a loss 5%;  held-out: 95% worst drop ₹45,601 (today's ₹39,783), chance of a loss 21%
+      drop  PIV_ONLY MIDCPNIFTY                          profit: in-sample  -118,328  held-out   -14,974   worst drop:   +5,070 /  -34,193   worst day:     -770 /   +2,714
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹85,570 (today's ₹63,690), chance of a loss 7%;  held-out: 95% worst drop ₹57,893 (today's ₹72,104), chance of a loss 5%
