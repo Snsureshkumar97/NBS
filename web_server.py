@@ -3728,6 +3728,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kposwrap .kd-pos tfoot td{padding:8px 10px;font-weight:600;border-bottom:0}
 .kposwrap .kd-pos .jbadge{margin-left:6px;vertical-align:1px}
 .kposwrap .kd-posnone{margin-top:8px;font-size:13px;color:var(--ink-3)}
+.kposwrap .kd-posh{margin-top:18px;font-size:15px;font-weight:600;color:var(--ink)}
+.kposwrap .kd-posh:first-child{margin-top:4px}
+.kposwrap .kd-posn2{display:inline-block;min-width:22px;margin-left:6px;padding:0 7px;border-radius:999px;font-size:12px;text-align:center;background:var(--raised);color:var(--ink-2)}
 .kposwrap .kd-pos .kd-strk{display:none}
 /* a phone: the strike under the index rather than a column of its own, so the result stays on screen */
 @media (max-width:560px){
@@ -10626,10 +10629,11 @@ function kiteSide(s){
   }
 }
 // Today's positions, the way Kite's own Positions page lists them (the user, 7 Oct 2026, with a screenshot of it: "make the
-// dash board with qty enter ltp and now. ltp as well add it"): every trade of the day - the open ones first - with its
-// quantity, its entry (on a live order, the broker's average fill), the price now (a closed one: its exit) and its result,
-// each badged Live or Paper. The rule tickets' open rows come from the tickets, which the fast tick keeps moving; the
-// closed ones and the AI desk's open ones from the server (positions_today).
+// dash board with qty enter ltp and now. ltp as well add it"): every trade of the day with its quantity, its entry (on a
+// live order, the broker's average fill), the price now (a closed one: its exit) and its result, each badged Live or
+// Paper - in two tables, the open positions and the closed ones (the user, 21 Oct 2026: "in positions separate open
+// positions and closed positions"), each with its own live and paper totals. The rule tickets' open rows come from the
+// tickets, which the fast tick keeps moving; the closed ones and the AI desk's open ones from the server (positions_today).
 function posTable(s){
   const P = (s && s.positions_today) || {}, rows = [];
   const cfdOf = k => !!(((s.indices || {})[k] || {}).cfd);
@@ -10648,27 +10652,37 @@ function posTable(s){
     // a Delta contract is 0.001 BTC: the BTC it comes to, not a quantity rounded to 0
     return q > 0 && q < 1 ? `${Number(q.toFixed(4)).toLocaleString("en-IN", {maximumFractionDigits: 3})} ${esc(k)}` : num(q, 0);
   };
-  let live = 0, paper = 0;
-  const body = rows.map(({k, t, open, ai}) => {
-    const real = open ? !!t.entry_real : !!t.live, p = t.pnl == null ? null : Number(t.pnl);
-    if(p != null){ if(real) live += p; else paper += p; }
-    // The strike in its own column, as the user asked ("with the strike value as well"): a CFD (gold, BTC) has none -
-    // its side (Buy / Sell) stands there instead.
-    const strike = t.strike != null && !(cfdOf(k) || t.cfd)
-      ? `${esc(String(Math.round(t.strike)))} ${esc(t.option_type || "")}`
-      : esc(t.option_type === "CE" ? "Buy" : t.option_type === "PE" ? "Sell" : (t.option_type || "—"));
-    const tag = (ai ? ' <span class="jbadge ai" title="The AI desk\'s trade">AI</span>' : "") + trTag(t) + tradeTag({entry_real: real});
-    const when = open ? "open" : `closed ${esc(String(t.closed || "").slice(0, 5))}`;
-    return `<tr class="${open ? "" : "kd-closed"}"><td><b>${esc(k)}</b>${tag}<div class="kd-strk"><b>${strike}</b></div><div class="kd-when">${when}</div></td>`
-      + `<td><b>${strike}</b></td><td class="r">${qty(k, t)}</td><td class="r">${num(t.entry)}</td>`
-      + `<td class="r">${open ? num(t.now) : `${num(t.exit)}<div class="kd-when">exit</div>`}</td>`
-      + `<td class="r" style="color:${col(p || 0)}">${p == null ? "no price" : money(p)}</td></tr>`;
-  }).join("");
-  return `<table class="kd-tab kd-pos"><thead><tr><th>Position</th><th>Strike</th><th class="r">Qty</th><th class="r">Entry</th>`
-    + `<th class="r">LTP / exit</th><th class="r">P&amp;L</th></tr></thead><tbody>${body}</tbody>`
-    // the totals' first cell stands under the strike column, and goes with it on a phone
-    + `<tfoot><tr><td class="kd-tfs"></td><td colspan="4" class="r">Live trades &middot; real money</td><td class="r" style="color:${col(live)}">${money(live)}</td></tr>`
-    + `<tr><td class="kd-tfs"></td><td colspan="4" class="r">Paper trades</td><td class="r" style="color:${col(paper)}">${money(paper)}</td></tr></tfoot></table>`;
+  const table = (list, open) => {
+    let live = 0, paper = 0;
+    const body = list.map(({k, t, ai}) => {
+      const real = open ? !!t.entry_real : !!t.live, p = t.pnl == null ? null : Number(t.pnl);
+      if(p != null){ if(real) live += p; else paper += p; }
+      // The strike in its own column, as the user asked ("with the strike value as well"): a CFD (gold, BTC) has none -
+      // its side (Buy / Sell) stands there instead.
+      const strike = t.strike != null && !(cfdOf(k) || t.cfd)
+        ? `${esc(String(Math.round(t.strike)))} ${esc(t.option_type || "")}`
+        : esc(t.option_type === "CE" ? "Buy" : t.option_type === "PE" ? "Sell" : (t.option_type || "—"));
+      const tag = (ai ? ' <span class="jbadge ai" title="The AI desk\'s trade">AI</span>' : "") + trTag(t) + tradeTag({entry_real: real});
+      const when = open ? "open" : `closed ${esc(String(t.closed || "").slice(0, 5))}`;
+      return `<tr class="${open ? "" : "kd-closed"}"><td><b>${esc(k)}</b>${tag}<div class="kd-strk"><b>${strike}</b></div><div class="kd-when">${when}</div></td>`
+        + `<td><b>${strike}</b></td><td class="r">${qty(k, t)}</td><td class="r">${num(t.entry)}</td>`
+        + `<td class="r">${open ? num(t.now) : `${num(t.exit)}<div class="kd-when">exit</div>`}</td>`
+        + `<td class="r" style="color:${col(p || 0)}">${p == null ? "no price" : money(p)}</td></tr>`;
+    }).join("");
+    const what = open ? "open" : "booked";
+    return `<table class="kd-tab kd-pos" data-part="${open ? "open" : "closed"}"><thead><tr><th>Position</th><th>Strike</th>`
+      + `<th class="r">Qty</th><th class="r">Entry</th><th class="r">${open ? "LTP" : "Exit"}</th><th class="r">P&amp;L</th></tr></thead>`
+      + `<tbody>${body}</tbody>`
+      // the totals' first cell stands under the strike column, and goes with it on a phone
+      + `<tfoot><tr><td class="kd-tfs"></td><td colspan="4" class="r">Live trades &middot; real money &middot; ${what}</td><td class="r" style="color:${col(live)}">${money(live)}</td></tr>`
+      + `<tr><td class="kd-tfs"></td><td colspan="4" class="r">Paper trades &middot; ${what}</td><td class="r" style="color:${col(paper)}">${money(paper)}</td></tr></tfoot></table>`;
+  };
+  const opened = rows.filter(r => r.open), closed = rows.filter(r => !r.open);
+  const head = (title, n) => `<div class="kd-l kd-tabh kd-posh">${title} <span class="kd-posn2">${n}</span></div>`;
+  return head("Open positions", opened.length)
+    + (opened.length ? table(opened, true) : `<p class="kd-s kd-posnone">No open position right now.</p>`)
+    + head("Closed positions", closed.length)
+    + (closed.length ? table(closed, false) : `<p class="kd-s kd-posnone">Nothing closed yet today.</p>`);
 }
 // How many positions today: the open ones (the rule tickets and the AI desk's) and the closed ones.
 function posCount(s){
