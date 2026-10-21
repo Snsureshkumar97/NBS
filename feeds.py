@@ -452,6 +452,50 @@ def _shared_analysis(name, df, owner=None):
         _ANALYSIS_CACHE[name] = (hist, live, sec, tech, trend, owner)
     return dict(tech), copy.deepcopy(trend)
 
+# SELLERS ABOVE, SUPPORT BELOW (the user, 21 Oct 2026: "how can we know the market will go up till there and over there
+# if lot of sellers are sitting ... from option chain" - Nifty topped at 23,121 under 67 lakh calls at 23,100, with
+# +22 lakh more written in the 19 minutes before the top). Display only: oi_walls_study.py found neither the wall nor the
+# writing a proven entry check on the few weeks of history there are. Within SELLERS_AREA of the spot, the strike with
+# the most call OI above and the most put OI below, how much each changed over the last SELLERS_LOOKBACK_S, and whether
+# the OI within SELLERS_NEAR of the price grew by SELLERS_ADDING or more in that time (writers piling in).
+SELLERS_AREA, SELLERS_NEAR, SELLERS_ADDING, SELLERS_LOOKBACK_S = 0.015, 0.005, 0.15, 15 * 60
+
+
+def _sellers_ahead(chain, spot, past=None, past_age_s=None):
+    """{"call": above, "put": below, "minutes"} or None. Each side: {"levels": the two strikes with the most OI within
+    SELLERS_AREA, nearest first - [{"strike", "oi", "dist", "chg" (OI change since `past`)}], "band_pct" (the change of
+    the OI within SELLERS_NEAR of the price), "adding"}. Two, not one: on 21 Oct the heaviest was 23,200 (80 lakh) but
+    the market stopped under the nearer 23,100 (67 lakh). `past` maps strike -> (call OI, put OI) as of `past_age_s`
+    seconds ago."""
+    strikes = (chain or {}).get("strikes") if isinstance(chain, dict) else None
+    if not strikes or not spot:
+        return None
+
+    def side(kind):
+        key, i = (f"{kind}_oi", 0 if kind == "call" else 1)
+        up = kind == "call"
+        area = [s for s in strikes if s.get(key) and (spot < float(s["strike"]) <= spot * (1 + SELLERS_AREA) if up
+                                                    else spot * (1 - SELLERS_AREA) <= float(s["strike"]) < spot)]
+        if not area:
+            return None
+        top = sorted(sorted(area, key=lambda s: -float(s[key]))[:2], key=lambda s: abs(float(s["strike"]) - spot))
+        levels = []
+        for t in top:
+            k, oi = float(t["strike"]), float(t[key])
+            was = (past or {}).get(k, (None, None))[i] if past else None
+            levels.append({"strike": k, "oi": oi, "dist": round(abs(k - spot), 2),
+                           "chg": (oi - float(was)) if was is not None else None})
+        band = [s for s in area if abs(float(s["strike"]) - spot) <= spot * SELLERS_NEAR]
+        b_now = sum(float(s[key]) for s in band)
+        b_was = sum(float(((past or {}).get(float(s["strike"])) or (0, 0))[i] or 0) for s in band) if past else 0
+        pct = (b_now - b_was) / b_was if b_was else None
+        return {"levels": levels, "band_pct": round(pct, 4) if pct is not None else None,
+                "adding": bool(pct is not None and pct >= SELLERS_ADDING)}
+    out = {"call": side("call"), "put": side("put"),
+           "minutes": int(round(past_age_s / 60)) if past_age_s else None}
+    return out if out["call"] or out["put"] else None
+
+
 def _public(rec, name=None):
     """_public_base(), and on a CFD (Exness - no options) every option field emptied:
     no strike, premium, expiry or option spread - the page shows the price levels a
@@ -534,6 +578,7 @@ def _public_base(rec, name=None):
         # has always carried this; the page only ever saw one number, so
         # "606 pts of room" never said which way or to where.
         "room": _room(rec),
+        "sellers": rec.get("sellers"),
         "opening_range": rec.get("opening_range"),
         "reach_to_risk": rec.get("reach_to_risk"),
         # A DIFFERENT gate from reach_to_risk above - tickets.py's own ticket gate
@@ -668,6 +713,7 @@ class Feed:
         self.sug_px = {}          # index name -> that contract's live premium
         self.base_df = {}         # index name -> the completed REST candles
         self.base_oi = {}         # index name -> the last option-chain snapshot
+        self.oi_hist = {}         # index name -> [(epoch, {strike: (call OI, put OI)})], a sample a minute, ~20 minutes
         self.chain_toks = {}      # index name -> {expiry, map (strike, CE/PE) -> token, streamed, on}
         self._chain_tried = {}    # index name -> (expiry, when) of a lookup that has not succeeded
         self._last_live = 0.0     # when the live recompute last ran
@@ -1647,6 +1693,27 @@ class Feed:
             return
         have["streamed"].update(fresh)
 
+    def _sellers(self, name, chain, spot):
+        """The chain's heaviest call strike above and put strike below, and how they changed over ~15 minutes
+        (_sellers_ahead). Samples the chain's OI once a minute and keeps about 20 minutes of it."""
+        try:
+            strikes = (chain or {}).get("strikes") if isinstance(chain, dict) else None
+            if not strikes:
+                return None
+            now = time.time()
+            hist = self.oi_hist.setdefault(name, [])
+            if not hist or now - hist[-1][0] >= 60:
+                hist.append((now, {float(s["strike"]): (s.get("call_oi"), s.get("put_oi")) for s in strikes}))
+                while hist and now - hist[0][0] > SELLERS_LOOKBACK_S + 300:
+                    hist.pop(0)
+            # the sample nearest to SELLERS_LOOKBACK_S ago - or the oldest there is, said as its own age
+            past = min(hist, key=lambda h: abs((now - h[0]) - SELLERS_LOOKBACK_S)) if len(hist) > 1 else None
+            age = (now - past[0]) if past else None
+            return _sellers_ahead(chain, spot, past[1] if past and age >= 60 else None,
+                                  age if past and age >= 60 else None)
+        except Exception:
+            return None
+
     def chain_live(self, name):
         """{(strike, "CE"/"PE"): {ltp, oi, bid, ask, at}} for the chain's streamed
         strikes that have a recent tick. Empty outside the session: after the
@@ -2128,6 +2195,7 @@ class Feed:
                 rec = signal_engine.build_recommendation(name, tech, oi, step,
                                                           reach=reach,
                                                           avoid_strikes=self._avoid_strikes(name))
+                rec["sellers"] = self._sellers(name, oi, spot)
                 rec["trend"] = trend
                 rec["candles"] = df
                 rec["opening_range"] = signal_engine.opening_range(df)

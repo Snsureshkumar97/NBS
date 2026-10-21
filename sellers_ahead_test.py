@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Sellers above / support below from the option chain (the user, 21 Oct 2026: "how can we know the market will go up
+till there and over there if lot of sellers are sitting ... from option chain"). 21 Oct's real Nifty chain, as
+recorded: at 09:21 (spot 23,072) 67.4 lakh calls at 23,100 and 79.9 lakh at 23,200; by 09:40 +21.8 / +12.8 lakh more,
+and 23,150 +14.7 lakh - the market stopped at 23,121. Display only. No network."""
+import os
+import sys
+import tempfile
+import time
+
+os.environ["TRADING_TOOL_HOME"] = tempfile.mkdtemp()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import feeds
+
+fails = []
+def check(name, cond, extra=""):
+    print(f"  {'ok  ' if cond else 'FAIL'} {name}  {extra}")
+    if not cond:
+        fails.append(name)
+
+
+L = 1e5
+at_0921 = {"strikes": [
+    {"strike": 22900, "call_oi": 30 * L, "put_oi": 45 * L}, {"strike": 23000, "call_oi": 40 * L, "put_oi": 100.7 * L},
+    {"strike": 23050, "call_oi": 35 * L, "put_oi": 40 * L}, {"strike": 23100, "call_oi": 67.4 * L, "put_oi": 30 * L},
+    {"strike": 23150, "call_oi": 30 * L, "put_oi": 10 * L}, {"strike": 23200, "call_oi": 79.9 * L, "put_oi": 8 * L},
+    {"strike": 23300, "call_oi": 65.9 * L, "put_oi": 5 * L}, {"strike": 22800, "call_oi": 10 * L, "put_oi": 50.4 * L},
+    {"strike": 22700, "call_oi": 5 * L, "put_oi": 66.6 * L}]}
+past = {float(s["strike"]): (s["call_oi"], s["put_oi"]) for s in at_0921["strikes"]}
+at_0940 = {"strikes": [dict(s) for s in at_0921["strikes"]]}
+for s in at_0940["strikes"]:
+    s["call_oi"] += {23100: 21.8 * L, 23150: 14.7 * L, 23200: 12.8 * L}.get(s["strike"], 0)
+
+print("1. 21 OCT, NIFTY")
+se = feeds._sellers_ahead(at_0921, 23072.0)
+c, p = se["call"], se["put"]
+check("sellers above: 23,100 and 23,200 - the two heaviest within 1.5%, nearest first",
+      [l["strike"] for l in c["levels"]] == [23100.0, 23200.0] and c["levels"][0]["oi"] == 67.4 * L, c)
+check("support below: 23,000 (100.7 lakh) first, then 22,800 (22,700 is 1.6% away, outside the 1.5% range)",
+      [l["strike"] for l in p["levels"]] == [23000.0, 22800.0], p)
+check("no history yet: no change, no 'adding'", c["levels"][0]["chg"] is None and not c["adding"] and se["minutes"] is None)
+se = feeds._sellers_ahead(at_0940, 23112.0, past, 19 * 60)
+c = se["call"]
+check("by 09:40: 23,200 (92.7 lakh) / 23,300 the two heaviest above 23,112, with what was added at 23,200",
+      [l["strike"] for l in c["levels"]] == [23200.0, 23300.0] and round(c["levels"][0]["chg"] / L, 1) == 12.8, c)
+check("calls near the price up 15%+ in the window: 'sellers adding'", c["adding"] and c["band_pct"] >= 0.15 and se["minutes"] == 19, c)
+check("puts near the price not growing: no 'support adding'", not se["put"]["adding"], se["put"])
+
+print("2. NOTHING TO SHOW")
+check("no chain (crypto, or none yet): None", feeds._sellers_ahead(None, 23000.0) is None
+      and feeds._sellers_ahead({"strikes": []}, 23000.0) is None and feeds._sellers_ahead(at_0921, None) is None)
+check("strikes too far away (beyond 1.5%): none on that side",
+      feeds._sellers_ahead({"strikes": [{"strike": 24000, "call_oi": 9 * L, "put_oi": 1 * L}]}, 23000.0) is None)
+
+print("3. THE FEED SAMPLES A MINUTE, KEEPS ~20")
+class F:
+    oi_hist = {}
+f = F()
+f._sellers = feeds.Feed._sellers.__get__(f)
+first = f._sellers("NIFTY", at_0921, 23072.0)
+check("the first sample: levels, no change yet", first and first["minutes"] is None and len(f.oi_hist["NIFTY"]) == 1)
+f._sellers("NIFTY", at_0940, 23112.0)
+check("a second call within a minute adds no sample", len(f.oi_hist["NIFTY"]) == 1)
+f.oi_hist["NIFTY"][0] = (time.time() - 16 * 60, f.oi_hist["NIFTY"][0][1])
+out = f._sellers("NIFTY", at_0940, 23112.0)
+check("16 minutes on: compared with then, said as 16 min", out["minutes"] == 16 and out["call"]["adding"], out)
+f.oi_hist["NIFTY"].insert(0, (time.time() - 30 * 60, {}))
+f.oi_hist["NIFTY"].append((time.time() - 61, {}))
+f._sellers("NIFTY", at_0940, 23112.0)
+check("samples older than ~20 minutes are dropped", all(time.time() - t <= 20 * 60 + 5 for t, _ in f.oi_hist["NIFTY"]))
+
+print("4. ON THE PAGE")
+src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
+home = src[src.index('data-pane="home"'):]
+check("the Dashboard has its own slot after #kdash, drawn by homeDraw (phones too)",
+      'id="kdsellers"' in home and home.index('id="kdash"') < home.index('id="kdsellers"')
+      and "  sellersDash(s);" in src[src.index("function homeDraw(s){"):src.index("function homeDraw(s){") + 200])
+check("the Signal page has its own box for them, drawn for every system (not inside room to run)",
+      'id="sigsellers"' in src and "  roomRun(r);\n  sigSellers(r);" in src and "sellersRows(r.sellers)" in src)
+check("the public reading carries them", '"sellers": rec.get("sellers"),' in open(os.path.join(os.path.dirname(
+      os.path.abspath(__file__)), "feeds.py")).read())
+
+print()
+print("SELLERS AHEAD TEST PASSED" if not fails else f"SELLERS AHEAD TEST FAILED: {fails}")
+sys.exit(1 if fails else 0)

@@ -1,0 +1,30 @@
+========================================================================================================================
+ SELLERS JUST AHEAD - 162 Indian tickets with option data at entry (2026-09-10 to 2026-10-21, 22 days), per lot before charges, ₹
+========================================================================================================================
+   ALL TICKETS                         162 tickets  won   51%  total ₹   +44,022  avg ₹    +331
+ WALL
+   would have been HELD                 73 tickets  won   51%  total ₹    +9,737  avg ₹    +168
+   let through                          89 tickets  won   51%  total ₹   +34,285  avg ₹    +457
+   week by week, what holding them would have changed: W37 -0  W38 +647  W39 -7,302  W40 -2,122  W41 -354  W42 -6,126  W43 +5,520   (better in 2 of 7 weeks)
+      NIFTY       held  36 of  51: their total ₹  +13,939, the rest ₹   -1,499
+      BANKNIFTY   held   7 of  33: their total ₹  -10,947, the rest ₹  +14,328
+      SENSEX      held  24 of  57: their total ₹   +5,137, the rest ₹   +4,956
+      MIDCPNIFTY  held   6 of  21: their total ₹   +1,608, the rest ₹  +16,500
+ WRITING
+   would have been HELD                 29 tickets  won   48%  total ₹      +279  avg ₹     +11
+   let through                         133 tickets  won   51%  total ₹   +43,743  avg ₹    +409
+   week by week, what holding them would have changed: W37 -0  W38 -0  W39 -963  W40 -3,482  W41 +6,508  W42 -1,879  W43 -464   (better in 1 of 7 weeks)
+      NIFTY       held  10 of  51: their total ₹   -1,804, the rest ₹  +14,244
+      BANKNIFTY   held   4 of  33: their total ₹   -2,304, the rest ₹   +5,685
+      SENSEX      held  14 of  57: their total ₹   -3,401, the rest ₹  +13,494
+      MIDCPNIFTY  held   1 of  21: their total ₹   +7,788, the rest ₹  +10,320
+ EITHER
+   would have been HELD                 92 tickets  won   51%  total ₹   +15,464  avg ₹    +206
+   let through                          70 tickets  won   50%  total ₹   +28,558  avg ₹    +492
+   week by week, what holding them would have changed: W37 -0  W38 +647  W39 -7,302  W40 -7,325  W41 +2,570  W42 -9,109  W43 +5,056   (better in 3 of 7 weeks)
+      NIFTY       held  41 of  51: their total ₹  +14,684, the rest ₹   -2,244
+      BANKNIFTY   held  11 of  33: their total ₹  -13,251, the rest ₹  +16,632
+      SENSEX      held  33 of  57: their total ₹   +4,635, the rest ₹   +5,458
+      MIDCPNIFTY  held   7 of  21: their total ₹   +9,396, the rest ₹   +8,712
+
+ Read a negative 'held' total as tickets the check would have saved you from, a positive one as winners it would have thrown away. A few weeks of data: a first look only.

@@ -3667,6 +3667,32 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-q{display:inline;margin-left:8px;font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-u{margin-left:8px}
 .kdlots .kdl-msg{display:block;margin-top:6px}
+/* sellers above / support below (21 Oct 2026) - the Signal room box and the Dashboard */
+.se-rows{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+#sigsellers:empty{display:none}
+.se-r{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:13px}
+.se-l{flex-basis:100%;font-size:12px;color:var(--ink-3)}
+.se-oi{color:var(--ink-2)}
+.se-lv{white-space:nowrap;display:inline-block;margin-right:12px}
+.kd-se .se-lv{display:block;margin:0 0 2px}
+.se-u{font-size:12px;color:var(--ink-3)}
+.kd-se th small{display:block;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)}
+.se-chg{font-size:12px}
+.se-none{color:var(--ink-3)}
+.se-tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid currentColor;margin-top:2px}
+.se-tag.se-call{color:var(--down)}
+.se-tag.se-put{color:var(--up)}
+.kdsellers .kd-sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 8px;line-height:1.5;max-width:760px}
+.kdsellers .kd-se td{vertical-align:baseline}
+@media(max-width:640px){
+  .kdsellers .kd-se thead{display:none}
+  .kdsellers .kd-se,.kdsellers .kd-se tbody{display:block;width:100%}
+  .kdsellers .kd-se tr{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--bd-soft)}
+  .kdsellers .kd-se td{padding:0;border:0;text-align:left}
+  .kdsellers .kd-se td[data-th^="Sellers"],.kdsellers .kd-se td[data-th^="Support"]{grid-column:1 / -1}
+  .kdsellers .kd-se td[data-th]::before{content:attr(data-th);display:block;font-size:12px;font-weight:700;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
+}
 .kdlots .kdl-vn{display:block;margin-top:3px;font-size:12px;color:var(--ink-3)}
 /* on a phone each index is a small card - its name, then lots / system / live orders labelled - rather than a table
    wider than the screen (20 Oct 2026: the live-orders dropdown was cut off at the edge) */
@@ -5017,7 +5043,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .notice.stale b{color:var(--warn-strong)}
 /* 10. no data yet: one quiet line, not a headline over empty rows */
 :root[data-look="kite"] #sigcard[data-state="blank"] #bias{font-size:18px;font-weight:500}
-:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#sigmovers,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
+:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#sigsellers,#sigmovers,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
 /* 4. the live-orders control is a switch, with its state in colour */
 :root[data-look="kite"] #tlive,:root[data-look="kite"] #ailive{position:relative;padding-left:50px;font-weight:600}
 :root[data-look="kite"] #tlive::before,:root[data-look="kite"] #ailive::before{content:"";position:absolute;left:12px;top:50%;
@@ -5096,6 +5122,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #tovernight{order:15}
   :root[data-look="kite"] #gauges{order:16;grid-column:1;grid-row:span 2}
   :root[data-look="kite"] #room{order:17;grid-column:2}
+  :root[data-look="kite"] #sigsellers{order:17;grid-column:2}
   :root[data-look="kite"] #sigmovers{order:18;grid-column:2}
   :root[data-look="kite"] #risk{order:19}
   :root[data-look="kite"] #gnote{order:20}
@@ -5104,6 +5131,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
   :root[data-look="kite"] .sessnote{order:2}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
+  :root[data-look="kite"] .kdsellers{order:2;margin:0 0 14px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
   :root[data-look="kite"] .psum.kd-kpi{grid-template-columns:repeat(5,minmax(0,1fr));margin:10px 0 6px;padding:16px 0 18px;
@@ -5643,6 +5671,7 @@ button.mgroup:hover{color:var(--ink-2)}
  <section class="pane on" data-pane="home">
   <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
+  <div class="kdsellers" id="kdsellers"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5727,6 +5756,7 @@ button.mgroup:hover{color:var(--ink-2)}
   </div>
   <div class="gauges" id="gauges"></div>
   <div class="room" id="room"></div>
+  <div class="room" id="sigsellers"></div>
   <div class="room" id="sigmovers"></div>
   <div class="gnote" id="gnote"></div>
   </div>
@@ -8524,6 +8554,39 @@ function roomSub(r){
     return ARROW[side] + " " + num(rm[side],0) + " pts, to " + num(rm[side + "_to"],0);
   return r.reach_points == null ? "" : num(r.reach_points,0) + " pts of room";
 }
+// SELLERS ABOVE, SUPPORT BELOW (the user, 21 Oct 2026: "how can we know the market will go up till there ... if lot of
+// sellers are sitting ... from option chain"): the two strikes with the most call OI just above the price (call writers
+// defend them) and the most put OI just below, nearest first, how each changed over ~15 minutes, and "adding" when the OI near the price grew 15%
+// or more in that time. From the server's feeds._sellers_ahead; display only - oi_walls_study.py did not prove it as a
+// trade rule on the few weeks of history there are.
+const lakh = v => v == null ? "\u2014" : (v / 1e5).toFixed(1) + " L";    // open interest, always in lakh
+function sellerCell(x, kind){
+  if(!x || !(x.levels || []).length) return `<span class="se-none">\u2014</span>`;
+  const one = l => {
+    const c = l.chg == null ? "" : ` <span class="se-chg" style="color:${l.chg > 0 ? (kind === "call" ? "var(--down)" : "var(--up)") : "var(--ink-3)"}">`
+      + `${l.chg > 0 ? "+" : l.chg < 0 ? "\u2212" : ""}${(Math.abs(l.chg) / 1e5).toFixed(1)}</span>`;
+    return `<span class="se-lv"><b>${num(l.strike, 0)}</b> <span class="se-oi">${lakh(l.oi)}</span>${c}</span>`;
+  };
+  const tag = x.adding ? `<span class="se-tag se-${kind}">${kind === "call" ? "sellers adding" : "support adding"}</span>` : "";
+  return x.levels.map(one).join("") + tag;
+}
+function sellersRows(se){
+  if(!se || (!se.call && !se.put)) return "";
+  return `<div class="se-rows"><div class="se-r"><span class="se-l">Sellers above &middot; calls</span>${sellerCell(se.call, "call")}</div>`
+    + `<div class="se-r"><span class="se-l">Support below &middot; puts</span>${sellerCell(se.put, "put")}</div>`
+    + `<div class="se-u">open interest in lakh${se.minutes ? `, change over ${se.minutes} min` : ""}</div></div>`;
+}
+
+// The Signal page's own box for them - not inside room to run, which the Trend Rider and the TradingView rating do not
+// have: sellers and support are the index's, whatever system trades it.
+function sigSellers(r){
+  const el = $("sigsellers");
+  if(!el) return;
+  const h = r && r.sellers && (r.sellers.call || r.sellers.put)
+    ? `<div class="rr-h">Sellers above &middot; support below</div>` + sellersRows(r.sellers) : "";
+  if(el.innerHTML !== h) el.innerHTML = h;
+}
+
 function roomRun(r){
   const el = $("room");
   if(!el) return;
@@ -9557,6 +9620,7 @@ function render(s){
   const w=(s.why||{})[CUR];
   gauges(r, w);
   roomRun(r);
+  sigSellers(r);
   ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.
@@ -10841,8 +10905,35 @@ function gatesDraw(s, force){
   gateTracks(s);
   moversDraw(!!force);
 }
+function sellersDash(s){
+  const el = $("kdsellers");
+  if(!el) return;
+  const order = (s && (s.order || Object.keys(s.indices || {}))) || [];
+  const rows = order.map(k => [k, ((s.indices || {})[k] || {})]).filter(([k, r]) => r.sellers && (r.sellers.call || r.sellers.put));
+  const h = !rows.length ? "" : `<div class="kd-l kd-tabh">Sellers above &middot; support below</div>`
+    + `<p class="kd-sub">From the option chain: the two strikes with the most call open interest just above the price `
+    + `(call sellers defend them) and the most put open interest just below, nearest first, with how much each changed. `
+    + `"Adding" = open interest near the price up 15% or more in about 15 minutes. Shown to read, not a trade rule - `
+    + `not proven on the few weeks of history there are.</p>`
+    + `<table class="kd-tab kd-se"><thead><tr><th>Index</th><th class="r">Price</th><th>Sellers above <small>calls &middot; lakh &middot; change</small></th>`
+    + `<th>Support below <small>puts &middot; lakh &middot; change</small></th></tr></thead><tbody>`
+    + rows.map(([k, r]) => `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r" data-th="Price">${num(r.spot)}</td>`
+        + `<td data-th="Sellers above \u00b7 calls">${sellerCell(r.sellers.call, "call")}</td>`
+        + `<td data-th="Support below \u00b7 puts">${sellerCell(r.sellers.put, "put")}</td></tr>`).join("")
+    + `</tbody></table>`;
+  if(el.innerHTML !== h) el.innerHTML = h;
+  if(!el.dataset.wired){
+    el.dataset.wired = "1";
+    el.addEventListener("click", e => {
+      const tr = e.target.closest("tr[data-k]"); if(!tr) return;
+      selectIndex(tr.dataset.k); showTab("signal");
+    });
+  }
+}
+
 function homeDraw(s){
   kiteDash(s);
+  sellersDash(s);
   // Why the market is shut today - a holiday, a special session (Muhurat), a weekend - in the exchange's own words,
   // first thing on the Dashboard (the user, 20 Oct 2026: "The holiday message is not on the dashboard thats the main
   // part"). Its own slot, not inside #kdash, which phones do not show. From the server's session_note; empty on an
