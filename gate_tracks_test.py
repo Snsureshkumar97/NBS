@@ -130,7 +130,7 @@ console.log("ok:movers");
 print("3. TODAY'S MOVERS ON THE SIGNAL PAGE, WHERE THE AI DESK'S CHECKS WERE (\"add those top movers over there per index\")")
 sig = src[src.index('<section class="pane" data-pane="signal">'):src.index("</section>", src.index('data-pane="signal">'))]
 check("its box sits after room to run (and, since 21 Oct 2026, the sellers box) on the Signal card, and the heat map's own fetch draws it (no fetch of its own)",
-      '<div class="room" id="room"></div>\n  <div class="room" id="sigsellers"></div>\n  <div class="room" id="sigmovers"></div>' in sig
+      '<div class="room" id="room"></div>\n  <div class="room" id="sigsellers"></div>\n  <div class="room" id="sigcpr"></div>\n  <div class="room" id="sigmovers"></div>' in sig
       and "moverDraw(); pulseDraw(); sigMovers();" in src and "#sigmovers{order:18;grid-column:2}" in src)
 if NODE:
     a1 = src.index("function moversRank(")

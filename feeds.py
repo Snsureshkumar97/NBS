@@ -47,6 +47,7 @@ import pandas as pd
 
 import accounts
 import config
+import cpr
 import explain
 import fii_dii
 import kite_flow
@@ -579,6 +580,7 @@ def _public_base(rec, name=None):
         # "606 pts of room" never said which way or to where.
         "room": _room(rec),
         "sellers": rec.get("sellers"),
+        "cpr": rec.get("cpr"),
         "opening_range": rec.get("opening_range"),
         "reach_to_risk": rec.get("reach_to_risk"),
         # A DIFFERENT gate from reach_to_risk above - tickets.py's own ticket gate
@@ -714,6 +716,7 @@ class Feed:
         self.base_df = {}         # index name -> the completed REST candles
         self.base_oi = {}         # index name -> the last option-chain snapshot
         self.oi_hist = {}         # index name -> [(epoch, {strike: (call OI, put OI)})], a sample a minute, ~20 minutes
+        self._cpr_cache = {}      # index name -> ((day, after the close), cpr.levels) - built once a session
         self.chain_toks = {}      # index name -> {expiry, map (strike, CE/PE) -> token, streamed, on}
         self._chain_tried = {}    # index name -> (expiry, when) of a lookup that has not succeeded
         self._last_live = 0.0     # when the live recompute last ran
@@ -1693,6 +1696,34 @@ class Feed:
             return
         have["streamed"].update(fresh)
 
+    def _cpr(self, name, df, spot):
+        """The Central Pivot Range for this Indian index (cpr.levels, from its own 15-minute candles), and where the price
+        is against it - display only (the user, 21 Oct 2026: "show it and give simple explanation"). In the session it is
+        today's, built from the last finished session; after 15:30 (and on a closed day) the next session's. "for":
+        "today" or "next". None for a market that never closes."""
+        try:
+            if config.is_cfd(name) or config.market_for(name).get("always_open"):
+                return None
+            from main import is_nse_holiday
+            now = now_ist()
+            today = now.date()
+            trading = now.weekday() < 5 and not is_nse_holiday(today)
+            after = (now.hour, now.minute) >= (15, 30)
+            key = (today, after)
+            hit = self._cpr_cache.get(name)
+            if not hit or hit[0] != key:
+                sess = cpr.sessions_from(df, before=None if (after or not trading) else today)
+                self._cpr_cache[name] = (key, cpr.levels(sess))
+            lv = self._cpr_cache[name][1]
+            if not lv:
+                return None
+            out = dict(lv)
+            out["where"] = "above" if spot > lv["tc"] else "below" if spot < lv["bc"] else "inside"
+            out["for"] = "today" if trading and not after and lv["session"] != str(today) else "next"
+            return out
+        except Exception:
+            return None
+
     def _sellers(self, name, chain, spot):
         """The chain's heaviest call strike above and put strike below, and how they changed over ~15 minutes
         (_sellers_ahead). Samples the chain's OI once a minute and keeps about 20 minutes of it."""
@@ -2196,6 +2227,7 @@ class Feed:
                                                           reach=reach,
                                                           avoid_strikes=self._avoid_strikes(name))
                 rec["sellers"] = self._sellers(name, oi, spot)
+                rec["cpr"] = self._cpr(name, df, spot)
                 rec["trend"] = trend
                 rec["candles"] = df
                 rec["opening_range"] = signal_engine.opening_range(df)

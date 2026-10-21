@@ -72,10 +72,11 @@ check("samples older than ~20 minutes are dropped", all(time.time() - t <= 20 * 
 
 print("4. ON THE PAGE")
 src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
-home = src[src.index('data-pane="home"'):]
-check("the Dashboard has its own slot after #kdash, drawn by homeDraw (phones too)",
-      'id="kdsellers"' in home and home.index('id="kdash"') < home.index('id="kdsellers"')
-      and "  sellersDash(s);" in src[src.index("function homeDraw(s){"):src.index("function homeDraw(s){") + 200])
+home = src[src.index('<section class="pane on" data-pane="home">'):src.index("</section>", src.index('data-pane="home"'))]
+chain = src[src.index('<section class="pane" data-pane="chain">'):src.index("</section>", src.index('data-pane="chain"'))]
+check("off the Dashboard since 21 Oct 2026 (\"remove the thing that show in the dash board\"), on the Option chain tab",
+      'id="kdsellers"' not in home and "function sellersDash(" not in src and 'id="ocsellers"' in chain
+      and "try{ ocSellersDraw(d); }catch(e){}" in src)
 check("the Signal page has its own box for them, drawn for every system (not inside room to run)",
       'id="sigsellers"' in src and "  roomRun(r);\n  sigSellers(r);" in src and "sellersRows(r.sellers)" in src)
 check("the public reading carries them", '"sellers": rec.get("sellers"),' in open(os.path.join(os.path.dirname(
@@ -124,8 +125,31 @@ else:
           "is getting stronger" in sh and "falling looks harder than rising" in sh, sh)
     check("no data: nothing said", o.get("none") == "")
     check("never a call to buy or sell", not any(w in json.dumps(o).lower() for w in ("buy now", "sell now", "you should")))
-check("shown under the Signal box's levels and under each Dashboard row",
-      "sellersSay(se) ? `<p class=\"se-say\">" in src and "tr class=\"se-sayrow\"" in src)
+check("shown in the Signal box and under the option chain's drawing",
+      "sellersSay(se) ? `<p class=\"se-say\">" in src and "const say = sellersSay(se);" in src)
+print("6. THE OPTION CHAIN'S DRAWING (node)")
+if NODE:
+    a = src.index("function ocSellersDraw(d){")
+    z = src.index("function chainDraw(d){")
+    se0940 = feeds._sellers_ahead(at_0940, 23112.0, past, 15 * 60)
+    rows = [{"strike": s_["strike"], "ce": {"oi": s_["call_oi"]}, "pe": {"oi": s_["put_oi"]}} for s_ in at_0940["strikes"]]
+    prog2 = (src[n0:n1] + src[src.index("function sellersSay(se){"):src.index("function sellersRows(se){")] + src[a:z]
+             + "\nconst els = {}; const $ = id => els[id] || (els[id] = {innerHTML: ''});\n"
+             + "let LAST = {indices: {NIFTY: {sellers: " + json.dumps(se0940) + "}}};\n"
+             + "ocSellersDraw({index: 'NIFTY', spot: 23112, rows: " + json.dumps(rows) + "});\n"
+             + "console.log(JSON.stringify(els.ocsellers.innerHTML));")
+    r2 = subprocess.run([NODE, "-e", prog2], capture_output=True, text=True, timeout=60)
+    try:
+        h = json.loads(r2.stdout.strip().splitlines()[-1])
+    except Exception:
+        h = ""
+        print(r2.stdout, r2.stderr)
+    check("a drawing: calls written left, puts written right, the price line", "<svg class=\"ocl\"" in h
+          and "calls written (sellers)" in h and "puts written (support)" in h and "price 23,112" in h, h[:200])
+    check("the sellers levels named with what was added: 23,200 +12.8 lakh", "sellers 92.7 L +12.8" in h, h[-600:])
+    check("the support levels named", "support 100.7 L" in h)
+    check("the plain words under it, and what the bars mean", "<p class=\"se-say\">" in h and "act like a ceiling" in h)
+check("the chain table's strike column is tagged too", 'small class="kmark sell">sellers' in src and 'small class="kmark supp">support' in src)
 
 print()
 print("SELLERS AHEAD TEST PASSED" if not fails else f"SELLERS AHEAD TEST FAILED: {fails}")

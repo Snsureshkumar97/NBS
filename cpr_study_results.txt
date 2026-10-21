@@ -1,0 +1,81 @@
+================================================================================================================================================================
+ A. WHAT KIND OF DAY FOLLOWS: each session's CPR (from the session before) and what the day then did, 3 years
+================================================================================================================================================================
+              CPR        days  range vs 10-day avg  big day (1.2x+)  one-way share  closed outside CPR
+ NIFTY        narrow      257                1.00x              28%            48%                 98%
+ NIFTY        normal      263                1.01x              28%            47%                 91%
+ NIFTY        wide        210                1.08x              31%            48%                 80%
+ BANKNIFTY    narrow      272                0.99x              30%            47%                 96%
+ BANKNIFTY    normal      248                1.00x              23%            45%                 88%
+ BANKNIFTY    wide        210                1.10x              34%            44%                 82%
+ SENSEX       narrow      266                0.99x              27%            49%                 95%
+ SENSEX       normal      249                1.04x              29%            49%                 90%
+ SENSEX       wide        215                1.07x              30%            48%                 80%
+ MIDCPNIFTY   narrow      256                0.96x              24%            48%                 96%
+ MIDCPNIFTY   normal      274                0.98x              23%            49%                 89%
+ MIDCPNIFTY   wide        200                1.21x              40%            50%                 82%
+ ALL          narrow     1051                0.98x              27%            48%                 96%
+ ALL          normal     1034                1.01x              26%            48%                 90%
+ ALL          wide        835                1.11x              34%            47%                 81%
+
+================================================================================================================================================================
+ B. THE TRADES - each index on its live system, per lot after costs, ₹ (columns: trades, won, total, profit factor, worst drop, worst day)
+================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ RULES: NIFTY + SENSEX + MIDCAP (the verdict)
+    TODAY                                        1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+    SKIP_WIDE                                    1349   50% ₹  +222,171 PF 1.20 DD ₹  43,598 day ₹ -26,426  |  811   51% ₹  +137,248 PF 1.22 DD ₹  42,018 day ₹ -29,422
+    NARROW_ONLY                                   706   48% ₹   +86,555 PF 1.15 DD ₹  45,074 day ₹ -15,162  |  371   53% ₹  +107,606 PF 1.43 DD ₹  21,758 day ₹  -9,392
+    SIDE                                         1664   50% ₹  +322,503 PF 1.24 DD ₹  37,197 day ₹ -20,987  | 1025   50% ₹  +158,422 PF 1.19 DD ₹  72,139 day ₹ -29,422
+ NIFTY
+    TODAY                                         560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    SKIP_WIDE                                     422   52% ₹   +52,639 PF 1.18 DD ₹  33,527 day ₹  -7,487  |  265   50% ₹   +35,798 PF 1.21 DD ₹  23,706 day ₹  -9,038
+    NARROW_ONLY                                   226   52% ₹   +36,005 PF 1.23 DD ₹  20,946 day ₹  -6,003  |  119   54% ₹   +31,882 PF 1.47 DD ₹   9,557 day ₹  -5,751
+    SIDE                                          522   52% ₹   +62,102 PF 1.17 DD ₹  30,708 day ₹  -7,487  |  324   50% ₹   +51,208 PF 1.24 DD ₹  26,334 day ₹  -9,038
+ SENSEX
+    TODAY                                         527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    SKIP_WIDE                                     396   47% ₹   +28,903 PF 1.10 DD ₹  26,701 day ₹  -8,440  |  245   53% ₹   +54,620 PF 1.35 DD ₹  12,354 day ₹  -8,110
+    NARROW_ONLY                                   219   44% ₹    +6,701 PF 1.04 DD ₹  23,116 day ₹  -6,241  |  121   56% ₹   +54,334 PF 1.94 DD ₹  10,113 day ₹  -3,928
+    SIDE                                          496   48% ₹   +56,462 PF 1.16 DD ₹  27,535 day ₹  -8,440  |  317   52% ₹   +63,661 PF 1.32 DD ₹  22,286 day ₹  -8,110
+ MIDCPNIFTY
+    TODAY                                         700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    SKIP_WIDE                                     531   50% ₹  +140,629 PF 1.28 DD ₹  22,212 day ₹ -10,703  |  301   50% ₹   +46,829 PF 1.15 DD ₹  38,664 day ₹ -12,274
+    NARROW_ONLY                                   261   49% ₹   +43,849 PF 1.17 DD ₹  19,459 day ₹ -10,703  |  131   50% ₹   +21,390 PF 1.17 DD ₹  24,243 day ₹  -7,154
+    SIDE                                          646   51% ₹  +203,939 PF 1.33 DD ₹  33,150 day ₹ -10,703  |  384   49% ₹   +43,553 PF 1.10 DD ₹  52,112 day ₹ -12,274
+ BANKNIFTY  (TradingView rating)
+    TODAY                                         804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+    SKIP_WIDE                                     572   37% ₹   +77,992 PF 1.14 DD ₹  62,296 day ₹ -13,583  |  323   39% ₹   +71,785 PF 1.25 DD ₹  34,439 day ₹  -8,962
+    NARROW_ONLY                                   326   37% ₹   +57,052 PF 1.19 DD ₹  41,122 day ₹ -13,583  |  156   40% ₹   +15,782 PF 1.11 DD ₹  24,167 day ₹  -8,962
+    SIDE                                          745   37% ₹  +157,921 PF 1.20 DD ₹  63,422 day ₹ -13,583  |  406   38% ₹   +65,144 PF 1.17 DD ₹  48,329 day ₹ -11,453
+
+ VERDICT - kept only if more than TODAY in BOTH periods (pooled), then on each index
+  drop  SKIP_WIDE rules pooled                       profit: in-sample  -126,276  held-out   -57,081   worst drop:   -7,775 /  -42,305   worst day:       +0 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹110,539 (today's ₹106,874), chance of a loss 1%;  held-out: 95% worst drop ₹95,816 (today's ₹103,025), chance of a loss 4%
+      drop  SKIP_WIDE NIFTY                              profit: in-sample    -7,823  held-out   -16,016   worst drop:   +2,085 /   -3,610   worst day:       +0 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹55,214 (today's ₹63,492), chance of a loss 9%;  held-out: 95% worst drop ₹38,387 (today's ₹41,478), chance of a loss 10%
+      drop  SKIP_WIDE SENSEX                             profit: in-sample   -49,195  held-out      -982   worst drop:   -2,381 /  -11,580   worst day:       +0 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹61,443 (today's ₹49,852), chance of a loss 20%;  held-out: 95% worst drop ₹30,640 (today's ₹39,783), chance of a loss 3%
+      drop  SKIP_WIDE MIDCPNIFTY                         profit: in-sample   -69,257  held-out   -40,082   worst drop:  -10,991 /  -17,062   worst day:       +0 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹59,779 (today's ₹63,690), chance of a loss 1%;  held-out: 95% worst drop ₹70,094 (today's ₹72,104), chance of a loss 16%
+      drop  SKIP_WIDE BANKNIFTY                          profit: in-sample  -103,293  held-out    -4,449   worst drop:   -5,843 /  -18,797   worst day:       +0 /   +2,492
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹117,248 (today's ₹111,152), chance of a loss 16%;  held-out: 95% worst drop ₹71,789 (today's ₹88,947), chance of a loss 10%
+  drop  NARROW_ONLY rules pooled                     profit: in-sample  -261,892  held-out   -86,722   worst drop:   -6,299 /  -62,565   worst day:  +11,264 /  +20,030
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹92,055 (today's ₹106,874), chance of a loss 9%;  held-out: 95% worst drop ₹37,842 (today's ₹103,025), chance of a loss 0%
+      drop  NARROW_ONLY NIFTY                            profit: in-sample   -24,457  held-out   -19,932   worst drop:  -10,496 /  -17,758   worst day:   +1,485 /   +3,287
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹36,454 (today's ₹63,492), chance of a loss 10%;  held-out: 95% worst drop ₹20,055 (today's ₹41,478), chance of a loss 4%
+      drop  NARROW_ONLY SENSEX                           profit: in-sample   -71,397  held-out    -1,269   worst drop:   -5,967 /  -13,821   worst day:   +2,199 /   +4,182
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹50,487 (today's ₹49,852), chance of a loss 39%;  held-out: 95% worst drop ₹13,496 (today's ₹39,783), chance of a loss 0%
+      drop  NARROW_ONLY MIDCPNIFTY                       profit: in-sample  -166,037  held-out   -65,521   worst drop:  -13,743 /  -31,482   worst day:       +0 /   +5,121
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹61,540 (today's ₹63,690), chance of a loss 14%;  held-out: 95% worst drop ₹42,009 (today's ₹72,104), chance of a loss 21%
+      drop  NARROW_ONLY BANKNIFTY                        profit: in-sample  -124,233  held-out   -60,452   worst drop:  -27,018 /  -29,069   worst day:       +0 /   +2,492
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹74,841 (today's ₹111,152), chance of a loss 14%;  held-out: 95% worst drop ₹61,155 (today's ₹88,947), chance of a loss 34%
+  drop  SIDE rules pooled                            profit: in-sample   -25,944  held-out   -35,906   worst drop:  -14,176 /  -12,184   worst day:   +5,439 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹107,474 (today's ₹106,874), chance of a loss 0%;  held-out: 95% worst drop ₹108,589 (today's ₹103,025), chance of a loss 4%
+      drop  SIDE NIFTY                                   profit: in-sample    +1,640  held-out      -607   worst drop:     -734 /     -981   worst day:       +0 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹58,357 (today's ₹63,492), chance of a loss 8%;  held-out: 95% worst drop ₹39,227 (today's ₹41,478), chance of a loss 5%
+      drop  SIDE SENSEX                                  profit: in-sample   -21,636  held-out    +8,058   worst drop:   -1,548 /   -1,648   worst day:       +0 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹58,487 (today's ₹49,852), chance of a loss 10%;  held-out: 95% worst drop ₹33,787 (today's ₹39,783), chance of a loss 2%
+      drop  SIDE MIDCPNIFTY                              profit: in-sample    -5,948  held-out   -43,358   worst drop:      -53 /   -3,613   worst day:       +0 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹62,050 (today's ₹63,690), chance of a loss 0%;  held-out: 95% worst drop ₹89,777 (today's ₹72,104), chance of a loss 21%
+      drop  SIDE BANKNIFTY                               profit: in-sample   -23,363  held-out   -11,090   worst drop:   -4,717 /   -4,907   worst day:       +0 /       +0
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹115,561 (today's ₹111,152), chance of a loss 6%;  held-out: 95% worst drop ₹91,780 (today's ₹88,947), chance of a loss 15%

@@ -1888,6 +1888,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 m = series(key, "5m", 5)
                 # the price now, for the table's "Now" column: the latest 5-minute close, else the daily one
                 row["now"] = round(float(m["Close"].iloc[-1]) if m is not None and len(m) else live_px, 2)
+                # the Central Pivot Range from the same finished sessions (cpr.py - the user, 21 Oct 2026)
+                try:
+                    import cpr as _cpr
+                    c_ = _cpr.levels([(ix.date(), h_, l_, c__) for ix, h_, l_, c__ in
+                                      zip(d.index, d["High"], d["Low"], d["Close"])], now=row["now"])
+                    if c_:
+                        row.update({"cpr_bc": c_["bc"], "cpr_tc": c_["tc"], "cpr_width": c_["width"],
+                                    "cpr_kind": c_["kind"], "cpr_where": c_["where"]})
+                except Exception:
+                    pass
                 if m is not None and len(m) > 3:
                     day = m.index[-1].date()
                     sess = m[[ix.date() == day for ix in m.index]]
@@ -3670,7 +3680,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-msg{display:block;margin-top:6px}
 /* sellers above / support below (21 Oct 2026) - the Signal room box and the Dashboard */
 .se-rows{margin-top:6px;display:flex;flex-direction:column;gap:6px}
-#sigsellers:empty{display:none}
+#sigsellers:empty,#sigcpr:empty{display:none}
 .se-r{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:13px}
 .se-l{flex-basis:100%;font-size:12px;color:var(--ink-3)}
 .se-oi{color:var(--ink-2)}
@@ -3688,12 +3698,32 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .se-tag.se-put{color:var(--up)}
 .kdsellers .kd-sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 8px;line-height:1.5;max-width:760px}
 .kdsellers .kd-se td{vertical-align:baseline}
+.kdcpr .kd-cpr td small{color:var(--ink-3);font-size:12px;margin-left:4px}
+/* the option chain's sellers / support ladder (21 Oct 2026) */
+.ocse{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
+.ocse-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.ocse svg.ocl{display:block;width:100%;max-width:760px;height:auto}
+.ocl .ocl-h{font-size:12px;fill:var(--ink-3)}
+.ocl .ocl-k{font-size:12px;fill:var(--ink-2);font-variant-numeric:tabular-nums}
+.ocl .ocl-k.on{fill:var(--ink);font-weight:700}
+.ocl .ocl-call{fill:var(--down);opacity:.28}
+.ocl .ocl-put{fill:var(--up);opacity:.28}
+.ocl .ocl-call.on,.ocl .ocl-put.on{opacity:.9}
+.ocl .ocl-lab{font-size:12px;font-weight:700}
+.ocl .ocl-lab.call{fill:var(--down)}
+.ocl .ocl-lab.put{fill:var(--up)}
+.ocl .ocl-spot{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4}
+.ocl .ocl-spotl{font-size:12px;fill:var(--accent);font-weight:700}
+.ocse-n{margin:6px 0 0;font-size:12.5px;line-height:1.5;color:var(--ink-3)}
+table.chain td.k .kmark{display:block;font-size:12px;font-weight:700;line-height:1.1}
+table.chain td.k .kmark.sell{color:var(--down)}
+table.chain td.k .kmark.supp{color:var(--up)}
 @media(max-width:640px){
   .kdsellers .kd-se thead{display:none}
   .kdsellers .kd-se,.kdsellers .kd-se tbody{display:block;width:100%}
   .kdsellers .kd-se tr{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--bd-soft)}
   .kdsellers .kd-se td{padding:0;border:0;text-align:left}
-  .kdsellers .kd-se td[data-th^="Sellers"],.kdsellers .kd-se td[data-th^="Support"]{grid-column:1 / -1}
+  .kdsellers .kd-se td[data-th^="Sellers"],.kdsellers .kd-se td[data-th^="Support"],.kdcpr .kd-se td[data-th="CPR"]{grid-column:1 / -1}
   .kdsellers .kd-se tr.se-sayrow{display:block;padding-top:0}
   .kdsellers .kd-se tr:has(+ tr.se-sayrow){border-bottom:0;padding-bottom:4px}
   .kdsellers .kd-se td[data-th]::before{content:attr(data-th);display:block;font-size:12px;font-weight:700;letter-spacing:.5px;
@@ -5055,7 +5085,7 @@ button.mgroup:hover{color:var(--ink-2)}
 :root[data-look="kite"] .notice.stale b{color:var(--warn-strong)}
 /* 10. no data yet: one quiet line, not a headline over empty rows */
 :root[data-look="kite"] #sigcard[data-state="blank"] #bias{font-size:18px;font-weight:500}
-:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#sigsellers,#sigmovers,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
+:root[data-look="kite"] #sigcard[data-state="blank"] :is(#gauges,#room,#sigsellers,#sigcpr,#sigmovers,#risk,#gnote,#tiles,#lswitch,#ftbox){display:none}
 /* 4. the live-orders control is a switch, with its state in colour */
 :root[data-look="kite"] #tlive,:root[data-look="kite"] #ailive{position:relative;padding-left:50px;font-weight:600}
 :root[data-look="kite"] #tlive::before,:root[data-look="kite"] #ailive::before{content:"";position:absolute;left:12px;top:50%;
@@ -5135,6 +5165,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #gauges{order:16;grid-column:1;grid-row:span 2}
   :root[data-look="kite"] #room{order:17;grid-column:2}
   :root[data-look="kite"] #sigsellers{order:17;grid-column:2}
+  :root[data-look="kite"] #sigcpr{order:17;grid-column:2}
   :root[data-look="kite"] #sigmovers{order:18;grid-column:2}
   :root[data-look="kite"] #risk{order:19}
   :root[data-look="kite"] #gnote{order:20}
@@ -5683,7 +5714,7 @@ button.mgroup:hover{color:var(--ink-2)}
  <section class="pane on" data-pane="home">
   <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
-  <div class="kdsellers" id="kdsellers"></div>
+  <div class="kdsellers kdcpr" id="kdcpr"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5769,6 +5800,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="gauges" id="gauges"></div>
   <div class="room" id="room"></div>
   <div class="room" id="sigsellers"></div>
+  <div class="room" id="sigcpr"></div>
   <div class="room" id="sigmovers"></div>
   <div class="gnote" id="gnote"></div>
   </div>
@@ -5874,6 +5906,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="card" data-panel="chain" id="chaincard">
   <p class="eyebrow" role="heading" aria-level="2">Option chain &middot; <span id="chainhead">&mdash;</span></p>
   <div class="psum chainkpi" id="chainkpi"></div>
+  <div class="ocse" id="ocsellers"></div>
   <div class="chainwrap"><table class="chain" id="chain"></table></div>
   <div class="chainbar" id="chainbar"></div>
   </div>
@@ -8650,6 +8683,37 @@ function sellersSay(se){
   return out.join(" ");
 }
 
+// THE CPR IN PLAIN WORDS (the user, 21 Oct 2026: "what is CPR how is it usefull when we are doing option trading", then
+// "show it and give simple explanation"). From the server's cpr (feeds._cpr / cpr.py): how wide it is against the last
+// ten sessions, and where the price is against it - with what cpr_study.py found on 3 years, which is not what traders
+// usually say: narrow-CPR days were not bigger than usual (0.98x the 10-day range), wide ones a little bigger (1.11x).
+// A trader's guide - not part of the tool's signal.
+function cprSay(c){
+  if(!c || c.bc == null) return "";
+  const out = [];
+  const band = `${num(c.bc, 0)} – ${num(c.tc, 0)}`;
+  const day = c.for === "next" ? "For the next session" : "Today";
+  if(c.kind === "narrow")
+    out.push(`${day} the CPR is narrow (${num(c.width, 0)} points, against a usual ${num(c.avg_width, 0)}). Many traders `
+      + `expect a big trending day after a narrow CPR - but in our 3-year test, narrow-CPR days moved about the same as `
+      + `normal days.`);
+  else if(c.kind === "wide")
+    out.push(`${day} the CPR is wide (${num(c.width, 0)} points, against a usual ${num(c.avg_width, 0)}). Many traders `
+      + `expect a sideways day after a wide CPR - but in our 3-year test, wide-CPR days actually moved a little more than `
+      + `usual.`);
+  else if(c.kind === "normal")
+    out.push(`${day} the CPR is a normal width (${num(c.width, 0)} points, close to the usual ${num(c.avg_width, 0)}): no `
+      + `special hint about how big the day will be.`);
+  if(c.where === "above") out.push(`The price is above the CPR (${band}): buyers are in control.`);
+  else if(c.where === "below") out.push(`The price is below the CPR (${band}): sellers are in control.`);
+  else if(c.where === "inside") out.push(`The price is inside the CPR (${band}): the market is undecided - often choppy until it breaks out.`);
+  return out.join(" ");
+}
+const CPRWORD = {narrow: "Narrow", normal: "Normal", wide: "Wide"};
+const CPRCOL = {narrow: "var(--up)", normal: "var(--ink-2)", wide: "var(--warn)"};
+const WHERECOL = {above: "var(--up)", below: "var(--down)", inside: "var(--ink-2)"};
+const WHEREWORD = {above: "above", below: "below", inside: "inside"};
+
 function sellersRows(se){
   if(!se || (!se.call && !se.put)) return "";
   return `<div class="se-rows"><div class="se-r"><span class="se-l">Sellers above &middot; calls</span>${sellerCell(se.call, "call")}</div>`
@@ -8660,6 +8724,21 @@ function sellersRows(se){
 
 // The Signal page's own box for them - not inside room to run, which the Trend Rider and the TradingView rating do not
 // have: sellers and support are the index's, whatever system trades it.
+function sigCpr(r){
+  const el = $("sigcpr");
+  if(!el) return;
+  const c = r && r.cpr;
+  const h = c && c.bc != null ? `<div class="rr-h">CPR &middot; central pivot range</div><div class="se-rows">`
+    + `<div class="se-r"><span class="se-l">Range ${c.for === "next" ? "(next session)" : "(today)"}</span>`
+    + `<span class="se-lv"><b>${num(c.bc, 0)} – ${num(c.tc, 0)}</b> <span class="se-oi">pivot ${num(c.pivot, 0)}</span></span></div>`
+    + `<div class="se-r"><span class="se-l">Width</span><span class="se-lv"><b style="color:${CPRCOL[c.kind] || ""}">`
+    + `${esc(CPRWORD[c.kind] || "—")}</b> <span class="se-oi">${num(c.width, 0)} pts, usual ${num(c.avg_width, 0)}</span></span></div>`
+    + `<div class="se-r"><span class="se-l">Price</span><span class="se-lv"><b style="color:${WHERECOL[c.where] || ""}">`
+    + `${esc(WHEREWORD[c.where] || "—")} the CPR</b></span></div>`
+    + `<p class="se-say">${esc(cprSay(c))}</p></div>` : "";
+  if(el.innerHTML !== h) el.innerHTML = h;
+}
+
 function sigSellers(r){
   const el = $("sigsellers");
   if(!el) return;
@@ -9702,6 +9781,7 @@ function render(s){
   gauges(r, w);
   roomRun(r);
   sigSellers(r);
+  sigCpr(r);
   ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.
@@ -10257,6 +10337,64 @@ async function chainFetch(force){
   }catch(e){}
   finally{ CHAIN_BUSY = false; }
 }
+// SELLERS ABOVE, SUPPORT BELOW ON THE OPTION CHAIN (the user, 21 Oct 2026: "remove the thing that show in the dash board
+// about sellers above and support below you can show it in the option chain tab with the explaination on the option chain
+// itself with some drawing"). A ladder of the strikes around the price: calls written to the left in red (their sellers
+// lose if the market rises past the strike, so they defend it), puts written to the right in green (support), the price
+// as a line, and the levels feeds._sellers_ahead picks - the two heaviest each way - named with what was added in ~15
+// minutes; the same plain words as the Signal page under it. Display only.
+function ocSellersDraw(d){
+  const el = $("ocsellers");
+  if(!el) return;
+  const se = (((LAST && LAST.indices) || {})[d && d.index] || {}).sellers;
+  const spot = d && d.spot;
+  if(!d || !d.rows || !d.rows.length || spot == null){ el.innerHTML = ""; return; }
+  let rows = d.rows.filter(r => Math.abs(r.strike - spot) <= spot * 0.015);
+  if(rows.length < 8){
+    const near = d.rows.slice().sort((a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot)).slice(0, 12);
+    rows = near.sort((a, b) => a.strike - b.strike);
+  }
+  rows = rows.slice().sort((a, b) => b.strike - a.strike);                       // highest strike at the top
+  const mark = {};
+  for(const l of ((se && se.call && se.call.levels) || [])) mark["c" + l.strike] = l;
+  for(const l of ((se && se.put && se.put.levels) || [])) mark["p" + l.strike] = l;
+  const W = 680, mid = W / 2, half = 40, maxLen = 230, rh = 24, top = 30;
+  const H = top + rows.length * rh + 8;
+  const oiMax = Math.max(1, ...rows.map(r => Math.max((r.ce && r.ce.oi) || 0, (r.pe && r.pe.oi) || 0)));
+  const L = v => (v / 1e5).toFixed(1);
+  const chg = l => l && l.chg != null ? ` ${l.chg >= 0 ? "+" : "\u2212"}${L(Math.abs(l.chg))}` : "";
+  let g = `<text x="${mid - half - 6}" y="16" text-anchor="end" class="ocl-h">\u2190 calls written (sellers)</text>`
+    + `<text x="${mid}" y="16" text-anchor="middle" class="ocl-h">strike</text>`
+    + `<text x="${mid + half + 6}" y="16" text-anchor="start" class="ocl-h">puts written (support) \u2192</text>`;
+  rows.forEach((r, i) => {
+    const y = top + i * rh, cy = y + rh / 2;
+    const co = (r.ce && r.ce.oi) || 0, po = (r.pe && r.pe.oi) || 0;
+    const cw = Math.max(co ? 2 : 0, maxLen * co / oiMax), pw = Math.max(po ? 2 : 0, maxLen * po / oiMax);
+    const cm = mark["c" + r.strike], pm = mark["p" + r.strike];
+    g += `<rect x="${mid - half - cw}" y="${y + 4}" width="${cw}" height="${rh - 8}" rx="3" class="ocl-call${cm ? " on" : ""}"/>`
+      + `<rect x="${mid + half}" y="${y + 4}" width="${pw}" height="${rh - 8}" rx="3" class="ocl-put${pm ? " on" : ""}"/>`
+      + `<text x="${mid}" y="${cy + 4}" text-anchor="middle" class="ocl-k${cm || pm ? " on" : ""}">${num(r.strike, 0)}</text>`;
+    if(cm) g += `<text x="${mid - half - cw - 6}" y="${cy + 4}" text-anchor="end" class="ocl-lab call">sellers ${L(co)} L${chg(cm)}</text>`;
+    if(pm) g += `<text x="${mid + half + pw + 6}" y="${cy + 4}" text-anchor="start" class="ocl-lab put">support ${L(po)} L${chg(pm)}</text>`;
+  });
+  // the price, between the strikes it sits between
+  let py = null;
+  for(let i = 0; i < rows.length - 1; i++){
+    const a = rows[i].strike, b = rows[i + 1].strike;
+    if(spot <= a && spot >= b){ py = top + i * rh + rh / 2 + (a - spot) / (a - b) * rh; break; }
+  }
+  if(py != null) g += `<line x1="8" x2="${W - 8}" y1="${py}" y2="${py}" class="ocl-spot"/>`
+    + `<text x="${W - 10}" y="${py - 4}" text-anchor="end" class="ocl-spotl">price ${num(spot, 0)}</text>`;
+  const say = sellersSay(se);
+  el.innerHTML = `<div class="ocse-h">Sellers above &middot; support below</div>`
+    + `<svg class="ocl" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(say || "Open interest around the price")}">${g}</svg>`
+    + (say ? `<p class="se-say">${esc(say)}</p>` : "")
+    + `<p class="ocse-n">Bars: open interest at each strike, in lakh. A call seller loses if the market rises past the strike, `
+    + `so heavy calls just above the price act like a ceiling; a put seller loses if it falls below, so heavy puts just below `
+    + `act like a floor. Labelled: the two heaviest each way within 1.5%, with what was added${se && se.minutes ? ` in the last `
+    + `${se.minutes} minutes` : " lately"}. Shown to read - not part of the tool's signal.</p>`;
+}
+
 function chainDraw(d){
   const t = $("chain"), bar = $("chainbar");
   if(!t) return;
@@ -10268,6 +10406,11 @@ function chainDraw(d){
     return;
   }
   $("chainhead").textContent = (d.index || "") + " · expiry " + (d.expiry || "—");
+  try{ ocSellersDraw(d); }catch(e){}
+  // the same levels tagged on the table's strike column
+  const seM = ((((typeof LAST === "undefined" ? null : LAST) || {}).indices || {})[d.index] || {}).sellers || {};
+  const tagOf = k => ((seM.call && seM.call.levels) || []).some(l => l.strike === k) ? `<small class="kmark sell">sellers</small>`
+    : ((seM.put && seM.put.levels) || []).some(l => l.strike === k) ? `<small class="kmark supp">support</small>` : "";
   // the biggest open interest on either side sets the scale of every OI bar (the user, 7 Oct 2026: "check the option
   // chain tab layout as well")
   const oiMax = Math.max(1, ...d.rows.map(r => Math.max((r.ce && r.ce.oi) || 0, (r.pe && r.pe.oi) || 0)));
@@ -10301,7 +10444,7 @@ function chainDraw(d){
         const atm = r.strike === d.atm;
         return `<tr class="${atm?"atm":""}" data-k="${r.strike}">`
              + cell(r.ce, "ce", r.strike)
-             + `<td class="k">${num(r.strike,0)}</td>`
+             + `<td class="k">${num(r.strike,0)}${tagOf(r.strike)}</td>`
              + cell(r.pe, "pe", r.strike) + `</tr>`;
       }).join("") + `</tbody>`;
   { const h1 = t.querySelector("thead tr");
@@ -11026,22 +11169,26 @@ function gatesDraw(s, force){
   gateTracks(s);
   moversDraw(!!force);
 }
-function sellersDash(s){
-  const el = $("kdsellers");
+function cprDash(s){
+  const el = $("kdcpr");
   if(!el) return;
   const order = (s && (s.order || Object.keys(s.indices || {}))) || [];
-  const rows = order.map(k => [k, ((s.indices || {})[k] || {})]).filter(([k, r]) => r.sellers && (r.sellers.call || r.sellers.put));
-  const h = !rows.length ? "" : `<div class="kd-l kd-tabh">Sellers above &middot; support below</div>`
-    + `<p class="kd-sub">From the option chain: the two strikes with the most call open interest just above the price `
-    + `(call sellers defend them) and the most put open interest just below, nearest first, with how much each changed. `
-    + `"Adding" = open interest near the price up 15% or more in about 15 minutes. Shown to read, not a trade rule - `
-    + `not proven on the few weeks of history there are.</p>`
-    + `<table class="kd-tab kd-se"><thead><tr><th>Index</th><th class="r">Price</th><th>Sellers above <small>calls &middot; lakh &middot; change</small></th>`
-    + `<th>Support below <small>puts &middot; lakh &middot; change</small></th></tr></thead><tbody>`
-    + rows.map(([k, r]) => `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r" data-th="Price">${num(r.spot)}</td>`
-        + `<td data-th="Sellers above \u00b7 calls">${sellerCell(r.sellers.call, "call")}</td>`
-        + `<td data-th="Support below \u00b7 puts">${sellerCell(r.sellers.put, "put")}</td></tr>`
-        + (sellersSay(r.sellers) ? `<tr class="se-sayrow" data-k="${esc(k)}"><td colspan="4"><p class="se-say">${esc(sellersSay(r.sellers))}</p></td></tr>` : "")).join("")
+  const rows = order.map(k => [k, ((s.indices || {})[k] || {})]).filter(([k, r]) => r.cpr && r.cpr.bc != null);
+  const nxt = rows.length && rows[0][1].cpr.for === "next";
+  const h = !rows.length ? "" : `<div class="kd-l kd-tabh">CPR &middot; central pivot range${nxt ? " &middot; next session" : ""}</div>`
+    + `<p class="kd-sub">Worked out from the previous session's high, low and close. Traders read a narrow CPR (against `
+    + `the last ten sessions) as a trending day ahead and a wide one as a sideways day, and the price above it as buyers in `
+    + `control, below it sellers. Our 3-year test did not back the narrow / wide reading, and using any of it as a trade `
+    + `filter made less money - so it is shown as a reference level, not part of the tool's signal.</p>`
+    + `<table class="kd-tab kd-se kd-cpr"><thead><tr><th>Index</th><th>CPR <small>bottom &ndash; top</small></th>`
+    + `<th>Width <small>against the usual</small></th><th>Price</th></tr></thead><tbody>`
+    + rows.map(([k, r]) => { const c = r.cpr;
+        return `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td>`
+          + `<td data-th="CPR">${num(c.bc, 0)} &ndash; ${num(c.tc, 0)} <small>pivot ${num(c.pivot, 0)}</small></td>`
+          + `<td data-th="Width"><b style="color:${CPRCOL[c.kind] || ""}">${esc(CPRWORD[c.kind] || "—")}</b> `
+          + `<small>${num(c.width, 0)} vs ${num(c.avg_width, 0)}</small></td>`
+          + `<td data-th="Price"><b style="color:${WHERECOL[c.where] || ""}">${esc(WHEREWORD[c.where] || "—")}</b></td></tr>`
+          + (cprSay(c) ? `<tr class="se-sayrow" data-k="${esc(k)}"><td colspan="4"><p class="se-say">${esc(cprSay(c))}</p></td></tr>` : ""); }).join("")
     + `</tbody></table>`;
   if(el.innerHTML !== h) el.innerHTML = h;
   if(!el.dataset.wired){
@@ -11055,7 +11202,7 @@ function sellersDash(s){
 
 function homeDraw(s){
   kiteDash(s);
-  sellersDash(s);
+  cprDash(s);
   // Why the market is shut today - a holiday, a special session (Muhurat), a weekend - in the exchange's own words,
   // first thing on the Dashboard (the user, 20 Oct 2026: "The holiday message is not on the dashboard thats the main
   // part"). Its own slot, not inside #kdash, which phones do not show. From the server's session_note; empty on an
@@ -12683,13 +12830,16 @@ function anaPaint(){
      ["S2", r => `<td>${num(r.s2,2)}</td>`], ["S1", r => `<td>${num(r.s1,2)}</td>`],
      ["Pivot", r => `<td style="color:var(--ink)">${num(r.pivot,2)}</td>`],
      ["R1", r => `<td>${num(r.r1,2)}</td>`], ["R2", r => `<td>${num(r.r2,2)}</td>`],
+     ["CPR", r => `<td>${r.cpr_bc == null ? "—" : num(r.cpr_bc,0) + " – " + num(r.cpr_tc,0)}</td>`],
+     ["CPR width", r => `<td>${r.cpr_width == null ? "—" : num(r.cpr_width,0) + " pts" + (r.cpr_kind ? " · " + esc(r.cpr_kind) : "")}</td>`],
      ["ATR(14)", r => `<td>${num(r.atr,0)}</td>`]],
     "No levels yet.");
   if($("lvlnote")) $("lvlnote").textContent =
     "Floor pivots from the previous session's high, low and close; Now is the latest price and Zone the pair of "
     + "levels it sits between, green above the pivot and red below. ATR(14) is "
     + "the average true range over fourteen sessions - the distance this index "
-    + "typically covers in a day, which is what a stop has to survive.";
+    + "typically covers in a day, which is what a stop has to survive. CPR is the central pivot range (from the same "
+    + "high, low and close), narrow or wide against its last ten sessions - see the Dashboard for what it means.";
   scrTable("lvlor", L.filter(r => r.or_hi != null),
     [["Index", r => `<td class="sym">${esc(r.index)}</td>`],
      ["Range low", r => `<td>${num(r.or_lo,2)}</td>`],
