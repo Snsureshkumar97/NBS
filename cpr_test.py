@@ -116,8 +116,15 @@ else:
 
 print("5. ON THE PAGE")
 home = src[src.index('<section class="pane on" data-pane="home">'):src.index("</section>", src.index('data-pane="home"'))]
-check("the Dashboard: its own table (phones too), drawn by homeDraw, rows open the Signal page",
-      'id="kdcpr"' in home and "  cprDash(s);" in src and "function cprDash(s){" in src)
+check("off the Dashboard (21 Oct 2026: \"draw it on the chart and remove from dashboard\")",
+      'id="kdcpr"' not in home and "cprDash(" not in src)
+check("on the chart: a shaded band (a baseline series from the CPR's bottom to its top) over the session it is for",
+      "s.cpr = chart.addSeries(LW.BaselineSeries" in src and "function chCpr(bars, C){" in src
+      and "try{ chCpr(bars, C); }catch(e){}" in src and 'c.for === "today" && CH.tf !== "1d"' in src)
+check("its top, bottom and pivot as labelled lines on the price axis ('next ...' after the close)",
+      '[cp && cp.tc, nx + "CPR top", C.accent, "dot"]' in src and '[cp && cp.pivot, nx + "pivot", C.ink3, "dot"]' in src)
+check("the plain words under the chart", 'id="cvcpr"' in src and "esc(cprSay(c))} The shaded band on the chart is the CPR" in src)
+check("a rebuilt chart (a theme change) redraws the band", "cprSig: null});" in src)
 check("the Signal page: its own box after the sellers box", 'id="sigcpr"' in src and "  sigSellers(r);\n  sigCpr(r);" in src)
 check("the Research levels table: CPR and its width", '["CPR width", r =>' in src and '"cpr_kind": c_["kind"]' in src)
 check("the live reading carries it", '"cpr": rec.get("cpr"),' in open(os.path.join(HERE, "feeds.py")).read())

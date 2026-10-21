@@ -3698,7 +3698,6 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .se-tag.se-put{color:var(--up)}
 .kdsellers .kd-sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 8px;line-height:1.5;max-width:760px}
 .kdsellers .kd-se td{vertical-align:baseline}
-.kdcpr .kd-cpr td small{color:var(--ink-3);font-size:12px;margin-left:4px}
 /* the option chain's sellers / support ladder (21 Oct 2026) */
 .ocse{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
 .ocse-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
@@ -3723,7 +3722,7 @@ table.chain td.k .kmark.supp{color:var(--up)}
   .kdsellers .kd-se,.kdsellers .kd-se tbody{display:block;width:100%}
   .kdsellers .kd-se tr{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--bd-soft)}
   .kdsellers .kd-se td{padding:0;border:0;text-align:left}
-  .kdsellers .kd-se td[data-th^="Sellers"],.kdsellers .kd-se td[data-th^="Support"],.kdcpr .kd-se td[data-th="CPR"]{grid-column:1 / -1}
+  .kdsellers .kd-se td[data-th^="Sellers"],.kdsellers .kd-se td[data-th^="Support"]{grid-column:1 / -1}
   .kdsellers .kd-se tr.se-sayrow{display:block;padding-top:0}
   .kdsellers .kd-se tr:has(+ tr.se-sayrow){border-bottom:0;padding-bottom:4px}
   .kdsellers .kd-se td[data-th]::before{content:attr(data-th);display:block;font-size:12px;font-weight:700;letter-spacing:.5px;
@@ -4100,6 +4099,10 @@ table.chain td.k .kmark.supp{color:var(--up)}
 #cv{display:block;width:100%;height:430px}
 /* the chart's box: the library draws inside #cv; the open ticket's P&L and the empty state sit over it (8 Oct 2026) */
 .cvbox{position:relative}
+.cvcpr{margin:8px 2px 0;font-size:13px;line-height:1.55;color:var(--ink-2)}
+.cvcpr:empty{display:none}
+.cvcpr b{color:var(--ink)}
+.cvcpr .cvcpr-k{display:inline-block;margin:0 4px;padding:0 7px;border-radius:999px;font-size:12px;font-weight:700;background:var(--raised);color:var(--ink-2)}
 .cvbadge{position:absolute;left:8px;top:6px;z-index:3;padding:4px 9px;border-radius:7px;font-size:12px;font-weight:600;
   pointer-events:none;white-space:nowrap;max-width:calc(100% - 90px);overflow:hidden;text-overflow:ellipsis}
 .cvbadge[hidden],.cvwait[hidden]{display:none}
@@ -5714,7 +5717,6 @@ button.mgroup:hover{color:var(--ink-2)}
  <section class="pane on" data-pane="home">
   <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
-  <div class="kdsellers kdcpr" id="kdcpr"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5861,6 +5863,7 @@ button.mgroup:hover{color:var(--ink-2)}
     <div class="cvbadge" id="cvbadge" hidden></div>
     <div class="cvwait" id="cvwait">waiting for candles&hellip;</div>
     </div>
+    <div class="cvcpr" id="cvcpr"></div>
     </div>
     </div>
    </div>
@@ -9248,15 +9251,49 @@ function chLine(arr, bars){
 // The levels drawn on the price: while a ticket is open the chart shows THAT ticket - its levels froze at entry, and
 // the live signal's can drift away from the position actually held - else the live signal's. Room to run is live
 // either way (a reading of TODAY, not a term of the trade), on a finer dotted line: a different KIND of line.
+// The chart index's CPR from the live reading (feeds._cpr), or null.
+function chCprOf(){
+  return ((((typeof LAST === "undefined" ? null : LAST) || {}).indices || {})[CH.key] || {}).cpr || null;
+}
+// THE CPR ON THE CHART (the user, 21 Oct 2026: "which is the best place to position cpr to understand it" -> "draw it on
+// the chart and remove from dashboard"): a shaded band from its bottom to its top across the candles of the session it
+// is for (today's, in the session - after the close it is the next session's and only its lines show), its three lines
+// on the price axis (chLevels), and the plain words under the chart. A reference - not part of the tool's signal.
+function chCpr(bars, C){
+  const s = LWC.s, box = $("cvcpr"), c = chCprOf();
+  if(!s.cpr) return;
+  let data = [];
+  if(c && c.bc != null && c.for === "today" && CH.tf !== "1d" && bars.length){
+    const day = t => new Date((t + IST_S) * 1000).toISOString().slice(0, 10);
+    const last = day(bars[bars.length - 1][0]);
+    data = bars.filter(b => day(b[0]) === last).map(b => ({time: b[0] + IST_S, value: c.tc}));
+  }
+  const sig = JSON.stringify([c && c.bc, c && c.tc, data.length, data.length ? data[data.length - 1].time : 0]);
+  if(sig !== LWC.cprSig){
+    LWC.cprSig = sig;
+    if(c && c.bc != null) s.cpr.applyOptions({baseValue: {type: "price", price: c.bc}});
+    s.cpr.setData(data);
+  }
+  if(box){
+    const h = c && c.bc != null ? `<b>CPR${c.for === "next" ? " for the next session" : " today"}:</b> `
+      + `${num(c.bc, 0)} &ndash; ${num(c.tc, 0)} <span class="cvcpr-k">${esc((CPRWORD[c.kind] || "").toLowerCase())}</span> `
+      + `<span>${esc(cprSay(c))} The shaded band on the chart is the CPR; the dotted lines its top, bottom and pivot.</span>` : "";
+    if(box.innerHTML !== h) box.innerHTML = h;
+  }
+}
 function chLevels(d, TK, C){
   const L = (TK && TK.index_targets)
     ? {t1: TK.index_targets[0], t2: TK.index_targets[1], t3: TK.index_targets[2],
        stop: TK.index_stop, entry: TK.entry_spot}
     : ((d && d.levels) || {});
   const R = (d && d.room) || {};
+  // the CPR (cpr.py; the user, 21 Oct 2026: "draw it on the chart") - today's, or the next session's after the close
+  const cp = typeof chCprOf === "function" ? chCprOf() : null, nx = cp && cp.for === "next" ? "next " : "";
   return [[L.t1, "T1", C.up, "dash"], [L.t2, "T2", C.up, "dash"], [L.t3, "T3", C.up, "dash"],
           [L.stop, "SL", C.down, "dash"], [L.entry, "Entry", C.warn, "dash"],
-          [R.up_to, "Room ↑", C.up, "dot"], [R.down_to, "Room ↓", C.down, "dot"]]
+          [R.up_to, "Room ↑", C.up, "dot"], [R.down_to, "Room ↓", C.down, "dot"],
+          [cp && cp.tc, nx + "CPR top", C.accent, "dot"], [cp && cp.bc, nx + "CPR bottom", C.accent, "dot"],
+          [cp && cp.pivot, nx + "pivot", C.ink3, "dot"]]
     .filter(a => a[0] != null && isFinite(a[0]))
     .map(([v, label, colour, style]) => ({v: Number(v), label, colour, style}));
 }
@@ -9317,6 +9354,14 @@ function chBuild(mode, C){
   // Not an entry input - config.TRAIL_AFTER_T1_SUPERTREND only ever reads its CURRENT value; the whole line is the
   // chart's usual way of showing where that came from.
   s.st = chart.addSeries(LW.LineSeries, Object.assign({}, over, {color: C.supertrend}));
+  // the CPR band: a baseline series whose line is the CPR's top and whose base its bottom - the fill between is the band
+  const tint = a => { const h = String(C.accent || "").trim(); const m = /^#?([0-9a-f]{6})$/i.exec(h);
+    return m ? `rgba(${parseInt(m[1].slice(0, 2), 16)},${parseInt(m[1].slice(2, 4), 16)},${parseInt(m[1].slice(4, 6), 16)},${a})`
+             : `rgba(77,148,232,${a})`; };
+  s.cpr = chart.addSeries(LW.BaselineSeries, {baseValue: {type: "price", price: 0}, lineWidth: 1,
+    topLineColor: tint(0.35), topFillColor1: tint(0.16), topFillColor2: tint(0.16),
+    bottomLineColor: "rgba(0,0,0,0)", bottomFillColor1: "rgba(0,0,0,0)", bottomFillColor2: "rgba(0,0,0,0)",
+    priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false});
   if(mode === "full"){
     const sub = {lineWidth: 1, priceLineVisible: false, crosshairMarkerVisible: false};
     s.rsi = chart.addSeries(LW.LineSeries, Object.assign({}, sub, {color: C.rsi, title: "RSI",
@@ -9349,7 +9394,7 @@ function chBuild(mode, C){
     CH.pinned = !r || r.to >= LWC.n - 1.5;       // the newest candle in view
     if(was !== CH.pinned) chLegend(LWC.hover);
   });
-  Object.assign(LWC, {chart, s, lines: [], gate: null, lvSig: null, drawn: null});
+  Object.assign(LWC, {chart, s, lines: [], gate: null, lvSig: null, drawn: null, cprSig: null});
 }
 
 // Everything, in full: a fresh fetch, a new index or timeframe, or a rebuilt chart. The view survives a refresh: on the
@@ -9512,6 +9557,7 @@ function chartDraw(){
   chBadge(openTicketFor(CH.key));
   chLegend(LWC.hover);
   chKeys(d, C);
+  try{ chCpr(bars, C); }catch(e){}
 }
 
 cv.addEventListener("dblclick", () => chartReset());
@@ -11169,40 +11215,8 @@ function gatesDraw(s, force){
   gateTracks(s);
   moversDraw(!!force);
 }
-function cprDash(s){
-  const el = $("kdcpr");
-  if(!el) return;
-  const order = (s && (s.order || Object.keys(s.indices || {}))) || [];
-  const rows = order.map(k => [k, ((s.indices || {})[k] || {})]).filter(([k, r]) => r.cpr && r.cpr.bc != null);
-  const nxt = rows.length && rows[0][1].cpr.for === "next";
-  const h = !rows.length ? "" : `<div class="kd-l kd-tabh">CPR &middot; central pivot range${nxt ? " &middot; next session" : ""}</div>`
-    + `<p class="kd-sub">Worked out from the previous session's high, low and close. Traders read a narrow CPR (against `
-    + `the last ten sessions) as a trending day ahead and a wide one as a sideways day, and the price above it as buyers in `
-    + `control, below it sellers. Our 3-year test did not back the narrow / wide reading, and using any of it as a trade `
-    + `filter made less money - so it is shown as a reference level, not part of the tool's signal.</p>`
-    + `<table class="kd-tab kd-se kd-cpr"><thead><tr><th>Index</th><th>CPR <small>bottom &ndash; top</small></th>`
-    + `<th>Width <small>against the usual</small></th><th>Price</th></tr></thead><tbody>`
-    + rows.map(([k, r]) => { const c = r.cpr;
-        return `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td>`
-          + `<td data-th="CPR">${num(c.bc, 0)} &ndash; ${num(c.tc, 0)} <small>pivot ${num(c.pivot, 0)}</small></td>`
-          + `<td data-th="Width"><b style="color:${CPRCOL[c.kind] || ""}">${esc(CPRWORD[c.kind] || "—")}</b> `
-          + `<small>${num(c.width, 0)} vs ${num(c.avg_width, 0)}</small></td>`
-          + `<td data-th="Price"><b style="color:${WHERECOL[c.where] || ""}">${esc(WHEREWORD[c.where] || "—")}</b></td></tr>`
-          + (cprSay(c) ? `<tr class="se-sayrow" data-k="${esc(k)}"><td colspan="4"><p class="se-say">${esc(cprSay(c))}</p></td></tr>` : ""); }).join("")
-    + `</tbody></table>`;
-  if(el.innerHTML !== h) el.innerHTML = h;
-  if(!el.dataset.wired){
-    el.dataset.wired = "1";
-    el.addEventListener("click", e => {
-      const tr = e.target.closest("tr[data-k]"); if(!tr) return;
-      selectIndex(tr.dataset.k); showTab("signal");
-    });
-  }
-}
-
 function homeDraw(s){
   kiteDash(s);
-  cprDash(s);
   // Why the market is shut today - a holiday, a special session (Muhurat), a weekend - in the exchange's own words,
   // first thing on the Dashboard (the user, 20 Oct 2026: "The holiday message is not on the dashboard thats the main
   // part"). Its own slot, not inside #kdash, which phones do not show. From the server's session_note; empty on an
