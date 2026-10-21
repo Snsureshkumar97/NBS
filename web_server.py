@@ -2405,7 +2405,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            capital=as_num("capital"), risk_pct=as_num("risk_pct"),
                            lots_index=(form.get("lots_index") or "").upper() or None,
                            system=(form.get("system") or None), system_index=(form.get("system_index") or "").upper() or None,
-                           votes=(form.get("votes") or None), votes_index=(form.get("votes_index") or "").upper() or None)
+                           votes=(form.get("votes") or None), votes_index=(form.get("votes_index") or "").upper() or None,
+                           sroom=(form.get("sroom") or None), sroom_index=(form.get("sroom_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -6237,7 +6238,9 @@ button.mgroup:hover{color:var(--ink-2)}
     Live orders can be switched here, on the Signal page (one index) or on Positions (all at once) - each asks
     first, because it places real orders. Votes: "All must agree" needs Trend, MACD, RSI and VWAP all the trade's way,
     and PCR too when it votes (neutral or missing, it is shown, not required) - fewer trades; "3 of 5 (tested)" is the
-    rule the 3-year results measure. It applies while the index runs Current rules.</div>
+    rule the 3-year results measure. Seller limit (off unless you turn it on): room to run also stops at the heaviest
+    option-seller level within 1.5% (the Dashboard's "Sellers above / support below"), and a trade needs 1:1 room up to
+    it - tried on only 22 days of recorded data, not proven. Both apply while the index runs Current rules.</div>
   </div>
  </section>
 
@@ -6586,8 +6589,11 @@ function lotsDash(s){
   // Indian market only; it applies while the index runs the tool's own rules.
   const votesBy = sess.votes_by || {}, votesChoices = sess.votes_choices || [], votesOn = votesChoices.length > 0;
   const VOTESNAME = {all: "All must agree", tested: "3 of 5 (tested)"};
+  // The heaviest option-seller level as a room limit, per index (21 Oct 2026; config.SELLERS_ROOM_*) - off by default.
+  const sroomBy = sess.sroom_by || {}, sroomChoices = sess.sroom_choices || [], sroomOn = sroomChoices.length > 0;
+  const SROOMNAME = {off: "Off", on: "On"};
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
-    + "|" + votesChoices.join(",")
+    + "|" + votesChoices.join(",") + "|" + sroomChoices.join(",")
     + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
@@ -6595,7 +6601,7 @@ function lotsDash(s){
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
-      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}${sroomOn ? "<th>Seller limit</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -6606,6 +6612,8 @@ function lotsDash(s){
           + (votesOn ? `<td data-th="Votes"><label><span class="kdl-sr">${esc(k)} votes</span><select data-votes="${esc(k)}">`
               + votesChoices.map(v => `<option value="${v}">${esc(VOTESNAME[v] || v)}</option>`).join("")
               + `</select></label><small class="kdl-vn" data-vn="${esc(k)}"></small></td>` : "")
+          + (sroomOn ? `<td data-th="Seller limit"><label><span class="kdl-sr">${esc(k)} seller limit</span><select data-sroom="${esc(k)}">`
+              + sroomChoices.map(v => `<option value="${v}">${esc(SROOMNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + `<td class="kdl-live" data-th="Live orders" data-live="${esc(k)}">` + (live && live.includes(k)
               ? `<label><span class="kdl-sr">${esc(k)} live orders</span><select data-livesel="${esc(k)}">`
                 + `<option value="off">Off &middot; paper</option><option value="on">On &middot; real orders</option></select></label>`
@@ -6625,6 +6633,31 @@ function lotsDash(s){
         if(msg && now === want) msg.textContent = want
           ? `${k}: live orders ON - every new ticket on ${k} is also placed at the broker with real money.`
           : `${k}: live orders off - new tickets on ${k} are paper only. A position already open is still managed to its exit.`;
+        return;
+      }
+      const rs = e.target.closest("select[data-sroom]");
+      if(rs && rs.dataset && rs.dataset.sroom){
+        const k = rs.dataset.sroom, want = rs.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        rs.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({sroom: want, sroom_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.sroom_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          rs.value = got;
+          if(msg) msg.textContent = got === "on"
+            ? `${k}: a rules ticket now also needs 1:1 room up to the heaviest option-seller level within 1.5% (not proven yet - 22 days of data).`
+            : `${k}: the seller limit is off - room to run as before.`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).sroom_by || {})[k];
+          if(was) rs.value = was;
+          if(msg) msg.textContent = `${k}: the seller limit could not be changed (are you still signed in?) - still ${SROOMNAME[was] || was}.`;
+        }finally{ rs.disabled = false; }
         return;
       }
       const vs = e.target.closest("select[data-votes]");
@@ -6713,6 +6746,12 @@ function lotsDash(s){
   el.querySelectorAll("select[data-sys]").forEach(sel => {
     const v = sys[sel.dataset.sys];
     if(v && document.activeElement !== sel && sel.value !== v) sel.value = v;
+  });
+  el.querySelectorAll("select[data-sroom]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.sroom;
+    if(!k) return;
+    const v = sroomBy[k];
+    if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
   });
   el.querySelectorAll("select[data-votes]").forEach(sel => {
     const k = sel.dataset && sel.dataset.votes;
@@ -10780,13 +10819,16 @@ function gateSteps(r, ts){
     const need = r.adx_needed;
     steps.push({n: "ADX", ok: r.adx == null ? null : !r.adx_blocked && (need == null || r.adx >= need),
                 d: r.adx == null ? "" : `ADX ${num(r.adx, 1)}` + (need != null ? ` \u00b7 needs ${num(need, 0)}` : "")});
-    steps.push({n: "Room", ok: !r.not_worth_it, d: r.reach_points != null ? `${num(r.reach_points, 0)} pts` : ""});
+    const sroomHeld = code === "sellers_room";        // the seller limit (Trade settings) holds at the ticket
+    steps.push({n: "Room", ok: !r.not_worth_it && !sroomHeld,
+                d: (r.reach_points != null ? `${num(r.reach_points, 0)} pts` : "") + (sroomHeld ? " \u00b7 sellers in the way" : "")});
     const rr = r.ticket_gate_ratio, rn = r.ticket_gate_need;
     steps.push({n: "R:R", ok: rr == null || rn == null ? null : rr >= rn,
                 d: rr == null ? "" : `${num(rr, 2)}x` + (rn != null ? ` \u00b7 needs ${num(rn, 1)}x` : "")});
   }
   const sess = !!(code && GT_SESSION[code]);
-  const held = !!(code && !sess && code !== "neutral" && code !== "position_open" && code !== "all_votes");
+  const held = !!(code && !sess && code !== "neutral" && code !== "position_open" && code !== "all_votes"
+                  && code !== "sellers_room");
   steps.push({n: "Ticket", ok: !held, d: held ? (wait.badge || "") : ""});
   steps.push({n: "Market", ok: !sess, d: sess ? (wait.badge || "") : "open"});
   return {steps, sess, held, wait};

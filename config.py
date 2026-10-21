@@ -648,6 +648,16 @@ VOTES_ALL_NAMES = ("Trend", "MACD", "RSI", "VWAP")
 # against the trade it holds it, neutral or missing it does not.
 VOTES_WHEN_CAST = ("PCR",)
 
+# ROOM CAPPED AT THE HEAVIEST OPTION-SELLER LEVEL (the user, 21 Oct 2026: "can that data be used in room to run to know
+# how far can market go"). A switch per account and index in Trade settings, OFF by default: when on, a rules ticket also
+# needs at least MIN_REWARD_RISK_T3 of room up to the strike with the most OI within 1.5% in its direction (calls above
+# for a call, puts below for a put - feeds._sellers_ahead), or it is held (tickets._sellers_room_hold). The room's own OI
+# wall is the heaviest strike of the whole expiry, never closer than half the expected move. oi_room_study.py, the
+# only history there is (22 days of recorded OI, 146 rules tickets of one live account, per lot before charges): it
+# would have held 36 that won 36% and lost -5,959 in all, on every index - better in 4 of 7 weeks, so not proven.
+SELLERS_ROOM_CHOICES = ("off", "on")
+SELLERS_ROOM_DEFAULT = "off"
+
 # The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
 TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}

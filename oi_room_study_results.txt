@@ -1,0 +1,23 @@
+========================================================================================================================
+ ROOM TO RUN LIMITED BY THE NEAREST HEAVY SELLER LEVEL - 146 rules tickets with option data (2026-09-10 to 2026-10-21, 22 days), per lot before charges, ₹
+========================================================================================================================
+   ALL RULES TICKETS                   146 tickets  won   51%  total ₹   +30,893  avg ₹    +264
+   the tool's own room at entry: median 177 pts; the nearest heavy level: median 78 pts; the stop: median 154 pts
+ NEAREST
+   would FAIL (under 1:1) - held       101 tickets  won   49%  total ₹    -8,747  avg ₹    -103
+   would still pass                     45 tickets  won   58%  total ₹   +39,640  avg ₹  +1,239
+   week by week, what holding them would have changed: W37 -0  W38 +5,329  W39 -6,740  W40 +226  W41 -3,181  W42 +2,789  W43 +10,324   (better in 4 of 7 weeks)
+      NIFTY       held  33 of  46: their total ₹   +2,791, the rest ₹   +5,896
+      BANKNIFTY   held  19 of  22: their total ₹   -6,078, the rest ₹      +84
+      SENSEX      held  33 of  57: their total ₹     +858, the rest ₹   +9,235
+      MIDCPNIFTY  held  16 of  21: their total ₹   -6,318, the rest ₹  +24,426
+ HEAVIEST
+   would FAIL (under 1:1) - held        36 tickets  won   36%  total ₹    -5,959  avg ₹    -259
+   would still pass                    110 tickets  won   56%  total ₹   +36,852  avg ₹    +392
+   week by week, what holding them would have changed: W37 -0  W38 +647  W39 +3,577  W40 -2,947  W41 -211  W42 +1,893  W43 +3,000   (better in 4 of 7 weeks)
+      NIFTY       held  19 of  46: their total ₹   -3,032, the rest ₹  +11,718
+      BANKNIFTY   held   4 of  22: their total ₹   -2,174, the rest ₹   -3,820
+      SENSEX      held   5 of  57: their total ₹     -483, the rest ₹  +10,576
+      MIDCPNIFTY  held   8 of  21: their total ₹     -270, the rest ₹  +18,378
+
+ A negative 'held' total = losers the limit would have kept you out of; positive = winners it would have thrown away. A few weeks of data: a first look only.

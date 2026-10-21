@@ -263,6 +263,8 @@ class TicketBook:
         # Each Indian index's vote rule for a rules ticket - "all" or "tested" (config.VOTES_RULE_CHOICES; the user, 21
         # Oct 2026). See votes_rule_for().
         self.votes_by = {}
+        # Each Indian index's seller-level room limit, "on" / "off" (config.SELLERS_ROOM_CHOICES, 21 Oct 2026).
+        self.sroom_by = {}
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
@@ -313,6 +315,9 @@ class TicketBook:
             for k, v in (s.get("votes_by") or {}).items():
                 if k in names and v in _cfg("VOTES_RULE_CHOICES", ()):
                     self.votes_by[k] = v
+            for k, v in (s.get("sroom_by") or {}).items():
+                if k in names and v in _cfg("SELLERS_ROOM_CHOICES", ()):
+                    self.sroom_by[k] = v
         except Exception:
             pass
 
@@ -355,6 +360,14 @@ class TicketBook:
         v = self.votes_by.get(index)
         return v if v in _cfg("VOTES_RULE_CHOICES", ()) else _cfg("VOTES_RULE_DEFAULT", "tested")
 
+    def sellers_room_for(self, index):
+        """Whether a rules ticket on this Indian index also needs room up to the heaviest option-seller level: "on" /
+        "off" - the account's choice, else config.SELLERS_ROOM_DEFAULT. None off the Indian market."""
+        if self.market != "nse_index":
+            return None
+        v = self.sroom_by.get(index)
+        return v if v in _cfg("SELLERS_ROOM_CHOICES", ()) else _cfg("SELLERS_ROOM_DEFAULT", "off")
+
     def cfd_plan(self, index):
         """The entry rule this account's crypto instrument trades on (config.cfd_plan of its system), or None: the
         tool's own votes (the engine)."""
@@ -385,7 +398,8 @@ class TicketBook:
             tmp = p + ".tmp"
             with open(tmp, "w") as fh:
                 json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots,
-                           "lots_by": self.lots_by, "systems_by": self.systems_by, "votes_by": self.votes_by}, fh)
+                           "lots_by": self.lots_by, "systems_by": self.systems_by, "votes_by": self.votes_by,
+                           "sroom_by": self.sroom_by}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -528,7 +542,7 @@ class TicketBook:
     # =====================================================================
     def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
                   capital=None, risk_pct=None, lots_index=None, system=None, system_index=None,
-                  votes=None, votes_index=None):
+                  votes=None, votes_index=None, sroom=None, sroom_index=None):
         with self.lock:
             if capital is not None:
                 # 0 or blank clears it, which also switches the loss limit off.
@@ -558,6 +572,10 @@ class TicketBook:
                 # One index's vote rule; an unknown index or rule changes nothing.
                 if votes_index in config.instruments_in(self.market) and votes in _cfg("VOTES_RULE_CHOICES", ()):
                     self.votes_by[votes_index] = votes
+                    self._save_settings()
+            if sroom is not None and self.market == "nse_index":
+                if sroom_index in config.instruments_in(self.market) and sroom in _cfg("SELLERS_ROOM_CHOICES", ()):
+                    self.sroom_by[sroom_index] = sroom
                     self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
@@ -1335,6 +1353,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 7b. and the heaviest option-seller level leaves it room (when this account asks for it)
+        held = self._sellers_room_hold(book.name, rec)
+        if held is not None:
+            return hold(*held)
+
         # --- 8. and can be bought without handing the edge to the spread ---
         held = self._spread_hold(rec)
         if held is not None:
@@ -1481,6 +1504,32 @@ class TicketBook:
                 f"ticket, with the ADX and room checks as well; PCR only counts when it votes, and then it has to "
                 f"agree too. {agree} of {len(names)} agree for a {'call' if side > 0 else 'put'}: "
                 f"{'; '.join(word(n) for n in off)}. Held until every one agrees. Change it in Trade settings.")
+
+    def _sellers_room_hold(self, name, rec):
+        """Held when the heaviest option-seller level in the trade's way leaves less than MIN_REWARD_RISK_T3 of room to
+        the stop - on an index this account switched it on for (sellers_room_for; the user, 21 Oct 2026: "can that data
+        be used in room to run"). The strike with the most OI within 1.5% (feeds._sellers_ahead): calls above for a
+        call, puts below for a put. Its own room is capped there; no chain reading, no hold. Rules tickets only."""
+        if not name or self.sellers_room_for(name) != "on" or self.system_for(name) != "rules":
+            return None
+        ot = rec.get("option_type")
+        se = (rec.get("sellers") or {}).get("call" if ot == "CE" else "put" if ot == "PE" else "")
+        levels = (se or {}).get("levels") or []
+        risk = rec.get("risk_points")
+        if not levels or not risk or risk <= 0:
+            return None
+        top = max(levels, key=lambda l: l.get("oi") or 0)
+        room = rec.get("reach_points")
+        capped = min(room, top["dist"]) if room else top["dist"]
+        need = config.min_reward_risk_t3(name) or 1.0
+        if capped / risk >= need:
+            return None
+        kind = "calls above" if ot == "CE" else "puts below"
+        return ("sellers_room", "SELLERS IN THE WAY",
+                f"The heaviest option sellers within reach - {top['oi'] / 1e5:.1f} lakh {kind} at "
+                f"{top['strike']:,.0f}, {top['dist']:,.0f} points away - leave {capped:,.0f} points of room against a "
+                f"{risk:,.0f}-point stop: {capped / risk:.2f} to 1, under the {need:g} to 1 needed. Your setting for "
+                f"{name} counts them (Trade settings, Seller limit). Held until there is room.")
 
     def _reward_hold(self, name, rec):
         """Watch-only indices, then reward:risk to T3. Last of the gates, so
@@ -1680,6 +1729,7 @@ class TicketBook:
                 or self._regime_hold(rec) is not None
                 or self._votes_hold(book.name, rec) is not None
                 or self._reward_hold(book.name, rec) is not None
+                or self._sellers_room_hold(book.name, rec) is not None
                 or self._spread_hold(rec) is not None
                 or self._strike_taken(book, rec) is not None
                 or self._price_hold(rec) is not None):
@@ -2157,6 +2207,9 @@ class TicketBook:
                 "votes_by": ({k: self.votes_rule_for(k) for k in config.instruments_in(self.market)}
                              if self.market == "nse_index" else {}),
                 "votes_choices": list(_cfg("VOTES_RULE_CHOICES", ())) if self.market == "nse_index" else [],
+                "sroom_by": ({k: self.sellers_room_for(k) for k in config.instruments_in(self.market)}
+                             if self.market == "nse_index" else {}),
+                "sroom_choices": list(_cfg("SELLERS_ROOM_CHOICES", ())) if self.market == "nse_index" else [],
                 "systems_by": {k: self.system_for(k) for k in config.instruments_in(self.market)
                                if self.market == "nse_index" or k in (_cfg("CRYPTO_SYSTEMS", {}) or {})},
                 "system_choices": (list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else
