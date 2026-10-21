@@ -116,7 +116,7 @@ else:
     helpers = SRC[SRC.index("function livePnl(s){"):SRC.index("function kiteSide(s){")]
     prog = ("const assert = require('assert');\n" + SRC[n0:n1] + 'let CCY = "INR";\n' + grab("function ccySym(){", "\n")
             + grab("function ccyLocale(){", "\n") + grab("function money(v, signed){") + grab("function fundsLabel(f){")
-            + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\nconst lotsDash = s => {};   // per_index_lots_test.py\nconst sellersDash = s => {};   // sellers_ahead_test.py\n" + helpers
+            + "let KSIDE_HTML = '', KDASH_HTML = '', CUR = 'NIFTY', DESK = [], MKT_ROWS = null;\nconst lotsDash = s => {};   // per_index_lots_test.py\nconst sellersDash = s => {};   // sellers_ahead_test.py\nlet POS_TAB = \"open\", POS_KIND = \"live\";   // the Positions page's two rows of tabs (21 Oct 2026)\n" + helpers
             + grab("function kiteSide(s){") + grab("function posTable(s){") + grab("function posCount(s){") + "let KPOS_HTML = '';\n"
             + grab("function posPane(s){") + grab("function brokerCards(s, lv){") + grab("function kiteDash(s){") + grab("function homeDraw(s){") + grab("function recapDraw(s){")
             + r'''
@@ -180,27 +180,35 @@ assert.ok(sm.includes("<span>Open now</span>") && sm.includes(money(-1414 - 4338
           && sm.includes("<span>Booked today</span>") && sm.includes(money(-8121.75 - 11070)) && sm.includes("2 closed")
           && sm.includes("Live \u00b7 real money") && sm.includes("<span>Paper</span>"), "the page's headline figures: " + sm);
 assert.strictEqual(els.kposn.textContent, "2 open \u00b7 2 closed");
-// two tables since 21 Oct 2026 ("in positions separate open positions and closed positions"): open, then closed
-const parts = els.kpos.innerHTML.split('class="kd-tab kd-pos"');
-const po = parts[1] || "", pc = parts[2] || "";
-const rowsOf = x => ((x.split("<tbody>")[1] || "").split("</tbody>")[0]).split("</tr>").filter(r => r.includes("<td"));
-const orow = rowsOf(po), crow = rowsOf(pc);
-assert.ok(els.kpos.innerHTML.includes("Open positions") && els.kpos.innerHTML.includes("Closed positions")
-          && els.kpos.innerHTML.indexOf("Open positions") < els.kpos.innerHTML.indexOf("Closed positions"), "two sections, open first");
-assert.strictEqual(orow.length, 2, "two open trades in the open table");
-assert.strictEqual(crow.length, 2, "two closed ones in the closed table");
-assert.ok(orow[0].includes(">NIFTY<") && orow[0].includes("22550 PE") && orow[0].includes(">195<") && orow[0].includes("133.80")
-          && orow[0].includes("126.55") && orow[0].includes(">Live<") && orow[0].includes(">open<"),
-          "an open live trade: its own strike column, qty (3 lots x 65), entry, LTP now, Live - " + orow[0]);
-assert.ok(orow[1].includes("72600 PE") && orow[1].includes(">60<") && orow[1].includes(">Paper<"), "an open paper trade: qty 3 x 20, Paper");
-assert.ok(crow[0].includes("22600 PE") && crow[0].includes("150.60") && crow[0].includes("108.95") && crow[0].includes(">exit<")
-          && crow[0].includes("closed 10:29") && crow[0].includes(">Live<") && crow[0].includes(money(-8121.75)), "a closed live trade: the fill prices, its exit");
-assert.ok(crow[1].includes(">AI<") && crow[1].includes(">Paper<") && crow[1].includes(">90<"), "the AI desk's trade is badged AI");
-const fo = po.split("<tfoot>")[1], fc = pc.split("<tfoot>")[1];
-assert.ok(fo.includes(money(-1414)) && fo.includes(money(-4338)), "the open table's totals: live and paper apart");
-assert.ok(fc.includes(money(-8121.75)) && fc.includes(money(-11070)), "the closed table's totals: live and paper apart");
-assert.ok(po.includes("<th>Strike</th>") && po.includes(">Qty<") && po.includes(">Entry<") && po.includes(">LTP<")
-          && pc.includes(">Exit<"), "the columns: LTP on the open table, Exit on the closed one");
+// one table at a time since 21 Oct 2026: open / closed, then live / paper ("i need a two tabs inside positions",
+// "live positions separate and paper positions separate as well")
+const view = (tab, kind) => { POS_TAB = tab; POS_KIND = kind; KPOS_HTML = ""; posPane(ps); return els.kpos.innerHTML; };
+const rowsOf = x => (((x.split('class="kd-tab kd-pos"')[1] || "").split("<tbody>")[1] || "").split("</tbody>")[0]).split("</tr>").filter(r => r.includes("<td"));
+const footOf = x => (x.split("<tfoot>")[1] || "");
+let v = view("open", "live");
+assert.ok(v.includes('aria-label="Open or closed"') && v.includes('aria-label="Live or paper"')
+          && v.includes('aria-selected="true" data-ptab-btn="open"') && v.includes('aria-selected="true" data-pkind-btn="live"'),
+          "two rows of tabs: open / closed and live / paper");
+assert.ok(v.includes('data-ptab-btn="open">Open positions <span class="kd-posn2">1</span>')
+          && v.includes('data-ptab-btn="closed">Closed positions <span class="kd-posn2">1</span>')
+          && v.includes('data-pkind-btn="live">Live &middot; real money <span class="kd-posn2">1</span>')
+          && v.includes('data-pkind-btn="paper">Paper <span class="kd-posn2">1</span>'), "each tab with its count");
+let r = rowsOf(v);
+assert.ok(r.length === 1 && r[0].includes(">NIFTY<") && r[0].includes("22550 PE") && r[0].includes(">195<") && r[0].includes("133.80")
+          && r[0].includes("126.55") && r[0].includes(">Live<") && r[0].includes(">open<"),
+          "open, live: the live trade only - its own strike column, qty (3 lots x 65), entry, LTP now - " + r[0]);
+assert.ok(footOf(v).includes("open now") && footOf(v).includes(money(-1414)) && v.includes(">LTP<"), "its total, and the LTP column");
+v = view("open", "paper"); r = rowsOf(v);
+assert.ok(r.length === 1 && r[0].includes("72600 PE") && r[0].includes(">60<") && r[0].includes(">Paper<")
+          && footOf(v).includes(money(-4338)), "open, paper: the paper trade, qty 3 x 20, its total");
+v = view("closed", "live"); r = rowsOf(v);
+assert.ok(r.length === 1 && r[0].includes("22600 PE") && r[0].includes("150.60") && r[0].includes("108.95") && r[0].includes(">exit<")
+          && r[0].includes("closed 10:29") && r[0].includes(">Live<") && footOf(v).includes("booked today")
+          && footOf(v).includes(money(-8121.75)) && v.includes(">Exit<"), "closed, live: the fill prices, its exit, the booked total");
+v = view("closed", "paper"); r = rowsOf(v);
+assert.ok(r.length === 1 && r[0].includes(">AI<") && r[0].includes(">Paper<") && r[0].includes(">90<")
+          && footOf(v).includes(money(-11070)), "closed, paper: the AI desk's trade badged AI");
+POS_TAB = "open"; POS_KIND = "paper"; KPOS_HTML = "";
 posPane(Object.assign({}, s, {tickets: {}, positions_today: {closed: [], ai_open: []}}));
 assert.ok(els.kpos.innerHTML.includes("No trade yet today."), "an empty day says so");
 const gold = Object.assign({}, s, {indices: {GOLD: {spot: 4130, bias: "BEARISH", cfd: true}}, order: ["GOLD"],
