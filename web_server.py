@@ -3659,12 +3659,25 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-sub{font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-tab{max-width:760px}
 .kdlots .kdl-live small{display:inline;margin-left:4px;font-size:12px;color:var(--ink-3)}
+.kdlots .kdl-tab select.kdl-on{color:var(--up);border-color:var(--up);font-weight:700}   /* live orders on: real money (beats every look's plain select) */
 .kdlots .kdl-tab td{vertical-align:middle;padding:6px 10px 6px 0}
 .kdlots .kdl-tab label{display:inline-flex}
 .kdlots .kdl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .kdlots .kdl-q{display:inline;margin-left:8px;font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-u{margin-left:8px}
 .kdlots .kdl-msg{display:block;margin-top:6px}
+/* on a phone each index is a small card - its name, then lots / system / live orders labelled - rather than a table
+   wider than the screen (20 Oct 2026: the live-orders dropdown was cut off at the edge) */
+@media(max-width:640px){
+  .kdlots .kdl-tab thead{display:none}
+  .kdlots .kdl-tab,.kdlots .kdl-tab tbody{display:block;width:100%}
+  .kdlots .kdl-tab tr{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;padding:10px 0;border-bottom:1px solid var(--bd-soft)}
+  .kdlots .kdl-tab td{padding:0;border:0}
+  .kdlots .kdl-tab td:first-child{grid-column:1 / -1}
+  .kdlots .kdl-tab td[data-th]::before{content:attr(data-th);display:block;font-size:12px;font-weight:700;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+  .kdlots .kdl-tab td.kdl-live{grid-column:1 / -1}
+}
 /* the Positions page */
 .kposcard .kposn{font-size:12px;color:var(--ink-3);text-transform:none;letter-spacing:0;font-weight:400;margin-left:8px}
 .kposcard .dashbulk{display:flex;flex-wrap:wrap;gap:8px;margin:0}
@@ -6189,8 +6202,8 @@ button.mgroup:hover{color:var(--ink-2)}
    <p class="eyebrow" role="heading" aria-level="2">Trade settings &middot; per index</p>
    <div class="kdlots" id="kdlots"></div>
    <div class="gnote">Lots and system apply to the next ticket on that index; an open one keeps what it opened with.
-    Live orders are switched on and off on the Signal page (one index) or on Positions (all at once) - each asks first,
-    because it places real orders.</div>
+    Live orders can be switched here, on the Signal page (one index) or on Positions (all at once) - each asks
+    first, because it places real orders.</div>
   </div>
  </section>
 
@@ -6545,15 +6558,33 @@ function lotsDash(s){
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
       + `${sysChoices.length ? "<th>System</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
-          + `<td><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
+          + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
           + `<small class="kdl-q" data-q="${esc(k)}" data-ls="${esc(String(lotSize(k) || ""))}" data-cfd="${isCfd(k) ? 1 : ""}"></small>`
           + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</td>`
-          + (sysChoices.length ? `<td><label><span class="kdl-sr">${esc(k)} system</span><select data-sys="${esc(k)}">`
+          + (sysChoices.length ? `<td data-th="System"><label><span class="kdl-sr">${esc(k)} system</span><select data-sys="${esc(k)}">`
               + sysFor(k).map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
-          + `<td class="kdl-live" data-live="${esc(k)}"></td></tr>`).join("")
+          + `<td class="kdl-live" data-th="Live orders" data-live="${esc(k)}">` + (live && live.includes(k)
+              ? `<label><span class="kdl-sr">${esc(k)} live orders</span><select data-livesel="${esc(k)}">`
+                + `<option value="off">Off &middot; paper</option><option value="on">On &middot; real orders</option></select></label>`
+              : `<span class="kdl-u">paper only</span>`) + `</td></tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
+      // Live orders for one index, from here (the user, 20 Oct 2026: "in the trade setting tab only where it shows
+      // live order can we add add drop down over there to turn on it will be easy") - setLive asks exactly what the
+      // Signal card's button asks; a question answered Cancel puts the dropdown back.
+      const ls = e.target.closest("select[data-livesel]");
+      if(ls && ls.dataset && ls.dataset.livesel){
+        const k = ls.dataset.livesel, want = ls.value === "on", msg = $("kdlmsg");
+        await setLive(k, want, ls);
+        const now = !!(LAST && LAST.live && (LAST.live.enabled || {})[k]);
+        ls.value = now ? "on" : "off";
+        ls.classList.toggle("kdl-on", now);
+        if(msg && now === want) msg.textContent = want
+          ? `${k}: live orders ON - every new ticket on ${k} is also placed at the broker with real money.`
+          : `${k}: live orders off - new tickets on ${k} are paper only. A position already open is still managed to its exit.`;
+        return;
+      }
       const ss = e.target.closest("select[data-sys]");
       if(ss){
         const k = ss.dataset.sys, want = ss.value, msg = $("kdlmsg");
@@ -6598,11 +6629,13 @@ function lotsDash(s){
       }finally{ sel.disabled = false; }
     };
   }
-  // each index's live orders as they stand, every poll (the switches themselves are on Signal and Positions)
-  if(el.querySelectorAll) el.querySelectorAll("td[data-live]").forEach(td => {
-    const k = td.dataset.live, on = live && live.includes(k) ? !!s.live.enabled[k] : null;
-    const html = on == null ? `<span class="kdl-u">paper only</span>` : on ? `<b style="color:var(--up)">On</b> <small>real orders</small>` : `Off`;
-    if(td.innerHTML !== html) td.innerHTML = html;
+  // each index's live orders as they stand, every poll - its dropdown, unless it is open or a change is running
+  if(el.querySelectorAll) el.querySelectorAll("select[data-livesel]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.livesel;
+    if(!k) return;
+    const on = !!(s.live && s.live.enabled && s.live.enabled[k]);
+    if(document.activeElement !== sel && !sel.disabled && sel.value !== (on ? "on" : "off")) sel.value = on ? "on" : "off";
+    sel.classList.toggle("kdl-on", on);
   });
   if(Date.now() < KDLOTS_HOLD){ kdlQty(el); return; }
   el.querySelectorAll("select[data-k]").forEach(sel => {
@@ -7996,12 +8029,14 @@ function liveBox(s){
   st.classList.toggle("err", !!((note && note.level === "error") || (p && p.state === "attention")));
 }
 
-$("tlive").onclick = async () => {
-  const L = LAST && LAST.live, b = $("tlive");
-  if(!L || !CUR) return;
-  if(LAST.venue === "exness") return exnessLive(CUR, "rule", b, !!(L.enabled || {})[CUR]);
-  const on = !L.enabled[CUR];
-  const btc = CUR === "BTC";
+// One index's live orders switched on or off, with the same questions wherever it is asked from - the Signal card's
+// button and the Trade settings dropdown (the user, 20 Oct 2026: "in the trade setting tab only where it shows live
+// order can we add add drop down over there to turn on it will be easy"). `ctl` is disabled while it runs.
+async function setLive(index, on, ctl){
+  const L = LAST && LAST.live;
+  if(!L || !index) return;
+  if(LAST.venue === "exness") return exnessLive(index, "rule", ctl, !on);
+  const btc = index === "BTC";
   if(on && btc && !confirm(`Place REAL orders on Bitcoin at Delta Exchange India?\n\n`
       + "From now on every ticket on Bitcoin is also bought on Delta with your money: the ticket's own "
       + "contract and number of contracts, as a limit order a little above the mark.\n\n"
@@ -8013,27 +8048,33 @@ $("tlive").onclick = async () => {
       + "clear the ticket, and 30 minutes before the contract settles (17:30 IST).\n\n"
       + "Delta refuses orders until this server's IP is whitelisted on your API key.\n\n"
       + "Past results do not predict future ones. This is your decision.")) return;
-  if(on && !btc && !confirm(`Place REAL orders on ${CUR}?\n\n`
+  if(on && !btc && !confirm(`Place REAL orders on ${index}?\n\n`
       + "From now on every ticket on this index is also bought at Zerodha with your money: the "
       + "ticket's own contract and lots, as a limit order a little above the price. The moment it "
       + "fills, a stop-loss order goes to Zerodha at the ticket's stop. The tool sells at T2, when you "
       + "clear the ticket, and at 15:20 at the latest - intraday only. No new live entry after 15:10.\n\n"
       + "Zerodha rejects these orders until this connection's static IP is registered on "
       + "developers.kite.trade.\n\nPast results do not predict future ones. This is your decision.")) return;
-  if(!on && !confirm(`Stop placing live orders on ${CUR}?\n\nA position already open is still managed to its exit.`)) return;
-  b.disabled = true;
+  if(!on && !confirm(`Stop placing live orders on ${index}?\n\nA position already open is still managed to its exit.`)) return;
+  if(ctl) ctl.disabled = true;
   try{
     const r = await fetch("/api/live", {method: "POST", cache: "no-store",
       headers: {"Content-Type": "application/x-www-form-urlencoded"},
-      body: new URLSearchParams({index: CUR, on: on ? "1" : "0"})});
+      body: new URLSearchParams({index, on: on ? "1" : "0"})});
     const j = await r.json();
     if(!j.ok) alert(j.message || "That could not be changed.");
     else if(LAST){ LAST.live = j.live; render(LAST); }
   }catch(e){
     alert("Could not reach this tool's own server.");
   }finally{
-    b.disabled = false;
+    if(ctl) ctl.disabled = false;
   }
+}
+
+$("tlive").onclick = () => {
+  const L = LAST && LAST.live;
+  if(!L || !CUR) return;
+  return setLive(CUR, !(L.enabled || {})[CUR], $("tlive"));
 };
 
 // -------------------------------------------------- dashboard bulk actions
