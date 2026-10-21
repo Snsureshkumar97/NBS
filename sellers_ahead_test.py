@@ -81,6 +81,52 @@ check("the Signal page has its own box for them, drawn for every system (not ins
 check("the public reading carries them", '"sellers": rec.get("sellers"),' in open(os.path.join(os.path.dirname(
       os.path.abspath(__file__)), "feeds.py")).read())
 
+print("5. IN PLAIN WORDS (the user: \"can the tool explain in a simple way about that option data\")")
+import json
+import shutil
+import subprocess
+NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
+if not NODE:
+    check("node is available", False)
+else:
+    n0 = src.index("const num=(v,d=2)")
+    n1 = src.index("\n", src.index("const esc=s=>", n0)) + 1
+    fn = src[src.index("function sellersSay(se){"):src.index("function sellersRows(se){")]
+    cases = {
+        "adding": feeds._sellers_ahead(at_0940, 23112.0, past, 15 * 60),
+        "plain": feeds._sellers_ahead(at_0921, 23072.0),
+        "leaving": {"call": {"levels": [{"strike": 23100, "oi": 40 * L, "dist": 30, "chg": -5 * L}], "adding": False},
+                    "put": {"levels": [{"strike": 23000, "oi": 60 * L, "dist": 70, "chg": -6 * L}], "adding": False}},
+        "support_heavy": {"call": {"levels": [{"strike": 23100, "oi": 20 * L, "dist": 30, "chg": 0}], "adding": False},
+                          "put": {"levels": [{"strike": 23000, "oi": 90 * L, "dist": 70, "chg": 0}], "adding": True}},
+        "none": None,
+    }
+    prog = src[n0:n1] + fn + "\nconst C = " + json.dumps(cases) + ";\nconst o = {};\nfor (const k in C) o[k] = sellersSay(C[k]);\nconsole.log(JSON.stringify(o));"
+    r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    try:
+        o = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:
+        o = {}
+        print(r.stdout, r.stderr)
+    a = o.get("adding", "")
+    check("calls being added near the price: the nearest level named, 'may struggle to get past it'",
+          a.startswith("Sellers are waiting at 23,200 (92.7 lakh calls, 88 points above), and more are being added right now")
+          and "may struggle to get past it" in a, a)
+    check("support named with its size and distance", "Support at 23,000 (100.7 lakh puts, 112 points below)" in a, a)
+    check("both sides about even (158.6 vs 151.1 lakh): no 'looks harder' sentence", "looks harder" not in a, a)
+    pl = o.get("plain", "")
+    check("nothing changing: the plain 'often slows down' / 'often bounces'", "often slows down" in pl and "often bounces" in pl, pl)
+    lv = o.get("leaving", "")
+    check("sellers and put writers leaving: 'ceiling is getting weaker', 'support ... getting weaker'",
+          "that ceiling is getting weaker" in lv and "is getting weaker: put sellers are leaving" in lv, lv)
+    sh = o.get("support_heavy", "")
+    check("put writers adding, far more support: 'getting stronger', 'falling looks harder'",
+          "is getting stronger" in sh and "falling looks harder than rising" in sh, sh)
+    check("no data: nothing said", o.get("none") == "")
+    check("never a call to buy or sell", not any(w in json.dumps(o).lower() for w in ("buy now", "sell now", "you should")))
+check("shown under the Signal box's levels and under each Dashboard row",
+      "sellersSay(se) ? `<p class=\"se-say\">" in src and "tr class=\"se-sayrow\"" in src)
+
 print()
 print("SELLERS AHEAD TEST PASSED" if not fails else f"SELLERS AHEAD TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

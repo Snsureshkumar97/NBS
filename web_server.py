@@ -3677,6 +3677,9 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .se-lv{white-space:nowrap;display:inline-block;margin-right:12px}
 .kd-se .se-lv{display:block;margin:0 0 2px}
 .se-u{font-size:12px;color:var(--ink-3)}
+.se-say{margin:6px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.kd-se tr.se-sayrow td{padding-top:0}
+.kd-se tr:has(+ tr.se-sayrow) td{border-bottom:0}
 .kd-se th small{display:block;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)}
 .se-chg{font-size:12px}
 .se-none{color:var(--ink-3)}
@@ -3691,6 +3694,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
   .kdsellers .kd-se tr{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--bd-soft)}
   .kdsellers .kd-se td{padding:0;border:0;text-align:left}
   .kdsellers .kd-se td[data-th^="Sellers"],.kdsellers .kd-se td[data-th^="Support"]{grid-column:1 / -1}
+  .kdsellers .kd-se tr.se-sayrow{display:block;padding-top:0}
+  .kdsellers .kd-se tr:has(+ tr.se-sayrow){border-bottom:0;padding-bottom:4px}
   .kdsellers .kd-se td[data-th]::before{content:attr(data-th);display:block;font-size:12px;font-weight:700;letter-spacing:.5px;
     text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
 }
@@ -8609,11 +8614,42 @@ function sellerCell(x, kind){
   const tag = x.adding ? `<span class="se-tag se-${kind}">${kind === "call" ? "sellers adding" : "support adding"}</span>` : "";
   return x.levels.map(one).join("") + tag;
 }
+// The same numbers in plain words (the user, 21 Oct 2026: "can the tool explain in a simple way about that option data
+// showing in simple explanation text"). Built from the nearest level each way, whether it is growing or shrinking, and
+// which side is heavier. Only what the numbers say - never a call to buy or sell.
+function sellersSay(se){
+  if(!se || (!se.call && !se.put)) return "";
+  const pts = d => `${num(d, 0)} point${Math.round(d) === 1 ? "" : "s"}`;
+  const L = v => (v / 1e5).toFixed(1);
+  const out = [];
+  const near = x => x && (x.levels || [])[0];
+  const leaving = l => l && l.chg != null && l.chg < 0 && Math.abs(l.chg) >= 0.05 * l.oi;
+  const c = near(se.call), p = near(se.put);
+  if(c){
+    const head = `Sellers are waiting at ${num(c.strike, 0)} (${L(c.oi)} lakh calls, ${pts(c.dist)} above)`;
+    out.push(se.call.adding ? `${head}, and more are being added right now, so the market may struggle to get past it.`
+      : leaving(c) ? `${head}, but some are leaving, so that ceiling is getting weaker.`
+      : `${head}. The market often slows down near a level like this.`);
+  }
+  if(p){
+    const head = `Support at ${num(p.strike, 0)} (${L(p.oi)} lakh puts, ${pts(p.dist)} below)`;
+    out.push(se.put.adding ? `${head} is getting stronger: more put sellers are defending it.`
+      : leaving(p) ? `${head} is getting weaker: put sellers are leaving.`
+      : `${head}: the market often bounces near a level like this.`);
+  }
+  const sum = x => ((x && x.levels) || []).reduce((a, l) => a + (l.oi || 0), 0);
+  const up = sum(se.call), dn = sum(se.put);
+  if(up && dn && up >= 1.5 * dn) out.push("There are more sellers above than support below, so going up looks harder than going down.");
+  else if(up && dn && dn >= 1.5 * up) out.push("There is more support below than sellers above, so falling looks harder than rising.");
+  return out.join(" ");
+}
+
 function sellersRows(se){
   if(!se || (!se.call && !se.put)) return "";
   return `<div class="se-rows"><div class="se-r"><span class="se-l">Sellers above &middot; calls</span>${sellerCell(se.call, "call")}</div>`
     + `<div class="se-r"><span class="se-l">Support below &middot; puts</span>${sellerCell(se.put, "put")}</div>`
-    + `<div class="se-u">open interest in lakh${se.minutes ? `, change over ${se.minutes} min` : ""}</div></div>`;
+    + `<div class="se-u">open interest in lakh${se.minutes ? `, change over ${se.minutes} min` : ""}</div>`
+    + (sellersSay(se) ? `<p class="se-say">${esc(sellersSay(se))}</p>` : "") + `</div>`;
 }
 
 // The Signal page's own box for them - not inside room to run, which the Trend Rider and the TradingView rating do not
@@ -10961,7 +10997,8 @@ function sellersDash(s){
     + `<th>Support below <small>puts &middot; lakh &middot; change</small></th></tr></thead><tbody>`
     + rows.map(([k, r]) => `<tr data-k="${esc(k)}"><td><b>${esc(k)}</b></td><td class="r" data-th="Price">${num(r.spot)}</td>`
         + `<td data-th="Sellers above \u00b7 calls">${sellerCell(r.sellers.call, "call")}</td>`
-        + `<td data-th="Support below \u00b7 puts">${sellerCell(r.sellers.put, "put")}</td></tr>`).join("")
+        + `<td data-th="Support below \u00b7 puts">${sellerCell(r.sellers.put, "put")}</td></tr>`
+        + (sellersSay(r.sellers) ? `<tr class="se-sayrow" data-k="${esc(k)}"><td colspan="4"><p class="se-say">${esc(sellersSay(r.sellers))}</p></td></tr>` : "")).join("")
     + `</tbody></table>`;
   if(el.innerHTML !== h) el.innerHTML = h;
   if(!el.dataset.wired){
