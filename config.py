@@ -629,6 +629,21 @@ SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX":
 # +76,234 vs +118,299 / +50,859 (per lot after costs, first two years / held-out), with a deeper worst drop. Sensex
 # was mixed and Midcap worse, so it is not offered there. No index starts on it (SYSTEM_DEFAULTS): the user picks it.
 SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY")}
+# EVERY VOTE MUST AGREE before a rules ticket on an Indian index (the user, 21 Oct 2026, after the live Nifty and Sensex
+# calls bought at 09:22 on MACD, RSI and VWAP with Trend and PCR not voting stopped out: "i want all 7 votes for the
+# trade" - the Signal page's seven rows; the ADX gate and room to run already had to pass). "all": Trend, MACD, RSI,
+# VWAP and PCR all vote the trade's way - PCR neutral (0.80-1.20) or missing holds it. "tested": the rule the 3-year
+# studies measure, 3 agreeing and at most 1 against (strictness()). Each account sets it per index in Trade settings
+# (TicketBook.votes_rule_for); this is the default. A hold at the ticket (tickets._votes_hold), not a change to the
+# reading: the analysis, the Signal page's votes and every backtest are untouched - and PCR has no history, so "all"
+# cannot be backtested. all_votes_study.py measured the nearest testable form (Trend, MACD, RSI, VWAP all agreeing) on
+# Nifty + Sensex + Midcap, per lot: +168,522 / +69,903 against the tested rule's +348,446 / +194,328, better in none of
+# 7 half-years - told to the user before they chose it. Only the rules system: the Trend Rider and the TradingView
+# rating keep their own entry rule.
+VOTES_RULE_CHOICES = ("all", "tested")
+VOTES_RULE_DEFAULT = "all"
+VOTES_ALL_NAMES = ("Trend", "MACD", "RSI", "VWAP", "PCR")
+
 # The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
 TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}

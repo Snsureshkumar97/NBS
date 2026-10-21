@@ -260,6 +260,9 @@ class TicketBook:
         # Each Indian index's system ("rules" / "trend_rider", config.SYSTEMS) - the user's choice, else
         # config.SYSTEM_DEFAULTS (7 Oct 2026). See system_for().
         self.systems_by = {}
+        # Each Indian index's vote rule for a rules ticket - "all" or "tested" (config.VOTES_RULE_CHOICES; the user, 21
+        # Oct 2026). See votes_rule_for().
+        self.votes_by = {}
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
@@ -307,6 +310,9 @@ class TicketBook:
             for k, v in (s.get("systems_by") or {}).items():
                 if k in names and system_allowed(v, k):
                     self.systems_by[k] = v
+            for k, v in (s.get("votes_by") or {}).items():
+                if k in names and v in _cfg("VOTES_RULE_CHOICES", ()):
+                    self.votes_by[k] = v
         except Exception:
             pass
 
@@ -340,6 +346,15 @@ class TicketBook:
             v = (_cfg("SYSTEM_DEFAULTS", {}) or {}).get(index)
         return v if system_allowed(v, index) else "rules"
 
+    def votes_rule_for(self, index):
+        """How many of the votes a rules ticket on this Indian index needs: "all" (Trend, MACD, RSI, VWAP and PCR all
+        the trade's way) or "tested" (3 agreeing, at most 1 against - what the studies measure). The account's choice,
+        else config.VOTES_RULE_DEFAULT. None off the Indian market: crypto keeps its own votes."""
+        if self.market != "nse_index":
+            return None
+        v = self.votes_by.get(index)
+        return v if v in _cfg("VOTES_RULE_CHOICES", ()) else _cfg("VOTES_RULE_DEFAULT", "tested")
+
     def cfd_plan(self, index):
         """The entry rule this account's crypto instrument trades on (config.cfd_plan of its system), or None: the
         tool's own votes (the engine)."""
@@ -370,7 +385,7 @@ class TicketBook:
             tmp = p + ".tmp"
             with open(tmp, "w") as fh:
                 json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots,
-                           "lots_by": self.lots_by, "systems_by": self.systems_by}, fh)
+                           "lots_by": self.lots_by, "systems_by": self.systems_by, "votes_by": self.votes_by}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -512,7 +527,8 @@ class TicketBook:
     # settings
     # =====================================================================
     def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
-                  capital=None, risk_pct=None, lots_index=None, system=None, system_index=None):
+                  capital=None, risk_pct=None, lots_index=None, system=None, system_index=None,
+                  votes=None, votes_index=None):
         with self.lock:
             if capital is not None:
                 # 0 or blank clears it, which also switches the loss limit off.
@@ -537,6 +553,11 @@ class TicketBook:
                 # it was opened with.
                 if system_index in config.instruments_in(self.market) and system_allowed(system, system_index):
                     self.systems_by[system_index] = system
+                    self._save_settings()
+            if votes is not None and self.market == "nse_index":
+                # One index's vote rule; an unknown index or rule changes nothing.
+                if votes_index in config.instruments_in(self.market) and votes in _cfg("VOTES_RULE_CHOICES", ()):
+                    self.votes_by[votes_index] = votes
                     self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
@@ -1304,6 +1325,11 @@ class TicketBook:
         if held is not None:
             return hold(*held)
 
+        # --- 6c. every vote the trade's way, where the account asks for it ---
+        held = self._votes_hold(book.name, rec)
+        if held is not None:
+            return hold(*held)
+
         # --- 7. worth taking: the final target pays at least the risk ------
         held = self._reward_hold(book.name, rec)
         if held is not None:
@@ -1423,6 +1449,33 @@ class TicketBook:
                 f"not confirming the move. Over three years, skipping entries like this "
                 f"made more in both the tested years and the held-out one, with a "
                 f"shallower drawdown. Held until the divergence clears.")
+
+    def _votes_hold(self, name, rec):
+        """Held unless every vote is the trade's way, on an index this account set to "all" (votes_rule_for; the user,
+        21 Oct 2026: "i want all 7 votes for the trade"). Trend, MACD, RSI, VWAP and PCR - a vote not cast (PCR inside
+        0.80-1.20, or no option chain) counts as not agreeing. Rules tickets only: the Trend Rider and the TradingView
+        rating have their own entry rule, and never reach here (_consider_rule)."""
+        if not name or self.votes_rule_for(name) != "all" or self.system_for(name) != "rules":
+            return None
+        side = 1 if rec.get("option_type") == "CE" else -1 if rec.get("option_type") == "PE" else 0
+        if not side:
+            return None
+        votes = rec.get("votes") or {}
+        names = _cfg("VOTES_ALL_NAMES", ("Trend", "MACD", "RSI", "VWAP", "PCR"))
+        off = [n for n in names if votes.get(n) != side]
+        if not off:
+            return None
+        def word(n):
+            v = votes.get(n)
+            if v is None:
+                return f"{n} has no reading" + (" (no option chain)" if n == "PCR" else "")
+            return f"{n} is against" if v == -side else f"{n} is not voting"
+        agree = len(names) - len(off)
+        return ("all_votes", "NOT ALL VOTES",
+                f"Your setting for {name} needs all {len(names)} votes - {', '.join(names)} - to agree before a "
+                f"ticket, with the ADX and room checks as well. {agree} of {len(names)} agree for a "
+                f"{'call' if side > 0 else 'put'}: {'; '.join(word(n) for n in off)}. Held until every one agrees. "
+                "Change it in Trade settings.")
 
     def _reward_hold(self, name, rec):
         """Watch-only indices, then reward:risk to T3. Last of the gates, so
@@ -1620,6 +1673,7 @@ class TicketBook:
         # trade could re-open straight after a stop on a 1:1 one.
         if (self._closed_hold(rec) is not None
                 or self._regime_hold(rec) is not None
+                or self._votes_hold(book.name, rec) is not None
                 or self._reward_hold(book.name, rec) is not None
                 or self._spread_hold(rec) is not None
                 or self._strike_taken(book, rec) is not None
@@ -2095,6 +2149,9 @@ class TicketBook:
                 "recent": self.closed[:8],
                 "lots": self.lots,
                 "lots_by": {k: self.lots_for(k) for k in config.instruments_in(self.market)},
+                "votes_by": ({k: self.votes_rule_for(k) for k in config.instruments_in(self.market)}
+                             if self.market == "nse_index" else {}),
+                "votes_choices": list(_cfg("VOTES_RULE_CHOICES", ())) if self.market == "nse_index" else [],
                 "systems_by": {k: self.system_for(k) for k in config.instruments_in(self.market)
                                if self.market == "nse_index" or k in (_cfg("CRYPTO_SYSTEMS", {}) or {})},
                 "system_choices": (list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else

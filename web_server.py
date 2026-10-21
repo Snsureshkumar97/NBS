@@ -2404,7 +2404,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            limits=as_bool("limits"),
                            capital=as_num("capital"), risk_pct=as_num("risk_pct"),
                            lots_index=(form.get("lots_index") or "").upper() or None,
-                           system=(form.get("system") or None), system_index=(form.get("system_index") or "").upper() or None)
+                           system=(form.get("system") or None), system_index=(form.get("system_index") or "").upper() or None,
+                           votes=(form.get("votes") or None), votes_index=(form.get("votes_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -3666,6 +3667,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-q{display:inline;margin-left:8px;font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-u{margin-left:8px}
 .kdlots .kdl-msg{display:block;margin-top:6px}
+.kdlots .kdl-vn{display:block;margin-top:3px;font-size:12px;color:var(--ink-3)}
 /* on a phone each index is a small card - its name, then lots / system / live orders labelled - rather than a table
    wider than the screen (20 Oct 2026: the live-orders dropdown was cut off at the edge) */
 @media(max-width:640px){
@@ -6203,7 +6205,9 @@ button.mgroup:hover{color:var(--ink-2)}
    <div class="kdlots" id="kdlots"></div>
    <div class="gnote">Lots and system apply to the next ticket on that index; an open one keeps what it opened with.
     Live orders can be switched here, on the Signal page (one index) or on Positions (all at once) - each asks
-    first, because it places real orders.</div>
+    first, because it places real orders. Votes: "All must agree" needs Trend, MACD, RSI, VWAP and PCR all the trade's
+    way (PCR neutral or missing holds it) - fewer trades, and untested, since PCR has no history; "3 of 5 (tested)" is
+    the rule the 3-year results measure. It applies while the index runs Current rules.</div>
   </div>
  </section>
 
@@ -6548,7 +6552,12 @@ function lotsDash(s){
                                 sess.system_labels || {});
   // Each index's own choices: the TradingView rating (tv_rating.py, 13 Oct 2026) is offered on Nifty and Bank Nifty only.
   const sysBy = sess.system_choices_by || {}, sysFor = k => sysBy[k] || sysChoices;
+  // How many votes a rules ticket needs, per index (the user, 21 Oct 2026: "i want all 7 votes for the trade") - the
+  // Indian market only; it applies while the index runs the tool's own rules.
+  const votesBy = sess.votes_by || {}, votesChoices = sess.votes_choices || [], votesOn = votesChoices.length > 0;
+  const VOTESNAME = {all: "All must agree", tested: "3 of 5 (tested)"};
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
+    + "|" + votesChoices.join(",")
     + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
@@ -6556,7 +6565,7 @@ function lotsDash(s){
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
-      + `${sysChoices.length ? "<th>System</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -6564,6 +6573,9 @@ function lotsDash(s){
           + (live && !live.includes(k) ? `<span class="kdl-u">paper only</span>` : "") + `</td>`
           + (sysChoices.length ? `<td data-th="System"><label><span class="kdl-sr">${esc(k)} system</span><select data-sys="${esc(k)}">`
               + sysFor(k).map(v => `<option value="${v}">${esc(SYSNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+          + (votesOn ? `<td data-th="Votes"><label><span class="kdl-sr">${esc(k)} votes</span><select data-votes="${esc(k)}">`
+              + votesChoices.map(v => `<option value="${v}">${esc(VOTESNAME[v] || v)}</option>`).join("")
+              + `</select></label><small class="kdl-vn" data-vn="${esc(k)}"></small></td>` : "")
           + `<td class="kdl-live" data-th="Live orders" data-live="${esc(k)}">` + (live && live.includes(k)
               ? `<label><span class="kdl-sr">${esc(k)} live orders</span><select data-livesel="${esc(k)}">`
                 + `<option value="off">Off &middot; paper</option><option value="on">On &middot; real orders</option></select></label>`
@@ -6583,6 +6595,31 @@ function lotsDash(s){
         if(msg && now === want) msg.textContent = want
           ? `${k}: live orders ON - every new ticket on ${k} is also placed at the broker with real money.`
           : `${k}: live orders off - new tickets on ${k} are paper only. A position already open is still managed to its exit.`;
+        return;
+      }
+      const vs = e.target.closest("select[data-votes]");
+      if(vs && vs.dataset && vs.dataset.votes){
+        const k = vs.dataset.votes, want = vs.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        vs.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({votes: want, votes_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.votes_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          vs.value = got;
+          if(msg) msg.textContent = got === "all"
+            ? `${k}: a rules ticket now needs all five votes - Trend, MACD, RSI, VWAP and PCR - plus the ADX and room checks.`
+            : `${k}: back to the tested rule - 3 votes agreeing, at most 1 against.`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).votes_by || {})[k];
+          if(was) vs.value = was;
+          if(msg) msg.textContent = `${k}: the vote rule could not be changed (are you still signed in?) - still ${VOTESNAME[was] || was}.`;
+        }finally{ vs.disabled = false; }
         return;
       }
       const ss = e.target.closest("select[data-sys]");
@@ -6646,6 +6683,16 @@ function lotsDash(s){
   el.querySelectorAll("select[data-sys]").forEach(sel => {
     const v = sys[sel.dataset.sys];
     if(v && document.activeElement !== sel && sel.value !== v) sel.value = v;
+  });
+  el.querySelectorAll("select[data-votes]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.votes;
+    if(!k) return;
+    const v = votesBy[k];
+    if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
+    const own = sys[k] && sys[k] !== "rules";
+    const n = el.querySelector && el.querySelector(`small[data-vn="${k}"]`);
+    const t = own ? `${SYSNAME[sys[k]] || sys[k]} uses its own rule` : "";
+    if(n && n.textContent !== t) n.textContent = t;
   });
 }
 
@@ -10663,7 +10710,9 @@ function gateSteps(r, ts){
                                      d: f.reading || ""});
   } else {
     const lined = r.bias === "BULLISH" || r.bias === "BEARISH" || !!r.adx_blocked || !!r.not_worth_it || !!r.macd_blocked;
-    steps.push({n: "Votes", ok: lined, d: `${r.agree || 0} for \u00b7 ${r.dissent || 0} against`});
+    // "All must agree" (Trade settings, 21 Oct 2026) holds at the ticket: the votes step is where it shows
+    const allv = code === "all_votes";
+    steps.push({n: "Votes", ok: lined && !allv, d: `${r.agree || 0} for \u00b7 ${r.dissent || 0} against` + (allv ? " \u00b7 needs all" : "")});
     const need = r.adx_needed;
     steps.push({n: "ADX", ok: r.adx == null ? null : !r.adx_blocked && (need == null || r.adx >= need),
                 d: r.adx == null ? "" : `ADX ${num(r.adx, 1)}` + (need != null ? ` \u00b7 needs ${num(need, 0)}` : "")});
@@ -10673,7 +10722,7 @@ function gateSteps(r, ts){
                 d: rr == null ? "" : `${num(rr, 2)}x` + (rn != null ? ` \u00b7 needs ${num(rn, 1)}x` : "")});
   }
   const sess = !!(code && GT_SESSION[code]);
-  const held = !!(code && !sess && code !== "neutral" && code !== "position_open");
+  const held = !!(code && !sess && code !== "neutral" && code !== "position_open" && code !== "all_votes");
   steps.push({n: "Ticket", ok: !held, d: held ? (wait.badge || "") : ""});
   steps.push({n: "Market", ok: !sess, d: sess ? (wait.badge || "") : "open"});
   return {steps, sess, held, wait};

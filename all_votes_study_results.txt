@@ -1,0 +1,61 @@
+============================================================================================================================================================================
+ EVERY VOTE MUST AGREE? the rules as live runs them, Nifty + Sensex + Midcap, per lot after costs, ₹  (columns: trades, won, total, profit factor, worst drop, worst day)
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ POOLED (the verdict)
+    TODAY                                        1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+    NO_AGAINST                                   1563   50% ₹  +286,394 PF 1.23 DD ₹  39,528 day ₹ -15,162  |  966   50% ₹  +115,639 PF 1.14 DD ₹  74,274 day ₹ -26,708
+    TREND_MUST                                   1422   50% ₹  +284,458 PF 1.25 DD ₹  40,342 day ₹ -15,340  |  881   51% ₹  +194,584 PF 1.29 DD ₹  54,830 day ₹ -12,275
+    ALL_FOUR                                     1106   50% ₹  +168,522 PF 1.19 DD ₹  36,351 day ₹ -15,162  |  712   49% ₹   +69,903 PF 1.12 DD ₹  41,421 day ₹ -12,714
+ NIFTY
+    TODAY                                         560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    NO_AGAINST                                    485   51% ₹   +53,131 PF 1.16 DD ₹  22,973 day ₹  -6,003  |  313   50% ₹   +23,230 PF 1.10 DD ₹  30,987 day ₹  -9,038
+    TREND_MUST                                    450   51% ₹   +61,197 PF 1.20 DD ₹  23,651 day ₹  -6,003  |  278   52% ₹   +74,316 PF 1.45 DD ₹  17,024 day ₹  -4,384
+    ALL_FOUR                                      349   53% ₹   +41,574 PF 1.17 DD ₹  22,329 day ₹  -6,003  |  239   51% ₹   +46,352 PF 1.31 DD ₹  16,037 day ₹  -4,503
+ SENSEX
+    TODAY                                         527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    NO_AGAINST                                    455   51% ₹   +56,977 PF 1.18 DD ₹  22,763 day ₹  -6,241  |  287   51% ₹   +45,687 PF 1.24 DD ₹  26,404 day ₹  -8,110
+    TREND_MUST                                    427   49% ₹   +61,605 PF 1.20 DD ₹  23,151 day ₹  -6,241  |  272   51% ₹   +45,308 PF 1.26 DD ₹  21,283 day ₹  -4,561
+    ALL_FOUR                                      323   50% ₹   +34,994 PF 1.15 DD ₹  19,498 day ₹  -6,241  |  207   51% ₹   +36,835 PF 1.29 DD ₹  18,014 day ₹  -4,561
+ MIDCPNIFTY
+    TODAY                                         700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    NO_AGAINST                                    623   50% ₹  +176,285 PF 1.29 DD ₹  32,155 day ₹ -10,703  |  366   49% ₹   +46,721 PF 1.12 DD ₹  50,325 day ₹ -10,074
+    TREND_MUST                                    545   50% ₹  +161,656 PF 1.31 DD ₹  32,056 day ₹  -9,061  |  331   49% ₹   +74,960 PF 1.22 DD ₹  44,328 day ₹  -8,186
+    ALL_FOUR                                      434   49% ₹   +91,954 PF 1.22 DD ₹  30,770 day ₹  -7,891  |  266   46% ₹   -13,285 PF 0.95 DD ₹  36,676 day ₹ -10,074
+
+ TODAY'S TRADES, split by what each condition would have said of them
+   NO_AGAINST: lets through 2331 of 2878
+       let through                               1429   52% ₹  +315,521 PF 1.28 DD ₹  40,800 day ₹ -15,162  |  902   51% ₹  +141,971 PF 1.20 DD ₹  74,001 day ₹ -29,422
+       blocked                                    358   48% ₹   +32,925 PF 1.10 DD ₹  43,237 day ₹ -15,445  |  189   52% ₹   +52,358 PF 1.35 DD ₹  28,075 day ₹  -7,492
+   TREND_MUST: lets through 2147 of 2878
+       let through                               1323   50% ₹  +267,789 PF 1.26 DD ₹  42,349 day ₹ -15,340  |  824   52% ₹  +187,822 PF 1.30 DD ₹  53,903 day ₹ -12,275
+       blocked                                    464   53% ₹   +80,657 PF 1.21 DD ₹  48,024 day ₹ -14,102  |  267   49% ₹    +6,506 PF 1.03 DD ₹  48,155 day ₹ -23,017
+   ALL_FOUR: lets through 1311 of 2878
+       let through                                792   51% ₹  +160,273 PF 1.26 DD ₹  34,656 day ₹ -15,162  |  519   51% ₹   +86,018 PF 1.22 DD ₹  30,573 day ₹ -11,785
+       blocked                                    995   50% ₹  +188,173 PF 1.23 DD ₹  47,732 day ₹ -21,092  |  572   51% ₹  +108,310 PF 1.22 DD ₹  72,515 day ₹ -23,017
+
+ VERDICT - kept only if more than TODAY in BOTH periods, pooled and then on each index
+  drop  NO_AGAINST pooled                            profit: in-sample   -62,053  held-out   -78,689   worst drop:  -11,845 /  -10,049   worst day:  +11,264 /   +2,714
+        walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹103,751 (today's ₹106,874), chance of a loss 0%;  held-out: 95% worst drop ₹121,234 (today's ₹103,025), chance of a loss 10%
+      drop  NO_AGAINST NIFTY                             profit: in-sample    -7,331  held-out   -28,584   worst drop:   -8,469 /   +3,672   worst day:   +1,485 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹56,985 (today's ₹63,492), chance of a loss 10%;  held-out: 95% worst drop ₹53,467 (today's ₹41,478), chance of a loss 23%
+      drop  NO_AGAINST SENSEX                            profit: in-sample   -21,120  held-out    -9,916   worst drop:   -6,320 /   +2,470   worst day:   +2,199 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹50,823 (today's ₹49,852), chance of a loss 7%;  held-out: 95% worst drop ₹38,727 (today's ₹39,783), chance of a loss 6%
+      drop  NO_AGAINST MIDCPNIFTY                        profit: in-sample   -33,601  held-out   -40,190   worst drop:   -1,048 /   -5,400   worst day:       +0 /   +2,201
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹67,924 (today's ₹63,690), chance of a loss 0%;  held-out: 95% worst drop ₹86,641 (today's ₹72,104), chance of a loss 20%
+  drop  TREND_MUST pooled                            profit: in-sample   -63,989  held-out      +256   worst drop:  -11,031 /  -29,493   worst day:  +11,086 /  +17,147
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹100,888 (today's ₹106,874), chance of a loss 0%;  held-out: 95% worst drop ₹73,968 (today's ₹103,025), chance of a loss 1%
+      KEEP  TREND_MUST NIFTY                             profit: in-sample      +735  held-out   +22,502   worst drop:   -7,791 /  -10,291   worst day:   +1,485 /   +4,654
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹51,762 (today's ₹63,492), chance of a loss 6%;  held-out: 95% worst drop ₹25,880 (today's ₹41,478), chance of a loss 0%  -> STEADY
+      drop  TREND_MUST SENSEX                            profit: in-sample   -16,493  held-out   -10,295   worst drop:   -5,932 /   -2,651   worst day:   +2,199 /   +3,549
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹49,744 (today's ₹49,852), chance of a loss 6%;  held-out: 95% worst drop ₹33,642 (today's ₹39,783), chance of a loss 5%
+      drop  TREND_MUST MIDCPNIFTY                        profit: in-sample   -48,230  held-out   -11,951   worst drop:   -1,147 /  -11,398   worst day:   +1,642 /   +4,088
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹62,804 (today's ₹63,690), chance of a loss 1%;  held-out: 95% worst drop ₹64,368 (today's ₹72,104), chance of a loss 7%
+  drop  ALL_FOUR pooled                              profit: in-sample  -179,925  held-out  -124,426   worst drop:  -15,022 /  -42,902   worst day:  +11,264 /  +16,708
+        walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹106,407 (today's ₹106,874), chance of a loss 3%;  held-out: 95% worst drop ₹106,128 (today's ₹103,025), chance of a loss 16%
+      drop  ALL_FOUR NIFTY                               profit: in-sample   -18,888  held-out    -5,462   worst drop:   -9,114 /  -11,279   worst day:   +1,485 /   +4,535
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹50,568 (today's ₹63,492), chance of a loss 12%;  held-out: 95% worst drop ₹32,795 (today's ₹41,478), chance of a loss 5%
+      drop  ALL_FOUR SENSEX                              profit: in-sample   -43,104  held-out   -18,768   worst drop:   -9,585 /   -5,920   worst day:   +2,199 /   +3,549
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹48,910 (today's ₹49,852), chance of a loss 14%;  held-out: 95% worst drop ₹28,031 (today's ₹39,783), chance of a loss 6%
+      drop  ALL_FOUR MIDCPNIFTY                          profit: in-sample  -117,932  held-out  -100,196   worst drop:   -2,433 /  -19,049   worst day:   +2,812 /   +2,201
+        walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹71,677 (today's ₹63,690), chance of a loss 6%;  held-out: 95% worst drop ₹102,344 (today's ₹72,104), chance of a loss 61%
