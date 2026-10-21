@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Every vote must agree before a rules ticket, per index, from Trade settings (the user, 21 Oct 2026: "i want all 7
 votes for the trade", after the live Nifty / Sensex calls bought on MACD, RSI and VWAP with Trend and PCR not voting
-stopped out). Trend, MACD, RSI, VWAP and PCR all the trade's way, or the ticket is held - PCR neutral or missing
-included; "3 of 5 (tested)" keeps the rule the studies measure. No network."""
+stopped out). Trend, MACD, RSI and VWAP all the trade's way, or the ticket is held; PCR the exception - it counts only
+when it votes (the user, that evening); "3 of 5 (tested)" keeps the rule the studies measure. No network."""
 import os
 import sys
 import tempfile
@@ -34,8 +34,9 @@ def rec(side="CE", **votes):
 
 print("1. THE DEFAULT AND THE CHOICES")
 b = book()
-check("config: 'all' by default, 'all' / 'tested' offered", config.VOTES_RULE_DEFAULT == "all"
-      and tuple(config.VOTES_RULE_CHOICES) == ("all", "tested"))
+check("config: 'all' by default, 'all' / 'tested' offered; the four required, PCR when it votes",
+      config.VOTES_RULE_DEFAULT == "all" and tuple(config.VOTES_RULE_CHOICES) == ("all", "tested")
+      and tuple(config.VOTES_ALL_NAMES) == ("Trend", "MACD", "RSI", "VWAP") and tuple(config.VOTES_WHEN_CAST) == ("PCR",))
 check("an Indian index nobody has set: 'all'", b.votes_rule_for("NIFTY") == "all" and b.votes_rule_for("MIDCPNIFTY") == "all")
 check("crypto has no such rule (its own votes)", tickets.TicketBook(market="crypto").votes_rule_for("BTC") is None)
 
@@ -43,11 +44,15 @@ print("2. THE HOLD")
 b.systems_by.update(NIFTY="rules")
 check("all five the trade's way: no hold", b._votes_hold("NIFTY", rec()) is None and b._votes_hold("NIFTY", rec("PE")) is None)
 h = b._votes_hold("NIFTY", rec(Trend=0, PCR=0))
-check("21 Oct's call: Trend and PCR not voting -> NOT ALL VOTES, both named, 3 of 5",
+check("21 Oct's call: Trend not voting -> NOT ALL VOTES, Trend named, 3 of 4 (PCR neutral is not held against it)",
       h and h[0] == "all_votes" and h[1] == "NOT ALL VOTES" and "Trend is not voting" in h[2]
-      and "PCR is not voting" in h[2] and "3 of 5 agree for a call" in h[2], h)
-h = b._votes_hold("NIFTY", rec(PCR=None))
-check("no option chain: PCR has no reading - held", h and "PCR has no reading (no option chain)" in h[2], h)
+      and "PCR is not voting" not in h[2] and "3 of 4 agree for a call" in h[2], h)
+print("   PCR, THE EXCEPTION (the user, 21 Oct 2026 evening: 'make as an exception just to show when it counts')")
+check("the four agree, PCR neutral: no hold", b._votes_hold("NIFTY", rec(PCR=0)) is None)
+check("the four agree, no option chain at all: no hold", b._votes_hold("NIFTY", rec(PCR=None)) is None)
+h = b._votes_hold("NIFTY", rec(PCR=-1))
+check("the four agree but PCR votes AGAINST: held, PCR named", h and "PCR is against" in h[2] and "4 of 4 agree" in h[2], h)
+check("PCR for the trade: no hold", b._votes_hold("NIFTY", rec(PCR=1)) is None)
 h = b._votes_hold("NIFTY", rec("PE", MACD=1))
 check("a put with MACD against: held, MACD named as against", h and "MACD is against" in h[2] and "for a put" in h[2], h)
 check("no direction (no option type): nothing to hold", b._votes_hold("NIFTY", {"votes": {}}) is None)

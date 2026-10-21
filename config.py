@@ -631,8 +631,8 @@ SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX":
 SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY")}
 # EVERY VOTE MUST AGREE before a rules ticket on an Indian index (the user, 21 Oct 2026, after the live Nifty and Sensex
 # calls bought at 09:22 on MACD, RSI and VWAP with Trend and PCR not voting stopped out: "i want all 7 votes for the
-# trade" - the Signal page's seven rows; the ADX gate and room to run already had to pass). "all": Trend, MACD, RSI,
-# VWAP and PCR all vote the trade's way - PCR neutral (0.80-1.20) or missing holds it. "tested": the rule the 3-year
+# trade" - the Signal page's seven rows; the ADX gate and room to run already had to pass). "all": Trend, MACD, RSI and
+# VWAP all vote the trade's way, and PCR too when it votes (VOTES_WHEN_CAST below). "tested": the rule the 3-year
 # studies measure, 3 agreeing and at most 1 against (strictness()). Each account sets it per index in Trade settings
 # (TicketBook.votes_rule_for); this is the default. A hold at the ticket (tickets._votes_hold), not a change to the
 # reading: the analysis, the Signal page's votes and every backtest are untouched - and PCR has no history, so "all"
@@ -642,7 +642,11 @@ SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY")}
 # rating keep their own entry rule.
 VOTES_RULE_CHOICES = ("all", "tested")
 VOTES_RULE_DEFAULT = "all"
-VOTES_ALL_NAMES = ("Trend", "MACD", "RSI", "VWAP", "PCR")
+VOTES_ALL_NAMES = ("Trend", "MACD", "RSI", "VWAP")
+# PCR, the exception (the user, 21 Oct 2026 evening: "if PCR vote does make difference we can make as an exception just
+# to show when it counts"): it votes only outside 0.80-1.20, which is rare, so under "all" it counts only when it votes -
+# against the trade it holds it, neutral or missing it does not.
+VOTES_WHEN_CAST = ("PCR",)
 
 # The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).

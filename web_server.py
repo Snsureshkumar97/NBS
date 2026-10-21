@@ -6235,9 +6235,9 @@ button.mgroup:hover{color:var(--ink-2)}
    <div class="kdlots" id="kdlots"></div>
    <div class="gnote">Lots and system apply to the next ticket on that index; an open one keeps what it opened with.
     Live orders can be switched here, on the Signal page (one index) or on Positions (all at once) - each asks
-    first, because it places real orders. Votes: "All must agree" needs Trend, MACD, RSI, VWAP and PCR all the trade's
-    way (PCR neutral or missing holds it) - fewer trades, and untested, since PCR has no history; "3 of 5 (tested)" is
-    the rule the 3-year results measure. It applies while the index runs Current rules.</div>
+    first, because it places real orders. Votes: "All must agree" needs Trend, MACD, RSI and VWAP all the trade's way,
+    and PCR too when it votes (neutral or missing, it is shown, not required) - fewer trades; "3 of 5 (tested)" is the
+    rule the 3-year results measure. It applies while the index runs Current rules.</div>
   </div>
  </section>
 
@@ -6642,7 +6642,7 @@ function lotsDash(s){
           if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
           vs.value = got;
           if(msg) msg.textContent = got === "all"
-            ? `${k}: a rules ticket now needs all five votes - Trend, MACD, RSI, VWAP and PCR - plus the ADX and room checks.`
+            ? `${k}: a rules ticket now needs Trend, MACD, RSI and VWAP all agreeing (and PCR too when it votes), plus the ADX and room checks.`
             : `${k}: back to the tested rule - 3 votes agreeing, at most 1 against.`;
           if(LAST) render(LAST);
         }catch(err){

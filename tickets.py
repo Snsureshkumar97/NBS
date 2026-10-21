@@ -1452,30 +1452,35 @@ class TicketBook:
 
     def _votes_hold(self, name, rec):
         """Held unless every vote is the trade's way, on an index this account set to "all" (votes_rule_for; the user,
-        21 Oct 2026: "i want all 7 votes for the trade"). Trend, MACD, RSI, VWAP and PCR - a vote not cast (PCR inside
-        0.80-1.20, or no option chain) counts as not agreeing. Rules tickets only: the Trend Rider and the TradingView
-        rating have their own entry rule, and never reach here (_consider_rule)."""
+        21 Oct 2026: "i want all 7 votes for the trade"). Trend, MACD, RSI and VWAP must each vote the trade's way - one
+        not voting counts as not agreeing. PCR is the exception (the user, the same evening: "if PCR vote does make
+        difference we can make as an exception just to show when it counts"): it sits inside 0.80-1.20 most of the day,
+        so it counts only when it votes - against the trade, it holds it; neutral or no chain, it is shown, not
+        required. Rules tickets only: the Trend Rider and the TradingView rating have their own entry rule, and never
+        reach here (_consider_rule)."""
         if not name or self.votes_rule_for(name) != "all" or self.system_for(name) != "rules":
             return None
         side = 1 if rec.get("option_type") == "CE" else -1 if rec.get("option_type") == "PE" else 0
         if not side:
             return None
         votes = rec.get("votes") or {}
-        names = _cfg("VOTES_ALL_NAMES", ("Trend", "MACD", "RSI", "VWAP", "PCR"))
-        off = [n for n in names if votes.get(n) != side]
+        names = _cfg("VOTES_ALL_NAMES", ("Trend", "MACD", "RSI", "VWAP"))
+        optional = _cfg("VOTES_WHEN_CAST", ("PCR",))
+        off = [n for n in names if votes.get(n) != side] + [n for n in optional if votes.get(n) == -side]
         if not off:
             return None
+
         def word(n):
             v = votes.get(n)
             if v is None:
-                return f"{n} has no reading" + (" (no option chain)" if n == "PCR" else "")
+                return f"{n} has no reading"
             return f"{n} is against" if v == -side else f"{n} is not voting"
-        agree = len(names) - len(off)
+        agree = sum(1 for n in names if votes.get(n) == side)
         return ("all_votes", "NOT ALL VOTES",
                 f"Your setting for {name} needs all {len(names)} votes - {', '.join(names)} - to agree before a "
-                f"ticket, with the ADX and room checks as well. {agree} of {len(names)} agree for a "
-                f"{'call' if side > 0 else 'put'}: {'; '.join(word(n) for n in off)}. Held until every one agrees. "
-                "Change it in Trade settings.")
+                f"ticket, with the ADX and room checks as well; PCR only counts when it votes, and then it has to "
+                f"agree too. {agree} of {len(names)} agree for a {'call' if side > 0 else 'put'}: "
+                f"{'; '.join(word(n) for n in off)}. Held until every one agrees. Change it in Trade settings.")
 
     def _reward_hold(self, name, rec):
         """Watch-only indices, then reward:risk to T3. Last of the gates, so
