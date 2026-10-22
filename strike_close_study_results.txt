@@ -1,0 +1,37 @@
+============================================================================================================================================================================
+ ENTER ONLY AFTER A 15-MINUTE CLOSE BEYOND THE STRIKE THE TOOL GAVE - each index on its live system, per lot after costs, ₹ (columns: trades, won, total, profit factor, worst drop, worst day)
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ RULES: NIFTY + SENSEX + MIDCAP (the verdict)
+    TODAY                                        1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+    STRIKE_CLOSE                                 1276   49% ₹  +215,651 PF 1.20 DD ₹  39,723 day ₹ -21,558  |  776   48% ₹  +119,842 PF 1.19 DD ₹  60,279 day ₹ -15,754
+ NIFTY
+    TODAY                                         560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    STRIKE_CLOSE                                  393   47% ₹   +10,395 PF 1.03 DD ₹  45,096 day ₹  -7,679  |  235   49% ₹   +52,142 PF 1.35 DD ₹  23,415 day ₹  -5,751
+ SENSEX
+    TODAY                                         527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    STRIKE_CLOSE                                  381   50% ₹   +51,719 PF 1.18 DD ₹  25,685 day ₹  -8,440  |  246   46% ₹    +6,478 PF 1.03 DD ₹  28,487 day ₹  -7,565
+ MIDCPNIFTY
+    TODAY                                         700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    STRIKE_CLOSE                                  502   51% ₹  +153,537 PF 1.31 DD ₹  20,651 day ₹  -7,988  |  295   47% ₹   +61,222 PF 1.21 DD ₹  29,037 day ₹ -10,074
+ BANKNIFTY  (TradingView rating)
+    TODAY                                         804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+    STRIKE_CLOSE                                  585   36% ₹  +160,627 PF 1.27 DD ₹  57,045 day ₹ -10,959  |  337   35% ₹   +35,977 PF 1.10 DD ₹  76,243 day ₹ -10,501
+
+ THE SIGNALS UNDER STRIKE_CLOSE (every signal run, before the one-position and re-entry rules)
+   NIFTY        1228 signals: already beyond the strike at once 49.6%, waited and got there 20.7% (on average 2.0 closes, 15 min each), never got there 29.7%
+   SENSEX       1207 signals: already beyond the strike at once 51.8%, waited and got there 22.9% (on average 1.7 closes, 15 min each), never got there 25.3%
+   MIDCPNIFTY   1562 signals: already beyond the strike at once 49.1%, waited and got there 22.7% (on average 1.7 closes, 15 min each), never got there 28.2%
+   BANKNIFTY    2261 signals: already beyond the strike at once 49.8%, waited and got there 14.5% (on average 1.1 closes, 15 min each), never got there 35.7%
+
+ VERDICT - kept only if more than TODAY in BOTH periods (pooled), then on each index
+  drop  STRIKE_CLOSE rules pooled                    profit: in-sample  -132,796  held-out   -74,486   worst drop:  -11,650 /  -24,044   worst day:   +4,868 /  +13,668
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹101,322 (today's ₹106,874), chance of a loss 1%;  held-out: 95% worst drop ₹96,509 (today's ₹103,025), chance of a loss 6%
+      drop  STRIKE_CLOSE NIFTY                           profit: in-sample   -50,067  held-out      +328   worst drop:  +13,654 /   -3,900   worst day:     -192 /   +3,287
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹72,153 (today's ₹63,492), chance of a loss 39%;  held-out: 95% worst drop ₹32,168 (today's ₹41,478), chance of a loss 3%
+      drop  STRIKE_CLOSE SENSEX                          profit: in-sample   -26,378  held-out   -49,125   worst drop:   -3,398 /   +4,553   worst day:       +0 /     +545
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹52,818 (today's ₹49,852), chance of a loss 9%;  held-out: 95% worst drop ₹59,361 (today's ₹39,783), chance of a loss 41%
+      drop  STRIKE_CLOSE MIDCPNIFTY                      profit: in-sample   -56,350  held-out   -25,689   worst drop:  -12,552 /  -26,688   worst day:   +2,716 /   +2,201
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹56,079 (today's ₹63,690), chance of a loss 0%;  held-out: 95% worst drop ₹62,219 (today's ₹72,104), chance of a loss 9%
+      drop  STRIKE_CLOSE BANKNIFTY                       profit: in-sample   -20,658  held-out   -40,257   worst drop:  -11,094 /  +23,008   worst day:   +2,624 /     +952
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹97,887 (today's ₹111,152), chance of a loss 4%;  held-out: 95% worst drop ₹109,069 (today's ₹88,947), chance of a loss 29%
