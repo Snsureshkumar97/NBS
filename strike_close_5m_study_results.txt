@@ -1,0 +1,25 @@
+Reading every 15-minute candle three times as it forms (this takes a while)...
+======================================================================================================================================================
+ ENTER ONLY AFTER A 5-MINUTE CLOSE BEYOND THE STRIKE - Nifty + Bank Nifty + Sensex, per lot after costs, the same exits for both (live, on 5-minute candles)
+======================================================================================================================================================
+ entry                  IN-SAMPLE: trades, won, total, per trade, profit factor, worst drop      | HELD-OUT FINAL YEAR
+ first signal            2673  39% ₹  +510,928 ₹ +191/tr PF 1.21 DD ₹  77,957                    |  1578  37% ₹   +98,693 ₹  +63/tr PF 1.07 DD ₹ 105,150
+ strike close (5 min)    2144  38% ₹  +427,234 ₹ +199/tr PF 1.22 DD ₹  95,316                    |  1299  36% ₹   +57,079 ₹  +44/tr PF 1.05 DD ₹ 115,775
+ NIFTY
+    first signal          893  40% ₹  +201,222 ₹ +225/tr PF 1.29 DD ₹  25,196                    |   530  39% ₹   +92,701 ₹ +175/tr PF 1.23 DD ₹  31,675
+    strike close (5 min)   708  39% ₹  +208,434 ₹ +294/tr PF 1.36 DD ₹  47,388                    |   422  37% ₹   +85,403 ₹ +202/tr PF 1.26 DD ₹  28,117
+ BANKNIFTY
+    first signal          920  38% ₹   +96,243 ₹ +105/tr PF 1.10 DD ₹  84,715                    |   518  37% ₹   -63,027 ₹ -122/tr PF 0.89 DD ₹  63,027
+    strike close (5 min)   728  37% ₹   +70,521 ₹  +97/tr PF 1.09 DD ₹  84,551                    |   426  37% ₹   -66,705 ₹ -157/tr PF 0.86 DD ₹  66,999
+ SENSEX
+    first signal          860  39% ₹  +213,463 ₹ +248/tr PF 1.30 DD ₹  35,574                    |   530  37% ₹   +69,020 ₹ +130/tr PF 1.17 DD ₹  28,304
+    strike close (5 min)   708  39% ₹  +148,279 ₹ +209/tr PF 1.24 DD ₹  32,113                    |   451  35% ₹   +38,381 ₹  +85/tr PF 1.10 DD ₹  38,091
+
+ THE SIGNAL RUNS UNDER THE STRIKE RULE (every run of reads, before one-position and the cooldown)
+   NIFTY       2099 runs: beyond the strike at once 49.5%, waited and got there 20.0% (on average 15 minutes), never 30.4%
+   BANKNIFTY   2130 runs: beyond the strike at once 50.9%, waited and got there 20.6% (on average 13 minutes), never 28.5%
+   SENSEX      2059 runs: beyond the strike at once 50.7%, waited and got there 22.8% (on average 13 minutes), never 26.6%
+
+ VERDICT - DROP: strike close (5 min) against first signal, in-sample -83,694, held-out -41,614; NIFTY +7,212 / -7,298; BANKNIFTY -25,721 / -3,678; SENSEX -65,184 / -30,639
+   drop  strike close (5 min)                         profit: in-sample   -83,694  held-out   -41,614   worst drop:  +17,359 /  +10,625   worst day:     -351 /     -136
+           walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹191,302 (today's ₹208,654), chance of a loss 1%;  held-out: 95% worst drop ₹229,165 (today's ₹237,379), chance of a loss 33%
