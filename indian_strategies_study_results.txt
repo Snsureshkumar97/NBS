@@ -1,0 +1,47 @@
+==========================================================================================================================================================================
+ POPULAR INDIAN INTRADAY STRATEGIES AGAINST THE TOOL - at-the-money options, per lot after costs, ₹  (columns: trades, won, total, profit factor, worst drop, worst day)
+==========================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY
+    THE TOOL (TradingView rating)                 763   39% ₹  +267,670 PF 1.46 DD ₹  26,758 day ₹  -8,877  |  404   39% ₹  +143,011 PF 1.51 DD ₹  33,562 day ₹  -6,133
+    (the tool's rules)                            560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    ORB15                                         448   42% ₹  +224,178 PF 1.41 DD ₹  40,702 day ₹  -6,292  |  255   44% ₹   +15,585 PF 1.05 DD ₹  45,297 day ₹  -6,351
+    ORB30                                         431   43% ₹  +225,204 PF 1.44 DD ₹  36,453 day ₹  -7,668  |  243   43% ₹   +31,058 PF 1.10 DD ₹  39,343 day ₹  -5,906
+    FIRST5                                        468   37% ₹  +158,917 PF 1.27 DD ₹  40,755 day ₹  -7,066  |  264   41% ₹    +5,881 PF 1.02 DD ₹  33,993 day ₹  -5,754
+    PDHL                                          346   34% ₹   +36,592 PF 1.13 DD ₹  35,850 day ₹  -6,606  |  215   39% ₹   +17,512 PF 1.12 DD ₹  30,430 day ₹  -3,408
+    CAMARILLA                                     306   42% ₹  +217,160 PF 1.67 DD ₹  28,227 day ₹  -6,416  |  197   48% ₹   +70,078 PF 1.32 DD ₹  26,228 day ₹  -9,144
+    NOISE                                         361   37% ₹  +217,005 PF 1.75 DD ₹  29,132 day ₹  -7,824  |  205   33% ₹   +69,580 PF 1.46 DD ₹  17,091 day ₹  -4,830
+    SUPERTR                                       247   40% ₹  +125,809 PF 1.40 DD ₹  56,602 day ₹  -8,988  |  127   47% ₹   +38,709 PF 1.26 DD ₹  26,663 day ₹  -8,435
+    LAST30                                        470   43% ₹        +2 PF 1.00 DD ₹  43,543 day ₹  -5,019  |  265   43% ₹    +6,226 PF 1.04 DD ₹  20,328 day ₹  -4,332
+ BANKNIFTY
+    THE TOOL (TradingView rating)                 804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  440   38% ₹   +76,234 PF 1.19 DD ₹  53,236 day ₹ -11,453
+    ORB15                                         443   37% ₹   +80,480 PF 1.11 DD ₹  69,597 day ₹  -8,953  |  244   48% ₹   +49,228 PF 1.12 DD ₹  68,771 day ₹  -9,652
+    ORB30                                         419   38% ₹   +70,873 PF 1.10 DD ₹  62,061 day ₹  -9,369  |  232   49% ₹   +45,669 PF 1.13 DD ₹  54,999 day ₹  -9,652
+    FIRST5                                        464   36% ₹   +74,590 PF 1.10 DD ₹  56,877 day ₹  -8,953  |  262   42% ₹   +17,134 PF 1.04 DD ₹  48,983 day ₹  -9,428
+    PDHL                                          358   34% ₹    -5,385 PF 0.99 DD ₹  54,775 day ₹  -5,394  |  213   33% ₹   -36,985 PF 0.83 DD ₹  60,925 day ₹  -6,093
+    CAMARILLA                                     281   41% ₹  +158,211 PF 1.41 DD ₹  45,718 day ₹  -5,963  |  178   42% ₹   -15,471 PF 0.95 DD ₹  68,615 day ₹ -14,246
+    NOISE                                         375   31% ₹  +143,620 PF 1.37 DD ₹  74,192 day ₹  -9,566  |  223   30% ₹   +16,750 PF 1.07 DD ₹  37,663 day ₹  -9,721
+    SUPERTR                                       226   44% ₹  +170,336 PF 1.51 DD ₹  45,790 day ₹  -8,473  |  140   49% ₹   -14,561 PF 0.94 DD ₹  56,658 day ₹ -11,882
+    LAST30                                        470   42% ₹   -36,171 PF 0.87 DD ₹  47,055 day ₹  -5,711  |  265   42% ₹   -58,825 PF 0.72 DD ₹  70,937 day ₹  -6,943
+ SENSEX
+    THE TOOL (rules)                              527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    ORB15                                         444   43% ₹  +190,507 PF 1.35 DD ₹  56,925 day ₹  -6,263  |  248   43% ₹   +57,285 PF 1.19 DD ₹  24,755 day ₹  -6,798
+    ORB30                                         426   44% ₹  +238,231 PF 1.48 DD ₹  41,598 day ₹  -7,136  |  238   46% ₹   +62,588 PF 1.22 DD ₹  30,390 day ₹  -6,992
+    FIRST5                                        463   37% ₹  +160,250 PF 1.27 DD ₹  46,698 day ₹  -7,972  |  263   41% ₹   +30,366 PF 1.08 DD ₹  29,120 day ₹  -6,780
+    PDHL                                          349   37% ₹   +76,430 PF 1.27 DD ₹  21,791 day ₹  -6,971  |  220   37% ₹   +15,284 PF 1.10 DD ₹  29,182 day ₹  -3,712
+    CAMARILLA                                     300   43% ₹  +215,988 PF 1.66 DD ₹  27,720 day ₹  -6,615  |  192   46% ₹   +75,447 PF 1.36 DD ₹  28,387 day ₹  -8,007
+    NOISE                                         346   37% ₹  +252,964 PF 1.88 DD ₹  19,273 day ₹  -6,531  |  218   27% ₹   +25,990 PF 1.16 DD ₹  23,423 day ₹  -3,794
+    SUPERTR                                       246   46% ₹  +210,369 PF 1.70 DD ₹  27,509 day ₹  -7,866  |  125   46% ₹   +65,690 PF 1.42 DD ₹  21,578 day ₹  -7,965
+    LAST30                                        470   47% ₹   +20,686 PF 1.10 DD ₹  22,077 day ₹  -6,091  |  265   44% ₹    -3,271 PF 0.98 DD ₹  20,558 day ₹  -4,813
+ MIDCPNIFTY
+    THE TOOL (rules)                              700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    ORB15                                         446   46% ₹  +258,342 PF 1.34 DD ₹  99,135 day ₹ -11,306  |  246   45% ₹   -52,422 PF 0.90 DD ₹  86,142 day ₹ -12,842
+    ORB30                                         422   50% ₹  +288,885 PF 1.45 DD ₹  31,999 day ₹ -13,333  |  237   45% ₹   -61,564 PF 0.87 DD ₹ 107,627 day ₹ -12,842
+    PDHL                                          372   37% ₹   +34,761 PF 1.08 DD ₹  56,287 day ₹  -8,069  |  219   34% ₹   -23,205 PF 0.91 DD ₹  47,429 day ₹  -7,714
+    CAMARILLA                                     299   50% ₹  +195,542 PF 1.46 DD ₹  24,225 day ₹  -8,997  |  170   45% ₹   +30,390 PF 1.10 DD ₹  76,277 day ₹ -14,921
+    NOISE                                         361   36% ₹  +184,054 PF 1.44 DD ₹  28,315 day ₹ -10,233  |  249   35% ₹    +1,995 PF 1.01 DD ₹  38,774 day ₹ -11,482
+    SUPERTR                                       239   55% ₹  +250,176 PF 1.69 DD ₹  50,672 day ₹ -16,114  |  145   54% ₹  +105,985 PF 1.43 DD ₹  36,411 day ₹ -12,933
+    LAST30                                        470   43% ₹   -90,266 PF 0.73 DD ₹  99,941 day ₹  -4,992  |  265   45% ₹   -10,354 PF 0.95 DD ₹  36,267 day ₹  -6,559
+
+ VERDICT: BETTER THAN THE TOOL - ORB15 on SENSEX, ORB30 on SENSEX, CAMARILLA on SENSEX, SUPERTR on SENSEX, SUPERTR on MIDCPNIFTY
+   made money in both periods (but less than the tool): CAMARILLA on MIDCPNIFTY, CAMARILLA on NIFTY, CAMARILLA on SENSEX, FIRST5 on BANKNIFTY, FIRST5 on NIFTY, FIRST5 on SENSEX, LAST30 on NIFTY, NOISE on BANKNIFTY, NOISE on MIDCPNIFTY, NOISE on NIFTY, NOISE on SENSEX, ORB15 on BANKNIFTY, ORB15 on NIFTY, ORB15 on SENSEX, ORB30 on BANKNIFTY, ORB30 on NIFTY, ORB30 on SENSEX, PDHL on NIFTY, PDHL on SENSEX, SUPERTR on MIDCPNIFTY, SUPERTR on NIFTY, SUPERTR on SENSEX

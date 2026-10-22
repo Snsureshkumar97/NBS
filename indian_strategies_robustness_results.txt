@@ -1,0 +1,45 @@
+==========================================================================================================================================================================
+ THE WINNERS, AGAINST THE TOOL'S RULES ON THEIR INDEX - per lot after costs, with robustness.py's walk-forward and Monte Carlo; then with double slippage
+==========================================================================================================================================================================
+ ORB15 on SENSEX
+    the tool's rules                              527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    ORB15 (slippage 0.25%)                        444   43% ₹  +190,507 PF 1.35 DD ₹  56,925 day ₹  -6,263  |  248   43% ₹   +57,285 PF 1.19 DD ₹  24,755 day ₹  -6,798
+    ORB15 (slippage 0.50%)                        444   43% ₹  +174,977 PF 1.31 DD ₹  59,294 day ₹  -6,308  |  248   43% ₹   +49,102 PF 1.16 DD ₹  25,206 day ₹  -6,851
+   KEEP  ORB15 vs the rules                           profit: in-sample  +112,410  held-out    +1,682   worst drop:  +27,842 /     +821   worst day:   +2,177 /   +1,312
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹78,289 (today's ₹49,852), chance of a loss 1%;  held-out: 95% worst drop ₹78,079 (today's ₹39,783), chance of a loss 14%  -> KEEP, FRAGILE (wins too few half-years) (deeper 95% drop)
+   drop  ORB15 at double slippage vs the rules        profit: in-sample   +96,880  held-out    -6,501   worst drop:  +30,211 /   +1,272   worst day:   +2,132 /   +1,259
+ ORB30 on SENSEX
+    the tool's rules                              527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    ORB30 (slippage 0.25%)                        426   44% ₹  +238,231 PF 1.48 DD ₹  41,598 day ₹  -7,136  |  238   46% ₹   +62,588 PF 1.22 DD ₹  30,390 day ₹  -6,992
+    ORB30 (slippage 0.50%)                        426   44% ₹  +223,243 PF 1.44 DD ₹  42,399 day ₹  -7,180  |  238   45% ₹   +54,719 PF 1.19 DD ₹  33,230 day ₹  -7,038
+   KEEP  ORB30 vs the rules                           profit: in-sample  +160,133  held-out    +6,985   worst drop:  +12,515 /   +6,456   worst day:   +1,304 /   +1,118
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹68,820 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹72,499 (today's ₹39,783), chance of a loss 12%  -> KEEP, FRAGILE (wins too few half-years) (deeper 95% drop)
+   drop  ORB30 at double slippage vs the rules        profit: in-sample  +145,145  held-out      -884   worst drop:  +13,317 /   +9,296   worst day:   +1,260 /   +1,072
+ CAMARILLA on SENSEX
+    the tool's rules                              527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    CAMARILLA (slippage 0.25%)                    300   43% ₹  +215,988 PF 1.66 DD ₹  27,720 day ₹  -6,615  |  192   46% ₹   +75,447 PF 1.36 DD ₹  28,387 day ₹  -8,007
+    CAMARILLA (slippage 0.50%)                    300   43% ₹  +205,601 PF 1.62 DD ₹  29,046 day ₹  -6,647  |  192   46% ₹   +68,750 PF 1.32 DD ₹  30,088 day ₹  -8,044
+   KEEP  CAMARILLA vs the rules                       profit: in-sample  +137,890  held-out   +19,845   worst drop:   -1,362 /   +4,453   worst day:   +1,825 /     +103
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹55,429 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹56,483 (today's ₹39,783), chance of a loss 6%  -> KEEP, FRAGILE (deeper 95% drop)
+   KEEP  CAMARILLA at double slippage vs the rules    profit: in-sample  +127,503  held-out   +13,147   worst drop:      -37 /   +6,153   worst day:   +1,793 /      +66
+ SUPERTR on SENSEX
+    the tool's rules                              527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  335   52% ₹   +55,603 PF 1.25 DD ₹  23,934 day ₹  -8,110
+    SUPERTR (slippage 0.25%)                      246   46% ₹  +210,369 PF 1.70 DD ₹  27,509 day ₹  -7,866  |  125   46% ₹   +65,690 PF 1.42 DD ₹  21,578 day ₹  -7,965
+    SUPERTR (slippage 0.50%)                      246   45% ₹  +201,981 PF 1.66 DD ₹  28,046 day ₹  -7,907  |  125   45% ₹   +61,504 PF 1.39 DD ₹  22,190 day ₹  -7,989
+   KEEP  SUPERTR vs the rules                         profit: in-sample  +132,272  held-out   +10,087   worst drop:   -1,574 /   -2,356   worst day:     +574 /     +145
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹57,679 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹56,687 (today's ₹39,783), chance of a loss 8%  -> KEEP, FRAGILE (deeper 95% drop)
+   KEEP  SUPERTR at double slippage vs the rules      profit: in-sample  +123,883  held-out    +5,901   worst drop:   -1,037 /   -1,744   worst day:     +532 /     +121
+ SUPERTR on MIDCPNIFTY
+    the tool's rules                              700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    SUPERTR (slippage 0.25%)                      239   55% ₹  +250,176 PF 1.69 DD ₹  50,672 day ₹ -16,114  |  145   54% ₹  +105,985 PF 1.43 DD ₹  36,411 day ₹ -12,933
+    SUPERTR (slippage 0.50%)                      239   54% ₹  +223,281 PF 1.60 DD ₹  53,962 day ₹ -16,341  |  145   52% ₹   +88,308 PF 1.35 DD ₹  38,076 day ₹ -13,094
+   KEEP  SUPERTR vs the rules                         profit: in-sample   +40,290  held-out   +19,074   worst drop:  +17,469 /  -19,314   worst day:   -5,410 /     -658
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹75,396 (today's ₹63,690), chance of a loss 0%;  held-out: 95% worst drop ₹77,272 (today's ₹72,104), chance of a loss 5%  -> KEEP, FRAGILE (wins too few half-years)
+   KEEP  SUPERTR at double slippage vs the rules      profit: in-sample   +13,394  held-out    +1,397   worst drop:  +20,760 /  -17,650   worst day:   -5,638 /     -819
+ CAMARILLA on NIFTY
+    the tool's rules                              560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  344   50% ₹   +51,814 PF 1.23 DD ₹  27,315 day ₹  -9,038
+    CAMARILLA (slippage 0.25%)                    306   42% ₹  +217,160 PF 1.67 DD ₹  28,227 day ₹  -6,416  |  197   48% ₹   +70,078 PF 1.32 DD ₹  26,228 day ₹  -9,144
+    CAMARILLA (slippage 0.50%)                    306   42% ₹  +206,478 PF 1.62 DD ₹  29,649 day ₹  -6,465  |  197   48% ₹   +62,649 PF 1.28 DD ₹  28,010 day ₹  -9,205
+   KEEP  CAMARILLA vs the rules                       profit: in-sample  +156,698  held-out   +18,263   worst drop:   -3,215 /   -1,087   worst day:   +1,071 /     -106
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹53,921 (today's ₹63,492), chance of a loss 0%;  held-out: 95% worst drop ₹62,261 (today's ₹41,478), chance of a loss 8%  -> KEEP, FRAGILE (wins too few half-years) (deeper 95% drop)
+   KEEP  CAMARILLA at double slippage vs the rules    profit: in-sample  +146,016  held-out   +10,834   worst drop:   -1,793 /     +694   worst day:   +1,022 /     -168
