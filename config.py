@@ -621,14 +621,18 @@ AI_DESK_SKIP = ("MIDCPNIFTY",)
 # (in-sample / held-out per lot, the tool vs the Trend Rider at 2.75R): Nifty 154,936 / 30,386 vs 180,232 / 69,814;
 # Bank Nifty 172,293 / -5,376 vs 147,747 / 23,664; Sensex 110,280 / 100,217 vs 190,961 / 54,879; Midcap 141,945 /
 # 86,451 vs 95,338 / -8,054. Picking per index from those same figures flatters the result - a starting point to watch.
-SYSTEMS = ("rules", "trend_rider", "tv_rating")
+SYSTEMS = ("rules", "trend_rider", "tv_rating", "camarilla")
 SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX": "rules", "MIDCPNIFTY": "rules"}
 # A system offered on only some indices: "tv_rating" (tv_rating.py - TradingView's Technical Ratings for the entry, the
 # Trend Rider's exit; the user, 13 Oct 2026, "okay" to building it after tv_ratings_study.py) only where it measured
 # better than the Trend Rider in both periods: Nifty +267,670 / +143,011 vs +157,331 / +70,163, Bank Nifty +181,285 /
 # +76,234 vs +118,299 / +50,859 (per lot after costs, first two years / held-out), with a deeper worst drop. Sensex
 # was mixed and Midcap worse, so it is not offered there. No index starts on it (SYSTEM_DEFAULTS): the user picks it.
-SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY")}
+# "camarilla" (camarilla.py - the Camarilla H4/L4 breakout; the user, 22 Oct 2026, "yes build camarilla for sensex") only on
+# Sensex, the one index where it beat the tool's own system and held up (indian_strategies_robustness.py: +215,988 /
+# +75,447 per lot against the rules' +78,098 / +55,603, better in 5 of 7 half-years and at double slippage, with a
+# deeper Monte Carlo worst drop). Not a default: the user picks it.
+SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY"), "camarilla": ("SENSEX",)}
 # EVERY VOTE MUST AGREE before a rules ticket on an Indian index (the user, 21 Oct 2026, after the live Nifty and Sensex
 # calls bought at 09:22 on MACD, RSI and VWAP with Trend and PCR not voting stopped out: "i want all 7 votes for the
 # trade" - the Signal page's seven rows; the ADX gate and room to run already had to pass). "all": Trend, MACD, RSI and

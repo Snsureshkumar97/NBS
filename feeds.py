@@ -2068,16 +2068,19 @@ class Feed:
         if rec is None or self.market != "nse_index":
             return rec
         system = self.tickets.system_for(name)
-        if system not in ("trend_rider", "tv_rating"):
+        if system not in ("trend_rider", "tv_rating", "camarilla"):
             return rec
         # The TradingView rating (tv_rating.py) enters its own way and leaves the Trend Rider's way; its 200-candle
-        # averages read the deeper chart window (self.hist) behind the signal's candles when the feed holds it.
+        # averages read the deeper chart window (self.hist) behind the signal's candles when the feed holds it. The
+        # Camarilla breakout (camarilla.py, Sensex) has its own entry and a plain exit - one stop, one target.
+        import camarilla
         import trend_rider
         import tv_rating
-        mod, label = (tv_rating, "TradingView rating") if system == "tv_rating" else (trend_rider, "Trend Rider")
+        mod, label = ((tv_rating, "TradingView rating") if system == "tv_rating" else
+                      (camarilla, "Camarilla breakout") if system == "camarilla" else (trend_rider, "Trend Rider"))
         try:
             ev = (tv_rating.evaluate(name, rec.get("candles"), history=self.hist.get(name)) if mod is tv_rating
-                  else trend_rider.evaluate(name, rec.get("candles")))
+                  else mod.evaluate(name, rec.get("candles")))
         except Exception as exc:
             ev = {"ready": False, "why": f"no reading: {type(exc).__name__}: {str(exc)[:160]}"}
             print(f"feeds: {name} {label} - {ev['why']}", file=sys.stderr, flush=True)

@@ -61,7 +61,7 @@ check("saved across a restart", b2.system_for("BTC") == "rsi2" and b2.system_for
 other = tickets.TicketBook(market="crypto", path=os.path.join(tempfile.mkdtemp(), "trades.csv"))
 check("another account is untouched", other.system_for("BTC") == "engine" and other.system_for("GOLD") == "tv_ma")
 nb = tickets.TicketBook(market="nse_index", path=os.path.join(tempfile.mkdtemp(), "trades.csv"))
-check("the Indian market is untouched", nb.session()["system_choices"] == ["rules", "trend_rider", "tv_rating"]
+check("the Indian market is untouched", nb.session()["system_choices"] == ["rules", "trend_rider", "tv_rating", "camarilla"]
       and nb.cfd_plan("NIFTY") is None)
 
 print("3. THE FEED TRADES EACH ACCOUNT ON ITS OWN RULE")

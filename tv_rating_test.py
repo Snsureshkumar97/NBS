@@ -164,7 +164,8 @@ check("a saved choice it may not have is ignored - the index keeps its default",
 ses = b.session()
 check("the page gets each index's own choices", ses["system_choices_by"]["NIFTY"] == ["rules", "trend_rider", "tv_rating"]
       and ses["system_choices_by"]["BANKNIFTY"] == ["rules", "trend_rider", "tv_rating"]
-      and ses["system_choices_by"]["SENSEX"] == ["rules", "trend_rider"], ses["system_choices_by"])
+      and ses["system_choices_by"]["SENSEX"] == ["rules", "trend_rider", "camarilla"]      # camarilla.py, Sensex only (22 Oct 2026)
+      and ses["system_choices_by"]["MIDCPNIFTY"] == ["rules", "trend_rider"], ses["system_choices_by"])
 
 print("5. A TICKET THROUGH THE RULE PATH - THE TREND RIDER'S MEASURED EXIT, AND IN AGAIN WHILE IT HOLDS")
 CLOCK = {"now": dt.datetime(2026, 10, 8, 9, 46, 0, tzinfo=IST)}

@@ -337,6 +337,9 @@ def _rule_explain(rec):
     # rules' exit (always, for the TradingView rating) the stop steps at T1 and T2 - said as it runs, not the old ladder.
     tvr = info.get("system") == "tv_rating"
     tr = info.get("system") == "trend_rider" or tvr
+    # The Camarilla breakout (camarilla.py, Sensex): an index option like these two, but its own stop (H3 / L3) and
+    # one target at twice the risk that nothing moves - a plain exit, as tested.
+    cam = info.get("system") == "camarilla"
     steps = tvr or getattr(config, "TREND_RIDER_EXIT", "ladder") == "rules"
     # A TradingView-rating CFD rule (cfd_rules._apply_tv - gold since 14 Oct 2026): a trailing stop, a reversal, a far
     # safety target - not the one-stop-one-target words of the other Exness rules.
@@ -345,7 +348,9 @@ def _rule_explain(rec):
     # ...unless its target comes before the trail can start (gold at 1:1 since 15 Oct 2026): then one stop, one target
     import cfd_rules
     far = cfdtv and cfd_rules.trail_first(info)
-    tail = ((f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
+    tail = ((f" Stop at {'H3' if side > 0 else 'L3'}, one target at {info.get('target_r'):g} x the risk; nothing moves the "
+             "stop on the way; out at the target, the stop or the day's close.") if cam else
+            (f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
              f"{info.get('target_r'):g} x the risk; "
              + ("the stop moves to T1 at T1 and to T2 at T2 once that 15-minute candle closes, then follows the "
                 "Supertrend, and to the entry after 2 hours without T1; " if steps else
@@ -363,14 +368,15 @@ def _rule_explain(rec):
         verdict = "Waiting - " + (info.get("why") or "no reading yet") + "."
         headline = "No trade - waiting for the rule's reading"
     elif side:
-        word = ("BUY CE" if side > 0 else "BUY PE") if tr else ("BUY" if side > 0 else "SELL")
-        verdict = (f"TradingView's overall rating is {(info.get('tag') or '').split(' · ')[-1] or 'Strong'} on the last "
+        word = ("BUY CE" if side > 0 else "BUY PE") if (tr or cam) else ("BUY" if side > 0 else "SELL")
+        verdict = (f"The day's first 15-minute close {'above H4' if side > 0 else 'below L4'}: {word}." if cam else
+                   f"TradingView's overall rating is {(info.get('tag') or '').split(' · ')[-1] or 'Strong'} on the last "
                    f"15-minute close: {word}." if tvr else
                    f"{info.get('tag') or info.get('label')} on the last 15-minute close: {word}." if cfdtv else
                    f"Every condition holds, for the first time, on the last 15-minute close: {word}." if tr else
                    f"Every vote and filter agrees on the last 15-minute close: {word}.") + tail
         headline = f"{word} - {info.get('label')}"
-    elif tr:
+    elif tr or cam:
         verdict = " ".join(rec.get("blockers") or [f"No fresh {info.get('label')} signal on the last 15-minute close."])
         headline = f"No trade - {info.get('label')} waiting"
     elif cfdtv:
@@ -382,7 +388,11 @@ def _rule_explain(rec):
         headline = "No trade - the rule's votes do not all agree"
     levels = []
     tg, sl = rec.get("index_targets") or [None, None, None], rec.get("index_stop_loss")
-    if side and sl is not None and tg[2] is not None and tr:
+    if side and sl is not None and tg[2] is not None and cam:
+        levels = [f"STOP {_n(sl, 2)} - the Camarilla {'H3' if side > 0 else 'L3'}; it stays there.",
+                  f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "
+                  f"(T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
+    elif side and sl is not None and tg[2] is not None and tr:
         levels = [f"STOP {_n(sl, 2)} - the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}; "
                   + ("it steps to T1 and T2 as they are reached." if steps else "it stays there until close to T2."),
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "

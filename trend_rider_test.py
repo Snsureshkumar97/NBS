@@ -118,7 +118,7 @@ check("one index at a time; an unknown system or index changes nothing",
       [b.system_for(k) for k in ("NIFTY", "BANKNIFTY", "SENSEX")] == ["rules", "trend_rider", "trend_rider"])
 check("saved across a restart", tickets.TicketBook(market="nse_index", path=path).system_for("SENSEX") == "trend_rider")
 check("the page gets every index's system and the choices", b.session()["systems_by"]["SENSEX"] == "trend_rider"
-      and b.session()["system_choices"] == ["rules", "trend_rider", "tv_rating"])     # + tv_rating.py, 13 Oct 2026
+      and b.session()["system_choices"] == ["rules", "trend_rider", "tv_rating", "camarilla"])   # + tv_rating.py 13 Oct, camarilla.py 22 Oct 2026
 cb = tickets.TicketBook(market="crypto", path=os.path.join(tempfile.mkdtemp(), "trades.csv"))
 check("crypto: its own list since 14 Oct 2026 (crypto_system_choice_test.py) - never the Indian systems",
       cb.system_for("BTC") == "engine" and "trend_rider" not in cb.session()["system_choices"]

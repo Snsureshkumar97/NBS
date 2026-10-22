@@ -3831,6 +3831,7 @@ table.chain td.k .kmark.supp{color:var(--up)}
 }
 .jbadge.tr{color:#7a5af8;border-color:rgba(122,90,248,.45)}
 .jbadge.tv{color:#4078f2;border-color:rgba(64,120,242,.45)}
+.jbadge.cm{color:#c2410c;border-color:rgba(194,65,12,.45)}
 .lotqty{font-size:12px;color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lots select{background:var(--sunken);color:var(--ink);border:1px solid var(--bd);
   border-radius:var(--r-sm);padding:4px 7px;font-size:12px;font-family:inherit}
@@ -6682,7 +6683,8 @@ function lotsDash(s){
   // the tool's own rules or the Trend Rider on the Indian indices; on crypto (since 14 Oct 2026) each coin's own list.
   const sys = sess.systems_by || {}, sysChoices = sess.system_choices || [];
   // crypto's choices name themselves (config.CRYPTO_SYSTEM_LABELS, sent with the session - 14 Oct 2026)
-  const SYSNAME = Object.assign({rules: "Current rules", trend_rider: "Trend Rider", tv_rating: "TradingView rating"},
+  const SYSNAME = Object.assign({rules: "Current rules", trend_rider: "Trend Rider", tv_rating: "TradingView rating",
+                                 camarilla: "Camarilla breakout"},
                                 sess.system_labels || {});
   // Each index's own choices: the TradingView rating (tv_rating.py, 13 Oct 2026) is offered on Nifty and Bank Nifty only.
   const sysBy = sess.system_choices_by || {}, sysFor = k => sysBy[k] || sysChoices;
@@ -11122,10 +11124,12 @@ function paperPnl(s){
   }
   return {booked: P.booked || 0, closed: P.closed || 0, open, open_n: n, net: (P.booked || 0) + open};
 }
-// The Trend Rider's trades (trend_rider.py) and the TradingView rating's (tv_rating.py), badged apart from the tool's own.
+// The Trend Rider's trades (trend_rider.py), the TradingView rating's (tv_rating.py) and the Camarilla breakout's
+// (camarilla.py), badged apart from the tool's own.
 const trTag = t => t && t.system === "trend_rider" ? ' <span class="jbadge tr" title="Taken by the Trend Rider">TR</span>'
   : t && (t.system === "tv_rating" || t.system === "tv_ma")       // tv_ma: gold's TradingView MA rule (cfd_rules)
-    ? ' <span class="jbadge tv" title="Taken by the TradingView rating">TV</span>' : "";
+    ? ' <span class="jbadge tv" title="Taken by the TradingView rating">TV</span>'
+  : t && t.system === "camarilla" ? ' <span class="jbadge cm" title="Taken by the Camarilla breakout">CM</span>' : "";
 // Which kind a trade is, on every line that shows one: the Journal's own badges.
 const tradeTag = t => t && (t.entry_real || t.live)
   ? ' <span class="jbadge live" title="A real order: placed at the broker">Live</span>'
