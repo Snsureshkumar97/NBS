@@ -77,8 +77,9 @@ chain = src[src.index('<section class="pane" data-pane="chain">'):src.index("</s
 check("off the Dashboard since 21 Oct 2026 (\"remove the thing that show in the dash board\"), on the Option chain tab",
       'id="kdsellers"' not in home and "function sellersDash(" not in src and 'id="ocsellers"' in chain
       and "try{ ocSellersDraw(d); }catch(e){}" in src)
-check("the Signal page has its own box for them, drawn for every system (not inside room to run)",
-      'id="sigsellers"' in src and "  roomRun(r);\n  sigSellers(r);" in src and "sellersRows(r.sellers)" in src)
+check("the Signal page has its own box for them, drawn for every system (not inside room to run): the drawing beside the "
+      "trade since 22 Oct 2026, the short table until the chain comes",
+      'id="sigsellers"' in src and "  roomRun(r);\n  sigSellers(r);" in src and "set(wd, sellersRows(se));" in src)
 check("the public reading carries them", '"sellers": rec.get("sellers"),' in open(os.path.join(os.path.dirname(
       os.path.abspath(__file__)), "feeds.py")).read())
 
@@ -129,12 +130,13 @@ check("shown in the Signal box and under the option chain's drawing",
       "sellersSay(se) ? `<p class=\"se-say\">" in src and "const say = sellersSay(se);" in src)
 print("6. THE OPTION CHAIN'S DRAWING (node)")
 if NODE:
-    a = src.index("function ocSellersDraw(d){")
+    a = src.index("const LADDER_EXIT")
     z = src.index("function chainDraw(d){")
     se0940 = feeds._sellers_ahead(at_0940, 23112.0, past, 15 * 60)
     rows = [{"strike": s_["strike"], "ce": {"oi": s_["call_oi"]}, "pe": {"oi": s_["put_oi"]}} for s_ in at_0940["strikes"]]
     prog2 = (src[n0:n1] + src[src.index("function sellersSay(se){"):src.index("function sellersRows(se){")] + src[a:z]
              + "\nconst els = {}; const $ = id => els[id] || (els[id] = {innerHTML: ''});\n"
+             + "const getComputedStyle = () => ({});\n"
              + "let LAST = {indices: {NIFTY: {sellers: " + json.dumps(se0940) + "}}};\n"
              + "ocSellersDraw({index: 'NIFTY', spot: 23112, rows: " + json.dumps(rows) + "});\n"
              + "console.log(JSON.stringify(els.ocsellers.innerHTML));")

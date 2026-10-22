@@ -3701,7 +3701,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 /* the option chain's sellers / support ladder (21 Oct 2026) */
 .ocse{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
 .ocse-h{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
-.ocse svg.ocl{display:block;width:100%;max-width:760px;height:auto}
+.ocse svg.ocl,.sl-draw svg.ocl{display:block;max-width:100%;height:auto}
 .ocl .ocl-h{font-size:12px;fill:var(--ink-3)}
 .ocl .ocl-k{font-size:12px;fill:var(--ink-2);font-variant-numeric:tabular-nums}
 .ocl .ocl-k.on{fill:var(--ink);font-weight:700}
@@ -3714,6 +3714,29 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .ocl .ocl-spot{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4}
 .ocl .ocl-spotl{font-size:12px;fill:var(--accent);font-weight:700}
 .ocse-n{margin:6px 0 0;font-size:12.5px;line-height:1.5;color:var(--ink-3)}
+/* an open trade on the drawing (22 Oct 2026): its strike ringed, its target and stop as lines; every label on a small
+   background of its own so a line under it is hidden */
+.ocl .ocl-mine{fill:none;stroke:var(--accent);stroke-width:2}
+.ocl .ocl-k.mine{fill:var(--accent);font-weight:700}
+.ocl .ocl-bg{fill:var(--surface)}
+.ocl .ocl-tl{stroke-width:1.5}
+.ocl .ocl-tl.tgt{stroke:var(--up)}
+.ocl .ocl-tl.stp{stroke:var(--down)}
+.ocl .ocl-tl.off{stroke-dasharray:2 3}
+.ocl .ocl-tlab{font-size:12px;font-weight:700}
+.ocl .ocl-tlab.tgt{fill:var(--up)}
+.ocl .ocl-tlab.stp{fill:var(--down)}
+.ocse-tr{color:var(--accent);font-weight:600}
+.se-say.se-trade{color:var(--ink)}
+/* beside the trade on the Signal page: the ladder of targets on the left, the drawing on the right; one under the other
+   on a phone */
+.sl-draw{margin-top:6px}
+.sl-about{margin-top:6px}
+@media (min-width:901px){
+  #sigcard:not([data-state="blank"]) .sigtrade:has(> #sigsellers:not(:empty)){display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:28px;align-items:start}
+  .sigtrade > #sigsellers{margin-top:12px}
+}
 table.chain td.k .kmark{display:block;font-size:12px;font-weight:700;line-height:1.1}
 table.chain td.k .kmark.sell{color:var(--down)}
 table.chain td.k .kmark.supp{color:var(--up)}
@@ -5160,14 +5183,11 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] #tlivestat{order:8}
   :root[data-look="kite"] #ftbox{order:8}
   :root[data-look="kite"] #lswitch{order:9}
-  :root[data-look="kite"] #ladder{order:10}
-  :root[data-look="kite"] #ladabout{order:11}
-  :root[data-look="kite"] #rr{order:13}
+  :root[data-look="kite"] #sigtrade{order:10}
   :root[data-look="kite"] #reason{order:14}
   :root[data-look="kite"] #tovernight{order:15}
   :root[data-look="kite"] #gauges{order:16;grid-column:1;grid-row:span 2}
   :root[data-look="kite"] #room{order:17;grid-column:2}
-  :root[data-look="kite"] #sigsellers{order:17;grid-column:2}
   :root[data-look="kite"] #sigcpr{order:17;grid-column:2}
   :root[data-look="kite"] #sigmovers{order:18;grid-column:2}
   :root[data-look="kite"] #risk{order:19}
@@ -5790,18 +5810,22 @@ button.mgroup:hover{color:var(--ink-2)}
   <span class="lotqty" id="lotqty"></span>
   </div>
   </div>
+  <div class="sigtrade" id="sigtrade">
+  <div class="sigtrade-l">
   <div class="ladder" id="ladder"></div>
   <details class="about ladabout" id="ladabout"><summary>How the ladder works</summary>
   <div class="gnote" id="laddernote"></div>
   <div class="lnote" id="lnote"></div>
   </details>
   <div class="rrcard" id="rr"></div>
+  </div>
+  <div class="room sigladder" id="sigsellers"></div>
+  </div>
   <div class="risk" id="risk">
   <div class="riskline" id="riskline"></div>
   </div>
   <div class="gauges" id="gauges"></div>
   <div class="room" id="room"></div>
-  <div class="room" id="sigsellers"></div>
   <div class="room" id="sigcpr"></div>
   <div class="room" id="sigmovers"></div>
   <div class="gnote" id="gnote"></div>
@@ -8742,12 +8766,54 @@ function sigCpr(r){
   if(el.innerHTML !== h) el.innerHTML = h;
 }
 
+// The option chain's drawing, beside the trade on the Signal page (the user, 22 Oct 2026: "can we add beside the trade
+// ... when the tool enters the trade can the diagram show that particular strike and explain how much it needs to
+// cross"). Its chain is the one the Option chain tab reads - a memory read on the server - fetched every 20 seconds while
+// the Signal page shows an index with sellers; until it comes (or if it cannot), the levels as a short table. The note on
+// what the bars mean sits in a fold that a redraw does not close.
+let SIGCHAIN = {for: null, at: 0, d: null}, SIGCHAIN_BUSY = false;
+async function sigChainFetch(){
+  if(SIGCHAIN_BUSY) return;
+  const want = CUR;
+  SIGCHAIN_BUSY = true;
+  try{
+    const d = await (await fetch("/api/chain?index=" + encodeURIComponent(want), {cache: "no-store"})).json();
+    SIGCHAIN = {for: want, at: Date.now(), d};
+  }catch(e){ SIGCHAIN = {for: want, at: Date.now(), d: null}; }
+  finally{ SIGCHAIN_BUSY = false; }
+  if(want === CUR && LAST) sigSellers((LAST.indices || {})[CUR]);
+}
 function sigSellers(r){
   const el = $("sigsellers");
   if(!el) return;
-  const h = r && r.sellers && (r.sellers.call || r.sellers.put)
-    ? `<div class="rr-h">Sellers above &middot; support below</div>` + sellersRows(r.sellers) : "";
-  if(el.innerHTML !== h) el.innerHTML = h;
+  const se = r && r.sellers;
+  if(!se || (!se.call && !se.put)){
+    if(el._sk){ el._sk = false; el.innerHTML = ""; }
+    return;
+  }
+  if(TAB === "signal" && (SIGCHAIN.for !== CUR || Date.now() - SIGCHAIN.at > 20000)) sigChainFetch();
+  if(!el._sk){
+    el.innerHTML = `<div class="rr-h" data-h></div><div class="sl-draw" data-d></div><div data-w></div>`
+      + `<details class="about sl-about"><summary>What the drawing shows</summary><p class="ocse-n" data-n></p></details>`;
+    el._sk = true;
+  }
+  const d = SIGCHAIN.for === CUR ? SIGCHAIN.d : null;
+  const tr = ladderTrade(((LAST && LAST.tickets) || {})[CUR], CUR);
+  const hd = el.querySelector("[data-h]"), dr = el.querySelector("[data-d]"), wd = el.querySelector("[data-w]");
+  const set = (x, h) => { if(x._h !== h){ x._h = h; x.innerHTML = h; } };
+  set(hd, `Sellers above &middot; support below${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}`);
+  set(el.querySelector("[data-n]"), `${ladderNote(se)} The ringed strike is the one this trade holds; the green line is its `
+    + `target, the red line its stop, both in index points. Shown to read - the tool does not change a trade because of it.`);
+  if(!d || !d.rows || !d.rows.length || d.spot == null){
+    ladderInto(dr, "", null);
+    set(wd, sellersRows(se));
+    return;
+  }
+  const w = Math.round(ladderWidth(dr));
+  dr._w = w;
+  const x = ladderDraw(d, se, tr, w > 0 ? w : 680);
+  ladderInto(dr, x.svg, () => sigSellers((LAST && LAST.indices || {})[CUR]));
+  set(wd, (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "") + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : ""));
 }
 
 function roomRun(r){
@@ -10379,66 +10445,236 @@ async function chainFetch(force){
                                  {cache:"no-store"})).json();
     if(want !== CUR) return;                  // the index changed while it loaded
     CHAIN_LIVE = !!(d && d.live);
+    SIGCHAIN = {for: want, at: Date.now(), d};   // the Signal page's drawing reads the same chain
     chainDraw(d);
   }catch(e){}
   finally{ CHAIN_BUSY = false; }
 }
-// SELLERS ABOVE, SUPPORT BELOW ON THE OPTION CHAIN (the user, 21 Oct 2026: "remove the thing that show in the dash board
-// about sellers above and support below you can show it in the option chain tab with the explaination on the option chain
-// itself with some drawing"). A ladder of the strikes around the price: calls written to the left in red (their sellers
-// lose if the market rises past the strike, so they defend it), puts written to the right in green (support), the price
-// as a line, and the levels feeds._sellers_ahead picks - the two heaviest each way - named with what was added in ~15
-// minutes; the same plain words as the Signal page under it. Display only.
-function ocSellersDraw(d){
-  const el = $("ocsellers");
-  if(!el) return;
-  const se = (((LAST && LAST.indices) || {})[d && d.index] || {}).sellers;
-  const spot = d && d.spot;
-  if(!d || !d.rows || !d.rows.length || spot == null){ el.innerHTML = ""; return; }
-  let rows = d.rows.filter(r => Math.abs(r.strike - spot) <= spot * 0.015);
+// SELLERS ABOVE, SUPPORT BELOW, DRAWN (the user, 21 Oct 2026: "remove the thing that show in the dash board about sellers
+// above and support below you can show it in the option chain tab with the explaination on the option chain itself with
+// some drawing"). A ladder of the strikes around the price: calls written to the left in red (their sellers lose if the
+// market rises past the strike, so they defend it), puts written to the right in green (support), the price as a line,
+// and the levels feeds._sellers_ahead picks - the two heaviest each way - named with what was added in ~15 minutes.
+// The same drawing sits beside the trade on the Signal page (22 Oct 2026: "can we add beside the trade ... when the tool
+// enters the trade can the diagram show that particular strike and explain how much it needs to cross"): with a ticket
+// open on that index, its strike is ringed, its target and stop are lines, and the words say how far the target still
+// is and which sellers stand in the way. Built at the box's own width, so its 12px text stays 12px on a phone. Display
+// only: nothing here changes a trade.
+const LADDER_EXIT = {T1: 0, T2: 1, T3: 2};
+function ladderTrade(tk, index){
+  // the open ticket on this index in index points, or null (a CFD has no strike and no chain)
+  const t = tk && tk.ticket;
+  if(!t || t.open === false || t.cfd || !t.option_type || t.strike == null || (index && t.index && t.index !== index)) return null;
+  const tg = (t.index_targets || []).filter(v => v != null);
+  const i = LADDER_EXIT[t.exit_at];
+  const target = tg.length ? tg[i != null && i < tg.length ? i : tg.length - 1] : null;
+  return {up: t.option_type === "CE", type: t.option_type, strike: Number(t.strike),
+          target: target == null ? null : Number(target), stop: t.index_stop == null ? null : Number(t.index_stop),
+          entry: t.entry_spot == null ? null : Number(t.entry_spot), exit_at: t.exit_at || "T3"};
+}
+function ladderRows(d, spot, tr){
+  const all = d.rows.slice().sort((a, b) => a.strike - b.strike);
+  let rows = all.filter(r => Math.abs(r.strike - spot) <= spot * 0.015);
   if(rows.length < 8){
-    const near = d.rows.slice().sort((a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot)).slice(0, 12);
+    const near = all.slice().sort((a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot)).slice(0, 12);
     rows = near.sort((a, b) => a.strike - b.strike);
   }
-  rows = rows.slice().sort((a, b) => b.strike - a.strike);                       // highest strike at the top
+  if(tr){
+    // the trade's strike, target and stop inside the drawing: from the strike at or under the lowest of them to the one
+    // at or over the highest
+    let lo = rows[0].strike, hi = rows[rows.length - 1].strike;
+    for(const v of [tr.strike, tr.target, tr.stop]) if(v != null){ lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    let i0 = 0, i1 = all.findIndex(r => r.strike >= hi);
+    for(let i = all.length - 1; i >= 0; i--) if(all[i].strike <= lo){ i0 = i; break; }
+    rows = all.slice(i0, (i1 < 0 ? all.length - 1 : i1) + 1);
+    if(rows.length > 30){                     // a far target: keep 30 strikes around the price, the line is pinned to the edge
+      const c = rows.findIndex(r => r.strike >= spot);
+      const s0 = Math.max(0, Math.min(rows.length - 30, (c < 0 ? rows.length : c) - 15));
+      rows = rows.slice(s0, s0 + 30);
+    }
+  }
+  return rows.reverse();                      // highest strike at the top
+}
+// The trade in plain words: the strike against the price, how far the target still is and the sellers on the way to
+// it, how far the stop is and any support before it. Only what the numbers say - never a call to buy or sell.
+function tradeSay(tr, spot, rows, se, name){
+  if(!tr || spot == null) return "";
+  const nm = {NIFTY: "Nifty", BANKNIFTY: "Bank Nifty", SENSEX: "Sensex", MIDCPNIFTY: "Midcap Select"}[name] || name || "The index";
+  const pts = v => `${num(Math.abs(v), 0)} point${Math.round(Math.abs(v)) === 1 ? "" : "s"}`;
+  const L = v => (v / 1e5).toFixed(1);
+  const up = tr.up, kind = up ? "call" : "put";
+  const out = [];
+  const gap = up ? spot - tr.strike : tr.strike - spot;
+  out.push(`This trade holds the ${num(tr.strike, 0)} ${kind} (${tr.type})`
+    + (tr.entry != null ? `, bought when ${nm} was at ${num(tr.entry, 0)}.` : ".")
+    + (Math.abs(gap) < 1 ? ` ${nm} is right at that strike now.`
+       : gap > 0 ? ` ${nm} is ${pts(gap)} ${up ? "above" : "below"} the strike now, so the ${kind} is in the money.`
+       : ` ${nm} is ${pts(gap)} ${up ? "below" : "above"} the strike now: it has to ${up ? "rise" : "fall"} past ${num(tr.strike, 0)} for the ${kind} to be in the money.`));
+  if(tr.target != null){
+    const need = up ? tr.target - spot : spot - tr.target;
+    if(need <= 0) out.push(`${nm} is already past the target at ${num(tr.target, 0)}.`);
+    else {
+      // the sellers on the way: the levels named in the drawing that lie between the price and the target, else the
+      // heaviest strike there when it is a big one (at least 60% of the heaviest on that side in view)
+      const side = up ? se && se.call : se && se.put;
+      const inWay = k => up ? (k > spot && k <= tr.target) : (k < spot && k >= tr.target);
+      let walls = ((side && side.levels) || []).filter(l => inWay(l.strike)).map(l => ({strike: l.strike, oi: l.oi, chg: l.chg}));
+      if(!walls.length){
+        const oi = r => ((up ? r.ce : r.pe) || {}).oi || 0;
+        const mx = Math.max(0, ...rows.map(oi));
+        const best = rows.filter(r => inWay(r.strike)).sort((a, b) => oi(b) - oi(a))[0];
+        if(best && mx && oi(best) >= 0.6 * mx) walls = [{strike: best.strike, oi: oi(best), chg: null}];
+      }
+      walls.sort((a, b) => up ? a.strike - b.strike : b.strike - a.strike);
+      let t = `To reach the target at ${num(tr.target, 0)} (${tr.exit_at}), ${nm} has to ${up ? "rise" : "fall"} another ${pts(need)}.`;
+      if(walls.length){
+        const w = walls[0];
+        const who = up ? `sellers are waiting at ${num(w.strike, 0)} (${L(w.oi)} lakh calls written)`
+                       : `support is waiting at ${num(w.strike, 0)} (${L(w.oi)} lakh puts written)`;
+        t += ` On the way, ${who}, ${pts(w.strike - spot)} ${up ? "above" : "below"} the price: it has to get past `
+          + `${walls.length > 1 ? `that, and ${num(walls[1].strike, 0)} after it,` : "that level"} first.`;
+        if(w.chg != null && w.chg > 0 && side && side.adding) t += ` More are being added right now, so that level is getting stronger.`;
+        else if(w.chg != null && w.chg < 0 && Math.abs(w.chg) >= 0.05 * w.oi) t += ` Some are leaving, so that level is getting weaker.`;
+      } else t += ` No big group of ${up ? "call sellers" : "put sellers"} stands between the price and the target.`;
+      out.push(t);
+    }
+  }
+  if(tr.stop != null){
+    const room = up ? spot - tr.stop : tr.stop - spot;
+    if(room > 0){
+      const other = up ? se && se.put : se && se.call;
+      const before = ((other && other.levels) || []).filter(l => up ? (l.strike < spot && l.strike > tr.stop) : (l.strike > spot && l.strike < tr.stop));
+      before.sort((a, b) => up ? b.strike - a.strike : a.strike - b.strike);
+      let t = `The stop is at ${num(tr.stop, 0)}, ${pts(room)} ${up ? "below" : "above"} the price.`;
+      if(before.length) t += ` Before it, ${up ? "support" : "sellers"} at ${num(before[0].strike, 0)} (${L(before[0].oi)} lakh `
+        + `${up ? "puts" : "calls"} written) ${up ? "can slow a fall" : "can slow a rise"} on the way to the stop.`;
+      out.push(t);
+    }
+  }
+  return out.join(" ");
+}
+// The drawing itself, `w` pixels wide: {svg, say}.
+function ladderDraw(d, se, tr, w){
+  const spot = d.spot;
+  const rows = ladderRows(d, spot, tr);
   const mark = {};
   for(const l of ((se && se.call && se.call.levels) || [])) mark["c" + l.strike] = l;
   for(const l of ((se && se.put && se.put.levels) || [])) mark["p" + l.strike] = l;
-  const W = 680, mid = W / 2, half = 40, maxLen = 230, rh = 24, top = 30;
+  const W = Math.max(300, Math.min(760, Math.round(w || 680))), narrow = W < 520;
+  const mid = W / 2, half = narrow ? 30 : 40, rh = 24, top = 30;
+  const labW = narrow ? 78 : 136, maxLen = Math.max(24, mid - half - labW - 8);
   const H = top + rows.length * rh + 8;
   const oiMax = Math.max(1, ...rows.map(r => Math.max((r.ce && r.ce.oi) || 0, (r.pe && r.pe.oi) || 0)));
   const L = v => (v / 1e5).toFixed(1);
-  const chg = l => l && l.chg != null ? ` ${l.chg >= 0 ? "+" : "\u2212"}${L(Math.abs(l.chg))}` : "";
-  let g = `<text x="${mid - half - 6}" y="16" text-anchor="end" class="ocl-h">\u2190 calls written (sellers)</text>`
+  const boxes = [];                          // where the level and line labels sit, so a line's label can dodge them
+  const box = (x, y, anchor, text) => {
+    const tw = Math.round(String(text).length * 6.9 + 8);
+    const x0 = anchor === "end" ? x - tw + 3 : anchor === "middle" ? x - tw / 2 : x - 3;
+    return {x0, x1: x0 + tw, y0: y - 12, y1: y + 4, tw};
+  };
+  // a label on a small background of its own, so a line running under it is hidden rather than striking it through
+  const tag = (x, y, anchor, text, cls, keep) => {
+    const b = box(x, y, anchor, text), x0 = b.x0, tw = b.tw;
+    if(keep) boxes.push(b);
+    return `<rect x="${x0}" y="${y - 12}" width="${tw}" height="16" rx="3" class="ocl-bg"/>`
+      + `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${cls}">${text}</text>`;
+  };
+  const chg = l => l && l.chg != null ? ` ${l.chg >= 0 ? "+" : "−"}${L(Math.abs(l.chg))}` : "";
+  // drawn in three layers - the bars, then the lines, then every label - so a line never strikes through a label
+  let g = "", lines = "";
+  let txt = `<text x="${mid - half - 6}" y="16" text-anchor="end" class="ocl-h">${narrow ? "← sellers (calls)" : "← calls written (sellers)"}</text>`
     + `<text x="${mid}" y="16" text-anchor="middle" class="ocl-h">strike</text>`
-    + `<text x="${mid + half + 6}" y="16" text-anchor="start" class="ocl-h">puts written (support) \u2192</text>`;
+    + `<text x="${mid + half + 6}" y="16" text-anchor="start" class="ocl-h">${narrow ? "support (puts) →" : "puts written (support) →"}</text>`;
   rows.forEach((r, i) => {
     const y = top + i * rh, cy = y + rh / 2;
     const co = (r.ce && r.ce.oi) || 0, po = (r.pe && r.pe.oi) || 0;
     const cw = Math.max(co ? 2 : 0, maxLen * co / oiMax), pw = Math.max(po ? 2 : 0, maxLen * po / oiMax);
     const cm = mark["c" + r.strike], pm = mark["p" + r.strike];
+    const mine = tr && r.strike === tr.strike;
     g += `<rect x="${mid - half - cw}" y="${y + 4}" width="${cw}" height="${rh - 8}" rx="3" class="ocl-call${cm ? " on" : ""}"/>`
-      + `<rect x="${mid + half}" y="${y + 4}" width="${pw}" height="${rh - 8}" rx="3" class="ocl-put${pm ? " on" : ""}"/>`
-      + `<text x="${mid}" y="${cy + 4}" text-anchor="middle" class="ocl-k${cm || pm ? " on" : ""}">${num(r.strike, 0)}</text>`;
-    if(cm) g += `<text x="${mid - half - cw - 6}" y="${cy + 4}" text-anchor="end" class="ocl-lab call">sellers ${L(co)} L${chg(cm)}</text>`;
-    if(pm) g += `<text x="${mid + half + pw + 6}" y="${cy + 4}" text-anchor="start" class="ocl-lab put">support ${L(po)} L${chg(pm)}</text>`;
+      + `<rect x="${mid + half}" y="${y + 4}" width="${pw}" height="${rh - 8}" rx="3" class="ocl-put${pm ? " on" : ""}"/>`;
+    txt += tag(mid, cy + 4, "middle", num(r.strike, 0), `ocl-k${cm || pm ? " on" : ""}${mine ? " mine" : ""}`);
+    if(mine) txt += `<rect x="${mid - half + 3}" y="${y + 2}" width="${2 * half - 6}" height="${rh - 4}" rx="6" class="ocl-mine"/>`;
+    if(cm) txt += tag(mid - half - cw - 6, cy + 4, "end", `${narrow ? "" : "sellers "}${L(co)} L${chg(cm)}`, "ocl-lab call", true);
+    if(pm) txt += tag(mid + half + pw + 6, cy + 4, "start", `${narrow ? "" : "support "}${L(po)} L${chg(pm)}`, "ocl-lab put", true);
   });
-  // the price, between the strikes it sits between
-  let py = null;
-  for(let i = 0; i < rows.length - 1; i++){
-    const a = rows[i].strike, b = rows[i + 1].strike;
-    if(spot <= a && spot >= b){ py = top + i * rh + rh / 2 + (a - spot) / (a - b) * rh; break; }
+  // a level's height: between the strikes it sits between; beyond the drawing, pinned to its edge (off)
+  const yOf = v => {
+    if(v == null || !rows.length) return null;
+    if(v >= rows[0].strike) return {y: v === rows[0].strike ? top + rh / 2 : top + 3, off: v > rows[0].strike};
+    const n = rows.length - 1;
+    if(v <= rows[n].strike) return {y: v === rows[n].strike ? top + n * rh + rh / 2 : top + rows.length * rh - 3, off: v < rows[n].strike};
+    for(let i = 0; i < n; i++){
+      const a = rows[i].strike, b = rows[i + 1].strike;
+      if(v <= a && v >= b) return {y: top + i * rh + rh / 2 + (a - v) / (a - b) * rh, off: false};
+    }
+    return null;
+  };
+  // the trade's labels go on the side away from the sellers that matter to it (a call's on the puts' side), the price's
+  // on the other
+  const tSide = tr ? (tr.up ? "r" : "l") : null;
+  // a line's label: just above the line, or just under it when that would cover another label
+  const at = (sd, yl, text, cls) => {
+    const x = sd === "r" ? W - 6 : 6, anchor = sd === "r" ? "end" : "start";
+    const hits = y => boxes.some(b => { const c = box(x, y, anchor, text); return c.x0 < b.x1 && b.x0 < c.x1 && c.y0 < b.y1 && b.y0 < c.y1; });
+    const y = yl < top + 14 ? yl + 14 : hits(yl - 4) && !hits(yl + 14) ? yl + 14 : yl - 4;
+    return tag(x, y, anchor, text, cls, true);
+  };
+  const p = yOf(spot);
+  if(p && !p.off){
+    lines += `<line x1="4" x2="${W - 4}" y1="${p.y}" y2="${p.y}" class="ocl-spot"/>`;
+    txt += at(tSide === "r" ? "l" : "r", p.y, `price ${num(spot, 0)}`, "ocl-spotl");
   }
-  if(py != null) g += `<line x1="8" x2="${W - 8}" y1="${py}" y2="${py}" class="ocl-spot"/>`
-    + `<text x="${W - 10}" y="${py - 4}" text-anchor="end" class="ocl-spotl">price ${num(spot, 0)}</text>`;
+  if(tr){
+    const line = (v, cls, lab) => {
+      const q = yOf(v);
+      if(!q) return;
+      const arrow = q.off ? (q.y < top + rh ? " ↑" : " ↓") : "";
+      lines += `<line x1="4" x2="${W - 4}" y1="${q.y}" y2="${q.y}" class="ocl-tl ${cls}${q.off ? " off" : ""}"/>`;
+      txt += at(tSide, q.y, lab + arrow, `ocl-tlab ${cls}`);
+    };
+    line(tr.target, "tgt", `target ${num(tr.target, 0)}`);
+    line(tr.stop, "stp", `stop ${num(tr.stop, 0)}`);
+  }
   const say = sellersSay(se);
-  el.innerHTML = `<div class="ocse-h">Sellers above &middot; support below</div>`
-    + `<svg class="ocl" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(say || "Open interest around the price")}">${g}</svg>`
-    + (say ? `<p class="se-say">${esc(say)}</p>` : "")
-    + `<p class="ocse-n">Bars: open interest at each strike, in lakh. A call seller loses if the market rises past the strike, `
-    + `so heavy calls just above the price act like a ceiling; a put seller loses if it falls below, so heavy puts just below `
-    + `act like a floor. Labelled: the two heaviest each way within 1.5%, with what was added${se && se.minutes ? ` in the last `
-    + `${se.minutes} minutes` : " lately"}. Shown to read - not part of the tool's signal.</p>`;
+  const tsay = tradeSay(tr, spot, rows, se, d.index);
+  return {svg: `<svg class="ocl" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" `
+    + `aria-label="${esc(tsay || say || "Open interest around the price")}">${g}${lines}${txt}</svg>`, say, tsay};
+}
+const ladderNote = se => `Bars: open interest at each strike, in lakh. A call seller loses if the market rises past the strike, `
+  + `so heavy calls just above the price act like a ceiling; a put seller loses if it falls below, so heavy puts just below `
+  + `act like a floor. Labelled: the two heaviest each way within 1.5%, with what was added${se && se.minutes ? ` in the last `
+  + `${se.minutes} minutes` : " lately"}.`;
+// the box's width for the drawing (the ResizeObserver redraws it when that changes - a phone turned, a pane resized)
+function ladderWidth(el){
+  const cs = getComputedStyle(el);
+  return el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+}
+const LADDER_RO = typeof ResizeObserver === "function" ? new ResizeObserver(es => {
+  for(const e of es){
+    const el = e.target, w = Math.round(ladderWidth(el));
+    if(el._redraw && w > 0 && Math.abs(w - (el._w || 0)) >= 8) el._redraw();
+  }
+}) : null;
+function ladderInto(el, html, redraw){
+  el._redraw = redraw;
+  if(LADDER_RO && !el._ro){ el._ro = true; LADDER_RO.observe(el); }
+  if(el._h !== html){ el._h = html; el.innerHTML = html; }
+}
+function ocSellersDraw(d){
+  const el = $("ocsellers");
+  if(!el) return;
+  const se = (((LAST && LAST.indices) || {})[d && d.index] || {}).sellers;
+  if(!d || !d.rows || !d.rows.length || d.spot == null){ ladderInto(el, "", null); return; }
+  const tr = ladderTrade(((LAST && LAST.tickets) || {})[d.index], d.index);
+  const w = Math.round(ladderWidth(el));
+  el._w = w;
+  const x = ladderDraw(d, se, tr, w > 0 ? w : 680);
+  ladderInto(el, `<div class="ocse-h">Sellers above &middot; support below${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}</div>`
+    + x.svg
+    + (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "")
+    + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : "")
+    + `<p class="ocse-n">${ladderNote(se)} Shown to read - not part of the tool's signal.</p>`, () => ocSellersDraw(d));
 }
 
 function chainDraw(d){
