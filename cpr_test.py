@@ -125,7 +125,8 @@ check("its top, bottom and pivot as labelled lines on the price axis ('next ...'
       '[cp && cp.tc, nx + "CPR top", C.accent, "dot"]' in src and '[cp && cp.pivot, nx + "pivot", C.ink3, "dot"]' in src)
 check("the plain words under the chart", 'id="cvcpr"' in src and "esc(cprSay(c))} The shaded band on the chart is the CPR" in src)
 check("a rebuilt chart (a theme change) redraws the band", "cprSig: null});" in src)
-check("the Signal page: its own box after the sellers box", 'id="sigcpr"' in src and "  sigSellers(r);\n  sigCpr(r);" in src)
+check("the Signal page: its own box, drawn after the sellers box", 'id="sigcpr"' in src
+      and 0 < src.index("\n  sigSellers(r);\n") < src.index("\n  sigCpr(r);\n") < src.index("\n  sigSellers(r);\n") + 200)
 check("the Research levels table: CPR and its width", '["CPR width", r =>' in src and '"cpr_kind": c_["kind"]' in src)
 check("the live reading carries it", '"cpr": rec.get("cpr"),' in open(os.path.join(HERE, "feeds.py")).read())
 

@@ -3728,11 +3728,13 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .ocl .ocl-tlab.stp{fill:var(--down)}
 .ocse-tr{color:var(--accent);font-weight:600}
 .se-say.se-trade{color:var(--ink)}
-/* beside the trade on the Signal page: the ladder of targets on the left, the drawing on the right; one under the other
-   on a phone */
+/* beside the trade on the Signal page: the ladder of targets on the left, the drawing on the right - when the card itself
+   is wide enough for both (the targets ladder needs ~330px; at 1024px wide the card is not), one under the other
+   otherwise and on a phone */
 .sl-draw{margin-top:6px}
 .sl-about{margin-top:6px}
-@media (min-width:901px){
+#sigcard{container:sigcard / inline-size}
+@container sigcard (min-width:720px){
   #sigcard:not([data-state="blank"]) .sigtrade:has(> #sigsellers:not(:empty)){display:grid;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:28px;align-items:start}
   .sigtrade > #sigsellers{margin-top:12px}
@@ -8811,7 +8813,7 @@ function sigSellers(r){
   }
   const w = Math.round(ladderWidth(dr));
   dr._w = w;
-  const x = ladderDraw(d, se, tr, w > 0 ? w : 680);
+  const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d));
   ladderInto(dr, x.svg, () => sigSellers((LAST && LAST.indices || {})[CUR]));
   set(wd, (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "") + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : ""));
 }
@@ -9893,6 +9895,7 @@ function render(s){
   gauges(r, w);
   roomRun(r);
   sigSellers(r);
+  try{ if(TAB === "chain" && OC_LAST && OC_LAST.index === CUR) ocSellersDraw(OC_LAST); }catch(e){}   // its price line, live
   sigCpr(r);
   ringBox(r);
   if(w){
@@ -10553,10 +10556,12 @@ function tradeSay(tr, spot, rows, se, name){
   }
   return out.join(" ");
 }
-// The drawing itself, `w` pixels wide: {svg, say}.
-function ladderDraw(d, se, tr, w){
-  const spot = d.spot;
-  const rows = ladderRows(d, spot, tr);
+// The drawing itself, `w` pixels wide: {svg, say}. The strikes are picked around the chain's own price, so they hold
+// still between chain fetches; `live`, the index price right now, places the price line and the words - the line moves
+// up and down a ladder that stays put.
+function ladderDraw(d, se, tr, w, live){
+  const spot = live != null ? live : d.spot;
+  const rows = ladderRows(d, d.spot != null ? d.spot : spot, tr);
   const mark = {};
   for(const l of ((se && se.call && se.call.levels) || [])) mark["c" + l.strike] = l;
   for(const l of ((se && se.put && se.put.levels) || [])) mark["p" + l.strike] = l;
@@ -10661,15 +10666,24 @@ function ladderInto(el, html, redraw){
   if(LADDER_RO && !el._ro){ el._ro = true; LADDER_RO.observe(el); }
   if(el._h !== html){ el._h = html; el.innerHTML = html; }
 }
+// The price line follows the LIVE index price (the user, 22 Oct 2026: "does it also move as the index price change ...
+// like a ladder"): the one the page's Index price shows, merged in by priceTick several times a second, rather than the
+// chain's own, which is only as fresh as its last snapshot and the fetch every 20 seconds. The bars stay the chain's.
+function ladderSpot(d){
+  const r = ((((typeof LAST === "undefined" ? null : LAST) || {}).indices) || {})[d && d.index];
+  return r && r.spot != null ? r.spot : d && d.spot;
+}
+let OC_LAST = null;                           // the chain last drawn on the Option chain tab, redrawn as the price moves
 function ocSellersDraw(d){
   const el = $("ocsellers");
   if(!el) return;
+  OC_LAST = d;
   const se = (((LAST && LAST.indices) || {})[d && d.index] || {}).sellers;
-  if(!d || !d.rows || !d.rows.length || d.spot == null){ ladderInto(el, "", null); return; }
+  if(!d || !d.rows || !d.rows.length || ladderSpot(d) == null){ ladderInto(el, "", null); return; }
   const tr = ladderTrade(((LAST && LAST.tickets) || {})[d.index], d.index);
   const w = Math.round(ladderWidth(el));
   el._w = w;
-  const x = ladderDraw(d, se, tr, w > 0 ? w : 680);
+  const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d));
   ladderInto(el, `<div class="ocse-h">Sellers above &middot; support below${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}</div>`
     + x.svg
     + (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "")

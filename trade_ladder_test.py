@@ -89,6 +89,7 @@ o.say.none = tradeSay(null, X.SPOT, [], X.SE, "NIFTY");
 o.svg = {ce: ladderDraw(d, X.SE, tr(X.CE), 680).svg, pe: ladderDraw(d, X.SE, tr(X.PE), 680).svg,
          plain: ladderDraw(d, X.SE, null, 680).svg, narrow: ladderDraw(d, X.SE, tr(X.CE), 340).svg,
          far: ladderDraw(d, X.SE, tr(X.FAR), 680).svg, wide: ladderDraw(d, X.SE, null, 2000).svg};
+o.moving = [23090, 23112, 23140, 23175].map(v => ladderDraw(d, X.SE, tr(X.CE), 680, v));
 console.log(JSON.stringify(o));
 '''
 r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
@@ -178,14 +179,47 @@ check("a target beyond the strikes shown: its line pinned to the edge, dotted, w
 check("12px text everywhere: the drawing is not scaled (its width is set, the box only caps it)",
       ".ocse svg.ocl,.sl-draw svg.ocl{display:block;max-width:100%;height:auto}" in src and "width:100%;max-width:760px" not in src)
 
-print("5. ON THE PAGE")
+print("5. THE PRICE LINE FOLLOWS THE LIVE PRICE (\"does it also move as the index price change ... like a ladder\")")
+fn = src[src.index("function ladderSpot(d){"):src.index("let OC_LAST = null;")]
+prog3 = (fn + r'''
+const out = {};
+out.none = ladderSpot({index: "NIFTY", spot: 23112});
+var LAST = {indices: {NIFTY: {spot: 23161.5}}};
+out.live = ladderSpot({index: "NIFTY", spot: 23112});
+out.other = ladderSpot({index: "SENSEX", spot: 76000});
+LAST.indices.NIFTY.spot = null;
+out.nolive = ladderSpot({index: "NIFTY", spot: 23112});
+console.log(JSON.stringify(out));''')
+r3 = subprocess.run([NODE, "-e", prog3], capture_output=True, text=True, timeout=60)
+try:
+    o3 = json.loads(r3.stdout.strip().splitlines()[-1])
+except Exception:
+    print(r3.stdout, r3.stderr)
+    o3 = {}
+check("the live index price when the page has one, the chain's own otherwise",
+      o3 == {"none": 23112, "live": 23161.5, "other": 76000, "nolive": 23112}, o3)
+check("both drawings use it; the Signal one is redrawn by every price update (render), the Option chain's too",
+      "ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d));" in src
+      and src.count("ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d))") == 2 and "  sigSellers(r);\n  try{ if(TAB === \"chain\" && OC_LAST && OC_LAST.index === CUR) ocSellersDraw(OC_LAST); }catch(e){}" in src
+      and "if(changed) render(LAST);" in src)
+
+mv = o.get("moving", [])
+ys = [float(re.search(r'y1="([\d.]+)" y2="[\d.]+" class="ocl-spot"', m["svg"]).group(1)) for m in mv] if mv else []
+ks = [re.findall(r'class="ocl-k[^"]*">([\d,]+)<', m["svg"]) for m in mv]
+check("as the price rises 23,090 -> 23,175 the line climbs, on strikes that stay put",
+      len(ys) == 4 and ys == sorted(ys, reverse=True) and len(set(ys)) == 4 and all(k == ks[0] for k in ks), (ys, [len(k) for k in ks]))
+check("and the words follow the live price", mv and "another 200 points" in mv[0]["tsay"] and "another 115 points" in mv[3]["tsay"],
+      [m["tsay"][150:260] for m in mv[::3]])
+
+print("6. ON THE PAGE")
 sig = src[src.index('<section class="pane" data-pane="signal">'):src.index("</section>", src.index('data-pane="signal">'))]
 st = sig.index('<div class="sigtrade" id="sigtrade">')
 order = [sig.index(x, st) for x in ('id="ladder"', 'id="ladabout"', 'id="rr"', 'id="sigsellers"')]
 check("beside the trade: the targets ladder, its notes and the risk card on the left, the drawing on the right",
       order == sorted(order) and sig.count('id="sigsellers"') == 1 and order[-1] < sig.index('id="risk"'))
-check("side by side on a wide screen, one under the other on a phone",
-      '@media (min-width:901px){\n  #sigcard:not([data-state="blank"]) .sigtrade:has(> #sigsellers:not(:empty)){display:grid;' in src
+check("side by side when the card is wide enough for both, one under the other otherwise and on a phone",
+      '@container sigcard (min-width:720px){\n  #sigcard:not([data-state="blank"]) .sigtrade:has(> #sigsellers:not(:empty)){display:grid;' in src
+      and "#sigcard{container:sigcard / inline-size}" in src
       and ':root[data-look="kite"] #sigtrade{order:10}' in src)
 check("the Signal page reads the same chain as the Option chain tab, every 20 seconds while it shows",
       "SIGCHAIN = {for: want, at: Date.now(), d};   // the Signal page's drawing reads the same chain" in src
