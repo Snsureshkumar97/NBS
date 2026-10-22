@@ -1,0 +1,71 @@
+================================================================================================================================================================
+ 1. DISCOVER - FIRST TWO YEARS ONLY: 3354 trades (1787 rules, 1567 TradingView rating). Per fifth of each feature: trades, lost, full stop, average per lot after costs, ₹
+================================================================================================================================================================
+ noise   cut points -0.12, 0.46, 1.03, 1.71
+   rules Q1  302 lost  54% ₹ +198  |  Q2  320 lost  50% ₹ +133  |  Q3  373 lost  55% ₹  -42  |  Q4  386 lost  48% ₹ +166  |  Q5  374 lost  39% ₹ +555
+   tv    Q1  362 lost  64% ₹  +52  |  Q2  343 lost  64% ₹ +113  |  Q3  291 lost  65% ₹ +112  |  Q4  277 lost  59% ₹ +471  |  Q5  290 lost  57% ₹ +797
+ from_open   cut points -0.23, 0.84, 1.87, 3.21
+   rules Q1  307 lost  54% ₹ +187  |  Q2  330 lost  52% ₹  +78  |  Q3  357 lost  53% ₹   +6  |  Q4  382 lost  47% ₹ +217  |  Q5  411 lost  42% ₹ +439
+   tv    Q1  364 lost  64% ₹  +54  |  Q2  341 lost  65% ₹  +85  |  Q3  313 lost  60% ₹ +378  |  Q4  289 lost  61% ₹ +538  |  Q5  260 lost  58% ₹ +488
+ vwap   cut points 0.17, 0.61, 1.17, 1.93
+   rules Q1  345 lost  56% ₹  +63  |  Q2  344 lost  48% ₹ +239  |  Q3  340 lost  51% ₹ +160  |  Q4  385 lost  44% ₹ +333  |  Q5  373 lost  47% ₹ +166
+   tv    Q1  326 lost  67% ₹ -116  |  Q2  327 lost  64% ₹ +192  |  Q3  330 lost  62% ₹ +351  |  Q4  285 lost  63% ₹ +407  |  Q5  299 lost  55% ₹ +643
+ run3   cut points 0.31, 0.90, 1.51, 2.42
+   rules Q1  418 lost  48% ₹ +296  |  Q2  322 lost  50% ₹ +165  |  Q3  318 lost  55% ₹  -57  |  Q4  357 lost  48% ₹ +243  |  Q5  372 lost  47% ₹ +276
+   tv    Q1  253 lost  57% ₹ +150  |  Q2  349 lost  62% ₹  +10  |  Q3  352 lost  65% ₹  -57  |  Q4  314 lost  61% ₹ +163  |  Q5  299 lost  63% ₹+1,260
+ body   cut points -0.16, 0.29, 0.64, 1.10
+   rules Q1  521 lost  48% ₹ +297  |  Q2  442 lost  51% ₹ +164  |  Q3  270 lost  54% ₹  -37  |  Q4  263 lost  50% ₹  +92  |  Q5  291 lost  43% ₹ +367
+   tv    Q1  150 lost  64% ₹ +343  |  Q2  229 lost  65% ₹ -110  |  Q3  400 lost  60% ₹ +194  |  Q4  408 lost  64% ₹  -62  |  Q5  380 lost  59% ₹ +974
+ rsi   cut points 58.23, 62.82, 67.67, 73.22
+   rules Q1  310 lost  50% ₹  +90  |  Q2  319 lost  50% ₹  +26  |  Q3  354 lost  50% ₹ +147  |  Q4  405 lost  47% ₹ +416  |  Q5  399 lost  50% ₹ +229
+   tv    Q1  361 lost  68% ₹ -202  |  Q2  352 lost  62% ₹  -15  |  Q3  316 lost  61% ₹ +375  |  Q4  266 lost  62% ₹ +423  |  Q5  272 lost  56% ₹+1,090
+ adx   cut points 20.17, 24.96, 32.58, 45.25
+   rules Q1   25 lost  56% ₹  -97  |  Q2  476 lost  49% ₹ +110  |  Q3  412 lost  48% ₹ +224  |  Q4  412 lost  50% ₹ +183  |  Q5  462 lost  50% ₹ +283
+   tv    Q1  646 lost  64% ₹ +117  |  Q2  195 lost  65% ₹  -81  |  Q3  258 lost  63% ₹ +313  |  Q4  259 lost  59% ₹ +627  |  Q5  209 lost  56% ₹ +697
+ adx_slope   cut points -3.50, 2.17, 7.02, 12.82
+   rules Q1  252 lost  47% ₹ +187  |  Q2  240 lost  47% ₹ +304  |  Q3  373 lost  53% ₹  +52  |  Q4  458 lost  48% ₹ +275  |  Q5  464 lost  50% ₹ +179
+   tv    Q1  419 lost  62% ₹ +163  |  Q2  431 lost  61% ₹ +149  |  Q3  297 lost  61% ₹ +314  |  Q4  213 lost  63% ₹ +359  |  Q5  207 lost  65% ₹ +709
+ er10   cut points 0.19, 0.36, 0.51, 0.66
+   rules Q1  238 lost  49% ₹ +174  |  Q2  309 lost  49% ₹ +130  |  Q3  404 lost  50% ₹  +41  |  Q4  409 lost  46% ₹ +445  |  Q5  427 lost  52% ₹ +161
+   tv    Q1  433 lost  66% ₹  -43  |  Q2  362 lost  61% ₹ +141  |  Q3  266 lost  63% ₹ +269  |  Q4  262 lost  63% ₹ +112  |  Q5  244 lost  55% ₹+1,292
+ chop14   cut points 34.15, 40.59, 46.40, 53.11
+   rules Q1  469 lost  49% ₹ +369  |  Q2  434 lost  52% ₹   -0  |  Q3  389 lost  45% ₹ +324  |  Q4  288 lost  52% ₹  +53  |  Q5  207 lost  48% ₹ +165
+   tv    Q1  202 lost  57% ₹+1,233  |  Q2  237 lost  58% ₹ +607  |  Q3  281 lost  64% ₹ +108  |  Q4  383 lost  66% ₹  +45  |  Q5  464 lost  62% ₹  +18
+ used   cut points 0.43, 0.58, 0.76, 1.02
+   rules Q1  371 lost  52% ₹ +107  |  Q2  327 lost  51% ₹ +301  |  Q3  372 lost  50% ₹ +173  |  Q4  369 lost  50% ₹  +39  |  Q5  348 lost  44% ₹ +378
+   tv    Q1  300 lost  66% ₹  +79  |  Q2  344 lost  61% ₹ +256  |  Q3  298 lost  69% ₹ -176  |  Q4  302 lost  63% ₹ +175  |  Q5  323 lost  51% ₹+1,043
+ gap   cut points -0.10, 0.07, 0.24, 0.43
+   rules Q1  361 lost  43% ₹ +354  |  Q2  369 lost  49% ₹ +182  |  Q3  338 lost  50% ₹ +208  |  Q4  344 lost  50% ₹ +206  |  Q5  375 lost  54% ₹  +33
+   tv    Q1  308 lost  65% ₹ +254  |  Q2  303 lost  58% ₹ +354  |  Q3  333 lost  65% ₹  +37  |  Q4  327 lost  63% ₹  +54  |  Q5  296 lost  59% ₹ +789
+ tod   cut points 15.00, 60.00, 150.00, 240.00
+   rules Q1    0 lost   0% ₹   +0  |  Q2  692 lost  49% ₹ +234  |  Q3  462 lost  52% ₹ +196  |  Q4  359 lost  47% ₹ +219  |  Q5  274 lost  47% ₹  +64
+   tv    Q1    0 lost   0% ₹   +0  |  Q2  539 lost  67% ₹ +440  |  Q3  283 lost  63% ₹ +408  |  Q4  288 lost  59% ₹ +234  |  Q5  457 lost  58% ₹  +63
+ vix   cut points 12.24, 13.46, 14.32, 15.73
+   rules Q1  363 lost  47% ₹ +185  |  Q2  347 lost  52% ₹  +35  |  Q3  356 lost  45% ₹ +400  |  Q4  333 lost  50% ₹ +255  |  Q5  362 lost  52% ₹  +79
+   tv    Q1  291 lost  57% ₹ +264  |  Q2  306 lost  63% ₹ +260  |  Q3  317 lost  63% ₹ +427  |  Q4  321 lost  63% ₹ +226  |  Q5  309 lost  64% ₹ +329
+ trade_no   cut points 1.00, 1.00, 2.00, 2.00
+   rules Q1    0 lost   0% ₹   +0  |  Q2    0 lost   0% ₹   +0  |  Q3 1023 lost  50% ₹ +233  |  Q4    0 lost   0% ₹   +0  |  Q5  764 lost  49% ₹ +144
+   tv    Q1    0 lost   0% ₹   +0  |  Q2    0 lost   0% ₹   +0  |  Q3  841 lost  65% ₹ +433  |  Q4    0 lost   0% ₹   +0  |  Q5  726 lost  59% ₹ +116
+
+ CANDIDATES (an outer fifth that lost money on average for both systems): none
+
+================================================================================================================================================================
+ 2. CONFIRM ON THE HELD-OUT YEAR (cut points from the first two years)
+================================================================================================================================================================
+
+================================================================================================================================================================
+ 3. TEST - each as an entry filter inside the backtest, against today, per lot after costs
+================================================================================================================================================================
+ skip noise <= 1.00  (the noise-area rule)
+   rules, Nifty + Sensex + Midcap:
+     today                                           1787   51% ₹  +348,446 PF 1.24 DD ₹  51,373 day ₹ -26,426  | 1091   51% ₹  +194,328 PF 1.22 DD ₹  84,323 day ₹ -29,422
+     filtered                                         941   54% ₹  +272,822 PF 1.35 DD ₹  34,449 day ₹ -14,102  |  566   53% ₹  +124,681 PF 1.28 DD ₹  30,928 day ₹ -10,730
+     drop  skip noise <= 1.00  (the noise-area rule) - rules pooled profit: in-sample   -75,625  held-out   -69,647   worst drop:  -16,924 /  -53,395   worst day:  +12,324 /  +18,692
+             walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹75,755 (today's ₹106,874), chance of a loss 0%;  held-out: 95% worst drop ₹73,533 (today's ₹103,025), chance of a loss 3%
+        drop  rules NIFTY                                  profit: in-sample    +3,679  held-out    -7,168   worst drop:  -15,625 /   -9,863   worst day:   +1,485 /   +4,173
+        drop  rules SENSEX                                 profit: in-sample   -11,905  held-out   -27,743   worst drop:  -16,579 /   -8,757   worst day:   +2,199 /   +4,239
+        drop  rules MIDCPNIFTY                             profit: in-sample   -67,399  held-out   -34,737   worst drop:   +6,187 /  -24,044   worst day:   +4,553 /   +4,502
+     drop  TradingView rating NIFTY                     profit: in-sample   -41,283  held-out   -43,720   worst drop:   -8,438 /  -16,069   worst day:     +920 /     +519
+             walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹39,138 (today's ₹60,668), chance of a loss 0%;  held-out: 95% worst drop ₹32,678 (today's ₹41,722), chance of a loss 1%
+     drop  TradingView rating BANKNIFTY                 profit: in-sample   -39,401  held-out   -57,259   worst drop:   -4,670 /  -17,864   worst day:       +0 /       +0
+             walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹81,973 (today's ₹111,152), chance of a loss 3%;  held-out: 95% worst drop ₹83,540 (today's ₹88,947), chance of a loss 34%
