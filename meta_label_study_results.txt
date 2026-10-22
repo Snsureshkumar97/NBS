@@ -1,0 +1,15 @@
+======================================================================================================================================================
+ META-LABELLING - 5289 trades (3354 first two years for training, 1935 held-out for judging), 24 features, label = the trade made money
+======================================================================================================================================================
+ boosted trees: AUC in-sample out-of-fold 0.558, HELD-OUT 0.536   (skip threshold 0.319)
+   the rules                held-out  1091 trades ₹  +194,328; skipped  111 ( 10%) won  59% total ₹  +48,151; kept won  50% -> skipping changes the total by ₹  -48,151
+   the TradingView rating   held-out   844 trades ₹  +219,244; skipped  237 ( 28%) won  38% total ₹  +70,323; kept won  39% -> skipping changes the total by ₹  -70,323
+   held-out by the model's score, lowest fifth to highest: Q1 won  43% avg ₹ +265  Q2 won  44% avg ₹ +357  Q3 won  41% avg ₹  -59  Q4 won  48% avg ₹ +212  Q5 won  51% avg ₹ +294
+   does not work by the rule fixed above
+ logistic: AUC in-sample out-of-fold 0.563, HELD-OUT 0.569   (skip threshold 0.338)
+   the rules                held-out  1091 trades ₹  +194,328; skipped    3 (  0%) won  67% total ₹   +5,309; kept won  51% -> skipping changes the total by ₹   -5,309
+   the TradingView rating   held-out   844 trades ₹  +219,244; skipped  160 ( 19%) won  38% total ₹  +77,449; kept won  39% -> skipping changes the total by ₹  -77,449
+   held-out by the model's score, lowest fifth to highest: Q1 won  36% avg ₹ +194  Q2 won  40% avg ₹ +137  Q3 won  49% avg ₹ +445  Q4 won  48% avg ₹  -27  Q5 won  55% avg ₹ +320
+   does not work by the rule fixed above
+
+ VERDICT: NO MODEL PASSED - the failing trades cannot be told apart in advance from these features

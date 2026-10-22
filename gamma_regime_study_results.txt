@@ -1,0 +1,41 @@
+================================================================================================================================================================
+ GAMMA AND REVERSALS - 5289 trades, 3 years, per lot after costs, ₹. Per bucket: trades, won, full stop, average a trade, total  (first two years | held-out)
+================================================================================================================================================================
+ THE RULES (Nifty, Sensex, Midcap)
+   trading days to expiry
+     expiry day       79 won  58% stop  25% avg ₹  +124 tot ₹   +9,758  |    47 won  72% stop  15% avg ₹  +144 tot ₹   +6,777
+     1 day before    283 won  51% stop  20% avg ₹  +118 tot ₹  +33,364  |   186 won  55% stop  17% avg ₹  +288 tot ₹  +53,616
+     2 days          312 won  48% stop  22% avg ₹   +44 tot ₹  +13,834  |   206 won  49% stop  20% avg ₹  +162 tot ₹  +33,342
+     3-4 days        550 won  50% stop  18% avg ₹  +209 tot ₹ +114,838  |   344 won  49% stop  15% avg ₹  +195 tot ₹  +66,915
+     5+ days         563 won  52% stop  19% avg ₹  +314 tot ₹ +176,651  |   308 won  49% stop  17% avg ₹  +109 tot ₹  +33,679
+   G (gamma up to volatility), fifths cut at 4.9, 7.7, 10.7, 13.3
+     Q1 (lowest)    356 won  51% stop  20% avg ₹  +293 tot ₹ +104,290  |   184 won  50% stop  16% avg ₹  +151 tot ₹  +27,860
+     Q2             354 won  51% stop  19% avg ₹  +318 tot ₹ +112,731  |   242 won  52% stop  15% avg ₹  +300 tot ₹  +72,636
+     Q3             355 won  52% stop  19% avg ₹  +251 tot ₹  +89,279  |   312 won  46% stop  19% avg ₹   +90 tot ₹  +28,133
+     Q4             361 won  46% stop  19% avg ₹   -16 tot ₹   -5,891  |   137 won  53% stop  15% avg ₹  +240 tot ₹  +32,856
+     Q5 (highest)   361 won  53% stop  22% avg ₹  +133 tot ₹  +48,037  |   216 won  57% stop  17% avg ₹  +152 tot ₹  +32,843
+     MIDCPNIFTY  expiry day   16 won  62% stop  25% avg ₹  +354 tot ₹   +5,665  |     6 won  33% stop  33% avg ₹  -918 tot ₹   -5,506
+                 5+ days     558 won  51% stop  19% avg ₹  +307 tot ₹ +171,572  |   304 won  49% stop  16% avg ₹  +128 tot ₹  +38,947
+     NIFTY       expiry day   41 won  59% stop  24% avg ₹   +55 tot ₹   +2,262  |    28 won  82% stop   7% avg ₹  +401 tot ₹  +11,230
+                 5+ days       4 won 100% stop   0% avg ₹+2,087 tot ₹   +8,349  |     2 won   0% stop  50% avg ₹-1,232 tot ₹   -2,463
+     SENSEX      expiry day   22 won  55% stop  27% avg ₹   +83 tot ₹   +1,831  |    13 won  69% stop  23% avg ₹   +81 tot ₹   +1,053
+                 5+ days       1 won   0% stop 100% avg ₹-3,269 tot ₹   -3,269  |     2 won   0% stop  50% avg ₹-1,403 tot ₹   -2,805
+ THE TRADINGVIEW RATING (Nifty, Bank Nifty)
+   trading days to expiry
+     expiry day      304 won  34% stop  51% avg ₹  +641 tot ₹ +194,862  |   123 won  36% stop  55% avg ₹  +110 tot ₹  +13,482
+     1 day before    282 won  38% stop  56% avg ₹  +373 tot ₹ +105,179  |   102 won  39% stop  57% avg ₹  +333 tot ₹  +33,994
+     2 days          266 won  38% stop  59% avg ₹  +120 tot ₹  +31,817  |    92 won  47% stop  49% avg ₹  +836 tot ₹  +76,875
+     3-4 days        473 won  40% stop  50% avg ₹  +252 tot ₹ +119,171  |   193 won  40% stop  50% avg ₹  +306 tot ₹  +59,036
+     5+ days         242 won  38% stop  52% avg ₹    -9 tot ₹   -2,074  |   334 won  36% stop  54% avg ₹  +107 tot ₹  +35,858
+   G (gamma up to volatility), fifths cut at 7.6, 10.6, 13.2, 18.8
+     Q1 (lowest)    311 won  36% stop  53% avg ₹   +16 tot ₹   +4,975  |   373 won  36% stop  53% avg ₹  +154 tot ₹  +57,287
+     Q2             298 won  44% stop  48% avg ₹  +262 tot ₹  +77,953  |   231 won  43% stop  52% avg ₹  +393 tot ₹  +90,681
+     Q3             329 won  37% stop  61% avg ₹  +285 tot ₹  +93,871  |    24 won  50% stop  42% avg ₹+1,943 tot ₹  +46,628
+     Q4             308 won  38% stop  55% avg ₹  +262 tot ₹  +80,693  |    86 won  36% stop  60% avg ₹  +132 tot ₹  +11,339
+     Q5 (highest)   321 won  35% stop  50% avg ₹  +596 tot ₹ +191,462  |   130 won  36% stop  53% avg ₹  +102 tot ₹  +13,309
+     BANKNIFTY   expiry day  125 won  35% stop  56% avg ₹  +804 tot ₹ +100,439  |    27 won  37% stop  48% avg ₹    +4 tot ₹     +108
+                 5+ days     238 won  37% stop  53% avg ₹   -67 tot ₹  -16,041  |   334 won  36% stop  54% avg ₹  +107 tot ₹  +35,858
+     NIFTY       expiry day  179 won  34% stop  47% avg ₹  +528 tot ₹  +94,423  |    96 won  35% stop  57% avg ₹  +139 tot ₹  +13,374
+                 5+ days       4 won  75% stop  50% avg ₹+3,492 tot ₹  +13,966  |     0 won   0% stop   0% avg ₹    +0 tot ₹       +0
+
+ GAMMA MATTERS? NO - low-gamma trades earned less a trade than high-gamma ones: rules is: no, rules oos: yes, tv is: yes, tv oos: no

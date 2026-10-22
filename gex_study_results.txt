@@ -1,0 +1,27 @@
+============================================================================================================================================
+ GAMMA AND CONTINUATION - 2093 checks, 27 days (2026-09-10 to 2026-10-22), four indices, the nearest expiry
+============================================================================================================================================
+ GEX_TOTAL (all the gamma; writers short it) - thirds within each index: checks, continued over 15 / 30 min, average next move the last move's way (pts) over 15 / 30 min, next 15 min's range against the day's
+   low      698   continued 45.8% / 51.9%   next move   -3.9 /   -2.6 pts   range 1.02x
+   middle   697   continued 50.4% / 51.9%   next move   +4.6 /   +6.1 pts   range 0.99x
+   high     698   continued 49.7% / 52.1%   next move   +4.0 /   +4.5 pts   range 0.99x
+      NIFTY       low third continued 50.2% / 55.1%   high third 51.2% / 55.6%
+      BANKNIFTY   low third continued 43.5% / 48.3%   high third 44.9% / 45.9%
+      SENSEX      low third continued 42.5% / 49.8%   high third 53.1% / 55.1%
+      MIDCPNIFTY  low third continued 49.4% / 58.4%   high third 49.4% / 51.9%
+ GEX_US (calls +, puts -) - thirds within each index: checks, continued over 15 / 30 min, average next move the last move's way (pts) over 15 / 30 min, next 15 min's range against the day's
+   low      698   continued 48.3% / 51.6%   next move   +0.7 /   -0.5 pts   range 0.98x
+   middle   697   continued 48.6% / 52.1%   next move   +0.3 /   +1.8 pts   range 1.01x
+   high     698   continued 49.0% / 52.3%   next move   +3.7 /   +6.6 pts   range 1.01x
+      NIFTY       low third continued 48.3% / 53.1%   high third 46.4% / 55.1%
+      BANKNIFTY   low third continued 44.9% / 50.2%   high third 51.2% / 49.8%
+      SENSEX      low third continued 48.8% / 51.2%   high third 50.7% / 52.7%
+      MIDCPNIFTY  low third continued 55.8% / 51.9%   high third 45.5% / 50.6%
+
+ VERDICT: GEX_TOTAL does not decide continuation (high > low over 15 and 30 min on 2 of 4 indices); GEX_US not as the US convention says
+   expiry days alone: continued 54.8% over 15 min (299 checks), other days 47.6%
+
+ THE TOOL'S REAL TICKETS (one live account, 96 with a reading at entry), per lot before charges, by GEX_TOTAL third at the last check before entry
+   low       22 tickets  won  55%  total ₹   +3,688  avg ₹   +168
+   middle    35 tickets  won  57%  total ₹   +5,099  avg ₹   +146
+   high      39 tickets  won  59%  total ₹  +13,130  avg ₹   +337
