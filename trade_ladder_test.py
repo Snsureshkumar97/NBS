@@ -199,8 +199,7 @@ except Exception:
 check("the live index price when the page has one, the chain's own otherwise",
       o3 == {"none": 23112, "live": 23161.5, "other": 76000, "nolive": 23112}, o3)
 check("both drawings use it; the Signal one is redrawn by every price update (render), the Option chain's too",
-      "ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d));" in src
-      and src.count("ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d))") == 2 and "  sigSellers(r);\n  try{ if(TAB === \"chain\" && OC_LAST && OC_LAST.index === CUR) ocSellersDraw(OC_LAST); }catch(e){}" in src
+      src.count("ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d), ") == 2 and "  sigSellers(r);\n  try{ if(TAB === \"chain\" && OC_LAST && OC_LAST.index === CUR) ocSellersDraw(OC_LAST); }catch(e){}" in src
       and "if(changed) render(LAST);" in src)
 
 mv = o.get("moving", [])

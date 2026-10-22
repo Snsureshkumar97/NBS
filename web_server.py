@@ -3727,6 +3727,24 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .ocl .ocl-tlab.tgt{fill:var(--up)}
 .ocl .ocl-tlab.stp{fill:var(--down)}
 .ocse-tr{color:var(--accent);font-weight:600}
+/* who moved at a strike (22 Oct 2026): buyers in the accent colour, sellers in their side's; filled = came in, outlined = left */
+.ocl .ocl-who{fill:var(--accent);fill-opacity:.16;stroke:var(--accent);stroke-width:1}
+.ocl .ocl-who.call{fill:var(--down);stroke:var(--down)}
+.ocl .ocl-who.put{fill:var(--up);stroke:var(--up)}
+.ocl .ocl-who.out{fill:var(--surface);fill-opacity:1;stroke-dasharray:3 2}
+.ocl .ocl-whot{fill:var(--accent);font-size:12px;font-weight:700}
+.ocl .ocl-whot.call{fill:var(--down)}
+.ocl .ocl-whot.put{fill:var(--up)}
+.ocl .ocl-whot.out{font-weight:500}
+.bu-lean{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:4px 0 8px;font-size:13px}
+.bu-l{color:var(--ink-2);font-weight:600}
+.bu-bar{display:flex;flex:1 1 140px;min-width:120px;max-width:320px;height:8px;border-radius:4px;overflow:hidden;background:var(--sunken)}
+.bu-bar i{display:block;height:100%}
+.bu-bar i.up{background:var(--up)}
+.bu-bar i.dn{background:var(--down)}
+.bu-v{display:flex;gap:10px;font-variant-numeric:tabular-nums}
+.bu-v .up{color:var(--up)}
+.bu-v .dn{color:var(--down)}
 .se-say.se-trade{color:var(--ink)}
 /* beside the trade on the Signal page: the ladder of targets on the left, the drawing on the right - when the card itself
    is wide enough for both (the targets ladder needs ~330px; at 1024px wide the card is not), one under the other
@@ -8795,7 +8813,7 @@ function sigSellers(r){
   }
   if(TAB === "signal" && (SIGCHAIN.for !== CUR || Date.now() - SIGCHAIN.at > 20000)) sigChainFetch();
   if(!el._sk){
-    el.innerHTML = `<div class="rr-h" data-h></div><div class="sl-draw" data-d></div><div data-w></div>`
+    el.innerHTML = `<div class="rr-h" data-h></div><div data-l></div><div class="sl-draw" data-d></div><div data-w></div>`
       + `<details class="about sl-about"><summary>What the drawing shows</summary><p class="ocse-n" data-n></p></details>`;
     el._sk = true;
   }
@@ -8803,19 +8821,23 @@ function sigSellers(r){
   const tr = ladderTrade(((LAST && LAST.tickets) || {})[CUR], CUR);
   const hd = el.querySelector("[data-h]"), dr = el.querySelector("[data-d]"), wd = el.querySelector("[data-w]");
   const set = (x, h) => { if(x._h !== h){ x._h = h; x.innerHTML = h; } };
-  set(hd, `Sellers above &middot; support below${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}`);
+  set(hd, `Buyers and sellers around the price${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}`);
   set(el.querySelector("[data-n]"), `${ladderNote(se)} The ringed strike is the one this trade holds; the green line is its `
     + `target, the red line its stop, both in index points. Shown to read - the tool does not change a trade because of it.`);
+  const lb = el.querySelector("[data-l]");
   if(!d || !d.rows || !d.rows.length || d.spot == null){
     ladderInto(dr, "", null);
+    set(lb, "");
     set(wd, sellersRows(se));
     return;
   }
   const w = Math.round(ladderWidth(dr));
   dr._w = w;
-  const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d));
+  const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d), r && r.buildup);
   ladderInto(dr, x.svg, () => sigSellers((LAST && LAST.indices || {})[CUR]));
-  set(wd, (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "") + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : ""));
+  set(lb, x.lean);
+  set(wd, (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "") + (x.bsay ? `<p class="se-say se-who">${esc(x.bsay)}</p>` : "")
+    + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : ""));
 }
 
 function roomRun(r){
@@ -10559,12 +10581,14 @@ function tradeSay(tr, spot, rows, se, name){
 // The drawing itself, `w` pixels wide: {svg, say}. The strikes are picked around the chain's own price, so they hold
 // still between chain fetches; `live`, the index price right now, places the price line and the words - the line moves
 // up and down a ladder that stays put.
-function ladderDraw(d, se, tr, w, live){
+function ladderDraw(d, se, tr, w, live, bu){
   const spot = live != null ? live : d.spot;
   const rows = ladderRows(d, d.spot != null ? d.spot : spot, tr);
   const mark = {};
   for(const l of ((se && se.call && se.call.levels) || [])) mark["c" + l.strike] = l;
   for(const l of ((se && se.put && se.put.levels) || [])) mark["p" + l.strike] = l;
+  const who = {};                              // strike -> {call, put}: who changed their positions there lately
+  for(const b of ((bu && bu.rows) || [])) who[b.strike] = b;
   const W = Math.max(300, Math.min(760, Math.round(w || 680))), narrow = W < 520;
   const mid = W / 2, half = narrow ? 30 : 40, rh = 24, top = 30;
   const labW = narrow ? 78 : 136, maxLen = Math.max(24, mid - half - labW - 8);
@@ -10584,6 +10608,18 @@ function ladderDraw(d, se, tr, w, live){
     return `<rect x="${x0}" y="${y - 12}" width="${tw}" height="16" rx="3" class="ocl-bg"/>`
       + `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${cls}">${text}</text>`;
   };
+  // who moved at a strike, as a pill against the strike column: buyers in the accent colour, sellers in their side's
+  // (calls red, puts green); filled when they came in, outlined when they left
+  const pill = (x, y, anchor, what, kind) => {
+    const t = (WHO_PILL[what] || ["", ""])[narrow ? 1 : 0], tw = Math.round(t.length * 6.9 + 12);
+    const x0 = anchor === "end" ? x - tw : x;
+    const who_ = `${what.startsWith("buyers") ? "b" : "s " + kind}${what.endsWith("_out") ? " out" : ""}`;
+    boxes.push({x0, x1: x0 + tw, y0: y - 12, y1: y + 4, tw});
+    // on a solid background first, so a pill over a dark bar still reads
+    return {w: tw, svg: `<rect x="${x0}" y="${y - 12}" width="${tw}" height="16" rx="8" class="ocl-bg"/>`
+      + `<rect x="${x0}" y="${y - 12}" width="${tw}" height="16" rx="8" class="ocl-who ${who_}"/>`
+      + `<text x="${x0 + tw / 2}" y="${y}" text-anchor="middle" class="ocl-whot ${who_}">${t}</text>`};
+  };
   const chg = l => l && l.chg != null ? ` ${l.chg >= 0 ? "+" : "−"}${L(Math.abs(l.chg))}` : "";
   // drawn in three layers - the bars, then the lines, then every label - so a line never strikes through a label
   let g = "", lines = "";
@@ -10600,8 +10636,16 @@ function ladderDraw(d, se, tr, w, live){
       + `<rect x="${mid + half}" y="${y + 4}" width="${pw}" height="${rh - 8}" rx="3" class="ocl-put${pm ? " on" : ""}"/>`;
     txt += tag(mid, cy + 4, "middle", num(r.strike, 0), `ocl-k${cm || pm ? " on" : ""}${mine ? " mine" : ""}`);
     if(mine) txt += `<rect x="${mid - half + 3}" y="${y + 2}" width="${2 * half - 6}" height="${rh - 4}" rx="6" class="ocl-mine"/>`;
-    if(cm) txt += tag(mid - half - cw - 6, cy + 4, "end", `${narrow ? "" : "sellers "}${L(co)} L${chg(cm)}`, "ocl-lab call", true);
-    if(pm) txt += tag(mid + half + pw + 6, cy + 4, "start", `${narrow ? "" : "support "}${L(po)} L${chg(pm)}`, "ocl-lab put", true);
+    const wb = who[r.strike] || {};
+    const cp = wb.call ? pill(mid - half - 4, cy + 4, "end", wb.call.what, "call") : null;
+    const pp = wb.put ? pill(mid + half + 4, cy + 4, "start", wb.put.what, "put") : null;
+    if(cp) txt += cp.svg;
+    if(pp) txt += pp.svg;
+    // a level's label past the end of its bar, and past its pill
+    if(cm) txt += tag(Math.min(mid - half - cw - 6, cp ? mid - half - 8 - cp.w : 1e9), cy + 4, "end",
+                      `${narrow ? "" : "sellers "}${L(co)} L${chg(cm)}`, "ocl-lab call", true);
+    if(pm) txt += tag(Math.max(mid + half + pw + 6, pp ? mid + half + 8 + pp.w : -1e9), cy + 4, "start",
+                      `${narrow ? "" : "support "}${L(po)} L${chg(pm)}`, "ocl-lab put", true);
   });
   // a level's height: between the strikes it sits between; beyond the drawing, pinned to its edge (off)
   const yOf = v => {
@@ -10643,13 +10687,72 @@ function ladderDraw(d, se, tr, w, live){
   }
   const say = sellersSay(se);
   const tsay = tradeSay(tr, spot, rows, se, d.index);
+  const bsay = buildupSay(bu);
   return {svg: `<svg class="ocl" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" `
-    + `aria-label="${esc(tsay || say || "Open interest around the price")}">${g}${lines}${txt}</svg>`, say, tsay};
+    + `aria-label="${esc(tsay || bsay || say || "Open interest around the price")}">${g}${lines}${txt}</svg>`,
+    say, tsay, bsay, lean: leanBar(bu)};
+}
+// WHO IS MOVING (the user, 22 Oct 2026: "shows about sellers and support but not about buyers ... explain nicely on the
+// diagram with live data it will easy to understand the market if it goes up or down"). From the server's buildup
+// (feeds._buildup): at each strike near the price, whether buyers or sellers came in or left over ~15 minutes - open
+// interest and the premium read together - and which way all of it leans. Display only: who_moved_study.py found the
+// lean repeats the last 15 minutes' own move and calls the next 15 no better than a coin, and the words say so.
+const WHO_PILL = {buyers_in: ["buyers in", "B+"], sellers_in: ["sellers in", "S+"],
+                  sellers_out: ["sellers out", "S\u2212"], buyers_out: ["buyers out", "B\u2212"]};
+const WHO_SAY = {call: {buyers_in: "call buyers came in", sellers_in: "call sellers added", sellers_out: "call sellers bought back",
+                        buyers_out: "call buyers left"},
+                 put: {buyers_in: "put buyers came in", sellers_in: "put sellers added", sellers_out: "put sellers bought back",
+                       buyers_out: "put buyers left"}};
+const WHO_LEAN = {call: {buyers_in: 1, sellers_out: 1, sellers_in: -1, buyers_out: -1},
+                  put: {sellers_in: 1, buyers_out: 1, buyers_in: -1, sellers_out: -1}};
+function buildupSay(bu){
+  if(!bu || !(bu.rows || []).length) return "";
+  const ev = [];
+  for(const r of bu.rows) for(const kind of ["call", "put"])
+    if(r[kind] && WHO_LEAN[kind][r[kind].what]) ev.push(Object.assign({k: r.strike, kind, lean: WHO_LEAN[kind][r[kind].what]}, r[kind]));
+  const L = v => (Math.abs(v) / 1e5).toFixed(1);
+  // the three biggest changes on one side of the bet, grouped by what they did:
+  // "call buyers came in at 23,200 (+8.1 lakh) and 23,250 (+3.0 lakh); put sellers added at 23,000 (+12.4 lakh)"
+  const say = list => {
+    const groups = [];
+    for(const e of list.slice().sort((a, b) => Math.abs(b.oi_chg) - Math.abs(a.oi_chg)).slice(0, 3)){
+      let g = groups.find(x => x.key === e.kind + e.what);
+      if(!g) groups.push(g = {key: e.kind + e.what, e, at: []});
+      g.at.push(`${num(e.k, 0)} (${e.oi_chg > 0 ? "+" : "\u2212"}${L(e.oi_chg)} lakh)`);
+    }
+    return groups.map(g => `${WHO_SAY[g.e.kind][g.e.what]} at ${g.at.join(" and ")}`).join("; ");
+  };
+  const out = [];
+  const when = bu.minutes ? `In the last ${bu.minutes} minutes` : "Lately";
+  const u = bu.lean_up;
+  if(u != null) out.push(u >= 0.6 ? `${when}, most of the positions that changed (${Math.round(u * 100)}%) bet on a rise.`
+    : u <= 0.4 ? `${when}, most of the positions that changed (${Math.round((1 - u) * 100)}%) bet on a fall.`
+    : `${when}, the positions that changed are split about evenly between a rise and a fall.`);
+  const ups = ev.filter(e => e.lean > 0), dns = ev.filter(e => e.lean < 0);
+  if(ups.length) out.push(`On a rise: ${say(ups)}.`);
+  if(dns.length) out.push(`On a fall: ${say(dns)}.`);
+  // what who_moved_study.py found on 26 days of the server's recorded chains (22 Oct 2026)
+  out.push("In our test on 26 trading days, this lean matched the last 15 minutes' own move 95% of the time and called "
+    + "the next 15 minutes right only about half the time (49.5%): it describes what just happened, not what comes next.");
+  return out.join(" ");
+}
+// which way the positions that changed lean, as a two-colour bar above the drawing
+function leanBar(bu){
+  if(!bu || bu.lean_up == null) return "";
+  const u = Math.round(bu.lean_up * 100);
+  return `<div class="bu-lean" role="img" aria-label="Positions that changed${bu.minutes ? ` in the last ${bu.minutes} minutes` : ""}: `
+    + `${u}% bet on a rise, ${100 - u}% on a fall">`
+    + `<span class="bu-l">Who moved${bu.minutes ? ` &middot; last ${bu.minutes} min` : ""}</span>`
+    + `<span class="bu-bar"><i class="up" style="width:${u}%"></i><i class="dn" style="width:${100 - u}%"></i></span>`
+    + `<span class="bu-v"><b class="up">\u25B2 rise ${u}%</b><b class="dn">\u25BC fall ${100 - u}%</b></span></div>`;
 }
 const ladderNote = se => `Bars: open interest at each strike, in lakh. A call seller loses if the market rises past the strike, `
   + `so heavy calls just above the price act like a ceiling; a put seller loses if it falls below, so heavy puts just below `
   + `act like a floor. Labelled: the two heaviest each way within 1.5%, with what was added${se && se.minutes ? ` in the last `
-  + `${se.minutes} minutes` : " lately"}.`;
+  + `${se.minutes} minutes` : " lately"}. Pills: who changed their positions at that strike in the last 15 minutes, read from `
+  + `the open contracts and the premium together - buyers in (both up), sellers in (contracts up, premium down), sellers `
+  + `out (contracts down, premium up: sellers buying back), buyers out (both down). Call buyers in, call sellers out, put `
+  + `sellers in and put buyers out bet on a rise; the other four on a fall.`;
 // the box's width for the drawing (the ResizeObserver redraws it when that changes - a phone turned, a pane resized)
 function ladderWidth(el){
   const cs = getComputedStyle(el);
@@ -10683,10 +10786,11 @@ function ocSellersDraw(d){
   const tr = ladderTrade(((LAST && LAST.tickets) || {})[d.index], d.index);
   const w = Math.round(ladderWidth(el));
   el._w = w;
-  const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d));
-  ladderInto(el, `<div class="ocse-h">Sellers above &middot; support below${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}</div>`
-    + x.svg
+  const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d), (((LAST && LAST.indices) || {})[d.index] || {}).buildup);
+  ladderInto(el, `<div class="ocse-h">Buyers and sellers around the price${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}</div>`
+    + x.lean + x.svg
     + (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "")
+    + (x.bsay ? `<p class="se-say se-who">${esc(x.bsay)}</p>` : "")
     + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : "")
     + `<p class="ocse-n">${ladderNote(se)} Shown to read - not part of the tool's signal.</p>`, () => ocSellersDraw(d));
 }

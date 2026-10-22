@@ -497,6 +497,57 @@ def _sellers_ahead(chain, spot, past=None, past_age_s=None):
     return out if out["call"] or out["put"] else None
 
 
+# WHO IS MOVING, AND WHICH WAY (the user, 22 Oct 2026: "the option chain in the signal tab shows about sellers and
+# support but not about buyers ... explain nicely on the diagram with live data it will easy to understand the market if
+# it goes up or down"). Every open contract has a buyer and a seller, so open interest on its own cannot say who is
+# pushing. Open interest and the premium moving TOGETHER over the same ~15 minutes can - the reading Indian option
+# traders call build-up:
+#     contracts up,   premium up    buyers in     (long build-up)
+#     contracts up,   premium down  sellers in    (short build-up: writing)
+#     contracts down, premium up    sellers out   (short covering: writers buying back)
+#     contracts down, premium down  buyers out    (long unwinding)
+# Each leans a way: call buyers in, call sellers out, put sellers in and put buyers out bet on a rise; the other four on
+# a fall - weighted by the contracts that changed. Within BUILDUP_AREA of the price; a strike's side counts only when
+# its open interest moved BUILDUP_MIN_OI and its premium BUILDUP_MIN_PX of where they were. Display only: it says who
+# moved in the last 15 minutes, and has not been tested as a signal.
+BUILDUP_AREA, BUILDUP_MIN_OI, BUILDUP_MIN_PX = 0.02, 0.03, 0.02
+BUILDUP_LEAN = {("call", "buyers_in"): 1, ("call", "sellers_out"): 1, ("put", "sellers_in"): 1, ("put", "buyers_out"): 1,
+                ("call", "sellers_in"): -1, ("call", "buyers_out"): -1, ("put", "buyers_in"): -1, ("put", "sellers_out"): -1}
+
+
+def _buildup(chain, spot, past=None, past_age_s=None):
+    """{"minutes", "rows": [{"strike", "call"/"put": {"what", "oi_chg", "px_chg_pct"}}], "up", "down", "lean_up"} or
+    None. `past` maps strike -> (call OI, put OI, call premium, put premium) as of `past_age_s` seconds ago."""
+    strikes = (chain or {}).get("strikes") if isinstance(chain, dict) else None
+    if not strikes or not spot or not past:
+        return None
+    rows, up, down = [], 0.0, 0.0
+    for s in strikes:
+        k = float(s["strike"])
+        was = past.get(k)
+        if abs(k - spot) > spot * BUILDUP_AREA or not was or len(was) < 4:
+            continue
+        row = {"strike": k}
+        for kind, i in (("call", 0), ("put", 1)):
+            oi, px, w_oi, w_px = s.get(f"{kind}_oi"), s.get(f"{kind}_ltp"), was[i], was[2 + i]
+            if not oi or not w_oi or px is None or not w_px:
+                continue
+            d_oi, d_px = float(oi) - float(w_oi), float(px) - float(w_px)
+            if abs(d_oi) < BUILDUP_MIN_OI * float(w_oi) or abs(d_px) < BUILDUP_MIN_PX * float(w_px):
+                continue
+            what = ("buyers_in" if d_px > 0 else "sellers_in") if d_oi > 0 else ("sellers_out" if d_px > 0 else "buyers_out")
+            row[kind] = {"what": what, "oi_chg": round(d_oi), "px_chg_pct": round(d_px / float(w_px) * 100, 1)}
+            if BUILDUP_LEAN[(kind, what)] > 0:
+                up += abs(d_oi)
+            else:
+                down += abs(d_oi)
+        if len(row) > 1:
+            rows.append(row)
+    total = up + down
+    return {"minutes": int(round(past_age_s / 60)) if past_age_s else None, "rows": rows,
+            "up": round(up), "down": round(down), "lean_up": round(up / total, 3) if total else None}
+
+
 def _public(rec, name=None):
     """_public_base(), and on a CFD (Exness - no options) every option field emptied:
     no strike, premium, expiry or option spread - the page shows the price levels a
@@ -580,6 +631,7 @@ def _public_base(rec, name=None):
         # "606 pts of room" never said which way or to where.
         "room": _room(rec),
         "sellers": rec.get("sellers"),
+        "buildup": rec.get("buildup"),
         "cpr": rec.get("cpr"),
         "opening_range": rec.get("opening_range"),
         "reach_to_risk": rec.get("reach_to_risk"),
@@ -715,7 +767,7 @@ class Feed:
         self.sug_px = {}          # index name -> that contract's live premium
         self.base_df = {}         # index name -> the completed REST candles
         self.base_oi = {}         # index name -> the last option-chain snapshot
-        self.oi_hist = {}         # index name -> [(epoch, {strike: (call OI, put OI)})], a sample a minute, ~20 minutes
+        self.oi_hist = {}         # index name -> [(epoch, {strike: (call OI, put OI, call premium, put premium)})], a sample a minute, ~20 minutes
         self._cpr_cache = {}      # index name -> ((day, after the close), cpr.levels) - built once a session
         self.chain_toks = {}      # index name -> {expiry, map (strike, CE/PE) -> token, streamed, on}
         self._chain_tried = {}    # index name -> (expiry, when) of a lookup that has not succeeded
@@ -1734,7 +1786,9 @@ class Feed:
             now = time.time()
             hist = self.oi_hist.setdefault(name, [])
             if not hist or now - hist[-1][0] >= 60:
-                hist.append((now, {float(s["strike"]): (s.get("call_oi"), s.get("put_oi")) for s in strikes}))
+                # the premiums too, for who is moving (_buildup)
+                hist.append((now, {float(s["strike"]): (s.get("call_oi"), s.get("put_oi"), s.get("call_ltp"), s.get("put_ltp"))
+                                   for s in strikes}))
                 while hist and now - hist[0][0] > SELLERS_LOOKBACK_S + 300:
                     hist.pop(0)
             # the sample nearest to SELLERS_LOOKBACK_S ago - or the oldest there is, said as its own age
@@ -1742,6 +1796,19 @@ class Feed:
             age = (now - past[0]) if past else None
             return _sellers_ahead(chain, spot, past[1] if past and age >= 60 else None,
                                   age if past and age >= 60 else None)
+        except Exception:
+            return None
+
+    def _who(self, name, chain, spot):
+        """Who is moving at the strikes near the price over ~15 minutes (_buildup), from the samples _sellers keeps."""
+        try:
+            hist = self.oi_hist.get(name) or []
+            if len(hist) < 2:
+                return None
+            now = time.time()
+            past = min(hist, key=lambda h: abs((now - h[0]) - SELLERS_LOOKBACK_S))
+            age = now - past[0]
+            return _buildup(chain, spot, past[1], age) if age >= 60 else None
         except Exception:
             return None
 
@@ -2227,6 +2294,7 @@ class Feed:
                                                           reach=reach,
                                                           avoid_strikes=self._avoid_strikes(name))
                 rec["sellers"] = self._sellers(name, oi, spot)
+                rec["buildup"] = self._who(name, oi, spot)
                 rec["cpr"] = self._cpr(name, df, spot)
                 rec["trend"] = trend
                 rec["candles"] = df
