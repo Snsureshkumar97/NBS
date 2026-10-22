@@ -1,0 +1,27 @@
+       day  index   k  real_credit  real_net  model_net                           wing_note
+2026-09-15  NIFTY 1.5        27.80     -2020      -1077                                    
+2026-09-15  NIFTY 2.0        14.55     -2363      -1372 narrower wing (strike not recorded)
+2026-09-17 SENSEX 1.5        76.74       333       2121 narrower wing (strike not recorded)
+2026-09-17 SENSEX 2.0        45.35       122       1609 narrower wing (strike not recorded)
+2026-09-22  NIFTY 1.5        17.80     -1859         97 narrower wing (strike not recorded)
+2026-09-22  NIFTY 2.0        11.20     -2268       -342 narrower wing (strike not recorded)
+2026-09-24 SENSEX 1.5        82.14     -1713       -291 narrower wing (strike not recorded)
+2026-09-24 SENSEX 2.0        50.72     -2555       -938 narrower wing (strike not recorded)
+2026-10-01 SENSEX 1.5        94.70     -4676      -4178 narrower wing (strike not recorded)
+2026-10-01 SENSEX 2.0        63.79     -4123      -3475 narrower wing (strike not recorded)
+2026-10-06  NIFTY 1.5        22.75       434       2218 narrower wing (strike not recorded)
+2026-10-06  NIFTY 2.0        11.80       345       1525 narrower wing (strike not recorded)
+2026-10-08 SENSEX 1.5        84.70     -1850      -1292 narrower wing (strike not recorded)
+2026-10-08 SENSEX 2.0        56.84     -1595       -743 narrower wing (strike not recorded)
+2026-10-13  NIFTY 1.5        20.95     -1454        -24                                    
+2026-10-13  NIFTY 2.0        11.75     -1063        402                                    
+2026-10-15 SENSEX 1.5       103.32     -2183      -1679 narrower wing (strike not recorded)
+2026-10-15 SENSEX 2.0        61.27     -2067      -1413 narrower wing (strike not recorded)
+2026-10-19  NIFTY 1.5        47.82     -3209       -729                                    
+2026-10-19  NIFTY 2.0        32.59      1654       1439                                    
+2026-10-22 SENSEX 1.5        98.23     -1753      -1045 narrower wing (strike not recorded)
+2026-10-22 SENSEX 2.0        43.19       592       1706 narrower wing (strike not recorded)
+
+ k=1.5: 11 expiry days | REAL won 18% total ₹-19,950 | MODEL won 27% total ₹-5,879
+
+ k=2.0: 11 expiry days | REAL won 36% total ₹-13,321 | MODEL won 45% total ₹-1,602

@@ -1,0 +1,43 @@
+==========================================================================================================================================================================
+ 80%+ WIN STRATEGIES THAT MAKE MONEY? Per lot after charges and slippage, ₹, pooled over Nifty, Bank Nifty, Sensex, Midcap Select. Columns: trades, won, total, avg win, avg loss, worst trade, worst week, PF, worst drop
+==========================================================================================================================================================================
+
+ weekly condor, short strikes 2.0 expected moves, in 1 day(s) before expiry
+   measured premiums  first two years  293 won  92% ₹  +27,445 win ₹  +639 loss ₹ -6,626 worst ₹ -14,468 wk ₹ -19,691 PF 1.19 DD ₹ 36,232
+                      held-out         140 won  96% ₹  +68,464 win ₹  +706 loss ₹ -5,373 worst ₹ -15,641 wk ₹ -14,974 PF 3.55 DD ₹ 15,641
+                      the most one condor can lose (median, per lot): ₹14,307
+   15% less premium   first two years  293 won  92% ₹   -6,581 win ₹  +523 loss ₹ -6,736 worst ₹ -14,570 wk ₹ -20,029 PF 0.96 DD ₹ 46,992
+                      held-out         140 won  96% ₹  +50,643 win ₹  +579 loss ₹ -5,510 worst ₹ -15,758 wk ₹ -15,208 PF 2.84 DD ₹ 15,758
+      NIFTY       is: 100 won 95% ₹+32,212   oos: 57 won 96% ₹+21,131
+      BANKNIFTY   is: 70 won 87% ₹-38,318   oos: 14 won 100% ₹+11,138
+      SENSEX      is: 100 won 94% ₹+30,205   oos: 55 won 96% ₹+31,075
+      MIDCPNIFTY  is: 23 won 91% ₹+3,345   oos: 14 won 93% ₹+5,120
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ weekly condor, short strikes 2.0 expected moves, in 3 day(s) before expiry
+   measured premiums  first two years  285 won  95% ₹ +147,583 win ₹  +906 loss ₹ -7,599 worst ₹ -16,956 wk ₹ -19,948 PF 2.49 DD ₹ 24,637
+                      held-out         138 won  99% ₹ +131,369 win ₹  +997 loss ₹ -2,112 worst ₹  -3,303 wk ₹  -2,405 PF 32.10 DD ₹  3,303
+                      the most one condor can lose (median, per lot): ₹14,062
+   15% less premium   first two years  285 won  95% ₹ +103,401 win ₹  +750 loss ₹ -7,745 worst ₹ -17,128 wk ₹ -20,813 PF 2.03 DD ₹ 27,462
+                      held-out         138 won  99% ₹ +107,952 win ₹  +827 loss ₹ -2,267 worst ₹  -3,457 wk ₹  -2,717 PF 24.81 DD ₹  3,457
+      NIFTY       is: 97 won 95% ₹+52,615   oos: 54 won 100% ₹+53,992
+      BANKNIFTY   is: 67 won 99% ₹+51,291   oos: 14 won 100% ₹+15,763
+      SENSEX      is: 98 won 97% ₹+58,751   oos: 56 won 98% ₹+49,179
+      MIDCPNIFTY  is: 23 won 83% ₹-15,074   oos: 14 won 93% ₹+12,434
+   PASSES (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ expiry-day condor, short strikes 2.0 expected moves
+   measured premiums  first two years  292 won  69% ₹ +133,109 win ₹+1,513 loss ₹ -1,916 worst ₹  -5,386 wk ₹ -10,106 PF 1.77 DD ₹ 18,755
+                      held-out         141 won  78% ₹ +132,765 win ₹+1,572 loss ₹ -1,296 worst ₹  -5,643 wk ₹  -5,719 PF 4.30 DD ₹  9,587
+                      the most one condor can lose (median, per lot): ₹13,409
+   15% less premium   first two years  292 won  69% ₹ +106,075 win ₹+1,270 loss ₹ -1,640 worst ₹  -4,601 wk ₹  -8,713 PF 1.71 DD ₹ 17,253
+                      held-out         141 won  78% ₹ +109,569 win ₹+1,315 loss ₹ -1,131 worst ₹  -4,820 wk ₹  -4,915 PF 4.13 DD ₹  8,310
+   (info) expiry day  first two years  292 won  65% ₹ -114,861 win ₹  +300 loss ₹ -1,686 worst ₹  -6,571 wk ₹  -9,317 PF 0.33 DD ₹115,508
+   priced like any day held-out         141 won  74% ₹  -15,822 win ₹  +302 loss ₹ -1,320 worst ₹  -7,160 wk ₹  -7,996 PF 0.67 DD ₹ 21,380
+      NIFTY       is: 100 won 74% ₹+66,195   oos: 56 won 82% ₹+56,572
+      BANKNIFTY   is: 70 won 60% ₹+7,155   oos: 14 won 64% ₹+9,192
+      SENSEX      is: 99 won 73% ₹+57,733   oos: 57 won 79% ₹+54,485
+      MIDCPNIFTY  is: 23 won 61% ₹+2,026   oos: 14 won 71% ₹+12,516
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ VERDICT: PASSED - weekly condor, short strikes 2.0 expected moves, in 3 day(s) before expiry

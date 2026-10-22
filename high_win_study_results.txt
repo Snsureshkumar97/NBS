@@ -1,0 +1,86 @@
+==========================================================================================================================================================================
+ 80%+ WIN STRATEGIES THAT MAKE MONEY? Per lot after charges and slippage, ₹, pooled over Nifty, Bank Nifty, Sensex, Midcap Select. Columns: trades, won, total, avg win, avg loss, worst trade, worst week, PF, worst drop
+==========================================================================================================================================================================
+
+ weekly condor, short strikes 1.0 expected moves, in 1 day(s) before expiry
+   measured premiums  first two years  293 won  70% ₹ -368,504 win ₹  +989 loss ₹ -6,578 worst ₹ -15,153 wk ₹ -33,974 PF 0.36 DD ₹391,845
+                      held-out         140 won  74% ₹ -144,420 win ₹+1,032 loss ₹ -6,994 worst ₹ -15,165 wk ₹ -41,792 PF 0.43 DD ₹169,984
+                      the most one condor can lose (median, per lot): ₹13,914
+   15% less premium   first two years  293 won  70% ₹ -418,361 win ₹  +828 loss ₹ -6,598 worst ₹ -15,342 wk ₹ -34,519 PF 0.29 DD ₹433,984
+                      held-out         140 won  71% ₹ -169,605 win ₹  +889 loss ₹ -6,462 worst ₹ -15,356 wk ₹ -42,455 PF 0.34 DD ₹186,447
+      NIFTY       is: 100 won 73% ₹-81,369   oos: 57 won 75% ₹-62,104
+      BANKNIFTY   is: 70 won 63% ₹-159,078   oos: 14 won 79% ₹-10,909
+      SENSEX      is: 100 won 74% ₹-109,508   oos: 55 won 71% ₹-54,097
+      MIDCPNIFTY  is: 23 won 65% ₹-18,549   oos: 14 won 79% ₹-17,310
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ weekly condor, short strikes 1.0 expected moves, in 3 day(s) before expiry
+   measured premiums  first two years  285 won  69% ₹ -589,254 win ₹  +858 loss ₹ -8,726 worst ₹ -16,880 wk ₹ -41,158 PF 0.22 DD ₹602,309
+                      held-out         138 won  75% ₹ -143,078 win ₹  +934 loss ₹ -7,065 worst ₹ -16,901 wk ₹ -32,425 PF 0.40 DD ₹153,352
+                      the most one condor can lose (median, per lot): ₹14,124
+   15% less premium   first two years  285 won  69% ₹ -631,418 win ₹  +710 loss ₹ -8,874 worst ₹ -17,067 wk ₹ -41,834 PF 0.18 DD ₹641,577
+                      held-out         138 won  74% ₹ -165,224 win ₹  +791 loss ₹ -6,832 worst ₹ -17,099 wk ₹ -33,269 PF 0.33 DD ₹169,494
+      NIFTY       is: 97 won 74% ₹-183,303   oos: 54 won 80% ₹-37,614
+      BANKNIFTY   is: 67 won 64% ₹-156,973   oos: 14 won 71% ₹-14,500
+      SENSEX      is: 98 won 71% ₹-175,811   oos: 56 won 75% ₹-47,840
+      MIDCPNIFTY  is: 23 won 57% ₹-73,167   oos: 14 won 64% ₹-43,124
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ weekly condor, short strikes 1.5 expected moves, in 1 day(s) before expiry
+   measured premiums  first two years  293 won  85% ₹  -43,876 win ₹  +979 loss ₹ -6,538 worst ₹ -15,049 wk ₹ -32,889 PF 0.85 DD ₹ 86,991
+                      held-out         140 won  89% ₹  +36,099 win ₹+1,032 loss ₹ -6,194 worst ₹ -15,284 wk ₹ -15,610 PF 1.39 DD ₹ 43,988
+                      the most one condor can lose (median, per lot): ₹13,962
+   15% less premium   first two years  293 won  85% ₹  -92,578 win ₹  +812 loss ₹ -6,698 worst ₹ -15,207 wk ₹ -33,378 PF 0.69 DD ₹128,064
+                      held-out         140 won  89% ₹  +11,446 win ₹  +857 loss ₹ -6,376 worst ₹ -15,456 wk ₹ -16,018 PF 1.12 DD ₹ 48,020
+      NIFTY       is: 100 won 86% ₹+16,875   oos: 57 won 89% ₹+12,078
+      BANKNIFTY   is: 70 won 77% ₹-64,570   oos: 14 won 93% ₹+960
+      SENSEX      is: 100 won 88% ₹+1,048   oos: 55 won 89% ₹+20,775
+      MIDCPNIFTY  is: 23 won 91% ₹+2,770   oos: 14 won 86% ₹+2,285
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ weekly condor, short strikes 1.5 expected moves, in 3 day(s) before expiry
+   measured premiums  first two years  285 won  87% ₹  +22,941 win ₹+1,174 loss ₹ -7,248 worst ₹ -16,547 wk ₹ -26,094 PF 1.09 DD ₹ 53,794
+                      held-out         138 won  92% ₹  +73,498 win ₹+1,293 loss ₹ -8,245 worst ₹ -14,687 wk ₹ -16,482 PF 1.81 DD ₹ 20,301
+                      the most one condor can lose (median, per lot): ₹13,747
+   15% less premium   first two years  285 won  87% ₹  -32,939 win ₹  +978 loss ₹ -7,449 worst ₹ -16,782 wk ₹ -27,125 PF 0.88 DD ₹ 72,127
+                      held-out         138 won  92% ₹  +44,191 win ₹+1,080 loss ₹ -8,454 worst ₹ -14,898 wk ₹ -17,555 PF 1.48 DD ₹ 20,741
+      NIFTY       is: 97 won 87% ₹-12,718   oos: 54 won 94% ₹+42,770
+      BANKNIFTY   is: 67 won 88% ₹+25,526   oos: 14 won 93% ₹+10,594
+      SENSEX      is: 98 won 88% ₹+41,637   oos: 56 won 93% ₹+31,818
+      MIDCPNIFTY  is: 23 won 83% ₹-31,505   oos: 14 won 79% ₹-11,684
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ expiry-day condor, short strikes 1.0 expected moves
+   measured premiums  first two years  292 won  53% ₹ +141,994 win ₹+2,275 loss ₹ -1,537 worst ₹ -11,341 wk ₹ -12,665 PF 1.67 DD ₹ 20,852
+                      held-out         141 won  72% ₹ +136,290 win ₹+1,711 loss ₹   -981 worst ₹  -4,541 wk ₹  -4,536 PF 4.56 DD ₹  5,952
+                      the most one condor can lose (median, per lot): ₹11,819
+   15% less premium   first two years  292 won  53% ₹ +112,858 win ₹+1,922 loss ₹ -1,327 worst ₹  -9,668 wk ₹ -10,844 PF 1.62 DD ₹ 18,447
+                      held-out         141 won  72% ₹ +111,904 win ₹+1,442 loss ₹   -843 worst ₹  -3,888 wk ₹  -3,912 PF 4.32 DD ₹  5,421
+      NIFTY       is: 100 won 60% ₹+92,458   oos: 56 won 73% ₹+65,315
+      BANKNIFTY   is: 70 won 43% ₹-10,023   oos: 14 won 71% ₹+7,385
+      SENSEX      is: 99 won 59% ₹+74,092   oos: 57 won 75% ₹+53,459
+      MIDCPNIFTY  is: 23 won 30% ₹-14,534   oos: 14 won 57% ₹+10,131
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ expiry-day condor, short strikes 1.5 expected moves
+   measured premiums  first two years  292 won  62% ₹ +182,494 win ₹+2,045 loss ₹ -1,691 worst ₹  -6,122 wk ₹  -9,060 PF 1.97 DD ₹ 14,800
+                      held-out         141 won  74% ₹ +172,890 win ₹+2,005 loss ₹   -964 worst ₹  -2,396 wk ₹  -4,394 PF 5.85 DD ₹  6,071
+                      the most one condor can lose (median, per lot): ₹12,774
+   15% less premium   first two years  292 won  62% ₹ +147,670 win ₹+1,716 loss ₹ -1,468 worst ₹  -5,227 wk ₹  -7,775 PF 1.91 DD ₹ 12,888
+                      held-out         141 won  74% ₹ +143,356 win ₹+1,680 loss ₹   -847 worst ₹  -2,059 wk ₹  -3,857 PF 5.57 DD ₹  5,306
+      NIFTY       is: 100 won 65% ₹+86,585   oos: 56 won 79% ₹+79,472
+      BANKNIFTY   is: 70 won 57% ₹+18,214   oos: 14 won 50% ₹+8,676
+      SENSEX      is: 99 won 67% ₹+78,624   oos: 57 won 74% ₹+68,640
+      MIDCPNIFTY  is: 23 won 43% ₹-929   oos: 14 won 79% ₹+16,102
+   does not pass (80%+ won and profit in both periods, profit with 15% less premium too)
+
+ RSI(2) mean reversion (futures)
+   measured premiums  first two years   59 won  61% ₹  +50,519 win ₹+16,918 loss ₹-24,284 worst ₹ -48,491 wk ₹-144,894 PF 1.09 DD ₹413,462
+                      held-out          44 won  61% ₹  -68,749 win ₹+17,956 loss ₹-32,563 worst ₹-169,854 wk ₹-169,854 PF 0.88 DD ₹305,402
+      NIFTY       is: 14 won 57% ₹-39,489   oos: 13 won 62% ₹+50,516
+      BANKNIFTY   is: 13 won 62% ₹+2,891   oos: 8 won 50% ₹-144,476
+      SENSEX      is: 17 won 65% ₹+52,845   oos: 11 won 55% ₹-21,628
+      MIDCPNIFTY  is: 15 won 60% ₹+34,272   oos: 12 won 75% ₹+46,839
+   does not pass (80%+ won and profit in both periods)
+
+ VERDICT: NONE PASSED
