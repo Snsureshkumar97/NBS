@@ -1,0 +1,13 @@
+======================================================================================================================================================
+ THE RULES AGAINST THE TRADINGVIEW RATING - each as live runs it, 3 years, per lot after costs, ₹
+======================================================================================================================================================
+ NIFTY
+   rules      first two years   560 trades  won  52%  full stop  21%  losses in a row up to  9  worst week ₹  -9,794  total ₹  +60,462  PF 1.15  worst drop ₹ 31,442
+              held-out          344 trades  won  50%  full stop  17%  losses in a row up to  8  worst week ₹ -10,774  total ₹  +51,814  PF 1.23  worst drop ₹ 27,315
+   tv_rating  first two years   763 trades  won  39%  full stop  51%  losses in a row up to 14  worst week ₹ -14,120  total ₹ +267,670  PF 1.46  worst drop ₹ 26,758
+              held-out          404 trades  won  39%  full stop  52%  losses in a row up to 13  worst week ₹ -16,008  total ₹ +143,011  PF 1.51  worst drop ₹ 33,562
+ BANKNIFTY
+   rules      first two years   585 trades  won  49%  full stop  20%  losses in a row up to  9  worst week ₹ -17,132  total ₹  +43,557  PF 1.08  worst drop ₹ 42,025
+              held-out          390 trades  won  46%  full stop  16%  losses in a row up to 10  worst week ₹ -18,531  total ₹  +19,798  PF 1.05  worst drop ₹ 40,536
+   tv_rating  first two years   804 trades  won  37%  full stop  55%  losses in a row up to 16  worst week ₹ -23,263  total ₹ +181,285  PF 1.22  worst drop ₹ 68,139
+              held-out          440 trades  won  38%  full stop  54%  losses in a row up to 10  worst week ₹ -17,155  total ₹  +76,234  PF 1.19  worst drop ₹ 53,236
