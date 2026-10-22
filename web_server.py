@@ -3745,6 +3745,16 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .bu-v{display:flex;gap:10px;font-variant-numeric:tabular-nums}
 .bu-v .up{color:var(--up)}
 .bu-v .dn{color:var(--down)}
+.bu-n{color:var(--ink-3)}
+/* the key to the pills (22 Oct 2026) - small, the same pills as the drawing */
+.bu-key{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:3px 14px;margin:0 0 8px;padding:7px 10px;
+  border:1px solid var(--bd-soft);border-radius:8px;font-size:12px;line-height:1.45;color:var(--ink-2)}
+.bu-key .bu-ki{display:flex;align-items:baseline;gap:6px;min-width:0}
+.bu-key .bu-kp{flex:0 0 auto;font-style:normal;font-weight:700;font-size:12px;line-height:1;padding:2px 7px;border-radius:8px;
+  border:1px solid var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.bu-key .bu-kp.s{border-color:var(--ink-3);color:var(--ink-2);background:color-mix(in srgb,var(--ink-3) 14%,transparent)}
+.bu-key .bu-kp.out{border-style:dashed;background:transparent;font-weight:500}
+.bu-key .bu-kc{grid-column:1 / -1;color:var(--ink-3)}
 .se-say.se-trade{color:var(--ink)}
 /* beside the trade on the Signal page: the ladder of targets on the left, the drawing on the right - when the card itself
    is wide enough for both (the targets ladder needs ~330px; at 1024px wide the card is not), one under the other
@@ -8835,7 +8845,7 @@ function sigSellers(r){
   dr._w = w;
   const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d), r && r.buildup);
   ladderInto(dr, x.svg, () => sigSellers((LAST && LAST.indices || {})[CUR]));
-  set(lb, x.lean);
+  set(lb, x.lean + x.key);
   set(wd, (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "") + (x.bsay ? `<p class="se-say se-who">${esc(x.bsay)}</p>` : "")
     + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : ""));
 }
@@ -10690,7 +10700,19 @@ function ladderDraw(d, se, tr, w, live, bu){
   const bsay = buildupSay(bu);
   return {svg: `<svg class="ocl" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" `
     + `aria-label="${esc(tsay || bsay || say || "Open interest around the price")}">${g}${lines}${txt}</svg>`,
-    say, tsay, bsay, lean: leanBar(bu)};
+    say, tsay, bsay, lean: leanBar(bu), key: bu ? whoKey(narrow) : ""};
+}
+// A small key to the pills, beside the drawing (the user, 22 Oct 2026: "add a small explanation in the corner what is
+// sellers in and what is buyers in and out"): each pill as the drawing shows it - the short B+ / S+ on a phone - with
+// one line on what it means.
+function whoKey(narrow){
+  const one = (what, cls, words) => `<span class="bu-ki"><i class="bu-kp ${cls}">${WHO_PILL[what][narrow ? 1 : 0]}</i><span>${words}</span></span>`;
+  return `<div class="bu-key" role="note" aria-label="What the labels mean">`
+    + one("buyers_in", "b", "more contracts, option price up: <b>new buyers</b>")
+    + one("sellers_in", "s", "more contracts, option price down: <b>new sellers</b>")
+    + one("sellers_out", "s out", "fewer contracts, option price up: <b>sellers buying back</b>")
+    + one("buyers_out", "b out", "fewer contracts, option price down: <b>buyers leaving</b>")
+    + `<span class="bu-kc">Blue: buyers. Sellers: red on the calls side, green on the puts side. Dotted: they left.</span></div>`;
 }
 // WHO IS MOVING (the user, 22 Oct 2026: "shows about sellers and support but not about buyers ... explain nicely on the
 // diagram with live data it will easy to understand the market if it goes up or down"). From the server's buildup
@@ -10733,12 +10755,17 @@ function buildupSay(bu){
   if(dns.length) out.push(`On a fall: ${say(dns)}.`);
   // what who_moved_study.py found on 26 days of the server's recorded chains (22 Oct 2026)
   out.push("In our test on 26 trading days, this lean matched the last 15 minutes' own move 95% of the time and called "
-    + "the next 15 minutes right only about half the time (49.5%): it describes what just happened, not what comes next.");
+    + "the next 15 minutes right only about half the time (49.7%): it describes what just happened, not what comes next.");
   return out.join(" ");
 }
-// which way the positions that changed lean, as a two-colour bar above the drawing
+// which way the positions that changed lean, as a two-colour bar above the drawing - and, when there is nothing to
+// show, a line saying why rather than nothing at all (22 Oct 2026: "i dont see" - four minutes after a restart, when
+// the history it compares with is a few minutes old and no strike had moved enough to count)
 function leanBar(bu){
-  if(!bu || bu.lean_up == null) return "";
+  if(!bu) return `<div class="bu-lean bu-wait"><span class="bu-l">Who moved</span>`
+    + `<span class="bu-n">needs a few minutes of option data first - it compares each strike with up to 15 minutes ago</span></div>`;
+  if(bu.lean_up == null) return `<div class="bu-lean bu-wait"><span class="bu-l">Who moved${bu.minutes ? ` &middot; last ${bu.minutes} min` : ""}</span>`
+    + `<span class="bu-n">nothing big yet - no strike near the price has had its open contracts change by 1% or more</span></div>`;
   const u = Math.round(bu.lean_up * 100);
   return `<div class="bu-lean" role="img" aria-label="Positions that changed${bu.minutes ? ` in the last ${bu.minutes} minutes` : ""}: `
     + `${u}% bet on a rise, ${100 - u}% on a fall">`
@@ -10788,7 +10815,7 @@ function ocSellersDraw(d){
   el._w = w;
   const x = ladderDraw(d, se, tr, w > 0 ? w : 680, ladderSpot(d), (((LAST && LAST.indices) || {})[d.index] || {}).buildup);
   ladderInto(el, `<div class="ocse-h">Buyers and sellers around the price${tr ? ` &middot; <span class="ocse-tr">your ${num(tr.strike, 0)} ${tr.type} ringed</span>` : ""}</div>`
-    + x.lean + x.svg
+    + x.lean + x.key + x.svg
     + (x.tsay ? `<p class="se-say se-trade">${esc(x.tsay)}</p>` : "")
     + (x.bsay ? `<p class="se-say se-who">${esc(x.bsay)}</p>` : "")
     + (x.say ? `<p class="se-say">${esc(x.say)}</p>` : "")

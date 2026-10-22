@@ -1,50 +1,50 @@
 ========================================================================================================================
  A. DOES THE LEAN TELL WHICH WAY THE INDEX GOES NEXT? 2001 checks every 15 minutes, 26 days (2026-09-10 to 2026-10-21), four indices
 ========================================================================================================================
-   the lean had something to say (any change counted) at 91% of checks; called a rise (60%+) at 43%, a fall (40% or less) at 47%
+   the lean had something to say (any change counted) at 96% of checks; called a rise (60%+) at 44%, a fall (40% or less) at 49%
    it agreed with the last 15 minutes' own move 95% of the time it made a call
 
  NEXT 15 MINUTES
-   LEAN pooled                                  right  884 of 1787 =  49.5%   (95%: 47.2-51.8%)
+   LEAN pooled                                  right  932 of 1874 =  49.7%   (95%: 47.5-52.0%)
    MOMENTUM pooled                              right  980 of 1999 =  49.0%   (95%: 46.8-51.2%)
-   LEAN, first half of the days                 right  400 of  807 =  49.6%   (95%: 46.1-53.0%)
-   LEAN, second half                            right  484 of  980 =  49.4%   (95%: 46.3-52.5%)
-   LEAN, NIFTY                                  right  271 of  551 =  49.2%   (95%: 45.0-53.3%)
-   LEAN, BANKNIFTY                              right  230 of  472 =  48.7%   (95%: 44.2-53.2%)
-   LEAN, SENSEX                                 right  280 of  564 =  49.6%   (95%: 45.5-53.8%)
-   LEAN, MIDCPNIFTY                             right  103 of  200 =  51.5%   (95%: 44.6-58.3%)
-   where the lean and the last 15 minutes DISAGREED (91): the lean was right 49, momentum 42
+   LEAN, first half of the days                 right  418 of  847 =  49.4%   (95%: 46.0-52.7%)
+   LEAN, second half                            right  514 of 1027 =  50.0%   (95%: 47.0-53.1%)
+   LEAN, NIFTY                                  right  274 of  560 =  48.9%   (95%: 44.8-53.1%)
+   LEAN, BANKNIFTY                              right  266 of  536 =  49.6%   (95%: 45.4-53.8%)
+   LEAN, SENSEX                                 right  285 of  573 =  49.7%   (95%: 45.7-53.8%)
+   LEAN, MIDCPNIFTY                             right  107 of  205 =  52.2%   (95%: 45.4-58.9%)
+   where the lean and the last 15 minutes DISAGREED (100): the lean was right 55, momentum 45
 
  NEXT 30 MINUTES
-   LEAN pooled                                  right  939 of 1787 =  52.5%   (95%: 50.2-54.9%)
+   LEAN pooled                                  right  982 of 1874 =  52.4%   (95%: 50.1-54.7%)
    MOMENTUM pooled                              right 1053 of 1999 =  52.7%   (95%: 50.5-54.9%)
-   LEAN, first half of the days                 right  433 of  808 =  53.6%   (95%: 50.1-57.0%)
-   LEAN, second half                            right  506 of  979 =  51.7%   (95%: 48.6-54.8%)
-   LEAN, NIFTY                                  right  292 of  551 =  53.0%   (95%: 48.8-57.1%)
-   LEAN, BANKNIFTY                              right  244 of  472 =  51.7%   (95%: 47.2-56.2%)
-   LEAN, SENSEX                                 right  296 of  564 =  52.5%   (95%: 48.4-56.6%)
-   LEAN, MIDCPNIFTY                             right  107 of  200 =  53.5%   (95%: 46.6-60.3%)
-   where the lean and the last 15 minutes DISAGREED (91): the lean was right 43, momentum 48
+   LEAN, first half of the days                 right  450 of  848 =  53.1%   (95%: 49.7-56.4%)
+   LEAN, second half                            right  532 of 1026 =  51.9%   (95%: 48.8-54.9%)
+   LEAN, NIFTY                                  right  294 of  560 =  52.5%   (95%: 48.4-56.6%)
+   LEAN, BANKNIFTY                              right  278 of  536 =  51.9%   (95%: 47.6-56.1%)
+   LEAN, SENSEX                                 right  299 of  573 =  52.2%   (95%: 48.1-56.2%)
+   LEAN, MIDCPNIFTY                             right  111 of  205 =  54.1%   (95%: 47.3-60.8%)
+   where the lean and the last 15 minutes DISAGREED (100): the lean was right 48, momentum 52
 
  AVERAGE INDEX MOVE OVER THE NEXT 15 MINUTES BY LEAN BAND (points; the indices differ in size, so also in basis points of the index)
-   lean   0- 20% rise    912 checks   up next  49.3%   average move    -3.3 pts
-   lean  20- 40% rise     24 checks   up next  41.7%   average move    -9.5 pts
-   lean  40- 60% rise     39 checks   up next  53.8%   average move   +10.3 pts
-   lean  60- 80% rise     29 checks   up next  51.7%   average move    -7.5 pts
-   lean  80-100% rise    823 checks   up next  47.8%   average move    +0.5 pts
-   no change counted         174 checks   up next  46.6%
+   lean   0- 20% rise    953 checks   up next  49.0%   average move    -3.2 pts
+   lean  20- 40% rise     33 checks   up next  39.4%   average move    -9.0 pts
+   lean  40- 60% rise     40 checks   up next  60.0%   average move   +11.5 pts
+   lean  60- 80% rise     31 checks   up next  45.2%   average move    -8.1 pts
+   lean  80-100% rise    858 checks   up next  48.0%   average move    +0.5 pts
+   no change counted          86 checks   up next  46.5%
 
- VERDICT (A): DOES NOT TELL THE DIRECTION - over 15 minutes the lean was right 49.5% (95% from 47.2%), momentum 49.0%
+ VERDICT (A): DOES NOT TELL THE DIRECTION - over 15 minutes the lean was right 49.7% (95% from 47.5%), momentum 49.0%
 
 ========================================================================================================================
  B. THE TOOL'S OWN TICKETS BY THE LEAN BEFORE ENTRY - 162 Indian tickets of one live account (2026-09-10 to 2026-10-21), per lot before charges, ₹
 ========================================================================================================================
    ALL                                 162 tickets  won   51%  total ₹   +44,022  avg ₹    +331
-   AGREED                               85 tickets  won   58%  total ₹   +25,686  avg ₹    +317
-   NEUTRAL                              45 tickets  won   33%  total ₹    +7,370  avg ₹    +295
-   AGAINST                              32 tickets  won   56%  total ₹   +10,966  avg ₹    +406
+   AGREED                               86 tickets  won   57%  total ₹   +25,686  avg ₹    +317
+   NEUTRAL                              43 tickets  won   35%  total ₹    +7,370  avg ₹    +307
+   AGAINST                              33 tickets  won   55%  total ₹   +10,966  avg ₹    +392
    taking only AGREED would have changed the total by ₹-18,336; week by week: W37 -0  W38 -4,412  W39 -2,432  W40 -3,420  W41 -8,570  W42 +3,535  W43 -3,038   (better in 1 of 7 weeks)
-      NIFTY       AGREED  26: ₹ +21,238   NEUTRAL  15: ₹  -6,168   AGAINST  10: ₹  -2,629
-      BANKNIFTY   AGREED  22: ₹  -2,295   NEUTRAL   7: ₹  +2,412   AGAINST   4: ₹  +3,264
+      NIFTY       AGREED  27: ₹ +21,238   NEUTRAL  14: ₹  -6,168   AGAINST  10: ₹  -2,629
+      BANKNIFTY   AGREED  22: ₹  -2,295   NEUTRAL   6: ₹  +2,412   AGAINST   5: ₹  +3,264
       SENSEX      AGREED  29: ₹  +8,819   NEUTRAL  17: ₹  +2,799   AGAINST  11: ₹  -1,525
       MIDCPNIFTY  AGREED   8: ₹  -2,076   NEUTRAL   6: ₹  +8,328   AGAINST   7: ₹ +11,856

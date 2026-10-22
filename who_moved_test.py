@@ -34,7 +34,7 @@ PAST = {23000.0: (40 * L, 100 * L, 160.0, 50.0), 23050.0: (35 * L, 40 * L, 125.0
         23200.0: (80 * L, 8 * L, 50.0, 133.0), 23300.0: (66 * L, 5 * L, 24.0, 205.0),
         22500.0: (5 * L, 60 * L, 600.0, 4.0)}
 NOW = {"strikes": [
-    {"strike": 23000, "call_oi": 40.5 * L, "put_oi": 112 * L, "call_ltp": 190.0, "put_ltp": 38.0},   # puts: sellers in (+12)
+    {"strike": 23000, "call_oi": 40.3 * L, "put_oi": 112 * L, "call_ltp": 190.0, "put_ltp": 38.0},   # puts: sellers in (+12); calls +0.75%: under 1%
     {"strike": 23050, "call_oi": 35 * L, "put_oi": 40 * L, "call_ltp": 150.0, "put_ltp": 48.0},     # no OI change: nothing
     {"strike": 23100, "call_oi": 68 * L, "put_oi": 27 * L, "call_ltp": 118.0, "put_ltp": 60.0},     # calls: buyers in (+8); puts: buyers out (-3)
     {"strike": 23150, "call_oi": 26 * L, "put_oi": 10 * L, "call_ltp": 88.0, "put_ltp": 80.0},      # calls: sellers out (-4)
@@ -51,7 +51,8 @@ check("contracts up, premium up: call buyers in at 23,100", w(23100.0, "call") =
 check("contracts down, premium down: put buyers out at 23,100", w(23100.0, "put") == "buyers_out", rows.get(23100.0))
 check("contracts down, premium up: call sellers out at 23,150 (buying back)", w(23150.0, "call") == "sellers_out", rows.get(23150.0))
 check("contracts up, premium down: call sellers in at 23,300 (a ceiling)", w(23300.0, "call") == "sellers_in", rows.get(23300.0))
-check("open interest barely changed (23,050): nothing said", 23050.0 not in rows, rows.get(23050.0))
+check("open interest barely changed (23,050 not at all; 23,000's calls +0.75%, under the 1%): nothing said",
+      23050.0 not in rows and w(23000.0, "call") is None, (rows.get(23050.0), rows.get(23000.0)))
 check("premium barely moved (23,200 calls, -1%): nothing said, however many contracts", w(23200.0, "call") is None, rows.get(23200.0))
 check("further than 2% from the price (22,500): left out", 22500.0 not in rows)
 c = (rows.get(23100.0) or {}).get("call") or {}
@@ -106,6 +107,7 @@ o.wide = ladderDraw(X.d, X.se, null, 680, null, X.bu);
 o.narrow = ladderDraw(X.d, X.se, null, 340, null, X.bu);
 o.none = ladderDraw(X.d, X.se, null, 680, null, null);
 o.even = buildupSay(X.even); o.down = buildupSay(X.down); o.nobu = buildupSay(null);
+o.quiet = leanBar({minutes: 4, rows: [], up: 0, down: 0, lean_up: null});
 console.log(JSON.stringify(o));
 '''
     r = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
@@ -141,12 +143,27 @@ console.log(JSON.stringify(o));
     check("who bet on a fall", "On a fall: call sellers added at 23,300 (+4.0 lakh)." in b, b)
     check("and what who_moved_study.py found: it repeats the last 15 minutes, it does not tell the next",
           b.endswith("In our test on 26 trading days, this lean matched the last 15 minutes' own move 95% of the time and "
-                     "called the next 15 minutes right only about half the time (49.5%): it describes what just happened, "
+                     "called the next 15 minutes right only about half the time (49.7%): it describes what just happened, "
                      "not what comes next."), b)
     check("evenly split, and a fall, said as such", "split about evenly between a rise and a fall" in o.get("even", "")
           and "most of the positions that changed (80%) bet on a fall." in o.get("down", ""), (o.get("even", "")[:120], o.get("down", "")[:120]))
-    check("no reading: no pills, no bar, no words", "ocl-who" not in (o.get("none") or {}).get("svg", "x")
-          and (o.get("none") or {}).get("lean") == "" and o.get("nobu") == "")
+    nl = (o.get("none") or {}).get("lean", "")
+    check("no reading yet (just after a restart): no pills, no bar, no words - but a line saying why, not nothing",
+          "ocl-who" not in (o.get("none") or {}).get("svg", "x") and "bu-bar" not in nl and o.get("nobu") == ""
+          and "needs a few minutes of option data first" in nl, nl)
+    qv = o.get("quiet", "")
+    check("a reading with nothing big in it: says so, with its minutes", "bu-bar" not in qv and "last 4 min" in qv
+          and "nothing big yet - no strike near the price has had its open contracts change by 1% or more" in qv, qv)
+    kw, kn = (o.get("wide") or {}).get("key", ""), (o.get("narrow") or {}).get("key", "")
+    check("a small key to the pills: all four, each with what it means",
+          kw.count('class="bu-ki"') == 4 and ">buyers in</i><span>more contracts, option price up: <b>new buyers</b>" in kw
+          and ">sellers in</i><span>more contracts, option price down: <b>new sellers</b>" in kw
+          and ">sellers out</i><span>fewer contracts, option price up: <b>sellers buying back</b>" in kw
+          and ">buyers out</i><span>fewer contracts, option price down: <b>buyers leaving</b>" in kw
+          and "Blue: buyers. Sellers: red on the calls side, green on the puts side. Dotted: they left." in kw, kw)
+    check("on a phone the key shows the same short pills the drawing does", ">B+</i>" in kn and ">S+</i>" in kn
+          and ">S−</i>" in kn and ">B−</i>" in kn and ">buyers in</i>" not in kn)
+    check("no reading at all: no key either", (o.get("none") or {}).get("key") == "")
     check("never a call to buy or sell", not any(x in json.dumps(o).lower() for x in ("buy now", "sell now", "you should")))
 
 check("readable pills: a pill and its text are styled apart, a left pill is outlined, never filled with its text's colour",
@@ -156,8 +173,8 @@ check("readable pills: a pill and its text are styled apart, a left pill is outl
 print("4. ON THE PAGE")
 check("the Signal box: the lean bar over the drawing, who moved in words under it",
       '<div class="rr-h" data-h></div><div data-l></div><div class="sl-draw" data-d></div><div data-w></div>' in src
-      and "set(lb, x.lean);" in src and '<p class="se-say se-who">' in src and "ladderSpot(d), r && r.buildup);" in src)
-check("the Option chain tab too", "x.lean + x.svg" in src and "ladderSpot(d), (((LAST && LAST.indices) || {})[d.index] || {}).buildup);" in src)
+      and "set(lb, x.lean + x.key);" in src and '<p class="se-say se-who">' in src and "ladderSpot(d), r && r.buildup);" in src)
+check("the Option chain tab too", "x.lean + x.key + x.svg" in src and "ladderSpot(d), (((LAST && LAST.indices) || {})[d.index] || {}).buildup);" in src)
 check("named for both now", src.count("Buyers and sellers around the price") == 2 and "Sellers above &middot; support below${tr" not in src)
 check("the note explains the pills", "Pills: who changed their positions at that strike in the last 15 minutes" in src)
 

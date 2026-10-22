@@ -24,15 +24,17 @@ feeds._buildup over the strikes within 2% of the index, the open interest and pr
      less), AGAINST (the opposite), NEUTRAL. What holding everything but AGREED would have done, week by week. A first
      look only - nothing is built from it.
 
-RESULT (22 Oct 2026, 26 days 10 Sep - 21 Oct; who_moved_study_results.txt) - IT DOES NOT TELL THE DIRECTION.
-  A. 2,001 checks. The lean made a call at 90% of them, and agreed with the last 15 minutes' own move 95% of the time:
-     open interest rises nearly everywhere through the day and every premium moves with the index, so nearly every
-     strike leans the way the index just went (912 checks at 0-20% rise, 823 at 80-100%, few between). Over the next
-     15 minutes it was right 49.5% (95%: 47.2-51.8%), momentum 49.0%; both halves of the days ~49.5%; no index above
-     51.5%. Over 30 minutes 52.5%, the same as momentum (52.7%). In the 91 checks where the two disagreed: 49 to 42
-     over 15 minutes, 43 to 48 over 30 - noise. The average next move by lean band shows no order.
-  B. 162 tickets, +44,022 per lot: AGREED 85 (+25,686, won 58%), NEUTRAL 45 (+7,370, won 33%), AGAINST 32 (+10,966,
-     won 56%). Taking only AGREED would have cost 18,336, better in 1 of 7 weeks - DROP.
+RESULT (22 Oct 2026, 26 days 10 Sep - 21 Oct; who_moved_study_results.txt) - IT DOES NOT TELL THE DIRECTION. Run first
+with feeds.BUILDUP_MIN_OI at 3%, then again at the 1% the page uses since the same day (at 3% Nifty showed nothing around
+midday); both runs say the same, these are the 1% figures (3% in brackets):
+  A. 2,001 checks. The lean made a call at 93% of them (90%) and agreed with the last 15 minutes' own move 95% of the
+     time: open interest rises nearly everywhere through the day and every premium moves with the index, so nearly
+     every strike leans the way the index just went (953 checks at 0-20% rise, 858 at 80-100%, few between). Over the
+     next 15 minutes it was right 49.7% (49.5%; 95%: 47.5-52.0%), momentum 49.0%; both halves of the days ~49-50%; no
+     index above 52.2%. Over 30 minutes 52.4% (52.5%), the same as momentum (52.7%). In the 100 checks where the two
+     disagreed: 55 to 45 over 15 minutes, 48 to 52 over 30 - noise. The average next move by lean band shows no order.
+  B. 162 tickets, +44,022 per lot: AGREED 86 (+25,686, won 57%), NEUTRAL 43 (+7,370, won 35%), AGAINST 33 (+10,966,
+     won 55%). Taking only AGREED would have cost 18,336, better in 1 of 7 weeks - DROP.
 The page keeps it as a description of the last 15 minutes and its words say what this found (web_server buildupSay).
 
     python3 who_moved_study.py [option_history_dir] [trades.csv]     (on the server, where both live)

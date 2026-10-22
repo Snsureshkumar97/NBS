@@ -510,7 +510,9 @@ def _sellers_ahead(chain, spot, past=None, past_age_s=None):
 # a fall - weighted by the contracts that changed. Within BUILDUP_AREA of the price; a strike's side counts only when
 # its open interest moved BUILDUP_MIN_OI and its premium BUILDUP_MIN_PX of where they were. Display only: it says who
 # moved in the last 15 minutes, and has not been tested as a signal.
-BUILDUP_AREA, BUILDUP_MIN_OI, BUILDUP_MIN_PX = 0.02, 0.03, 0.02
+# 1% of open interest, not the 3% first set: Nifty's strikes are so large that on 22 Oct its busiest one near the price
+# moved 2.4% in ten minutes around midday, so at 3% Nifty showed nothing at all ("i dont see")
+BUILDUP_AREA, BUILDUP_MIN_OI, BUILDUP_MIN_PX = 0.02, 0.01, 0.02
 BUILDUP_LEAN = {("call", "buyers_in"): 1, ("call", "sellers_out"): 1, ("put", "sellers_in"): 1, ("put", "buyers_out"): 1,
                 ("call", "sellers_in"): -1, ("call", "buyers_out"): -1, ("put", "buyers_in"): -1, ("put", "sellers_out"): -1}
 
