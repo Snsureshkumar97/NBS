@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""The big candle on paper (big_candle.py; the user, 26 Oct 2026: "yes build it on paper first"): the rule - the day's
-first 15-minute candle with a body of at least 1.5 x ATR that closes at a new day high or low, 09:45-14:30, one a day,
-stop at its other end, one target at twice the risk; the reading on a closed candle; the recommendation it writes is a
-COPY; its paper desk - a book of its own, no listener, never the index's slot - opens only when switched on and
-closes at its target; the per-index switch, off by default and saved; the wiring; and PARITY with the study that
-measured it (big_candle_study.run, "K1.5 end 2R") on three years of candles."""
+"""The big candle in the rules (big_candle.py; the user, 26 Oct 2026: "add the big candle in our rules with live
+orders"): the rule - the day's first 15-minute candle with a body of at least 1.5 x ATR that closes at a new day high or
+low, 09:45-14:30, one a day, stop at its other end, one target at twice the risk; the reading on a closed candle; the
+recommendation it writes is a COPY; one of the book's OWN tickets (TicketBook.consider_big_candle) - only switched on,
+fresh and with nothing open, heard by the book's listeners (live orders), kept out of the rules' own spacing, cooldown,
+re-arm and restart memory; the per-index switch, off by default and saved; the seller limit gone; the wiring; and
+PARITY with the study that measured it (big_candle_study.run, "K1.5 end 2R") on three years of candles."""
 import datetime as dt
 import os
 import sys
@@ -92,44 +93,59 @@ check("a call at the money, stop at the candle's low, one target at twice the ri
       out["option_type"] == "CE" and out["index_stop_loss"] == 22515.0 and out["target_basis"] == "rule"
       and out["index_targets"] == [round(out["spot"] + 2 * R * f / 3, 2) for f in (1, 2, 3)],
       (out.get("index_stop_loss"), out.get("index_targets")))
-check("its own system and name", out["rule"]["system"] == "big_candle" and out["rule"]["label"] == "Big candle (paper)")
+check("its own system and name", out["rule"]["system"] == "big_candle" and out["rule"]["label"] == "Big candle")
 check("the engine's own recommendation is untouched", set(base) == set(before) and all(base[k] is before[k] for k in base)
       and "rule" not in base, [k for k in base if base.get(k) is not before.get(k)])
 
-print("4. THE PAPER DESK - ITS OWN BOOK, NO LISTENER, ONLY WHEN SWITCHED ON")
+print("4. ONE OF THE BOOK'S OWN TICKETS - LIVE ORDERS FOLLOW IT; THE RULES' OWN MEMORY UNTOUCHED")
 CLOCK = {"now": dt.datetime(2026, 10, 26, 10, 15, 40, tzinfo=IST)}
 tickets.now_ist = lambda: CLOCK["now"]
-
-
-class Feed:
-    email, market, streamer = "bc@example.invalid", "nse_index", None
-    def __init__(self):
-        self.tickets = tickets.TicketBook(self.email, self.market)
-
-
-f = Feed()
-desk = bc.PaperDesk(f)
-check("its own log beside the account's", desk.book.path == os.path.join(os.path.dirname(f.tickets.path), "big_candle_trades.csv")
-      and desk.book.path != f.tickets.path)
-check("no listener (it can never reach live orders), no re-arm", desk.book.listeners == [] and desk.book.auto_rearm is False)
-evs = desk.step("NIFTY", dict(base), on=False)
-check("switched off: no ticket", desk.book.books["NIFTY"].trade is None and not evs)
-evs = desk.step("NIFTY", dict(base), on=True)
-t = desk.book.books["NIFTY"].trade
-check("switched on: a paper ticket on the fresh close - its system, one stop and one target, a plain exit",
-      t is not None and t["status"] == "OPEN" and t["system"] == "big_candle" and t["plain_exit"]
-      and not tickets.rules_exit(t) and tickets.near_plan(t) == [], t and t.get("status"))
-check("the account's own book is untouched - the index's slot stays free", f.tickets.books["NIFTY"].trade is None)
+path = os.path.join(tempfile.mkdtemp(), "trades.csv")
+nb = tickets.TicketBook(market="nse_index", path=path)
+heard = []
+nb.listeners.append(lambda kind, trade: heard.append((kind, trade.get("system"))))   # how live orders follow a ticket
+bcr = bc.apply(dict(base), ev, "NIFTY")
+check("switched off: nothing", nb.consider_big_candle("NIFTY", bcr) == [] and nb.books["NIFTY"].trade is None)
+nb.configure(bigc="on", bigc_index="NIFTY")
+nb.books["NIFTY"].wait_reason = ("neutral", "NO SIGNAL", "the rules' own hold")
+stale = bc.apply(dict(base), ev_late, "NIFTY")
+check("on, but the close is not fresh: nothing, and the rules' own hold is left as it was",
+      nb.consider_big_candle("NIFTY", stale) == [] and nb.books["NIFTY"].wait_reason[2] == "the rules' own hold")
+evs = nb.consider_big_candle("NIFTY", bcr)
+t = nb.books["NIFTY"].trade
+check("on and fresh with nothing open: a ticket in the book itself - its system, one stop and one target",
+      evs and evs[-1]["kind"] == "opened" and t["status"] == "OPEN" and t["system"] == "big_candle" and t["plain_exit"]
+      and not tickets.rules_exit(t) and tickets.near_plan(t) == [], evs)
+check("the book's listeners hear it open - live orders place it where the index's live orders are on",
+      heard == [("opened", "big_candle")], heard)
+bk = nb.books["NIFTY"]
+check("it is not the rules' last ticket: their spacing and same-way memory are untouched",
+      bk.last_ticket_at is None and bk.last_bias_signature is None, (bk.last_ticket_at, bk.last_bias_signature))
+check("a second fresh big candle while it is open: nothing - one position per index",
+      nb.consider_big_candle("NIFTY", bcr) == [])
 CLOCK["now"] = dt.datetime(2026, 10, 26, 10, 40, tzinfo=IST)
-desk.book.tick_price("NIFTY", t["premium_targets"][2] + 0.5)
-t = desk.book.books["NIFTY"].trade
-check("it closes at its one target", t["status"] != "OPEN" and "T3 hit" in t["status"], t["status"])
-rows = open(desk.book.path).read()
-check("written to its own log, not the account's", "big_candle" in rows and (
-    not os.path.exists(f.tickets.path) or "big_candle" not in open(f.tickets.path).read()))
-pub = desk.public()
-check("the Dashboard's figures: the switch and reading per index, and the record", pub["record"]["closed"] == 1
-      and pub["record"]["wins"] == 1 and pub["by_index"]["NIFTY"]["on"] is True and "ticket" in pub["by_index"]["NIFTY"], pub["record"])
+tgt = t["premium_targets"][2] + 0.5
+hot = dict(base["option_chain"], strikes=[dict(x, call_ltp=tgt) if x["strike"] == t["strike"] else x
+                                           for x in base["option_chain"]["strikes"]])
+rules_rec = dict(base, bias="BULLISH", option_type="CE", option_chain=hot)
+asked = []
+nb._rearm = lambda book, rec: asked.append(book.name) or False      # would a natural close ask to re-arm?
+nb.update("NIFTY", rules_rec)                                       # closes it at its target, through the book's own check
+t2 = nb.books["NIFTY"].trade
+del nb._rearm
+check("closed at its one target - and a re-arm into the rules is never even asked for",
+      t["status"] != "OPEN" and "T3 hit" in t["status"] and t2 is t and asked == [], (t["status"], asked))
+check("its close is not the rules' cooldown clock", bk.last_close_at is None, bk.last_close_at)
+check("it is in the account's own log, marked as the big candle's", "big_candle" in open(path).read())
+check("after a restart the rules' memory still leaves it out",
+      tickets.TicketBook(market="nse_index", path=path).books["NIFTY"].last_ticket_at is None)
+sm = bc.summary({"NIFTY": {"ready": True, "side": 0, "why": "x", "first": {"at": "10:15", "side": 1}}}, nb)
+check("the home pane's figures: the switch and reading per index, and its own record", sm["record"]["closed"] == 1
+      and sm["record"]["wins"] == 1 and sm["by_index"]["NIFTY"]["on"] is True and sm["by_index"]["SENSEX"]["on"] is False,
+      sm["record"])
+x = __import__("explain").explain(bcr)
+check("the Signal card's words", "The day's first big 15-minute candle closed at a new day high: BUY CE" in x["verdict"]
+      and x["levels"][0].startswith("STOP 22,515") and "the big candle's low" in x["levels"][0], x["verdict"])
 
 print("5. THE SWITCH - PER INDEX, OFF UNLESS TURNED ON, SAVED")
 path = os.path.join(tempfile.mkdtemp(), "trades.csv")
@@ -148,13 +164,17 @@ check("not offered on crypto", tickets.TicketBook(market="crypto", path=os.path.
 print("6. WIRED IN")
 src = open(os.path.join(HERE, "feeds.py")).read()
 web = open(os.path.join(HERE, "web_server.py")).read()
-check("the feed: a paper desk per Indian account, a step per reading, priced on the tick, squared at the bell, published",
-      "self.bc = big_candle.PaperDesk(self)" in src and 'self.bc.step(name, rec, self.tickets.big_candle_for(name) == "on")' in src
-      and "self.bc.price_tick()" in src and "self.bc.book.close_all_at_bell()" in src and 'snap["big_candle"]' in src)
+check("the feed: on an index switched on, every reading offers the big candle to the book itself, and publishes it",
+      'self.tickets.big_candle_for(name) == "on"' in src and "self.tickets.consider_big_candle(" in src
+      and "big_candle.apply(rec, bev, name, avoid_strikes=self._avoid_strikes(name))" in src
+      and "big_candle.summary(self.bc_readings, self.tickets)" in src and "PaperDesk" not in src)
 check("the page: the switch in Trade settings, the Dashboard section, the state", 'select data-bigc=' in web
       and "function bigCandleDash(s, order)" in web and '"big_candle": snap.get("big_candle")' in web
       # its own slot on the home pane, outside #kdash (hidden on a phone)
       and '<div class="kdash" id="kdash"></div>\n  <div class="bcdash" id="bcdash"></div>' in web
+      and 'title="Taken by the big candle">BC</span>' in web)
+check("the seller limit is gone from Trade settings (the user, 26 Oct 2026)", "data-sroom" not in web and "sroom" not in web
+      and not hasattr(tickets.TicketBook, "sellers_room_for") and not hasattr(config, "SELLERS_ROOM_CHOICES")
       and 'bigc=(form.get("bigc") or None)' in web)
 
 print("7. PARITY WITH THE STUDY THAT MEASURED IT (three years)")

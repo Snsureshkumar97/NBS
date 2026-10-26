@@ -652,21 +652,15 @@ VOTES_ALL_NAMES = ("Trend", "MACD", "RSI", "VWAP")
 # against the trade it holds it, neutral or missing it does not.
 VOTES_WHEN_CAST = ("PCR",)
 
-# ROOM CAPPED AT THE HEAVIEST OPTION-SELLER LEVEL (the user, 21 Oct 2026: "can that data be used in room to run to know
-# how far can market go"). A switch per account and index in Trade settings, OFF by default: when on, a rules ticket also
-# needs at least MIN_REWARD_RISK_T3 of room up to the strike with the most OI within 1.5% in its direction (calls above
-# for a call, puts below for a put - feeds._sellers_ahead), or it is held (tickets._sellers_room_hold). The room's own OI
-# wall is the heaviest strike of the whole expiry, never closer than half the expected move. oi_room_study.py, the
-# only history there is (22 days of recorded OI, 146 rules tickets of one live account, per lot before charges): it
-# would have held 36 that won 36% and lost -5,959 in all, on every index - better in 4 of 7 weeks, so not proven.
-SELLERS_ROOM_CHOICES = ("off", "on")
-SELLERS_ROOM_DEFAULT = "off"
+# The seller limit (room capped at the heaviest option-seller level, 21 Oct 2026; oi_room_study.py: not proven) was a
+# switch in Trade settings until the user removed it on 26 Oct 2026 ("remove the seller limit in trade settings").
 
-# THE BIG CANDLE, ON PAPER (big_candle.py; the user, 26 Oct 2026: "yes build it on paper first"): the day's first
-# 15-minute candle with a body of at least k x ATR(14) that closes at a new day high (a call) or low (a put), from the
-# 09:45 close to the 14:30 close, one a day; stop at the candle's other end, one target at target_r x the risk - the
-# "K1.5 end 2R" of big_candle_robustness.py, which held up only ADDED to the rules (Nifty, Bank Nifty, Sensex). Its own
-# paper book, never a real order; switched on per index in Trade settings, off unless the user turns it on.
+# THE BIG CANDLE (big_candle.py; the user, 26 Oct 2026: "add the big candle in our rules with live orders"): the day's
+# first 15-minute candle with a body of at least k x ATR(14) that closes at a new day high (a call) or low (a put), from
+# the 09:45 close to the 14:30 close, one a day; stop at the candle's other end, one target at target_r x the risk - the
+# "K1.5 end 2R" of big_candle_robustness.py / big_candle_6y_study.py, which held up ADDED to the rules (Nifty, Bank
+# Nifty, Sensex). One of the index's own tickets when nothing is open (TicketBook.consider_big_candle) - live orders
+# follow it like any ticket; switched on per index in Trade settings, off unless the user turns it on.
 BIG_CANDLE = {"k": 1.5, "target_r": 2.0, "first_close": (9, 45), "last_close": (14, 30)}
 BIG_CANDLE_CHOICES = ("off", "on")
 BIG_CANDLE_DEFAULT = "off"

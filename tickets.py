@@ -263,9 +263,7 @@ class TicketBook:
         # Each Indian index's vote rule for a rules ticket - "all" or "tested" (config.VOTES_RULE_CHOICES; the user, 21
         # Oct 2026). See votes_rule_for().
         self.votes_by = {}
-        # Each Indian index's seller-level room limit, "on" / "off" (config.SELLERS_ROOM_CHOICES, 21 Oct 2026).
-        self.sroom_by = {}
-        # Each Indian index's big-candle paper desk, "on" / "off" (config.BIG_CANDLE_CHOICES, 26 Oct 2026; big_candle.py).
+        # Each Indian index's big candle, "on" / "off" (config.BIG_CANDLE_CHOICES, 26 Oct 2026; big_candle.py).
         self.bigc_by = {}
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
@@ -317,9 +315,6 @@ class TicketBook:
             for k, v in (s.get("votes_by") or {}).items():
                 if k in names and v in _cfg("VOTES_RULE_CHOICES", ()):
                     self.votes_by[k] = v
-            for k, v in (s.get("sroom_by") or {}).items():
-                if k in names and v in _cfg("SELLERS_ROOM_CHOICES", ()):
-                    self.sroom_by[k] = v
             for k, v in (s.get("bigc_by") or {}).items():
                 if k in names and v in _cfg("BIG_CANDLE_CHOICES", ()):
                     self.bigc_by[k] = v
@@ -365,16 +360,8 @@ class TicketBook:
         v = self.votes_by.get(index)
         return v if v in _cfg("VOTES_RULE_CHOICES", ()) else _cfg("VOTES_RULE_DEFAULT", "tested")
 
-    def sellers_room_for(self, index):
-        """Whether a rules ticket on this Indian index also needs room up to the heaviest option-seller level: "on" /
-        "off" - the account's choice, else config.SELLERS_ROOM_DEFAULT. None off the Indian market."""
-        if self.market != "nse_index":
-            return None
-        v = self.sroom_by.get(index)
-        return v if v in _cfg("SELLERS_ROOM_CHOICES", ()) else _cfg("SELLERS_ROOM_DEFAULT", "off")
-
     def big_candle_for(self, index):
-        """Whether the big candle's paper desk (big_candle.py) takes tickets on this Indian index: "on" / "off" - the
+        """Whether the big candle (big_candle.py) takes tickets on this Indian index: "on" / "off" - the
         account's choice, else config.BIG_CANDLE_DEFAULT. None off the Indian market."""
         if self.market != "nse_index":
             return None
@@ -412,7 +399,7 @@ class TicketBook:
             with open(tmp, "w") as fh:
                 json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots,
                            "lots_by": self.lots_by, "systems_by": self.systems_by, "votes_by": self.votes_by,
-                           "sroom_by": self.sroom_by, "bigc_by": self.bigc_by}, fh)
+                           "bigc_by": self.bigc_by}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -482,6 +469,8 @@ class TicketBook:
                 if not recent:
                     continue
                 ev = (r.get("event") or "").upper()
+                if r.get("system") == "big_candle":     # not the rules' own (consider_big_candle)
+                    continue
                 if ev == "OPEN":
                     opt = r.get("option_type")
                     bias = {"CE": "BULLISH", "PE": "BEARISH"}.get(opt)
@@ -555,7 +544,7 @@ class TicketBook:
     # =====================================================================
     def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
                   capital=None, risk_pct=None, lots_index=None, system=None, system_index=None,
-                  votes=None, votes_index=None, sroom=None, sroom_index=None, bigc=None, bigc_index=None):
+                  votes=None, votes_index=None, bigc=None, bigc_index=None):
         with self.lock:
             if capital is not None:
                 # 0 or blank clears it, which also switches the loss limit off.
@@ -585,10 +574,6 @@ class TicketBook:
                 # One index's vote rule; an unknown index or rule changes nothing.
                 if votes_index in config.instruments_in(self.market) and votes in _cfg("VOTES_RULE_CHOICES", ()):
                     self.votes_by[votes_index] = votes
-                    self._save_settings()
-            if sroom is not None and self.market == "nse_index":
-                if sroom_index in config.instruments_in(self.market) and sroom in _cfg("SELLERS_ROOM_CHOICES", ()):
-                    self.sroom_by[sroom_index] = sroom
                     self._save_settings()
             if bigc is not None and self.market == "nse_index":
                 if bigc_index in config.instruments_in(self.market) and bigc in _cfg("BIG_CANDLE_CHOICES", ()):
@@ -928,7 +913,8 @@ class TicketBook:
         closed = book.trade is not None and book.trade["status"] != "OPEN"
         natural = closed and (trade_log.is_target_close(book.trade["status"])
                               or "stop-loss hit" in book.trade["status"])
-        if natural and self.auto_rearm and rec.get("bias") != "NEUTRAL":
+        # a big candle's close never re-arms into the rules - they enter only on their own gates
+        if natural and self.auto_rearm and rec.get("bias") != "NEUTRAL" and trade.get("system") != "big_candle":
             if self._rearm(book, rec):
                 events.append({"kind": "opened", "index": book.name,
                                "rearmed": True, "trade": self._public_trade(book.trade)})
@@ -1251,10 +1237,33 @@ class TicketBook:
             return hold("reentry_cooldown", "COOLDOWN", f"{cd} minutes after the last exit before a new ticket - "
                         f"about {left} more minute{'s' if left != 1 else ''}.")
         book.last_rule_bar = info.get("bar_close")
-        book.last_bias_signature = (rec["bias"], rec["option_type"])
+        if info.get("system") != "big_candle":
+            book.last_bias_signature = (rec["bias"], rec["option_type"])
         book.wait_reason = None
         self._open(book, rec)
         return done + [{"kind": "opened", "index": book.name, "rearmed": False, "trade": self._public_trade(book.trade)}]
+
+    def consider_big_candle(self, name, rec):
+        """The day's first big 15-minute candle (big_candle.py) as one of this book's own tickets - live orders follow it
+        as they follow any ticket on the index (the user, 26 Oct 2026: "add the big candle in our rules with live
+        orders"). Only on an index switched on for it (big_candle_for), only when the index holds nothing, through the
+        rule path: the one decision on its candle's close, in the first two minutes after it. It never closes or
+        replaces a ticket that is open; while its own is open the rules' next entry waits - one position per index, the
+        "first come" the six-year one-slot check measured. `rec` is big_candle.apply's copy of the reading."""
+        if self.market != "nse_index" or not rec or self.big_candle_for(name) != "on":
+            return []
+        info = rec.get("rule") or {}
+        if info.get("system") != "big_candle" or not (info.get("ready") and info.get("side") and info.get("fresh")):
+            return []
+        with self.lock:
+            book = self.books.get(name)
+            if book is None or (book.trade is not None and book.trade["status"] == "OPEN"):
+                return []
+            held = book.wait_reason
+            evs = self._consider_rule(book, rec)
+            if not any(e.get("kind") == "opened" for e in evs):
+                book.wait_reason = held          # a big candle not taken never replaces the rules' own hold
+            return evs
 
     def _consider(self, book, rec):
         """Whether to issue a ticket. The five gates, in the order the desktop
@@ -1367,11 +1376,6 @@ class TicketBook:
 
         # --- 7. worth taking: the final target pays at least the risk ------
         held = self._reward_hold(book.name, rec)
-        if held is not None:
-            return hold(*held)
-
-        # --- 7b. and the heaviest option-seller level leaves it room (when this account asks for it)
-        held = self._sellers_room_hold(book.name, rec)
         if held is not None:
             return hold(*held)
 
@@ -1521,32 +1525,6 @@ class TicketBook:
                 f"ticket, with the ADX and room checks as well; PCR only counts when it votes, and then it has to "
                 f"agree too. {agree} of {len(names)} agree for a {'call' if side > 0 else 'put'}: "
                 f"{'; '.join(word(n) for n in off)}. Held until every one agrees. Change it in Trade settings.")
-
-    def _sellers_room_hold(self, name, rec):
-        """Held when the heaviest option-seller level in the trade's way leaves less than MIN_REWARD_RISK_T3 of room to
-        the stop - on an index this account switched it on for (sellers_room_for; the user, 21 Oct 2026: "can that data
-        be used in room to run"). The strike with the most OI within 1.5% (feeds._sellers_ahead): calls above for a
-        call, puts below for a put. Its own room is capped there; no chain reading, no hold. Rules tickets only."""
-        if not name or self.sellers_room_for(name) != "on" or self.system_for(name) != "rules":
-            return None
-        ot = rec.get("option_type")
-        se = (rec.get("sellers") or {}).get("call" if ot == "CE" else "put" if ot == "PE" else "")
-        levels = (se or {}).get("levels") or []
-        risk = rec.get("risk_points")
-        if not levels or not risk or risk <= 0:
-            return None
-        top = max(levels, key=lambda l: l.get("oi") or 0)
-        room = rec.get("reach_points")
-        capped = min(room, top["dist"]) if room else top["dist"]
-        need = config.min_reward_risk_t3(name) or 1.0
-        if capped / risk >= need:
-            return None
-        kind = "calls above" if ot == "CE" else "puts below"
-        return ("sellers_room", "SELLERS IN THE WAY",
-                f"The heaviest option sellers within reach - {top['oi'] / 1e5:.1f} lakh {kind} at "
-                f"{top['strike']:,.0f}, {top['dist']:,.0f} points away - leave {capped:,.0f} points of room against a "
-                f"{risk:,.0f}-point stop: {capped / risk:.2f} to 1, under the {need:g} to 1 needed. Your setting for "
-                f"{name} counts them (Trade settings, Seller limit). Held until there is room.")
 
     def _reward_hold(self, name, rec):
         """Watch-only indices, then reward:risk to T3. Last of the gates, so
@@ -1746,7 +1724,6 @@ class TicketBook:
                 or self._regime_hold(rec) is not None
                 or self._votes_hold(book.name, rec) is not None
                 or self._reward_hold(book.name, rec) is not None
-                or self._sellers_room_hold(book.name, rec) is not None
                 or self._spread_hold(rec) is not None
                 or self._strike_taken(book, rec) is not None
                 or self._price_hold(rec) is not None):
@@ -1853,7 +1830,10 @@ class TicketBook:
         book.waiver_applied = False
         book.trend_waiver_applied = False
         book.t1_waiver_applied = False
-        book.last_ticket_at = stamp
+        # A big-candle ticket (big_candle.py) holds the slot but is not the rules' own last ticket: their spacing,
+        # cooldown and re-arm read only their own, as big_candle_6y_study / the one-slot check measured them.
+        if book.trade.get("system") != "big_candle":
+            book.last_ticket_at = stamp
         # The previous ticket's streamed price is not this one's.
         book.live = None
         # Written to disk immediately rather than on close — if this dies
@@ -1893,18 +1873,19 @@ class TicketBook:
             pass
         self._day_cache = None
         self._booked_cache = None        # a close changes today's booked P&L - the loss limit must see it now
-        book.last_close_at = now_ist()
-        # For WAIVE_COOLDOWN_ON_TRENDING_TARGET: how this one closed, and the
-        # trend strength at that moment - read back the NEXT time a
-        # same-direction entry is considered here. rec is whatever the caller
-        # had on hand at close (the live tick's rec for a natural close,
-        # book.last_rec for a manual one) - never re-fetched, so this reflects
-        # exactly what was known at the moment of closing, nothing fresher.
-        book.last_close_reason = ("target" if trade_log.is_target_close(trade["status"])
-                                   else "other")
-        book.last_close_adx = (rec or {}).get("adx")
-        book.last_close_t1 = bool(trade.get("sl_hit") and (trade.get("hit") or {}).get("T1")
-                                  and not trade.get("plain_exit"))
+        if trade.get("system") != "big_candle":       # the rules' own cooldown clock - not a big candle's exit
+            book.last_close_at = now_ist()
+            # For WAIVE_COOLDOWN_ON_TRENDING_TARGET: how this one closed, and the
+            # trend strength at that moment - read back the NEXT time a
+            # same-direction entry is considered here. rec is whatever the caller
+            # had on hand at close (the live tick's rec for a natural close,
+            # book.last_rec for a manual one) - never re-fetched, so this reflects
+            # exactly what was known at the moment of closing, nothing fresher.
+            book.last_close_reason = ("target" if trade_log.is_target_close(trade["status"])
+                                       else "other")
+            book.last_close_adx = (rec or {}).get("adx")
+            book.last_close_t1 = bool(trade.get("sl_hit") and (trade.get("hit") or {}).get("T1")
+                                      and not trade.get("plain_exit"))
         row = {
             "trade_id": trade.get("trade_id"),                # so the page can say whether it was a live order
             "index": trade["index"], "strike": trade["strike"],
@@ -2224,9 +2205,6 @@ class TicketBook:
                 "votes_by": ({k: self.votes_rule_for(k) for k in config.instruments_in(self.market)}
                              if self.market == "nse_index" else {}),
                 "votes_choices": list(_cfg("VOTES_RULE_CHOICES", ())) if self.market == "nse_index" else [],
-                "sroom_by": ({k: self.sellers_room_for(k) for k in config.instruments_in(self.market)}
-                             if self.market == "nse_index" else {}),
-                "sroom_choices": list(_cfg("SELLERS_ROOM_CHOICES", ())) if self.market == "nse_index" else [],
                 "bigc_by": ({k: self.big_candle_for(k) for k in config.instruments_in(self.market)}
                             if self.market == "nse_index" else {}),
                 "bigc_choices": list(_cfg("BIG_CANDLE_CHOICES", ())) if self.market == "nse_index" else [],

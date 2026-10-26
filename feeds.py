@@ -758,12 +758,8 @@ class Feed:
                 # tickets' one. The executor decides by the source it is told.
                 self.ai.book.listeners.append(
                     lambda kind, trade: self.live.on_ticket_event(kind, trade, source="ai"))
-        # The big candle's paper tickets (big_candle.py, 26 Oct 2026: "yes build it on paper first"), in a book of
-        # their own with no listener at all - they can never reach live orders, and never hold an index's slot.
-        self.bc = None
-        if self.tickets.path and self.market == "nse_index":
-            import big_candle
-            self.bc = big_candle.PaperDesk(self)
+        # The big candle's reading per index (big_candle.py), for the home pane - its tickets are this book's own
+        self.bc_readings = {}
 
         # The live price feed. Polling REST every thirty seconds can only ever
         # show a snapshot up to thirty seconds stale, and asking faster gets
@@ -1256,11 +1252,6 @@ class Feed:
                     if self.ai is not None:
                         try:
                             self.ai.book.close_all_at_bell()
-                        except Exception:
-                            pass
-                    if self.bc is not None:
-                        try:
-                            self.bc.book.close_all_at_bell()
                         except Exception:
                             pass
                     self.bell_closed = True
@@ -2340,16 +2331,23 @@ class Feed:
             except Exception as exc:
                 self._note_fault(f"{name} tickets", f"{type(exc).__name__}: {exc}")
                 evs = []
+            # The day's first big candle (big_candle.py; the user, 26 Oct 2026: "add the big candle in our rules with
+            # live orders"): one of this book's own tickets, on an index switched on for it, only when it holds nothing.
+            if self.market == "nse_index" and self.tickets.big_candle_for(name) == "on":
+                try:
+                    import big_candle
+                    bev = big_candle.evaluate(name, rec.get("candles"), now=now_ist())
+                    self.bc_readings[name] = {"ready": bool(bev.get("ready")), "side": bev.get("side", 0),
+                                              "why": bev.get("why"), "first": (bev.get("values") or {}).get("first")}
+                    evs = list(evs) + self.tickets.consider_big_candle(
+                        name, big_candle.apply(rec, bev, name, avoid_strikes=self._avoid_strikes(name)))
+                except Exception as exc:
+                    self._note_fault(f"{name} big candle", f"{type(exc).__name__}: {exc}")
             if self.ai is not None:
                 try:
                     self.ai.track(name, rec)
                 except Exception as exc:
                     self._note_fault(f"{name} ai tickets", f"{type(exc).__name__}: {exc}")
-            if self.bc is not None:
-                try:
-                    self.bc.step(name, rec, self.tickets.big_candle_for(name) == "on")
-                except Exception as exc:
-                    self._note_fault(f"{name} big candle", f"{type(exc).__name__}: {exc}")
             with self.lock:
                 entry = self.state["indices"].get(name)
                 if entry is None:
@@ -2375,15 +2373,6 @@ class Feed:
             self.ai.price_tick()
         except Exception as exc:
             self._note_fault("ai prices", f"{type(exc).__name__}: {exc}")
-
-    def _bc_prices(self):
-        """The big candle's open paper tickets, priced on the tick."""
-        if self.bc is None:
-            return
-        try:
-            self.bc.price_tick()
-        except Exception as exc:
-            self._note_fault("big candle prices", f"{type(exc).__name__}: {exc}")
 
     def _bot_watch(self):
         """Check open tickets for the events the Market Bot reports on, and
@@ -2601,7 +2590,6 @@ class Feed:
                         if ev.get("kind") == "closed":
                             self.opt_tokens.pop(name, None)
                 self._ai_prices()
-                self._bc_prices()
                 # Everything derived from price, recomputed on the forming
                 # candle — the same thing the desktop does every second, and
                 # the reason its gauges move and the website's did not.
@@ -2862,7 +2850,9 @@ class Feed:
         # off the feed lock: it reads the trade logs and asks the AI desk's book (which has a lock of its own)
         snap["live_pnl"], snap["paper_pnl"], snap["positions_today"] = self._pnl_split(pubs)
         try:
-            snap["big_candle"] = self.bc.public() if self.bc is not None else None
+            import big_candle
+            snap["big_candle"] = (big_candle.summary(self.bc_readings, self.tickets)
+                                  if self.market == "nse_index" and self.tickets.path else None)
         except Exception:
             snap["big_candle"] = None
         # Each of the session's recently closed tickets says whether it was a real order.

@@ -340,6 +340,8 @@ def _rule_explain(rec):
     # The Camarilla breakout (camarilla.py, Sensex): an index option like these two, but its own stop (H3 / L3) and
     # one target at twice the risk that nothing moves - a plain exit, as tested.
     cam = info.get("system") == "camarilla"
+    # The big candle (big_candle.py): the same kind - its stop at the candle's other end, one target at twice the risk
+    bc = info.get("system") == "big_candle"
     steps = tvr or getattr(config, "TREND_RIDER_EXIT", "ladder") == "rules"
     # A TradingView-rating CFD rule (cfd_rules._apply_tv - gold since 14 Oct 2026): a trailing stop, a reversal, a far
     # safety target - not the one-stop-one-target words of the other Exness rules.
@@ -350,6 +352,8 @@ def _rule_explain(rec):
     far = cfdtv and cfd_rules.trail_first(info)
     tail = ((f" Stop at {'H3' if side > 0 else 'L3'}, one target at {info.get('target_r'):g} x the risk; nothing moves the "
              "stop on the way; out at the target, the stop or the day's close.") if cam else
+            (f" Stop at the candle's {'low' if side > 0 else 'high'}, one target at {info.get('target_r'):g} x the risk; "
+             "nothing moves the stop on the way; out at the target, the stop or the day's close.") if bc else
             (f" Stop at the last {info.get('swing')} candles' {'low' if side > 0 else 'high'}, one target at "
              f"{info.get('target_r'):g} x the risk; "
              + ("the stop moves to T1 at T1 and to T2 at T2 once that 15-minute candle closes, then follows the "
@@ -368,15 +372,17 @@ def _rule_explain(rec):
         verdict = "Waiting - " + (info.get("why") or "no reading yet") + "."
         headline = "No trade - waiting for the rule's reading"
     elif side:
-        word = ("BUY CE" if side > 0 else "BUY PE") if (tr or cam) else ("BUY" if side > 0 else "SELL")
+        word = ("BUY CE" if side > 0 else "BUY PE") if (tr or cam or bc) else ("BUY" if side > 0 else "SELL")
         verdict = (f"The day's first 15-minute close {'above H4' if side > 0 else 'below L4'}: {word}." if cam else
+                   f"The day's first big 15-minute candle closed at a new day {'high' if side > 0 else 'low'}: {word}."
+                   if bc else
                    f"TradingView's overall rating is {(info.get('tag') or '').split(' · ')[-1] or 'Strong'} on the last "
                    f"15-minute close: {word}." if tvr else
                    f"{info.get('tag') or info.get('label')} on the last 15-minute close: {word}." if cfdtv else
                    f"Every condition holds, for the first time, on the last 15-minute close: {word}." if tr else
                    f"Every vote and filter agrees on the last 15-minute close: {word}.") + tail
         headline = f"{word} - {info.get('label')}"
-    elif tr or cam:
+    elif tr or cam or bc:
         verdict = " ".join(rec.get("blockers") or [f"No fresh {info.get('label')} signal on the last 15-minute close."])
         headline = f"No trade - {info.get('label')} waiting"
     elif cfdtv:
@@ -388,7 +394,11 @@ def _rule_explain(rec):
         headline = "No trade - the rule's votes do not all agree"
     levels = []
     tg, sl = rec.get("index_targets") or [None, None, None], rec.get("index_stop_loss")
-    if side and sl is not None and tg[2] is not None and cam:
+    if side and sl is not None and tg[2] is not None and bc:
+        levels = [f"STOP {_n(sl, 2)} - the big candle's {'low' if side > 0 else 'high'}; it stays there.",
+                  f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "
+                  f"(T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
+    elif side and sl is not None and tg[2] is not None and cam:
         levels = [f"STOP {_n(sl, 2)} - the Camarilla {'H3' if side > 0 else 'L3'}; it stays there.",
                   f"TARGET {_n(tg[2], 2)} - {info.get('target_r'):g} x the risk, the trade's only exit target "
                   f"(T1 {_n(tg[0], 2)} and T2 {_n(tg[1], 2)} are just the way there)."]
