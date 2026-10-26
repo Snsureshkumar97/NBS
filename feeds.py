@@ -513,6 +513,9 @@ def _sellers_ahead(chain, spot, past=None, past_age_s=None):
 # 1% of open interest, not the 3% first set: Nifty's strikes are so large that on 22 Oct its busiest one near the price
 # moved 2.4% in ten minutes around midday, so at 3% Nifty showed nothing at all ("i dont see")
 BUILDUP_AREA, BUILDUP_MIN_OI, BUILDUP_MIN_PX = 0.02, 0.01, 0.02
+# the readings only the per-second recompute works out, which the 30-second analysis pass carries over from it while it
+# has run within LIVE_KEEP_S (Feed._run)
+LIVE_ONLY, LIVE_KEEP_S = ("sellers", "buildup", "cpr"), 15
 BUILDUP_LEAN = {("call", "buyers_in"): 1, ("call", "sellers_out"): 1, ("put", "sellers_in"): 1, ("put", "buyers_out"): 1,
                 ("call", "sellers_in"): -1, ("call", "buyers_out"): -1, ("put", "buyers_in"): -1, ("put", "sellers_out"): -1}
 
@@ -1204,6 +1207,15 @@ class Feed:
                             self.base_df[name] = rec.get("candles")
                             self.base_oi[name] = rec.get("option_chain")
                             prev = self.state["indices"].get(name) or {}
+                            # Sellers, who moved and the CPR come from the per-second recompute only. Published
+                            # without them, this reading emptied the Signal page's chain drawing until that recompute
+                            # put them back a second later - every 30 seconds the page shrank by ~1,100px on a phone
+                            # and threw the reader up it (the user, 25 Oct 2026: "keeps loading ... i could not
+                            # scroll"). Its last ones are kept while it is running.
+                            if time.time() - self.live_at <= LIVE_KEEP_S:
+                                for k in LIVE_ONLY:
+                                    if rec.get(k) is None:
+                                        rec[k] = (prev.get("rec") or {}).get(k)
                             self.state["indices"][name] = {
                                 "rec": rec,
                                 "public": _public(rec, name),
