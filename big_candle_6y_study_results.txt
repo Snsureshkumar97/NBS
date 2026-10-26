@@ -1,0 +1,54 @@
+======================================================================================================================================================
+ SIX YEARS (Aug 2020 - Oct 2026): THE RULES, THE BIG CANDLE, AND THE TWO TOGETHER - per lot after costs, ₹
+======================================================================================================================================================
+                                                AUG 2020 - 15 AUG 2025                                              | 15 AUG 2025 - 26 OCT 2026
+ NIFTY
+    the rules alone                              1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    the big candle alone                          332   41% ₹  +206,003 PF 1.59 DD ₹  36,011 day ₹  -6,606  |   61   46% ₹   +34,282 PF 1.56 DD ₹  10,537 day ₹  -4,150
+    the rules + the big candle (+169)            1689   49% ₹  +306,014 PF 1.27 DD ₹  32,921 day ₹  -7,487  |  412   50% ₹   +62,964 PF 1.22 DD ₹  37,679 day ₹  -9,038
+   KEEP  rules + big candle vs the rules              profit: in-sample  +129,635  held-out    +5,448   worst drop:     +194 /  +10,363   worst day:       +0 /       +0
+           walk-forward: beats today's in 9 of 13 half-years;  first two years: 95% worst drop ₹64,322 (today's ₹63,202), chance of a loss 0%;  held-out: 95% worst drop ₹48,145 (today's ₹43,312), chance of a loss 5%  -> STEADY
+   drop  big candle alone vs the rules                profit: in-sample   +29,624  held-out   -23,233   worst drop:   +3,284 /  -16,779   worst day:     +882 /   +4,887
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹49,975 (today's ₹63,202), chance of a loss 0%;  held-out: 95% worst drop ₹29,729 (today's ₹43,312), chance of a loss 8%
+ BANKNIFTY
+    the rules alone                              1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    the big candle alone                          359   42% ₹  +181,060 PF 1.37 DD ₹  52,751 day ₹  -6,541  |   57   51% ₹   +53,779 PF 1.70 DD ₹  20,339 day ₹  -6,093
+    the rules + the big candle (+164)            1612   49% ₹  +289,068 PF 1.19 DD ₹  36,882 day ₹ -11,110  |  448   46% ₹   +31,019 PF 1.07 DD ₹  51,640 day ₹ -11,147
+   KEEP  rules + big candle vs the rules              profit: in-sample  +118,431  held-out   +13,836   worst drop:     +507 /  +11,104   worst day:   -2,483 /       +0
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹94,467 (today's ₹107,029), chance of a loss 0%;  held-out: 95% worst drop ₹102,084 (today's ₹100,925), chance of a loss 28%  -> STEADY
+   KEEP  big candle alone vs the rules                profit: in-sample   +10,423  held-out   +36,596   worst drop:  +16,376 /  -20,198   worst day:   +2,085 /   +5,054
+           walk-forward: beats today's in 8 of 13 half-years;  first two years: 95% worst drop ₹74,373 (today's ₹107,029), chance of a loss 1%;  held-out: 95% worst drop ₹37,020 (today's ₹100,925), chance of a loss 6%  -> STEADY
+ SENSEX
+    the rules alone                              1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    the big candle alone                          339   40% ₹  +175,895 PF 1.47 DD ₹  48,667 day ₹  -6,971  |   51   55% ₹   +61,078 PF 2.68 DD ₹  12,165 day ₹  -3,779
+    the rules + the big candle (+170)            1630   49% ₹  +278,294 PF 1.25 DD ₹  42,308 day ₹  -8,440  |  393   52% ₹   +88,187 PF 1.34 DD ₹  28,995 day ₹  -8,110
+   KEEP  rules + big candle vs the rules              profit: in-sample  +116,299  held-out   +22,908   worst drop:   -1,202 /   +5,061   worst day:       +0 /       +0
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹64,759 (today's ₹63,964), chance of a loss 0%;  held-out: 95% worst drop ₹38,589 (today's ₹39,511), chance of a loss 1%  -> STEADY
+   drop  big candle alone vs the rules                profit: in-sample   +13,900  held-out    -4,201   worst drop:   +5,157 /  -11,769   worst day:   +1,469 /   +4,331
+           walk-forward: beats today's in 8 of 13 half-years;  first two years: 95% worst drop ₹57,924 (today's ₹63,964), chance of a loss 0%;  held-out: 95% worst drop ₹17,707 (today's ₹39,511), chance of a loss 1%
+    from May 2023 (real Sensex options): rules    649   51% ₹  +107,928 PF 1.26 DD ₹  29,083 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    from May 2023: rules + big candle             718   50% ₹  +196,589 PF 1.39 DD ₹  36,906 day ₹  -8,440  |  393   52% ₹   +88,187 PF 1.34 DD ₹  28,995 day ₹  -8,110
+
+ BY CALENDAR YEAR (2020 from August, 2026 to 26 October)
+               year       rules  big candle    together     added
+ BANKNIFTY     2020      13,704       6,845      22,337    +8,633
+ BANKNIFTY     2021      44,411      61,768      65,451   +21,040
+ BANKNIFTY     2022      10,806      35,217      56,488   +45,681
+ BANKNIFTY     2023      52,586      -4,755      82,168   +29,582
+ BANKNIFTY     2024      30,773      74,814      45,350   +14,577
+ BANKNIFTY     2025      11,103       7,725       9,882    -1,222
+ BANKNIFTY     2026      24,436      53,226      38,412   +13,976
+ NIFTY         2020     -26,802       5,318     -18,263    +8,539
+ NIFTY         2021      40,371      35,445      55,644   +15,273
+ NIFTY         2022      52,579      23,071      41,985   -10,595
+ NIFTY         2023      46,700     -30,445      50,856    +4,157
+ NIFTY         2024      26,714     107,646     103,833   +77,119
+ NIFTY         2025      80,586      66,488     109,127   +28,541
+ NIFTY         2026      13,746      32,762      25,796   +12,049
+ SENSEX        2020      -2,108        -284       7,522    +9,630
+ SENSEX        2021      20,434      32,424      49,496   +29,061
+ SENSEX        2022      24,745      24,832      30,812    +6,067
+ SENSEX        2023      39,280     -37,525       7,292   -31,988
+ SENSEX        2024      30,569      93,382     114,488   +83,919
+ SENSEX        2025      68,406      73,662      89,666   +21,259
+ SENSEX        2026      45,947      50,481      67,205   +21,258
