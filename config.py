@@ -662,6 +662,15 @@ VOTES_WHEN_CAST = ("PCR",)
 SELLERS_ROOM_CHOICES = ("off", "on")
 SELLERS_ROOM_DEFAULT = "off"
 
+# THE BIG CANDLE, ON PAPER (big_candle.py; the user, 26 Oct 2026: "yes build it on paper first"): the day's first
+# 15-minute candle with a body of at least k x ATR(14) that closes at a new day high (a call) or low (a put), from the
+# 09:45 close to the 14:30 close, one a day; stop at the candle's other end, one target at target_r x the risk - the
+# "K1.5 end 2R" of big_candle_robustness.py, which held up only ADDED to the rules (Nifty, Bank Nifty, Sensex). Its own
+# paper book, never a real order; switched on per index in Trade settings, off unless the user turns it on.
+BIG_CANDLE = {"k": 1.5, "target_r": 2.0, "first_close": (9, 45), "last_close": (14, 30)}
+BIG_CANDLE_CHOICES = ("off", "on")
+BIG_CANDLE_DEFAULT = "off"
+
 # The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
 TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}

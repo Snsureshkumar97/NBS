@@ -758,6 +758,12 @@ class Feed:
                 # tickets' one. The executor decides by the source it is told.
                 self.ai.book.listeners.append(
                     lambda kind, trade: self.live.on_ticket_event(kind, trade, source="ai"))
+        # The big candle's paper tickets (big_candle.py, 26 Oct 2026: "yes build it on paper first"), in a book of
+        # their own with no listener at all - they can never reach live orders, and never hold an index's slot.
+        self.bc = None
+        if self.tickets.path and self.market == "nse_index":
+            import big_candle
+            self.bc = big_candle.PaperDesk(self)
 
         # The live price feed. Polling REST every thirty seconds can only ever
         # show a snapshot up to thirty seconds stale, and asking faster gets
@@ -1250,6 +1256,11 @@ class Feed:
                     if self.ai is not None:
                         try:
                             self.ai.book.close_all_at_bell()
+                        except Exception:
+                            pass
+                    if self.bc is not None:
+                        try:
+                            self.bc.book.close_all_at_bell()
                         except Exception:
                             pass
                     self.bell_closed = True
@@ -2334,6 +2345,11 @@ class Feed:
                     self.ai.track(name, rec)
                 except Exception as exc:
                     self._note_fault(f"{name} ai tickets", f"{type(exc).__name__}: {exc}")
+            if self.bc is not None:
+                try:
+                    self.bc.step(name, rec, self.tickets.big_candle_for(name) == "on")
+                except Exception as exc:
+                    self._note_fault(f"{name} big candle", f"{type(exc).__name__}: {exc}")
             with self.lock:
                 entry = self.state["indices"].get(name)
                 if entry is None:
@@ -2359,6 +2375,15 @@ class Feed:
             self.ai.price_tick()
         except Exception as exc:
             self._note_fault("ai prices", f"{type(exc).__name__}: {exc}")
+
+    def _bc_prices(self):
+        """The big candle's open paper tickets, priced on the tick."""
+        if self.bc is None:
+            return
+        try:
+            self.bc.price_tick()
+        except Exception as exc:
+            self._note_fault("big candle prices", f"{type(exc).__name__}: {exc}")
 
     def _bot_watch(self):
         """Check open tickets for the events the Market Bot reports on, and
@@ -2576,6 +2601,7 @@ class Feed:
                         if ev.get("kind") == "closed":
                             self.opt_tokens.pop(name, None)
                 self._ai_prices()
+                self._bc_prices()
                 # Everything derived from price, recomputed on the forming
                 # candle — the same thing the desktop does every second, and
                 # the reason its gauges move and the website's did not.
@@ -2835,6 +2861,10 @@ class Feed:
             }
         # off the feed lock: it reads the trade logs and asks the AI desk's book (which has a lock of its own)
         snap["live_pnl"], snap["paper_pnl"], snap["positions_today"] = self._pnl_split(pubs)
+        try:
+            snap["big_candle"] = self.bc.public() if self.bc is not None else None
+        except Exception:
+            snap["big_candle"] = None
         # Each of the session's recently closed tickets says whether it was a real order.
         live_ids = set(snap["paper_pnl"].get("live_ids") or ())
         ses = snap.get("session")

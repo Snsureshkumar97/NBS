@@ -764,6 +764,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "paper_pnl": snap.get("paper_pnl"),
             # today's closed trades and the AI desk's open ones, for the Dashboard's Positions table
             "positions_today": snap.get("positions_today"),
+            # the big candle's paper desk (big_candle.py) - its switches, readings, open paper tickets and record
+            "big_candle": snap.get("big_candle"),
             "events": snap.get("events") or [],
             # Only whether it is on and a counter - the page fetches the updates
             # themselves from /api/marketbot when the counter moves.
@@ -2416,7 +2418,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            lots_index=(form.get("lots_index") or "").upper() or None,
                            system=(form.get("system") or None), system_index=(form.get("system_index") or "").upper() or None,
                            votes=(form.get("votes") or None), votes_index=(form.get("votes_index") or "").upper() or None,
-                           sroom=(form.get("sroom") or None), sroom_index=(form.get("sroom_index") or "").upper() or None)
+                           sroom=(form.get("sroom") or None), sroom_index=(form.get("sroom_index") or "").upper() or None,
+                           bigc=(form.get("bigc") or None), bigc_index=(form.get("bigc_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -3697,6 +3700,18 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .se-tag.se-call{color:var(--down)}
 .se-tag.se-put{color:var(--up)}
 .kdsellers .kd-sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 8px;line-height:1.5;max-width:760px}
+/* the big candle's paper desk on the home pane (26 Oct 2026) - its own slot, every width */
+.bcdash:empty{display:none}
+.bcdash{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
+.bcdash .bc-h{font-size:15px;font-weight:600;color:var(--ink)}
+.bcdash .bc-sub{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:2px 0 6px;max-width:760px}
+.bcdash .bc-row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:8px 0;border-top:1px solid var(--bd-soft);
+  font-size:13.5px;align-items:baseline}
+.bcdash .bc-res{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600}
+.bcdash .bc-say,.bcdash .bc-trade{grid-column:1 / -1;color:var(--ink-2);line-height:1.45}
+.bcdash .bc-trade{font-variant-numeric:tabular-nums}
+/* seven columns since the big candle's (26 Oct 2026): the table scrolls inside its card, never the page */
+#kdlots{overflow-x:auto}
 .kdsellers .kd-se td{vertical-align:baseline}
 /* the option chain's sellers / support ladder (21 Oct 2026) */
 .ocse{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
@@ -5228,6 +5243,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="home"] .welcome{order:1}
   :root[data-look="kite"] .sessnote{order:2}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
+  :root[data-look="kite"] .bcdash{order:2}
   :root[data-look="kite"] .kdsellers{order:2;margin:0 0 14px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
@@ -5768,6 +5784,7 @@ button.mgroup:hover{color:var(--ink-2)}
  <section class="pane on" data-pane="home">
   <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
+  <div class="bcdash" id="bcdash"></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -6342,7 +6359,12 @@ button.mgroup:hover{color:var(--ink-2)}
     and PCR too when it votes (neutral or missing, it is shown, not required) - fewer trades; "3 of 5 (tested)" is the
     rule the 3-year results measure. Seller limit (off unless you turn it on): room to run also stops at the heaviest
     option-seller level within 1.5% (the Dashboard's "Sellers above / support below"), and a trade needs 1:1 room up to
-    it - tried on only 22 days of recorded data, not proven. Both apply while the index runs Current rules.</div>
+    it - tried on only 22 days of recorded data, not proven. Both apply while the index runs Current rules.
+    Big candle (paper, off unless you turn it on): the day's first 15-minute candle with a body of at least 1.5 x the
+    normal candle (ATR) that closes at a new day high (a call) or low (a put), 09:45-14:30, one a day; stop at the
+    candle's other end, one target at twice the risk. PAPER ONLY, in a record of its own on the Dashboard - it never
+    places a real order and never blocks your own tickets. In 3 years it added profit to the rules on Nifty, Bank Nifty
+    and Sensex, with a deeper worst losing stretch - found among several versions, so it is on paper first.</div>
   </div>
  </section>
 
@@ -6695,8 +6717,11 @@ function lotsDash(s){
   // The heaviest option-seller level as a room limit, per index (21 Oct 2026; config.SELLERS_ROOM_*) - off by default.
   const sroomBy = sess.sroom_by || {}, sroomChoices = sess.sroom_choices || [], sroomOn = sroomChoices.length > 0;
   const SROOMNAME = {off: "Off", on: "On"};
+  // The big candle's paper desk, per index (26 Oct 2026; big_candle.py) - off by default, never a real order.
+  const bigcBy = sess.bigc_by || {}, bigcChoices = sess.bigc_choices || [], bigcOn = bigcChoices.length > 0;
+  const BIGCNAME = {off: "Off", on: "On"};
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
-    + "|" + votesChoices.join(",") + "|" + sroomChoices.join(",")
+    + "|" + votesChoices.join(",") + "|" + sroomChoices.join(",") + "|" + bigcChoices.join(",")
     + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
@@ -6704,7 +6729,7 @@ function lotsDash(s){
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
-      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}${sroomOn ? "<th>Seller limit</th>" : ""}<th>Live orders</th></tr></thead><tbody>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}${sroomOn ? "<th>Seller limit</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle (paper)</th>" : ""}</tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -6720,7 +6745,11 @@ function lotsDash(s){
           + `<td class="kdl-live" data-th="Live orders" data-live="${esc(k)}">` + (live && live.includes(k)
               ? `<label><span class="kdl-sr">${esc(k)} live orders</span><select data-livesel="${esc(k)}">`
                 + `<option value="off">Off &middot; paper</option><option value="on">On &middot; real orders</option></select></label>`
-              : `<span class="kdl-u">paper only</span>`) + `</td></tr>`).join("")
+              : `<span class="kdl-u">paper only</span>`) + `</td>`
+          // last: a paper desk of its own, and the newest column - Live orders stays in view on a narrower screen
+          + (bigcOn ? `<td data-th="Big candle (paper)"><label><span class="kdl-sr">${esc(k)} big candle, paper</span><select data-bigc="${esc(k)}">`
+              + bigcChoices.map(v => `<option value="${v}">${esc(BIGCNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+          + `</tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
       // Live orders for one index, from here (the user, 20 Oct 2026: "in the trade setting tab only where it shows
@@ -6736,6 +6765,31 @@ function lotsDash(s){
         if(msg && now === want) msg.textContent = want
           ? `${k}: live orders ON - every new ticket on ${k} is also placed at the broker with real money.`
           : `${k}: live orders off - new tickets on ${k} are paper only. A position already open is still managed to its exit.`;
+        return;
+      }
+      const bs = e.target.closest("select[data-bigc]");
+      if(bs && bs.dataset && bs.dataset.bigc){
+        const k = bs.dataset.bigc, want = bs.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        bs.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({bigc: want, bigc_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.bigc_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          bs.value = got;
+          if(msg) msg.textContent = got === "on"
+            ? `${k}: the big candle now takes PAPER tickets on ${k} - the day's first big 15-minute candle, beside your own tickets, never a real order. They show on the Dashboard.`
+            : `${k}: the big candle is off - no new paper tickets on ${k} (one already open runs to its exit).`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).bigc_by || {})[k];
+          if(was) bs.value = was;
+          if(msg) msg.textContent = `${k}: the big candle could not be changed (are you still signed in?) - still ${BIGCNAME[was] || was}.`;
+        }finally{ bs.disabled = false; }
         return;
       }
       const rs = e.target.closest("select[data-sroom]");
@@ -6854,6 +6908,12 @@ function lotsDash(s){
     const k = sel.dataset && sel.dataset.sroom;
     if(!k) return;
     const v = sroomBy[k];
+    if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
+  });
+  el.querySelectorAll("select[data-bigc]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.bigc;
+    if(!k) return;
+    const v = bigcBy[k];
     if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
   });
   el.querySelectorAll("select[data-votes]").forEach(sel => {
@@ -11449,6 +11509,40 @@ function kiteDash(s){
   }
 }
 
+// THE BIG CANDLE ON PAPER (big_candle.py; the user, 26 Oct 2026: "yes build it on paper first"): each switched-on
+// index's reading today and its open paper ticket, and the paper record so far - one lot, never a real order. Its own
+// slot on the home pane (#bcdash), outside #kdash, so a phone - where #kdash is hidden - shows it too. Shown only once
+// an index is switched on in Trade settings, or there is a paper trade to show.
+function bigCandleDash(s, order){
+  const bc = s && s.big_candle;
+  if(!bc || !bc.by_index) return "";
+  const by = bc.by_index, rec = bc.record || {}, td = bc.today || {};
+  const isOpen = tk => !!(tk && (tk.status === "OPEN" || tk.open));
+  const shown = order.filter(k => by[k] && (by[k].on || isOpen(by[k].ticket)));
+  if(!shown.length && !rec.closed) return "";
+  const col = v => v > 0 ? "var(--up)" : v < 0 ? "var(--down)" : "var(--ink-2)";
+  const say = r => {
+    if(!r.on) return "switched off - its open paper trade runs to its exit";
+    const f = r.first;
+    if(f) return `today's big candle: the ${esc(f.at)} close, ${f.side > 0 ? "a call" : "a put"}`;
+    return esc(r.why || "waiting for the day's first big candle");
+  };
+  const rows = shown.map(k => {
+    const r = by[k], tk = r.ticket, open = isOpen(tk);
+    return `<div class="bc-row"><b class="bc-k">${esc(k)}</b>`
+      + `<span class="bc-res" style="color:${open ? col(tk.pnl) : "var(--ink-3)"}">${open ? esc(money(tk.pnl || 0)) : "no trade open"}</span>`
+      + `<span class="bc-say">${say(r)}</span>`
+      + (open ? `<span class="bc-trade">paper ${tk.strike != null ? esc(String(tk.strike)) + " " : ""}${esc(tk.option_type || "")} &middot; `
+                + `${num(tk.entry, 2)}${tk.now != null ? ` &rarr; ${num(tk.now, 2)}` : ""}</span>` : "")
+      + `</div>`;
+  }).join("");
+  const won = rec.closed ? ` &middot; ${rec.wins} won` : "";
+  return `<div class="bc-h">Big candle &middot; paper</div>`
+    + `<p class="bc-sub">The day's first big 15-minute candle, one lot, beside your own tickets - never a real order. `
+    + `So far: <b>${rec.closed || 0}</b> closed${won}, <b style="color:${col(rec.net || 0)}">${esc(money(rec.net || 0))}</b>`
+    + (td.closed ? ` &middot; today ${esc(money(td.net))}` : "") + `.</p>` + rows;
+}
+
 // GATE TRACKS (the user, 16 Oct 2026, after AITOS's "gate tracks" screen: "yes" to drawing the tool's own checks that
 // way). One track per index: the checks the tool applies before a ticket, in its order - the reading's own (the rules'
 // votes, ADX, room and reward:risk, or a Trend Rider / TradingView rule's conditions), then the ticket's own hold and the
@@ -11613,6 +11707,12 @@ function homeDraw(s){
       + `<span>${esc(sn.text)}</span>`
       + (sn.nse ? `<small>NSE right now: ${esc(sn.nse)}</small>` : "") + `</div>` : "";
     if(ns.innerHTML !== h) ns.innerHTML = h;
+  }
+  // the big candle's paper desk (26 Oct 2026) - its own slot too, so a phone shows it
+  const bce = $("bcdash");
+  if(bce && s){
+    const b = bigCandleDash(s, s.order || Object.keys(s.indices || {}));
+    if(bce._h !== b){ bce._h = b; bce.innerHTML = b; }
   }
   const g = $("gmk");
   if(g && MKT_ROWS){

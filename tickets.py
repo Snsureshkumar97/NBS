@@ -265,6 +265,8 @@ class TicketBook:
         self.votes_by = {}
         # Each Indian index's seller-level room limit, "on" / "off" (config.SELLERS_ROOM_CHOICES, 21 Oct 2026).
         self.sroom_by = {}
+        # Each Indian index's big-candle paper desk, "on" / "off" (config.BIG_CANDLE_CHOICES, 26 Oct 2026; big_candle.py).
+        self.bigc_by = {}
         self.reentry = bool(_cfg("ALLOW_SAME_DIRECTION_REENTRY", False))
         self.auto_rearm = True
         self.limits = bool(_cfg("DAILY_LIMITS_ON", False))
@@ -318,6 +320,9 @@ class TicketBook:
             for k, v in (s.get("sroom_by") or {}).items():
                 if k in names and v in _cfg("SELLERS_ROOM_CHOICES", ()):
                     self.sroom_by[k] = v
+            for k, v in (s.get("bigc_by") or {}).items():
+                if k in names and v in _cfg("BIG_CANDLE_CHOICES", ()):
+                    self.bigc_by[k] = v
         except Exception:
             pass
 
@@ -368,6 +373,14 @@ class TicketBook:
         v = self.sroom_by.get(index)
         return v if v in _cfg("SELLERS_ROOM_CHOICES", ()) else _cfg("SELLERS_ROOM_DEFAULT", "off")
 
+    def big_candle_for(self, index):
+        """Whether the big candle's paper desk (big_candle.py) takes tickets on this Indian index: "on" / "off" - the
+        account's choice, else config.BIG_CANDLE_DEFAULT. None off the Indian market."""
+        if self.market != "nse_index":
+            return None
+        v = self.bigc_by.get(index)
+        return v if v in _cfg("BIG_CANDLE_CHOICES", ()) else _cfg("BIG_CANDLE_DEFAULT", "off")
+
     def cfd_plan(self, index):
         """The entry rule this account's crypto instrument trades on (config.cfd_plan of its system), or None: the
         tool's own votes (the engine)."""
@@ -399,7 +412,7 @@ class TicketBook:
             with open(tmp, "w") as fh:
                 json.dump({"capital": self.capital, "risk_pct": self.risk_pct, "lots": self.lots,
                            "lots_by": self.lots_by, "systems_by": self.systems_by, "votes_by": self.votes_by,
-                           "sroom_by": self.sroom_by}, fh)
+                           "sroom_by": self.sroom_by, "bigc_by": self.bigc_by}, fh)
             os.replace(tmp, p)
         except Exception:
             pass
@@ -542,7 +555,7 @@ class TicketBook:
     # =====================================================================
     def configure(self, lots=None, reentry=None, auto_rearm=None, limits=None,
                   capital=None, risk_pct=None, lots_index=None, system=None, system_index=None,
-                  votes=None, votes_index=None, sroom=None, sroom_index=None):
+                  votes=None, votes_index=None, sroom=None, sroom_index=None, bigc=None, bigc_index=None):
         with self.lock:
             if capital is not None:
                 # 0 or blank clears it, which also switches the loss limit off.
@@ -576,6 +589,10 @@ class TicketBook:
             if sroom is not None and self.market == "nse_index":
                 if sroom_index in config.instruments_in(self.market) and sroom in _cfg("SELLERS_ROOM_CHOICES", ()):
                     self.sroom_by[sroom_index] = sroom
+                    self._save_settings()
+            if bigc is not None and self.market == "nse_index":
+                if bigc_index in config.instruments_in(self.market) and bigc in _cfg("BIG_CANDLE_CHOICES", ()):
+                    self.bigc_by[bigc_index] = bigc
                     self._save_settings()
             if reentry is not None:
                 self.reentry = bool(reentry)
@@ -2210,6 +2227,9 @@ class TicketBook:
                 "sroom_by": ({k: self.sellers_room_for(k) for k in config.instruments_in(self.market)}
                              if self.market == "nse_index" else {}),
                 "sroom_choices": list(_cfg("SELLERS_ROOM_CHOICES", ())) if self.market == "nse_index" else [],
+                "bigc_by": ({k: self.big_candle_for(k) for k in config.instruments_in(self.market)}
+                            if self.market == "nse_index" else {}),
+                "bigc_choices": list(_cfg("BIG_CANDLE_CHOICES", ())) if self.market == "nse_index" else [],
                 "systems_by": {k: self.system_for(k) for k in config.instruments_in(self.market)
                                if self.market == "nse_index" or k in (_cfg("CRYPTO_SYSTEMS", {}) or {})},
                 "system_choices": (list(_cfg("SYSTEMS", ("rules",))) if self.market == "nse_index" else
