@@ -1,0 +1,84 @@
+========================================================================================================================
+NIFTY
+    K1.5 end 2R                                   148   43% ₹  +162,129 PF 1.95 DD ₹  19,163 day ₹  -6,606  |   61   46% ₹   +34,297 PF 1.56 DD ₹  10,536 day ₹  -4,150
+    K1.5 end 2R at 0.5% slippage                  148   43% ₹  +156,962 PF 1.91 DD ₹  19,352 day ₹  -6,628  |   61   46% ₹   +31,605 PF 1.51 DD ₹  11,133 day ₹  -4,205
+   drop  K1.5 end 2R vs rules                         profit: in-sample  +101,667  held-out   -19,762   worst drop:  -12,279 /  -16,779   worst day:     +882 /   +4,887
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹38,280 (today's ₹63,492), chance of a loss 0%;  held-out: 95% worst drop ₹29,725 (today's ₹43,784), chance of a loss 8%
+   drop  K1.5 end 2R 0.5% slip vs rules               profit: in-sample   +96,500  held-out   -22,454   worst drop:  -12,090 /  -16,182   worst day:     +860 /   +4,833
+   KEEP  rules + K1.5 end 2R when flat (+92) vs rules profit: in-sample  +114,652  held-out    +5,462   worst drop:     -540 /  +10,363   worst day:       +0 /       +0
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹54,174 (today's ₹63,492), chance of a loss 0%;  held-out: 95% worst drop ₹49,574 (today's ₹43,784), chance of a loss 6%  -> STEADY
+   drop  K1.5 end 2R vs tv                            profit: in-sample  -105,541  held-out  -124,263   worst drop:   -7,595 /  -23,026   worst day:   +2,271 /   +1,983
+           walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹38,280 (today's ₹60,668), chance of a loss 0%;  held-out: 95% worst drop ₹29,725 (today's ₹45,431), chance of a loss 8%
+   drop  K1.5 end 2R 0.5% slip vs tv                  profit: in-sample  -110,708  held-out  -126,956   worst drop:   -7,406 /  -22,430   worst day:   +2,249 /   +1,928
+   drop  tv + K1.5 end 2R when flat (+52) vs tv       profit: in-sample   -41,772  held-out    -8,363   worst drop:       +0 /   +3,833   worst day:     -257 /     -794
+           walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹72,663 (today's ₹60,668), chance of a loss 1%;  held-out: 95% worst drop ₹50,889 (today's ₹45,431), chance of a loss 1%
+    K2.0 end 2R                                    78   45% ₹  +101,707 PF 2.11 DD ₹  11,808 day ₹  -6,606  |   24   50% ₹    +8,130 PF 1.33 DD ₹  11,524 day ₹  -4,150
+    K2.0 end 2R at 0.5% slippage                   78   45% ₹   +98,905 PF 2.07 DD ₹  12,338 day ₹  -6,628  |   24   50% ₹    +7,169 PF 1.29 DD ₹  12,052 day ₹  -4,205
+   drop  K2.0 end 2R vs rules                         profit: in-sample   +41,245  held-out   -45,929   worst drop:  -19,634 /  -15,792   worst day:     +882 /   +4,887
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹32,151 (today's ₹63,492), chance of a loss 1%;  held-out: 95% worst drop ₹22,238 (today's ₹43,784), chance of a loss 30%
+   drop  K2.0 end 2R 0.5% slip vs rules               profit: in-sample   +38,443  held-out   -46,890   worst drop:  -19,104 /  -15,263   worst day:     +860 /   +4,833
+   KEEP  rules + K2.0 end 2R when flat (+42) vs rules profit: in-sample   +69,175  held-out    +4,249   worst drop:   +1,945 /   +7,984   worst day:       +0 /       +0
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹54,464 (today's ₹63,492), chance of a loss 1%;  held-out: 95% worst drop ₹45,431 (today's ₹43,784), chance of a loss 6%  -> STEADY
+   drop  K2.0 end 2R vs tv                            profit: in-sample  -165,963  held-out  -150,430   worst drop:  -14,950 /  -22,039   worst day:   +2,271 /   +1,983
+           walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹32,151 (today's ₹60,668), chance of a loss 1%;  held-out: 95% worst drop ₹22,238 (today's ₹45,431), chance of a loss 30%
+   drop  K2.0 end 2R 0.5% slip vs tv                  profit: in-sample  -168,765  held-out  -151,391   worst drop:  -14,419 /  -21,510   worst day:   +2,249 /   +1,928
+   drop  tv + K2.0 end 2R when flat (+21) vs tv       profit: in-sample    -9,556  held-out    -3,692   worst drop:       -0 /   +3,963   worst day:       +0 /       +0
+           walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹64,959 (today's ₹60,668), chance of a loss 0%;  held-out: 95% worst drop ₹46,980 (today's ₹45,431), chance of a loss 0%
+========================================================================================================================
+BANKNIFTY
+    K1.5 end 2R                                   155   42% ₹   +84,930 PF 1.37 DD ₹  52,766 day ₹  -5,469  |   57   51% ₹   +53,725 PF 1.70 DD ₹  20,339 day ₹  -6,093
+    K1.5 end 2R at 0.5% slippage                  155   42% ₹   +75,682 PF 1.32 DD ₹  54,481 day ₹  -5,490  |   57   49% ₹   +47,352 PF 1.59 DD ₹  21,311 day ₹  -6,231
+   KEEP  K1.5 end 2R vs rules                         profit: in-sample   +41,373  held-out   +45,473   worst drop:  +10,741 /  -23,122   worst day:   +3,157 /   +5,054
+           walk-forward: beats today's in 6 of 7 half-years;  first two years: 95% worst drop ₹64,319 (today's ₹100,837), chance of a loss 6%;  held-out: 95% worst drop ₹37,038 (today's ₹106,860), chance of a loss 6%  -> STEADY
+   KEEP  K1.5 end 2R 0.5% slip vs rules               profit: in-sample   +32,125  held-out   +39,099   worst drop:  +12,456 /  -22,150   worst day:   +3,136 /   +4,916
+   KEEP  rules + K1.5 end 2R when flat (+78) vs rules profit: in-sample   +30,084  held-out   +13,833   worst drop:     +488 /   +8,180   worst day:     +504 /       +0
+           walk-forward: beats today's in 6 of 7 half-years;  first two years: 95% worst drop ₹100,230 (today's ₹100,837), chance of a loss 14%;  held-out: 95% worst drop ₹107,500 (today's ₹106,860), chance of a loss 33%  -> STEADY
+   drop  K1.5 end 2R vs tv                            profit: in-sample   -96,355  held-out   +14,925   worst drop:  -15,373 /  -71,755   worst day:   +8,114 /   +9,391
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹64,319 (today's ₹111,152), chance of a loss 6%;  held-out: 95% worst drop ₹37,038 (today's ₹119,636), chance of a loss 6%
+   drop  K1.5 end 2R 0.5% slip vs tv                  profit: in-sample  -105,603  held-out    +8,552   worst drop:  -13,658 /  -70,783   worst day:   +8,093 /   +9,253
+   drop  tv + K1.5 end 2R when flat (+36) vs tv       profit: in-sample   -12,431  held-out    +5,646   worst drop:   -1,313 /   -3,371   worst day:       +0 /       +0
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹118,454 (today's ₹111,152), chance of a loss 5%;  held-out: 95% worst drop ₹122,163 (today's ₹119,636), chance of a loss 26%
+    K2.0 end 2R                                    84   40% ₹   +12,189 PF 1.09 DD ₹  47,353 day ₹  -5,469  |   19   53% ₹   +15,673 PF 1.49 DD ₹  15,158 day ₹  -6,093
+    K2.0 end 2R at 0.5% slippage                   84   40% ₹    +7,198 PF 1.05 DD ₹  48,100 day ₹  -5,490  |   19   47% ₹   +13,326 PF 1.40 DD ₹  15,614 day ₹  -6,231
+   drop  K2.0 end 2R vs rules                         profit: in-sample   -31,368  held-out    +7,420   worst drop:   +5,328 /  -28,302   worst day:   +3,157 /   +5,054
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹70,075 (today's ₹100,837), chance of a loss 37%;  held-out: 95% worst drop ₹30,813 (today's ₹106,860), chance of a loss 24%
+   drop  K2.0 end 2R 0.5% slip vs rules               profit: in-sample   -36,359  held-out    +5,073   worst drop:   +6,075 /  -27,847   worst day:   +3,136 /   +4,916
+   KEEP  rules + K2.0 end 2R when flat (+42) vs rules profit: in-sample      +119  held-out   +22,214   worst drop:  +14,034 /   -5,578   worst day:     +504 /       +0
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹104,928 (today's ₹100,837), chance of a loss 24%;  held-out: 95% worst drop ₹97,161 (today's ₹106,860), chance of a loss 28%  -> KEEP, FRAGILE (wins too few half-years)
+   drop  K2.0 end 2R vs tv                            profit: in-sample  -169,096  held-out   -23,128   worst drop:  -20,786 /  -76,936   worst day:   +8,114 /   +9,391
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹70,075 (today's ₹111,152), chance of a loss 37%;  held-out: 95% worst drop ₹30,813 (today's ₹119,636), chance of a loss 24%
+   drop  K2.0 end 2R 0.5% slip vs tv                  profit: in-sample  -174,087  held-out   -25,475   worst drop:  -20,039 /  -76,480   worst day:   +8,093 /   +9,253
+   drop  tv + K2.0 end 2R when flat (+13) vs tv       profit: in-sample    -4,479  held-out    +3,895   worst drop:   -1,313 /   -3,310   worst day:       +0 /       +0
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹113,722 (today's ₹111,152), chance of a loss 5%;  held-out: 95% worst drop ₹120,745 (today's ₹119,636), chance of a loss 28%
+========================================================================================================================
+SENSEX
+    K1.5 end 2R                                   156   40% ₹  +145,105 PF 1.78 DD ₹  19,177 day ₹  -6,971  |   51   55% ₹   +61,049 PF 2.67 DD ₹  12,158 day ₹  -3,779
+    K1.5 end 2R at 0.5% slippage                  156   40% ₹  +139,960 PF 1.75 DD ₹  19,316 day ₹  -7,001  |   51   53% ₹   +59,438 PF 2.61 DD ₹  12,585 day ₹  -3,802
+   drop  K1.5 end 2R vs rules                         profit: in-sample   +67,007  held-out    -4,944   worst drop:   -9,906 /  -11,777   worst day:   +1,469 /   +4,331
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹42,081 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹17,711 (today's ₹38,548), chance of a loss 1%
+   drop  K1.5 end 2R 0.5% slip vs rules               profit: in-sample   +61,862  held-out    -6,556   worst drop:   -9,767 /  -11,350   worst day:   +1,439 /   +4,308
+   KEEP  rules + K1.5 end 2R when flat (+87) vs rules profit: in-sample   +90,549  held-out   +22,908   worst drop:   +7,823 /   +5,061   worst day:       +0 /       +0
+           walk-forward: beats today's in 6 of 7 half-years;  first two years: 95% worst drop ₹48,885 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹38,307 (today's ₹38,548), chance of a loss 1%  -> STEADY
+    K2.0 end 2R                                    78   47% ₹  +109,269 PF 2.21 DD ₹  11,531 day ₹  -6,971  |   23   52% ₹   +20,408 PF 2.27 DD ₹   7,210 day ₹  -3,779
+    K2.0 end 2R at 0.5% slippage                   78   47% ₹  +106,508 PF 2.17 DD ₹  11,659 day ₹  -7,001  |   23   52% ₹   +19,628 PF 2.19 DD ₹   7,287 day ₹  -3,802
+   drop  K2.0 end 2R vs rules                         profit: in-sample   +31,172  held-out   -45,586   worst drop:  -17,552 /  -16,725   worst day:   +1,469 /   +4,331
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹30,865 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹14,380 (today's ₹38,548), chance of a loss 7%
+   drop  K2.0 end 2R 0.5% slip vs rules               profit: in-sample   +28,410  held-out   -46,366   worst drop:  -17,424 /  -16,647   worst day:   +1,439 /   +4,308
+   KEEP  rules + K2.0 end 2R when flat (+40) vs rules profit: in-sample   +59,849  held-out    +9,239   worst drop:     -682 /   +3,219   worst day:       +0 /       +0
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹46,743 (today's ₹49,852), chance of a loss 0%;  held-out: 95% worst drop ₹38,318 (today's ₹38,548), chance of a loss 2%  -> STEADY
+========================================================================================================================
+MIDCPNIFTY
+    K1.5 end 2R                                   166   48% ₹  +118,704 PF 1.43 DD ₹  28,542 day ₹ -11,241  |   58   41% ₹    -4,741 PF 0.96 DD ₹  25,391 day ₹  -6,066
+    K1.5 end 2R at 0.5% slippage                  166   47% ₹  +101,714 PF 1.36 DD ₹  29,509 day ₹ -11,282  |   58   41% ₹   -11,909 PF 0.89 DD ₹  29,728 day ₹  -6,224
+   drop  K1.5 end 2R vs rules                         profit: in-sample   -91,182  held-out   -91,652   worst drop:   -4,661 /  -30,334   worst day:     -538 /   +6,208
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹71,530 (today's ₹63,690), chance of a loss 3%;  held-out: 95% worst drop ₹76,019 (today's ₹72,104), chance of a loss 56%
+   drop  K1.5 end 2R 0.5% slip vs rules               profit: in-sample  -108,173  held-out   -98,820   worst drop:   -3,694 /  -25,997   worst day:     -579 /   +6,050
+   KEEP  rules + K1.5 end 2R when flat (+57) vs rules profit: in-sample   +18,059  held-out    +9,219   worst drop:   -4,745 /  -14,232   worst day:     -538 /   -1,016
+           walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹76,424 (today's ₹63,690), chance of a loss 0%;  held-out: 95% worst drop ₹77,188 (today's ₹72,104), chance of a loss 6%  -> KEEP, FRAGILE (wins too few half-years)
+    K2.0 end 2R                                    79   43% ₹   +11,894 PF 1.07 DD ₹  43,176 day ₹ -11,241  |   17   41% ₹   +22,561 PF 1.77 DD ₹   8,816 day ₹  -7,714
+    K2.0 end 2R at 0.5% slippage                   79   41% ₹    +3,619 PF 1.02 DD ₹  45,270 day ₹ -11,282  |   17   41% ₹   +20,430 PF 1.67 DD ₹   9,341 day ₹  -7,867
+   drop  K2.0 end 2R vs rules                         profit: in-sample  -197,992  held-out   -64,349   worst drop:   +9,974 /  -46,909   worst day:     -538 /   +4,560
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹96,586 (today's ₹63,690), chance of a loss 42%;  held-out: 95% worst drop ₹31,413 (today's ₹72,104), chance of a loss 22%
+   drop  K2.0 end 2R 0.5% slip vs rules               profit: in-sample  -206,267  held-out   -66,481   worst drop:  +12,067 /  -46,384   worst day:     -579 /   +4,408
+   drop  rules + K2.0 end 2R when flat (+23) vs rules profit: in-sample   -11,713  held-out   +34,268   worst drop:   -6,465 /  -16,469   worst day:     -538 /       +0
+           walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹78,315 (today's ₹63,690), chance of a loss 1%;  held-out: 95% worst drop ₹63,072 (today's ₹72,104), chance of a loss 2%

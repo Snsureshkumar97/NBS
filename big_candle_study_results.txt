@@ -1,0 +1,98 @@
+==========================================================================================================================================================================
+ THE DAY'S FIRST BIG 15-MINUTE CANDLE, BOUGHT IN ITS DIRECTION - at-the-money options, per lot after costs, ₹  (columns: trades, won, total, profit factor, worst drop, worst day)
+==========================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT
+ NIFTY
+    THE TOOL'S RULES                              560   52% ₹   +60,462 PF 1.15 DD ₹  31,442 day ₹  -7,487  |  384   50% ₹   +54,059 PF 1.21 DD ₹  27,315 day ₹  -9,038
+    THE TRADINGVIEW RATING                        763   39% ₹  +267,670 PF 1.46 DD ₹  26,758 day ₹  -8,877  |  446   39% ₹  +158,560 PF 1.49 DD ₹  33,562 day ₹  -6,133
+    K2.0  <- PRIMARY                               78   42% ₹   +42,051 PF 1.62 DD ₹  11,099 day ₹  -4,385  |   24   38% ₹    +2,406 PF 1.09 DD ₹  13,517 day ₹  -4,075
+    K2.0 any                                       98   38% ₹   +61,943 PF 1.71 DD ₹  13,862 day ₹  -4,385  |   32   38% ₹    +5,399 PF 1.16 DD ₹  12,165 day ₹  -4,075
+    K1.5 mid 2R                                   148   38% ₹   +37,205 PF 1.30 DD ₹  22,216 day ₹  -4,385  |   61   36% ₹    +6,115 PF 1.11 DD ₹  20,116 day ₹  -4,075
+    K1.5 mid day                                  148   28% ₹   +82,610 PF 1.59 DD ₹  29,556 day ₹  -4,385  |   61   30% ₹    +2,625 PF 1.05 DD ₹  22,890 day ₹  -4,075
+    K1.5 end 2R                                   148   43% ₹  +162,129 PF 1.95 DD ₹  19,163 day ₹  -6,606  |   61   46% ₹   +34,297 PF 1.56 DD ₹  10,536 day ₹  -4,150
+    K1.5 end day                                  148   40% ₹  +155,701 PF 1.86 DD ₹  19,163 day ₹  -6,606  |   61   46% ₹   +35,749 PF 1.59 DD ₹  14,593 day ₹  -4,150
+    K2.0 mid day                                   78   33% ₹   +67,451 PF 1.87 DD ₹  17,260 day ₹  -4,385  |   24   33% ₹      +209 PF 1.01 DD ₹  13,814 day ₹  -4,075
+    K2.0 end 2R                                    78   45% ₹  +101,707 PF 2.11 DD ₹  11,808 day ₹  -6,606  |   24   50% ₹    +8,130 PF 1.33 DD ₹  11,524 day ₹  -4,150
+    K2.0 end day                                   78   44% ₹   +97,962 PF 2.04 DD ₹  20,555 day ₹  -6,606  |   24   50% ₹    +7,332 PF 1.30 DD ₹  11,524 day ₹  -4,150
+    K2.5 mid 2R                                    39   38% ₹   +21,154 PF 1.52 DD ₹  14,162 day ₹  -4,385  |    9   44% ₹    +5,585 PF 1.58 DD ₹   6,775 day ₹  -4,075
+    K2.5 mid day                                   39   33% ₹   +46,300 PF 2.06 DD ₹  14,238 day ₹  -4,385  |    9   44% ₹    +6,685 PF 1.69 DD ₹   6,775 day ₹  -4,075
+    K2.5 end 2R                                    39   44% ₹   +83,929 PF 2.63 DD ₹  21,560 day ₹  -6,606  |    9   56% ₹   +13,439 PF 3.94 DD ₹   3,034 day ₹  -2,080
+    K2.5 end day                                   39   44% ₹   +77,930 PF 2.51 DD ₹  21,560 day ₹  -6,606  |    9   56% ₹   +13,439 PF 3.94 DD ₹   3,034 day ₹  -2,080
+    PRIMARY at double slippage (0.5%)              78   42% ₹   +39,398 PF 1.57 DD ₹  11,501 day ₹  -4,413  |   24   38% ₹    +1,459 PF 1.06 DD ₹  14,034 day ₹  -4,097
+   drop  PRIMARY vs the tool's rules                  profit: in-sample   -18,411  held-out   -51,653   worst drop:  -20,343 /  -13,799   worst day:   +3,102 /   +4,962
+           walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹25,677 (today's ₹63,492), chance of a loss 4%;  held-out: 95% worst drop ₹23,611 (today's ₹43,784), chance of a loss 44%
+    the tool's rules + big candle when flat (+43)   590   51% ₹   +89,900 PF 1.22 DD ₹  31,336 day ₹  -7,487  |  397   49% ₹   +48,094 PF 1.17 DD ₹  31,261 day ₹  -9,038
+   drop  the tool's rules + big candle vs the tool's rules profit: in-sample   +29,438  held-out    -5,965   worst drop:     -106 /   +3,945   worst day:       +0 /       +0
+   drop  PRIMARY vs the TradingView rating            profit: in-sample  -225,619  held-out  -156,154   worst drop:  -15,659 /  -20,046   worst day:   +4,492 /   +2,058
+           walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹25,677 (today's ₹60,668), chance of a loss 4%;  held-out: 95% worst drop ₹23,611 (today's ₹45,431), chance of a loss 44%
+    the TradingView rating + big candle when flat (+29)   786   38% ₹  +267,802 PF 1.45 DD ₹  26,758 day ₹  -8,877  |  452   39% ₹  +160,155 PF 1.49 DD ₹  30,967 day ₹  -6,133
+   KEEP  the TradingView rating + big candle vs the TradingView rating profit: in-sample      +132  held-out    +1,595   worst drop:       -0 /   -2,595   worst day:       +0 /       +0
+ BANKNIFTY
+    THE TOOL'S RULES                              585   49% ₹   +43,557 PF 1.08 DD ₹  42,025 day ₹  -8,627  |  430   46% ₹    +8,253 PF 1.02 DD ₹  43,461 day ₹ -11,147
+    THE TRADINGVIEW RATING                        804   37% ₹  +181,285 PF 1.22 DD ₹  68,139 day ₹ -13,583  |  488   37% ₹   +38,800 PF 1.08 DD ₹  92,094 day ₹ -15,484
+    K2.0  <- PRIMARY                               84   35% ₹      +881 PF 1.01 DD ₹  31,279 day ₹  -4,482  |   19   37% ₹    -2,055 PF 0.92 DD ₹  10,260 day ₹  -4,205
+    K2.0 any                                      102   32% ₹    -7,041 PF 0.95 DD ₹  34,085 day ₹  -4,482  |   26   38% ₹    -1,172 PF 0.96 DD ₹  12,497 day ₹  -4,205
+    K1.5 mid 2R                                   155   37% ₹   +11,125 PF 1.06 DD ₹  40,961 day ₹  -4,482  |   57   46% ₹   +16,059 PF 1.28 DD ₹  10,571 day ₹  -4,205
+    K1.5 mid day                                  155   26% ₹    +7,427 PF 1.04 DD ₹  79,993 day ₹  -4,482  |   57   35% ₹   +29,717 PF 1.46 DD ₹  16,079 day ₹  -4,205
+    K1.5 end 2R                                   155   42% ₹   +84,930 PF 1.37 DD ₹  52,766 day ₹  -5,469  |   57   51% ₹   +53,725 PF 1.70 DD ₹  20,339 day ₹  -6,093
+    K1.5 end day                                  155   41% ₹   +96,044 PF 1.41 DD ₹  62,091 day ₹  -5,469  |   57   49% ₹   +49,674 PF 1.62 DD ₹  20,339 day ₹  -6,093
+    K2.0 mid day                                   84   29% ₹   -15,681 PF 0.87 DD ₹  46,942 day ₹  -4,482  |   19   37% ₹    +3,318 PF 1.13 DD ₹  10,260 day ₹  -4,205
+    K2.0 end 2R                                    84   40% ₹   +12,189 PF 1.09 DD ₹  47,353 day ₹  -5,469  |   19   53% ₹   +15,673 PF 1.49 DD ₹  15,158 day ₹  -6,093
+    K2.0 end day                                   84   40% ₹   +15,676 PF 1.11 DD ₹  47,353 day ₹  -5,469  |   19   53% ₹   +15,673 PF 1.49 DD ₹  15,158 day ₹  -6,093
+    K2.5 mid 2R                                    35   34% ₹    +6,062 PF 1.13 DD ₹  21,635 day ₹  -4,482  |    8   62% ₹   +10,939 PF 2.38 DD ₹   7,417 day ₹  -4,205
+    K2.5 mid day                                   35   29% ₹   -12,150 PF 0.77 DD ₹  21,718 day ₹  -4,482  |    8   62% ₹   +13,270 PF 2.68 DD ₹   7,417 day ₹  -4,205
+    K2.5 end 2R                                    35   43% ₹    +7,456 PF 1.14 DD ₹  17,375 day ₹  -5,469  |    8   88% ₹   +36,579 PF 74.69 DD ₹     496 day ₹    -496
+    K2.5 end day                                   35   43% ₹    +7,456 PF 1.14 DD ₹  17,375 day ₹  -5,469  |    8   88% ₹   +36,579 PF 74.69 DD ₹     496 day ₹    -496
+    PRIMARY at double slippage (0.5%)              84   35% ₹    -4,081 PF 0.96 DD ₹  32,654 day ₹  -4,577  |   19   32% ₹    -4,358 PF 0.84 DD ₹  10,647 day ₹  -4,334
+   drop  PRIMARY vs the tool's rules                  profit: in-sample   -42,676  held-out   -10,308   worst drop:  -10,746 /  -33,201   worst day:   +4,144 /   +6,942
+           walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹55,818 (today's ₹100,837), chance of a loss 49%;  held-out: 95% worst drop ₹26,650 (today's ₹106,860), chance of a loss 56%
+    the tool's rules + big candle when flat (+44)   622   48% ₹   +53,293 PF 1.09 DD ₹  50,921 day ₹  -7,918  |  437   46% ₹   +11,384 PF 1.03 DD ₹  38,594 day ₹ -11,147
+   KEEP  the tool's rules + big candle vs the tool's rules profit: in-sample    +9,736  held-out    +3,132   worst drop:   +8,896 /   -4,867   worst day:     +709 /       +0
+   drop  PRIMARY vs the TradingView rating            profit: in-sample  -180,404  held-out   -40,855   worst drop:  -36,860 /  -81,834   worst day:   +9,101 /  +11,279
+           walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹55,818 (today's ₹111,152), chance of a loss 49%;  held-out: 95% worst drop ₹26,650 (today's ₹119,636), chance of a loss 56%
+    the TradingView rating + big candle when flat (+22)   818   37% ₹  +166,794 PF 1.20 DD ₹  67,123 day ₹ -13,583  |  496   37% ₹   +42,850 PF 1.09 DD ₹  90,689 day ₹ -15,484
+   drop  the TradingView rating + big candle vs the TradingView rating profit: in-sample   -14,491  held-out    +4,050   worst drop:   -1,016 /   -1,405   worst day:       +0 /       +0
+ SENSEX
+    THE TOOL'S RULES                              527   49% ₹   +78,098 PF 1.21 DD ₹  29,083 day ₹  -8,440  |  365   53% ₹   +65,994 PF 1.28 DD ₹  23,934 day ₹  -8,110
+    K2.0  <- PRIMARY                               78   42% ₹   +47,478 PF 1.72 DD ₹  10,782 day ₹  -4,274  |   23   39% ₹    +1,280 PF 1.05 DD ₹  15,004 day ₹  -4,533
+    K2.0 any                                       98   43% ₹   +60,943 PF 1.76 DD ₹  10,254 day ₹  -4,274  |   35   37% ₹    +2,924 PF 1.08 DD ₹   9,511 day ₹  -4,533
+    K1.5 mid 2R                                   156   37% ₹   +22,382 PF 1.17 DD ₹  15,640 day ₹  -4,274  |   51   41% ₹   +11,027 PF 1.24 DD ₹  19,401 day ₹  -4,533
+    K1.5 mid day                                  156   25% ₹   +31,612 PF 1.20 DD ₹  22,220 day ₹  -4,274  |   51   35% ₹   +36,535 PF 1.76 DD ₹  24,494 day ₹  -4,533
+    K1.5 end 2R                                   156   40% ₹  +145,105 PF 1.78 DD ₹  19,177 day ₹  -6,971  |   51   55% ₹   +61,049 PF 2.67 DD ₹  12,158 day ₹  -3,779
+    K1.5 end day                                  156   37% ₹  +124,114 PF 1.64 DD ₹  24,267 day ₹  -6,971  |   51   53% ₹   +60,198 PF 2.63 DD ₹  12,158 day ₹  -3,779
+    K2.0 mid day                                   78   35% ₹   +57,982 PF 1.75 DD ₹  14,274 day ₹  -4,274  |   23   39% ₹    +6,994 PF 1.27 DD ₹  15,004 day ₹  -4,533
+    K2.0 end 2R                                    78   47% ₹  +109,269 PF 2.21 DD ₹  11,531 day ₹  -6,971  |   23   52% ₹   +20,408 PF 2.27 DD ₹   7,210 day ₹  -3,779
+    K2.0 end day                                   78   46% ₹  +112,415 PF 2.22 DD ₹  20,094 day ₹  -6,971  |   23   52% ₹   +19,695 PF 2.22 DD ₹   7,210 day ₹  -3,779
+    K2.5 mid 2R                                    39   41% ₹   +35,742 PF 1.94 DD ₹   9,332 day ₹  -4,274  |    9   44% ₹      +892 PF 1.08 DD ₹   9,017 day ₹  -4,533
+    K2.5 mid day                                   39   31% ₹   +37,451 PF 1.83 DD ₹  10,577 day ₹  -4,274  |    9   44% ₹    +3,034 PF 1.26 DD ₹   9,017 day ₹  -4,533
+    K2.5 end 2R                                    39   46% ₹   +76,323 PF 2.43 DD ₹  15,459 day ₹  -6,971  |    9   56% ₹   +11,348 PF 3.40 DD ₹   3,462 day ₹  -1,975
+    K2.5 end day                                   39   46% ₹   +73,071 PF 2.37 DD ₹  15,459 day ₹  -6,971  |    9   56% ₹   +11,348 PF 3.40 DD ₹   3,462 day ₹  -1,975
+    PRIMARY at double slippage (0.5%)              78   42% ₹   +44,872 PF 1.67 DD ₹  11,205 day ₹  -4,311  |   23   39% ₹      +547 PF 1.02 DD ₹  15,364 day ₹  -4,565
+   drop  PRIMARY vs the tool's rules                  profit: in-sample   -30,620  held-out   -64,714   worst drop:  -18,301 /   -8,930   worst day:   +4,166 /   +3,577
+           walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹23,769 (today's ₹49,852), chance of a loss 2%;  held-out: 95% worst drop ₹24,772 (today's ₹38,548), chance of a loss 47%
+    the tool's rules + big candle when flat (+40)   555   49% ₹  +101,198 PF 1.26 DD ₹  28,474 day ₹  -8,440  |  377   52% ₹   +64,879 PF 1.26 DD ₹  26,379 day ₹  -8,110
+   drop  the tool's rules + big candle vs the tool's rules profit: in-sample   +23,101  held-out    -1,115   worst drop:     -609 /   +2,445   worst day:       +0 /       +0
+ MIDCPNIFTY
+    THE TOOL'S RULES                              700   51% ₹  +209,886 PF 1.31 DD ₹  33,203 day ₹ -10,703  |  412   51% ₹   +86,911 PF 1.20 DD ₹  55,725 day ₹ -12,274
+    K2.0  <- PRIMARY                               78   32% ₹   -26,845 PF 0.79 DD ₹  51,088 day ₹  -7,164  |   17   35% ₹    +3,057 PF 1.13 DD ₹  10,543 day ₹  -4,173
+    K2.0 any                                       92   30% ₹   -43,458 PF 0.72 DD ₹  69,751 day ₹  -7,164  |   28   32% ₹    -4,277 PF 0.89 DD ₹  17,034 day ₹  -4,173
+    K1.5 mid 2R                                   165   40% ₹   +25,482 PF 1.13 DD ₹  23,104 day ₹  -7,164  |   58   31% ₹   -11,468 PF 0.85 DD ₹  18,474 day ₹  -3,344
+    K1.5 mid day                                  165   27% ₹   +71,930 PF 1.32 DD ₹  28,682 day ₹  -7,164  |   58   29% ₹   +12,794 PF 1.17 DD ₹  16,556 day ₹  -3,344
+    K1.5 end 2R                                   166   48% ₹  +118,704 PF 1.43 DD ₹  28,542 day ₹ -11,241  |   58   41% ₹    -4,741 PF 0.96 DD ₹  25,391 day ₹  -6,066
+    K1.5 end day                                  166   46% ₹  +127,923 PF 1.45 DD ₹  28,751 day ₹ -11,241  |   58   41% ₹    -5,469 PF 0.95 DD ₹  25,391 day ₹  -6,066
+    K2.0 mid day                                   78   24% ₹    -3,774 PF 0.97 DD ₹  49,273 day ₹  -7,164  |   17   35% ₹   +19,819 PF 1.83 DD ₹  10,543 day ₹  -4,173
+    K2.0 end 2R                                    79   43% ₹   +11,894 PF 1.07 DD ₹  43,176 day ₹ -11,241  |   17   41% ₹   +22,561 PF 1.77 DD ₹   8,816 day ₹  -7,714
+    K2.0 end day                                   79   42% ₹    +4,421 PF 1.02 DD ₹  59,250 day ₹ -11,241  |   17   41% ₹   +18,902 PF 1.64 DD ₹   8,816 day ₹  -7,714
+    K2.5 mid 2R                                    37   24% ₹   -31,855 PF 0.58 DD ₹  49,384 day ₹  -7,164  |    4   25% ₹    -7,130 PF 0.43 DD ₹  12,418 day ₹  -7,119
+    K2.5 mid day                                   37   22% ₹   -24,944 PF 0.68 DD ₹  51,929 day ₹  -7,164  |    4   25% ₹    -7,130 PF 0.43 DD ₹  12,418 day ₹  -7,119
+    K2.5 end 2R                                    37   32% ₹   -39,766 PF 0.60 DD ₹  60,760 day ₹ -11,241  |    4   25% ₹   -12,714 PF 0.29 DD ₹  18,002 day ₹ -13,038
+    K2.5 end day                                   37   32% ₹   -32,517 PF 0.68 DD ₹  60,760 day ₹ -11,241  |    4   25% ₹   -12,714 PF 0.29 DD ₹  18,002 day ₹ -13,038
+    PRIMARY at double slippage (0.5%)              78   32% ₹   -34,885 PF 0.74 DD ₹  56,202 day ₹  -7,215  |   17   35% ₹      +974 PF 1.04 DD ₹  11,113 day ₹  -4,334
+   drop  PRIMARY vs the tool's rules                  profit: in-sample  -236,731  held-out   -83,854   worst drop:  +17,885 /  -45,182   worst day:   +3,539 /   +8,101
+           walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹83,362 (today's ₹63,690), chance of a loss 80%;  held-out: 95% worst drop ₹24,640 (today's ₹72,104), chance of a loss 43%
+    the tool's rules + big candle when flat (+28)   720   50% ₹  +184,734 PF 1.26 DD ₹  33,192 day ₹ -10,703  |  420   51% ₹  +104,819 PF 1.24 DD ₹  43,187 day ₹ -12,274
+   drop  the tool's rules + big candle vs the tool's rules profit: in-sample   -25,153  held-out   +17,908   worst drop:      -11 /  -12,538   worst day:       +0 /       +0
+
+ VERDICT: THE PRIMARY RULE DOES NOT BEAT THE TOOL'S SYSTEM ON ANY INDEX IN BOTH PERIODS
+   recent NIFTY: 26 Oct 10:00 CE -> out 11:45, -1,854
+   recent SENSEX: 26 Oct 10:00 CE -> out 11:45, -2,126
