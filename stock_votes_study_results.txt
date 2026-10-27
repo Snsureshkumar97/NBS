@@ -1,0 +1,91 @@
+============================================================================================================================================================================
+ THE INDEX'S OWN STOCKS AS A FILTER ON TODAY'S SYSTEM (the rules + the big candle, 15-minute). Per lot, after costs.  columns: trades, won, total, profit factor, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ NIFTY + BANK NIFTY + SENSEX (the verdict)
+    BASE                                         1869   48% ₹  +529,169 PF 1.32 DD ₹  80,461 day ₹ -17,780  | 1133   48% ₹  +186,262 PF 1.20 DD ₹  94,369 day ₹ -28,555
+    MORE                                         1649   49% ₹  +442,897 PF 1.31 DD ₹  84,361 day ₹ -19,551  | 1004   47% ₹   +83,142 PF 1.10 DD ₹ 100,781 day ₹ -28,295
+    WMORE                                        1707   49% ₹  +537,213 PF 1.36 DD ₹  84,281 day ₹ -17,780  | 1040   47% ₹  +108,268 PF 1.13 DD ₹  88,964 day ₹ -28,295
+    VLEAN                                        1779   49% ₹  +491,803 PF 1.31 DD ₹  77,641 day ₹ -22,503  | 1081   48% ₹  +115,288 PF 1.13 DD ₹  91,525 day ₹ -28,555
+    WVLEAN                                       1829   49% ₹  +530,055 PF 1.33 DD ₹  93,457 day ₹ -19,062  | 1100   47% ₹  +123,445 PF 1.14 DD ₹  97,630 day ₹ -28,555
+    VSIG                                         1734   49% ₹  +432,191 PF 1.29 DD ₹  66,823 day ₹ -22,513  | 1059   47% ₹  +133,826 PF 1.16 DD ₹  96,006 day ₹ -28,295
+ NIFTY
+    BASE                                          626   50% ₹  +190,286 PF 1.39 DD ₹  34,215 day ₹  -7,487  |  365   48% ₹   +66,078 PF 1.26 DD ₹  38,219 day ₹  -9,241
+    MORE                                          568   50% ₹  +186,191 PF 1.42 DD ₹  27,120 day ₹  -7,138  |  330   47% ₹   +24,559 PF 1.10 DD ₹  36,517 day ₹  -9,038
+    WMORE                                         576   51% ₹  +218,613 PF 1.51 DD ₹  26,159 day ₹  -7,138  |  339   47% ₹   +41,246 PF 1.17 DD ₹  34,322 day ₹  -9,038
+    VLEAN                                         605   50% ₹  +185,612 PF 1.40 DD ₹  32,088 day ₹  -7,487  |  352   47% ₹   +39,668 PF 1.15 DD ₹  41,116 day ₹  -9,241
+    WVLEAN                                        616   50% ₹  +205,328 PF 1.43 DD ₹  38,604 day ₹  -7,487  |  356   48% ₹   +49,750 PF 1.20 DD ₹  40,609 day ₹  -9,241
+    VSIG                                          582   50% ₹  +181,763 PF 1.41 DD ₹  25,176 day ₹  -7,487  |  348   47% ₹   +34,561 PF 1.14 DD ₹  39,562 day ₹  -9,038
+ BANKNIFTY
+    BASE                                          643   48% ₹  +133,557 PF 1.20 DD ₹  39,713 day ₹  -8,122  |  409   46% ₹   +52,948 PF 1.13 DD ₹  44,129 day ₹ -11,147
+    MORE                                          538   49% ₹   +93,892 PF 1.16 DD ₹  49,901 day ₹  -8,338  |  351   46% ₹   +21,305 PF 1.06 DD ₹  46,057 day ₹ -11,147
+    WMORE                                         585   49% ₹  +122,991 PF 1.20 DD ₹  45,915 day ₹  -8,787  |  373   45% ₹   +27,597 PF 1.07 DD ₹  42,930 day ₹ -11,147
+    VLEAN                                         594   49% ₹  +124,316 PF 1.20 DD ₹  38,921 day ₹  -8,122  |  391   46% ₹   +23,869 PF 1.06 DD ₹  44,134 day ₹ -11,147
+    WVLEAN                                        626   49% ₹  +127,988 PF 1.19 DD ₹  52,198 day ₹  -8,799  |  398   45% ₹   +20,862 PF 1.05 DD ₹  42,689 day ₹ -11,147
+    VSIG                                          583   48% ₹   +87,443 PF 1.14 DD ₹  35,946 day ₹  -8,122  |  379   46% ₹   +59,559 PF 1.16 DD ₹  43,894 day ₹ -11,147
+ SENSEX
+    BASE                                          600   48% ₹  +205,326 PF 1.44 DD ₹  31,007 day ₹  -7,578  |  359   50% ₹   +67,237 PF 1.28 DD ₹  32,426 day ₹  -8,167
+    MORE                                          543   47% ₹  +162,814 PF 1.38 DD ₹  40,875 day ₹  -7,578  |  323   49% ₹   +37,278 PF 1.17 DD ₹  29,094 day ₹  -8,110
+    WMORE                                         546   48% ₹  +195,609 PF 1.46 DD ₹  38,406 day ₹  -7,494  |  328   50% ₹   +39,425 PF 1.18 DD ₹  27,190 day ₹  -8,110
+    VLEAN                                         580   48% ₹  +181,875 PF 1.39 DD ₹  34,270 day ₹  -8,440  |  338   50% ₹   +51,750 PF 1.23 DD ₹  30,341 day ₹  -8,167
+    WVLEAN                                        587   48% ₹  +196,739 PF 1.42 DD ₹  31,087 day ₹  -7,852  |  346   50% ₹   +52,834 PF 1.22 DD ₹  31,338 day ₹  -8,167
+    VSIG                                          569   48% ₹  +162,985 PF 1.36 DD ₹  28,547 day ₹  -8,440  |  332   49% ₹   +39,706 PF 1.18 DD ₹  34,329 day ₹  -8,110
+
+ HOW OFTEN THE STOCKS' OWN VOTES ALREADY AGREE with BASE's trades (the share of the index's stocks leaning the trade's way), and what each group earned
+ NIFTY: 991 trades
+    under 30% lean its way                          1    0% ₹    -2,604 PF 0.00 DD ₹   2,604 day ₹  -2,604  |    3   67% ₹   +10,906 PF 54.75 DD ₹     203 day ₹    -203
+    30-50%                                         97   47% ₹    +9,565 PF 1.13 DD ₹  16,561 day ₹  -4,121  |   48   54% ₹   +13,592 PF 1.46 DD ₹   9,310 day ₹  -2,717
+    50-70%                                        292   50% ₹   +55,558 PF 1.27 DD ₹  31,013 day ₹  -6,554  |  194   49% ₹   +26,648 PF 1.22 DD ₹  18,236 day ₹  -6,649
+    70%+ lean its way                             236   50% ₹  +127,768 PF 1.62 DD ₹  23,913 day ₹  -7,138  |  120   44% ₹   +14,932 PF 1.15 DD ₹  22,717 day ₹  -4,540
+ BANKNIFTY: 1052 trades
+    under 30% lean its way                         19   37% ₹    +4,420 PF 1.20 DD ₹   7,184 day ₹  -3,673  |    9   44% ₹   +15,716 PF 9.84 DD ₹   1,006 day ₹    -785
+    30-50%                                         59   51% ₹   +34,811 PF 1.68 DD ₹   9,380 day ₹  -3,560  |   32   50% ₹   +21,789 PF 1.88 DD ₹   7,482 day ₹  -4,551
+    50-70%                                        201   48% ₹   +45,043 PF 1.23 DD ₹  20,939 day ₹  -6,154  |  149   47% ₹   +11,466 PF 1.08 DD ₹  19,256 day ₹  -7,356
+    70%+ lean its way                             364   48% ₹   +49,282 PF 1.12 DD ₹  47,139 day ₹  -8,122  |  219   44% ₹    +3,978 PF 1.02 DD ₹  43,151 day ₹ -11,147
+ SENSEX: 959 trades
+    under 30% lean its way                          3   67% ₹    +6,841 PF 5.45 DD ₹   1,536 day ₹  -1,536  |    3   67% ₹    +5,739 PF 5.42 DD ₹   1,297 day ₹  -1,297
+    30-50%                                         87   43% ₹    +7,448 PF 1.11 DD ₹  18,399 day ₹  -5,215  |   51   57% ₹   +15,504 PF 1.43 DD ₹  14,069 day ₹  -2,837
+    50-70%                                        274   47% ₹   +66,990 PF 1.31 DD ₹  25,354 day ₹  -7,578  |  176   47% ₹    +1,833 PF 1.01 DD ₹  30,165 day ₹  -7,489
+    70%+ lean its way                             236   49% ₹  +124,047 PF 1.67 DD ₹  13,149 day ₹  -6,971  |  129   53% ₹   +44,161 PF 1.59 DD ₹   9,072 day ₹  -3,871
+
+ VERDICT - kept only if more than BASE in BOTH periods (all three pooled), and then on each index too
+  drop  MORE                                         profit: in-sample   -86,272  held-out  -103,120   worst drop:   +3,901 /   +6,412   worst day:   -1,771 /     +260
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹129,142 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹153,573 (today's ₹134,193), chance of a loss 20%
+      drop  MORE NIFTY                                   profit: in-sample    -4,095  held-out   -41,518   worst drop:   -7,096 /   -1,702   worst day:     +350 /     +203
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹53,791 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹58,626 (today's ₹46,063), chance of a loss 24%
+      drop  MORE BANKNIFTY                               profit: in-sample   -39,665  held-out   -31,643   worst drop:  +10,188 /   +1,929   worst day:     -216 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹90,362 (today's ₹82,598), chance of a loss 9%;  held-out: 95% worst drop ₹95,356 (today's ₹88,946), chance of a loss 35%
+      drop  MORE SENSEX                                  profit: in-sample   -42,512  held-out   -29,959   worst drop:   +9,869 /   -3,332   worst day:       +0 /      +57
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹51,969 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹48,543 (today's ₹45,002), chance of a loss 13%
+  drop  WMORE                                        profit: in-sample    +8,044  held-out   -77,994   worst drop:   +3,821 /   -5,405   worst day:       +0 /     +260
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹114,777 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹151,462 (today's ₹134,193), chance of a loss 15%
+      drop  WMORE NIFTY                                  profit: in-sample   +28,327  held-out   -24,832   worst drop:   -8,056 /   -3,897   worst day:     +350 /     +203
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹46,802 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹50,584 (today's ₹46,063), chance of a loss 13%
+      drop  WMORE BANKNIFTY                              profit: in-sample   -10,566  held-out   -25,351   worst drop:   +6,203 /   -1,198   worst day:     -665 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹81,708 (today's ₹82,598), chance of a loss 4%;  held-out: 95% worst drop ₹98,881 (today's ₹88,946), chance of a loss 31%
+      drop  WMORE SENSEX                                 profit: in-sample    -9,717  held-out   -27,812   worst drop:   +7,400 /   -5,235   worst day:      +83 /      +57
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹45,904 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹49,825 (today's ₹45,002), chance of a loss 13%
+  drop  VLEAN                                        profit: in-sample   -37,366  held-out   -70,975   worst drop:   -2,820 /   -2,844   worst day:   -4,723 /       +0
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹125,311 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹162,272 (today's ₹134,193), chance of a loss 15%
+      drop  VLEAN NIFTY                                  profit: in-sample    -4,674  held-out   -26,409   worst drop:   -2,127 /   +2,897   worst day:       +0 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹55,384 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹55,768 (today's ₹46,063), chance of a loss 15%
+      drop  VLEAN BANKNIFTY                              profit: in-sample    -9,241  held-out   -29,079   worst drop:     -791 /       +5   worst day:       +0 /       +0
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹84,954 (today's ₹82,598), chance of a loss 4%;  held-out: 95% worst drop ₹99,970 (today's ₹88,946), chance of a loss 34%
+      drop  VLEAN SENSEX                                 profit: in-sample   -23,451  held-out   -15,487   worst drop:   +3,263 /   -2,084   worst day:     -862 /       +0
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹54,193 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹47,057 (today's ₹45,002), chance of a loss 8%
+  drop  WVLEAN                                       profit: in-sample      +886  held-out   -62,817   worst drop:  +12,996 /   +3,262   worst day:   -1,281 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹121,539 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹157,687 (today's ₹134,193), chance of a loss 13%
+      drop  WVLEAN NIFTY                                 profit: in-sample   +15,042  held-out   -16,328   worst drop:   +4,389 /   +2,390   worst day:       +0 /       +0
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹54,222 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹49,991 (today's ₹46,063), chance of a loss 9%
+      drop  WVLEAN BANKNIFTY                             profit: in-sample    -5,569  held-out   -32,086   worst drop:  +12,485 /   -1,439   worst day:     -677 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹83,588 (today's ₹82,598), chance of a loss 4%;  held-out: 95% worst drop ₹103,772 (today's ₹88,946), chance of a loss 36%
+      drop  WVLEAN SENSEX                                profit: in-sample    -8,587  held-out   -14,403   worst drop:      +80 /   -1,088   worst day:     -274 /       +0
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹49,482 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹48,154 (today's ₹45,002), chance of a loss 8%
+  drop  VSIG                                         profit: in-sample   -96,979  held-out   -52,437   worst drop:  -13,638 /   +1,638   worst day:   -4,733 /     +260
+        walk-forward: beats today's in 0 of 7 half-years;  first two years: 95% worst drop ₹128,248 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹146,290 (today's ₹134,193), chance of a loss 10%
+      drop  VSIG NIFTY                                   profit: in-sample    -8,523  held-out   -31,517   worst drop:   -9,039 /   +1,343   worst day:       +0 /     +203
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹51,980 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹55,307 (today's ₹46,063), chance of a loss 17%
+      drop  VSIG BANKNIFTY                               profit: in-sample   -46,114  held-out    +6,611   worst drop:   -3,767 /     -234   worst day:       +0 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹93,527 (today's ₹82,598), chance of a loss 10%;  held-out: 95% worst drop ₹77,883 (today's ₹88,946), chance of a loss 13%
+      drop  VSIG SENSEX                                  profit: in-sample   -42,342  held-out   -27,531   worst drop:   -2,460 /   +1,904   worst day:     -862 /      +57
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹53,633 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹50,679 (today's ₹45,002), chance of a loss 13%
