@@ -1,0 +1,103 @@
+============================================================================================================================================================================
+ BREADTH ALONE - the day's first close with T of the index's stocks up (buy CE) or down (buy PE), stop 1 ATR, target 1.5R / 2R. Per lot, after costs.  columns: trades, won, total, PF, worst drop, worst single DAY
+============================================================================================================================================================================
+                                                FIRST TWO YEARS (to 15 Aug 2025)                                    | HELD-OUT FINAL YEAR
+ ON ITS OWN - all three pooled
+    today's system (rules + big candle)          1869   48% ₹  +529,169 PF 1.32 DD ₹  80,461 day ₹ -17,780  | 1133   48% ₹  +186,262 PF 1.20 DD ₹  94,369 day ₹ -28,555
+    T60 1.5R                                     1406   40% ₹   -20,283 PF 0.98 DD ₹ 106,343 day ₹ -10,495  |  793   40% ₹   -65,835 PF 0.92 DD ₹  92,881 day ₹ -11,439
+    T60 2.0R                                     1406   35% ₹   +30,576 PF 1.02 DD ₹ 101,901 day ₹ -10,495  |  793   35% ₹   -65,756 PF 0.93 DD ₹ 139,083 day ₹ -11,439
+    T70 1.5R                                     1183   41% ₹   +17,117 PF 1.02 DD ₹  94,117 day ₹ -10,495  |  661   40% ₹   -59,579 PF 0.92 DD ₹  86,135 day ₹ -11,439
+    T70 2.0R                                     1183   36% ₹   +64,703 PF 1.05 DD ₹  78,020 day ₹ -10,495  |  661   36% ₹   -19,748 PF 0.97 DD ₹ 109,457 day ₹ -11,439
+    T80 1.5R                                      825   39% ₹   -71,664 PF 0.92 DD ₹ 158,172 day ₹ -15,680  |  449   40% ₹   -73,071 PF 0.86 DD ₹  79,090 day ₹ -11,439
+    T80 2.0R                                      825   34% ₹   -51,095 PF 0.94 DD ₹ 129,428 day ₹ -15,680  |  449   36% ₹   -40,991 PF 0.93 DD ₹ 101,663 day ₹ -11,439
+ NIFTY - on its own
+    today's system (rules + big candle)           626   50% ₹  +190,286 PF 1.39 DD ₹  34,215 day ₹  -7,487  |  365   48% ₹   +66,078 PF 1.26 DD ₹  38,219 day ₹  -9,241
+    T60 1.5R                                      469   39% ₹    -7,251 PF 0.98 DD ₹  51,006 day ₹  -3,326  |  264   37% ₹   -54,302 PF 0.79 DD ₹  54,900 day ₹  -3,476
+    T60 2.0R                                      469   34% ₹   +24,484 PF 1.06 DD ₹  40,547 day ₹  -3,326  |  264   33% ₹   -37,272 PF 0.86 DD ₹  51,349 day ₹  -3,476
+    T70 1.5R                                      355   43% ₹   +40,170 PF 1.14 DD ₹  29,246 day ₹  -3,326  |  199   43% ₹    +4,392 PF 1.02 DD ₹  28,701 day ₹  -3,476
+    T70 2.0R                                      355   39% ₹   +69,007 PF 1.22 DD ₹  23,339 day ₹  -3,326  |  199   40% ₹   +31,565 PF 1.16 DD ₹  23,529 day ₹  -3,476
+    T80 1.5R                                      206   38% ₹   -11,674 PF 0.94 DD ₹  44,924 day ₹  -4,892  |  115   43% ₹   -17,916 PF 0.85 DD ₹  25,730 day ₹  -3,476
+    T80 2.0R                                      206   35% ₹   +21,810 PF 1.11 DD ₹  25,327 day ₹  -4,892  |  115   41% ₹    +1,260 PF 1.01 DD ₹  23,717 day ₹  -3,476
+ BANKNIFTY - on its own
+    today's system (rules + big candle)           643   48% ₹  +133,557 PF 1.20 DD ₹  39,713 day ₹  -8,122  |  409   46% ₹   +52,948 PF 1.13 DD ₹  44,129 day ₹ -11,147
+    T60 1.5R                                      469   40% ₹   -28,359 PF 0.94 DD ₹  74,484 day ₹  -5,879  |  265   41% ₹   -16,327 PF 0.95 DD ₹  30,867 day ₹  -4,692
+    T60 2.0R                                      469   34% ₹   -35,672 PF 0.94 DD ₹  74,491 day ₹  -5,879  |  265   33% ₹   -47,866 PF 0.87 DD ₹  60,733 day ₹  -4,692
+    T70 1.5R                                      449   40% ₹   -41,076 PF 0.92 DD ₹  91,413 day ₹  -5,879  |  252   36% ₹   -76,697 PF 0.77 DD ₹  78,337 day ₹  -4,692
+    T70 2.0R                                      449   35% ₹   -43,675 PF 0.92 DD ₹  97,885 day ₹  -5,879  |  252   31% ₹   -71,025 PF 0.80 DD ₹  81,325 day ₹  -4,692
+    T80 1.5R                                      386   40% ₹   -19,869 PF 0.95 DD ₹  97,653 day ₹  -5,879  |  207   36% ₹   -65,878 PF 0.77 DD ₹  65,906 day ₹  -4,692
+    T80 2.0R                                      386   33% ₹   -46,591 PF 0.90 DD ₹  98,495 day ₹  -5,879  |  207   30% ₹   -61,805 PF 0.80 DD ₹  77,419 day ₹  -4,692
+ SENSEX - on its own
+    today's system (rules + big candle)           600   48% ₹  +205,326 PF 1.44 DD ₹  31,007 day ₹  -7,578  |  359   50% ₹   +67,237 PF 1.28 DD ₹  32,426 day ₹  -8,167
+    T60 1.5R                                      468   40% ₹   +15,328 PF 1.04 DD ₹  38,909 day ₹  -3,240  |  264   42% ₹    +4,793 PF 1.02 DD ₹  27,204 day ₹  -3,442
+    T60 2.0R                                      468   35% ₹   +41,763 PF 1.10 DD ₹  33,813 day ₹  -3,240  |  264   38% ₹   +19,383 PF 1.07 DD ₹  38,857 day ₹  -3,442
+    T70 1.5R                                      379   40% ₹   +18,023 PF 1.05 DD ₹  27,965 day ₹  -3,240  |  210   44% ₹   +12,726 PF 1.07 DD ₹  22,492 day ₹  -3,442
+    T70 2.0R                                      379   35% ₹   +39,371 PF 1.11 DD ₹  23,170 day ₹  -3,240  |  210   39% ₹   +19,712 PF 1.09 DD ₹  32,622 day ₹  -3,442
+    T80 1.5R                                      233   37% ₹   -40,121 PF 0.83 DD ₹  64,157 day ₹  -5,474  |  127   45% ₹   +10,724 PF 1.09 DD ₹  13,339 day ₹  -3,442
+    T80 2.0R                                      233   33% ₹   -26,314 PF 0.89 DD ₹  46,585 day ₹  -5,474  |  127   39% ₹   +19,553 PF 1.15 DD ₹  16,421 day ₹  -3,442
+
+ HOW THEY CLOSED (on its own, all three pooled)
+   T60 1.5R   {'stop': 1262, 'target': 822, 'close': 115}
+   T60 2.0R   {'stop': 1360, 'target': 626, 'close': 213}
+   T70 1.5R   {'stop': 1019, 'target': 687, 'close': 138}
+   T70 2.0R   {'stop': 1095, 'target': 520, 'close': 229}
+   T80 1.5R   {'stop': 716, 'target': 447, 'close': 111}
+   T80 2.0R   {'stop': 768, 'target': 338, 'close': 168}
+
+ AS AN ADDITION to today's system, where it holds nothing - all three pooled
+    today's system                               1869   48% ₹  +529,169 PF 1.32 DD ₹  80,461 day ₹ -17,780  | 1133   48% ₹  +186,262 PF 1.20 DD ₹  94,369 day ₹ -28,555
+    + T60 1.5R                                   2597   45% ₹  +489,698 PF 1.21 DD ₹ 106,014 day ₹ -20,169  | 1452   46% ₹  +187,613 PF 1.15 DD ₹  86,546 day ₹ -28,555
+    + T60 2.0R                                   2540   43% ₹  +508,358 PF 1.21 DD ₹ 110,575 day ₹ -20,169  | 1410   44% ₹  +181,857 PF 1.14 DD ₹ 101,467 day ₹ -28,555
+    + T70 1.5R                                   2385   46% ₹  +498,760 PF 1.23 DD ₹ 116,397 day ₹ -19,279  | 1373   46% ₹  +159,126 PF 1.13 DD ₹ 103,932 day ₹ -28,555
+    + T70 2.0R                                   2341   45% ₹  +544,505 PF 1.25 DD ₹ 122,199 day ₹ -19,279  | 1339   45% ₹  +169,202 PF 1.14 DD ₹ 113,628 day ₹ -28,555
+    + T80 1.5R                                   2212   47% ₹  +481,494 PF 1.24 DD ₹ 107,549 day ₹ -19,216  | 1267   47% ₹  +167,710 PF 1.15 DD ₹ 106,930 day ₹ -28,555
+    + T80 2.0R                                   2187   46% ₹  +485,910 PF 1.24 DD ₹ 101,935 day ₹ -19,216  | 1248   47% ₹  +190,994 PF 1.17 DD ₹ 111,628 day ₹ -28,555
+
+ VERDICT - the addition kept only if more than today's in BOTH periods (all three pooled), and then on each index
+  drop  + T60 1.5R                                   profit: in-sample   -39,471  held-out    +1,351   worst drop:  +25,553 /   -7,823   worst day:   -2,389 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹165,287 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹156,997 (today's ₹134,193), chance of a loss 6%
+      drop  + T60 1.5R NIFTY                             profit: in-sample    -3,377  held-out   -18,591   worst drop:  +11,741 /   -1,067   worst day:     -538 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹70,534 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹63,893 (today's ₹46,063), chance of a loss 13%
+      drop  + T60 1.5R BANKNIFTY                         profit: in-sample   -62,988  held-out   +20,220   worst drop:  +34,263 /  -10,518   worst day:   -1,413 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹130,400 (today's ₹82,598), chance of a loss 19%;  held-out: 95% worst drop ₹90,347 (today's ₹88,946), chance of a loss 13%
+      drop  + T60 1.5R SENSEX                            profit: in-sample   +26,894  held-out      -278   worst drop:   +5,194 /   -4,948   worst day:     -762 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹55,580 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹56,521 (today's ₹45,002), chance of a loss 6%
+  drop  + T60 2.0R                                   profit: in-sample   -20,811  held-out    -4,405   worst drop:  +30,114 /   +7,098   worst day:   -2,389 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹171,615 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹176,641 (today's ₹134,193), chance of a loss 8%
+      drop  + T60 2.0R NIFTY                             profit: in-sample   +10,602  held-out    -4,854   worst drop:  +14,861 /   +1,593   worst day:     -538 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹70,575 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹62,889 (today's ₹46,063), chance of a loss 9%
+      drop  + T60 2.0R BANKNIFTY                         profit: in-sample   -64,257  held-out    -4,000   worst drop:  +37,813 /   -3,029   worst day:   -1,413 /   -1,912
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹137,655 (today's ₹82,598), chance of a loss 20%;  held-out: 95% worst drop ₹110,984 (today's ₹88,946), chance of a loss 23%
+      KEEP  + T60 2.0R SENSEX                            profit: in-sample   +32,844  held-out    +4,448   worst drop:   +3,664 /   +4,186   worst day:     -762 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹58,810 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹60,887 (today's ₹45,002), chance of a loss 6%  -> KEEP, FRAGILE (wins too few half-years) (deeper 95% drop)
+  drop  + T70 1.5R                                   profit: in-sample   -30,410  held-out   -27,136   worst drop:  +35,936 /   +9,563   worst day:   -1,499 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹158,020 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹166,884 (today's ₹134,193), chance of a loss 10%
+      drop  + T70 1.5R NIFTY                             profit: in-sample    -1,103  held-out    +6,178   worst drop:   +9,896 /   +6,492   worst day:     -538 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹65,519 (today's ₹54,971), chance of a loss 1%;  held-out: 95% worst drop ₹51,454 (today's ₹46,063), chance of a loss 5%
+      drop  + T70 1.5R BANKNIFTY                         profit: in-sample   -54,172  held-out   -33,483   worst drop:  +38,214 /   -6,408   worst day:   -1,413 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹128,345 (today's ₹82,598), chance of a loss 17%;  held-out: 95% worst drop ₹117,643 (today's ₹88,946), chance of a loss 36%
+      KEEP  + T70 1.5R SENSEX                            profit: in-sample   +24,866  held-out      +168   worst drop:   +1,857 /   +4,771   worst day:       +0 /   -1,226
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹53,839 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹56,163 (today's ₹45,002), chance of a loss 7%  -> KEEP, FRAGILE (wins too few half-years)
+  drop  + T70 2.0R                                   profit: in-sample   +15,335  held-out   -17,061   worst drop:  +41,739 /  +19,260   worst day:   -1,499 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹153,824 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹174,787 (today's ₹134,193), chance of a loss 10%
+      KEEP  + T70 2.0R NIFTY                             profit: in-sample   +11,239  held-out   +28,882   worst drop:  +11,284 /   +4,994   worst day:     -538 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹64,918 (today's ₹54,971), chance of a loss 0%;  held-out: 95% worst drop ₹48,222 (today's ₹46,063), chance of a loss 2%  -> KEEP, FRAGILE (wins too few half-years)
+      drop  + T70 2.0R BANKNIFTY                         profit: in-sample   -51,250  held-out   -43,690   worst drop:  +42,039 /   +6,241   worst day:   -1,413 /   -1,912
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹130,989 (today's ₹82,598), chance of a loss 16%;  held-out: 95% worst drop ₹129,710 (today's ₹88,946), chance of a loss 43%
+      drop  + T70 2.0R SENSEX                            profit: in-sample   +55,346  held-out    -2,253   worst drop:   +2,279 /   +7,404   worst day:       +0 /   -1,226
+        walk-forward: beats today's in 5 of 7 half-years;  first two years: 95% worst drop ₹52,962 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹61,541 (today's ₹45,002), chance of a loss 8%
+  drop  + T80 1.5R                                   profit: in-sample   -47,675  held-out   -18,552   worst drop:  +27,088 /  +12,562   worst day:   -1,436 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹151,190 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹164,642 (today's ₹134,193), chance of a loss 8%
+      drop  + T80 1.5R NIFTY                             profit: in-sample   -19,171  held-out   -11,344   worst drop:   +3,514 /   +4,117   worst day:     +350 /       +0
+        walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹64,431 (today's ₹54,971), chance of a loss 1%;  held-out: 95% worst drop ₹56,754 (today's ₹46,063), chance of a loss 10%
+      drop  + T80 1.5R BANKNIFTY                         profit: in-sample   -16,650  held-out   -22,161   worst drop:  +31,655 /   -1,672   worst day:   -1,413 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹105,461 (today's ₹82,598), chance of a loss 7%;  held-out: 95% worst drop ₹106,648 (today's ₹88,946), chance of a loss 30%
+      drop  + T80 1.5R SENSEX                            profit: in-sample   -11,854  held-out   +14,953   worst drop:  +10,608 /     +877   worst day:       +0 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹58,436 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹47,533 (today's ₹45,002), chance of a loss 3%
+  drop  + T80 2.0R                                   profit: in-sample   -43,260  held-out    +4,731   worst drop:  +21,474 /  +17,259   worst day:   -1,436 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹157,207 (today's ₹121,317), chance of a loss 0%;  held-out: 95% worst drop ₹161,968 (today's ₹134,193), chance of a loss 6%
+      drop  + T80 2.0R NIFTY                             profit: in-sample   -14,530  held-out    +1,341   worst drop:   +2,665 /   +2,586   worst day:     +350 /       +0
+        walk-forward: beats today's in 3 of 7 half-years;  first two years: 95% worst drop ₹65,036 (today's ₹54,971), chance of a loss 1%;  held-out: 95% worst drop ₹54,104 (today's ₹46,063), chance of a loss 6%
+      drop  + T80 2.0R BANKNIFTY                         profit: in-sample   -26,112  held-out   -16,288   worst drop:  +31,939 /   +1,932   worst day:   -1,413 /       +0
+        walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹114,116 (today's ₹82,598), chance of a loss 9%;  held-out: 95% worst drop ₹104,263 (today's ₹88,946), chance of a loss 27%
+      drop  + T80 2.0R SENSEX                            profit: in-sample    -2,617  held-out   +19,679   worst drop:  +11,074 /   +3,802   worst day:       +0 /       +0
+        walk-forward: beats today's in 4 of 7 half-years;  first two years: 95% worst drop ₹57,797 (today's ₹47,851), chance of a loss 0%;  held-out: 95% worst drop ₹49,594 (today's ₹45,002), chance of a loss 3%
