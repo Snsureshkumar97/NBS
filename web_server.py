@@ -3699,6 +3699,15 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .se-tag.se-call{color:var(--down)}
 .se-tag.se-put{color:var(--up)}
 .kdsellers .kd-sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 8px;line-height:1.5;max-width:760px}
+/* the Market X-Ray (27 Oct 2026): the canvas fills its box; tall on a phone, where it runs top to bottom */
+.xr-box{position:relative;width:100%;height:clamp(300px,36vw,440px)}
+.xr-box canvas.xr{display:block;width:100%;height:100%}
+@media (max-width:600px){.xr-box{height:560px}}
+.xr-say{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.xrdash{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
+.xrdash[hidden]{display:none}
+.xrdash .xr-h{font-size:15px;font-weight:600;color:var(--ink)}
+.xrdash .xr-sub{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:2px 0 6px}
 /* the big candle on the home pane (26 Oct 2026) - its own slot, every width */
 .bcdash:empty{display:none}
 .bcdash{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
@@ -5208,6 +5217,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="signal"].on{display:flex;flex-direction:column}
   :root[data-look="kite"] #sigcard{order:1}
   :root[data-look="kite"] #posgkcard{order:2}
+  :root[data-look="kite"] #xraycard{order:1}
   /* the market trend, the day's move and the confidence: a band across the top of the page (the user, 25 Sep 2026) */
   :root[data-look="kite"] .pane[data-pane="signal"] .top3{order:0;gap:36px;margin:2px 0 10px;padding:0 0 12px;
     border-bottom:1px solid var(--bd-soft);grid-template-columns:1fr 1.3fr .8fr}
@@ -5244,6 +5254,7 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .sessnote{order:2}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
   :root[data-look="kite"] .bcdash{order:2}
+  :root[data-look="kite"] .xrdash{order:2}
   :root[data-look="kite"] .kdsellers{order:2;margin:0 0 14px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
@@ -5828,6 +5839,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
   <div class="bcdash" id="bcdash"></div>
+  <div class="xrdash" id="xrdash" hidden></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5920,6 +5932,11 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="room" id="sigcpr"></div>
   <div class="room" id="sigmovers"></div>
   <div class="gnote" id="gnote"></div>
+  </div>
+  <div class="card xraycard" id="xraycard" data-panel="xray">
+   <p class="eyebrow" role="heading" aria-level="2">Market X-Ray &middot; <span id="xrsigidx">&mdash;</span></p>
+   <div class="xr-box" id="xrsigbox"></div>
+   <p class="xr-say" id="xrsigsay" role="status"></p>
   </div>
   <div class="top3" data-panel="trend">
   <div class="card">
@@ -9996,6 +10013,7 @@ function render(s){
   sigSellers(r);
   try{ if(TAB === "chain" && OC_LAST && OC_LAST.index === CUR) ocSellersDraw(OC_LAST); }catch(e){}   // its price line, live
   sigCpr(r);
+  try{ xrayAll(s); }catch(e){}
   ringBox(r);
   if(w){
     // Glyph + name + sentence: identity never rests on colour alone.
@@ -11646,6 +11664,235 @@ function moverRow(x, max){
 // ...and on the Signal page, where the AI desk's checks were (the user, 16 Oct 2026: "instead of ai desk you can add those
 // top movers over there per index"): the index on screen's 5 rising and 5 falling most, from the constituent prices the
 // heat map has just fetched for it (MAPDATA) - no fetch of its own. Nothing for an index with no stock list, or Exness.
+// MARKET X-RAY (the user, 27 Oct 2026, after order-block.com's Market X-Ray: "threads coming out of sensex and going
+// through all the market and showing what is going up and what is going down and the thread should go from our votes
+// and then the signal fires", "same like in the website"). The index on screen at the start; a thread to each of its
+// own stocks - green up, red down, brighter the bigger the move (the market map's streamed prices, MAPDATA); the stocks'
+// threads gathered, then the tool's own votes and checks, each lit when it agrees and dark when it does not; the signal at
+// the end, fired when every check is met, or the check it waits on. Light runs along the lit threads (still, under
+// prefers-reduced-motion). Display only: the stocks are context - breadth was tested as a vote and did not help - and the
+// votes and checks are the ones the ticket reads (gateSteps / gateStage, the Gate tracks' own). Top to bottom on a phone.
+const XR = {inst: {}, raf: 0, last: 0, still: (() => { try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){ return false; } })()};
+function xrModel(s){
+  const k = CUR, r = s && (s.indices || {})[k];
+  if(!r) return null;
+  const ts = (s.tickets || {})[k], w = (s.why || {})[k] || {};
+  const stocks = (MAPDATA && MAPDATA.index === k ? MAPDATA.tiles || [] : [])
+    .filter(t => t && t.pct != null && isFinite(t.pct)).map(t => ({n: t.sym, p: t.pct})).sort((a, b) => b.p - a.p);
+  const g = gateSteps(r, ts), st = gateStage(r, ts, g);
+  const lean = r.bias === "BULLISH" ? 1 : r.bias === "BEARISH" ? -1 : 0;
+  const short = (t, n) => { t = String(t || ""); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
+  let checks = [];
+  if(r.rule && Array.isArray(r.rule.filters) && r.rule.filters.length){
+    checks = r.rule.filters.map(f => ({n: short(String(f.name || "").replace(/^TradingView /, "TV "), 18), v: f.ok == null ? 0 : f.ok ? 2 : -2}));
+  } else {
+    checks = (w.votes || []).map(v => ({n: short(v.name, 12), v: v.vote == null ? 0 : v.vote > 0 ? 1 : v.vote < 0 ? -1 : 0}));
+    for(const x of g.steps) if(["ADX", "Room", "R:R"].includes(x.n)) checks.push({n: x.n, v: x.ok == null ? 0 : x.ok ? 2 : -2});
+  }
+  const tk = ts && ts.ticket, open = !!(tk && (tk.open || tk.status === "OPEN"));
+  const side = open ? (tk.option_type === "PE" ? -1 : 1) : lean;
+  const fired = open || st[0] === "Entry ready";
+  const word = open ? `IN TRADE · ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`
+    : fired ? (side > 0 ? "BUY CE" : "BUY PE") : "NO TRADE";
+  const tr = r.trend || {};
+  return {k, spot: r.spot, pct: tr.day_change_pct, stocks, checks, side, fired, word, why: st[2] || "",
+          up: stocks.filter(x => x.p > 0).length, down: stocks.filter(x => x.p < 0).length};
+}
+function xrSig(m){
+  return m ? [m.k, m.spot != null ? Math.round(m.spot) : "", m.pct != null ? m.pct.toFixed(2) : "", m.word, m.why, m.side,
+              m.stocks.map(x => x.n + x.p.toFixed(2)).join(","), m.checks.map(x => x.n + x.v).join(",")].join("|") : "";
+}
+// one place the X-Ray is drawn: {box, canvas, say, title}; laid out again when the data, the size or the theme change
+function xrInst(id, box, say, title){
+  let x = XR.inst[id];
+  if(!x){
+    const canvas = document.createElement("canvas");
+    canvas.className = "xr";
+    canvas.setAttribute("aria-hidden", "true");
+    box.appendChild(canvas);
+    x = XR.inst[id] = {box, canvas, say, title, sig: "", seen: false, paths: [], static: null};
+    if(typeof IntersectionObserver === "function"){
+      new IntersectionObserver(es => { for(const e of es) x.seen = e.isIntersecting; xrLoop(); }).observe(box);
+    } else x.seen = true;
+    // laid out again at its new size - a phone turned, a pane shown (a hidden box has no size, so nothing is drawn there)
+    if(typeof ResizeObserver === "function") new ResizeObserver(() => { if(x.m){ x.sig = ""; xrUpdate(x, x.m); } }).observe(box);
+  }
+  return x;
+}
+function xrBez(a, b, c, d, t){
+  const u = 1 - t;
+  return [u*u*u*a[0] + 3*u*u*t*b[0] + 3*u*t*t*c[0] + t*t*t*d[0], u*u*u*a[1] + 3*u*u*t*b[1] + 3*u*t*t*c[1] + t*t*t*d[1]];
+}
+function xrLayout(x, m){
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.max(280, Math.round(x.box.clientWidth)), H = Math.max(260, Math.round(x.box.clientHeight));
+  x.canvas.width = W * dpr; x.canvas.height = H * dpr;
+  x.canvas.style.width = W + "px"; x.canvas.style.height = H + "px";
+  const tall = W < 560;
+  // (flow, across) in 0..1 -> pixels: left to right on a wide box, top to bottom on a narrow one
+  const P = (u, v) => tall ? [v * W, u * H] : [u * W, v * H];
+  const col = {up: css("--up") || "#19e58c", down: css("--down") || "#ff4d67", ink: css("--ink") || "#eee",
+               ink2: css("--ink-2") || "#aaa", ink3: css("--ink-3") || "#888", bd: css("--bd") || "#333",
+               acc: css("--accent") || "#7b7bff", surf: css("--surface") || "#111"};
+  const mono = css("--f-mono") || "monospace", ui = css("--f-ui") || "sans-serif";
+  const U = tall ? {idx: .07, stk: .30, gat: .46, chk: .70, sig: .92} : {idx: .07, stk: .38, gat: .53, chk: .74, sig: .92};
+  const n = m.stocks.length, maxp = Math.max(.25, ...m.stocks.map(s => Math.abs(s.p)));
+  const curve = (p0, p1) => tall
+    ? [p0, [p0[0], (p0[1] + p1[1]) / 2], [p1[0], (p0[1] + p1[1]) / 2], p1]
+    : [p0, [(p0[0] + p1[0]) / 2, p0[1]], [(p0[0] + p1[0]) / 2, p1[1]], p1];
+  const I = P(U.idx, .5), G = P(U.gat, .5), S = P(U.sig, .5);
+  const paths = [];
+  const stockPts = m.stocks.map((s, i) => {
+    const v = n > 1 ? .06 + .88 * i / (n - 1) : .5;
+    const pt = P(U.stk, v), str = Math.min(1, Math.abs(s.p) / maxp);
+    const c = s.p > 0 ? col.up : s.p < 0 ? col.down : col.ink3;
+    paths.push({segs: [curve(I, pt), curve(pt, G)], c, a: .18 + .55 * str, w: .8 + 1.2 * str, live: s.p !== 0, sp: .25 + .5 * str});
+    return {pt, s, c, str};
+  });
+  const nc = m.checks.length;
+  const checkPts = m.checks.map((c, i) => {
+    const v = nc > 1 ? .12 + .76 * i / (nc - 1) : .5;
+    const pt = P(U.chk, v);
+    // a vote's own colour (up / down / none); a check met in the accent, failed in the fall colour
+    const cc = c.v === 1 ? col.up : c.v === -1 ? col.down : c.v === 2 ? col.acc : c.v === -2 ? col.down : col.ink3;
+    const agrees = c.v === 2 || (m.side && c.v === m.side);
+    paths.push({segs: [curve(G, pt)], c: cc, a: c.v ? .55 : .18, w: 1.4, live: !!c.v, sp: .45});
+    paths.push({segs: [curve(pt, S)], c: agrees ? (m.side < 0 ? col.down : col.up) : col.ink3, a: agrees ? .7 : .14,
+                w: agrees ? 1.8 : 1, live: agrees, sp: .55});
+    return {pt, c, cc, agrees};
+  });
+  // the still layer: every thread, every node, every word
+  const off = document.createElement("canvas");
+  off.width = W * dpr; off.height = H * dpr;
+  const g = off.getContext("2d");
+  g.scale(dpr, dpr);
+  g.lineCap = "round";
+  for(const p of paths){
+    g.globalAlpha = p.a; g.strokeStyle = p.c; g.lineWidth = p.w;
+    for(const sg of p.segs){ g.beginPath(); g.moveTo(...sg[0]); g.bezierCurveTo(...sg[1], ...sg[2], ...sg[3]); g.stroke(); }
+  }
+  g.globalAlpha = 1;
+  const dot = (pt, r, c, ring) => { g.beginPath(); g.arc(pt[0], pt[1], r, 0, 7); g.fillStyle = c; g.fill();
+                                    if(ring){ g.lineWidth = 1.5; g.strokeStyle = ring; g.stroke(); } };
+  // words sit on a halo of the card's own colour, so the threads under them do not run through the letters
+  const label = (t, pt, dx, dy, c, f, align) => { g.font = f; g.textAlign = align || "left"; g.textBaseline = "middle";
+                                                  g.lineJoin = "round"; g.lineWidth = 3.5; g.strokeStyle = col.surf;
+                                                  g.strokeText(t, pt[0] + dx, pt[1] + dy);
+                                                  g.fillStyle = c; g.fillText(t, pt[0] + dx, pt[1] + dy); };
+  // the index
+  dot(I, 7, col.acc, col.ink);
+  const ip = m.pct == null ? "" : `${m.pct >= 0 ? "+" : "−"}${Math.abs(m.pct).toFixed(2)}%`;
+  if(tall){
+    label(m.k, I, 14, -7, col.ink, `600 13px ${ui}`);
+    label(`${m.spot != null ? num(m.spot, 0) : ""} ${ip}`, I, 14, 9, m.pct >= 0 ? col.up : col.down, `500 12px ${mono}`);
+  } else {
+    label(m.k, I, 0, -24, col.ink, `600 13px ${ui}`, "center");
+    label(m.spot != null ? num(m.spot, 0) : "", I, 0, 20, col.ink2, `500 12px ${mono}`, "center");
+    label(ip, I, 0, 35, m.pct >= 0 ? col.up : col.down, `600 12px ${mono}`, "center");
+  }
+  // the stocks: every one a dot; words for all of a short list, five at each end of a long one - spread out when the dots
+  // sit closer than a line of words - and on a phone the one at each end, under the end of the row, where there is room
+  const ends = tall ? 1 : 5, gap = n > 1 ? .88 * H / (n - 1) : 99, every = tall ? 1 : Math.max(1, Math.ceil(13 / gap));
+  const pick = [...Array(ends).keys()].map(j => j * every).filter(i => i < n / 2);
+  const named = new Set(!tall && every === 1 && n <= 14 ? stockPts.map((_, i) => i)
+    : [...pick, ...pick.map(i => n - 1 - i)]);
+  stockPts.forEach((q, i) => {
+    dot(q.pt, 2 + 1.5 * q.str, q.c);
+    if(!named.has(i)) return;
+    const t = `${q.s.n} ${q.s.p > 0 ? "+" : "\u2212"}${Math.abs(q.s.p).toFixed(2)}%`;
+    if(tall) label(t, q.pt, 0, 16, q.c, `500 10px ${mono}`, i === 0 ? "left" : "right");
+    else label(t, q.pt, 8, 0, q.c, `500 11px ${mono}`);
+  });
+  // the gathering point: how many up, how many down
+  dot(G, 4, col.ink2);
+  if(n) label(`${m.up}▲ ${m.down}▼`, G, tall ? 10 : 0, tall ? 0 : -16, col.ink2, `600 11px ${mono}`, tall ? "left" : "center");
+  // the checks
+  checkPts.forEach((q, i) => {
+    dot(q.pt, 5, q.cc, q.agrees ? col.ink : null);
+    const t = m.checks[i].n;
+    if(tall) label(t, q.pt, 0, i % 2 ? 14 : -14, q.agrees ? col.ink : col.ink3, `500 10px ${ui}`, "center");
+    else label(t, q.pt, 10, 0, q.agrees ? col.ink : col.ink3, `500 12px ${ui}`);
+  });
+  // the signal
+  const sc = m.fired ? (m.side < 0 ? col.down : col.up) : col.ink3;
+  dot(S, 13, col.surf, sc);
+  dot(S, 6, sc);
+  label(m.word, S, 0, tall ? -26 : -30, sc, `700 ${tall ? 13 : 14}px ${ui}`, tall ? "center" : "right");
+  x.static = off; x.paths = paths; x.S = S; x.sc = sc; x.W = W; x.H = H; x.dpr = dpr; x.fired = m.fired;
+  x.glow = document.documentElement.dataset.scheme === "dark";     // light adds up to white on a light card
+}
+function xrPaint(x, t){
+  if(!x.static) return;
+  const c = x.canvas.getContext("2d");
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, x.canvas.width, x.canvas.height);
+  c.drawImage(x.static, 0, 0);
+  if(XR.still || t == null) return;
+  c.scale(x.dpr, x.dpr);
+  c.globalCompositeOperation = x.glow ? "lighter" : "source-over";
+  for(const p of x.paths){
+    if(!p.live) continue;
+    const k = p.segs.length;
+    for(let j = 0; j < 2; j++){
+      const f = ((t / 1000) * p.sp + j / 2 + (p.a * 7) % 1) % 1;
+      const pos = f * k, sg = p.segs[Math.min(k - 1, Math.floor(pos))], pt = xrBez(sg[0], sg[1], sg[2], sg[3], pos % 1);
+      c.globalAlpha = .9; c.fillStyle = p.c;
+      c.beginPath(); c.arc(pt[0], pt[1], 1.6 + p.w * .5, 0, 7); c.fill();
+      c.globalAlpha = .25; c.beginPath(); c.arc(pt[0], pt[1], 4 + p.w, 0, 7); c.fill();
+    }
+  }
+  if(x.fired){                                    // the signal, firing: a ring that breathes
+    const r = 15 + 5 * (0.5 + 0.5 * Math.sin(t / 380));
+    c.globalAlpha = .45; c.strokeStyle = x.sc; c.lineWidth = 2;
+    c.beginPath(); c.arc(x.S[0], x.S[1], r, 0, 7); c.stroke();
+  }
+  c.globalCompositeOperation = "source-over"; c.globalAlpha = 1;
+}
+function xrLoop(){
+  if(XR.still || XR.raf) return;
+  const step = t => {
+    XR.raf = 0;
+    const on = Object.values(XR.inst).filter(x => x.seen && x.static);
+    if(!on.length || document.hidden) return;
+    if(t - XR.last >= 33){ XR.last = t; for(const x of on) xrPaint(x, t); }
+    XR.raf = requestAnimationFrame(step);
+  };
+  XR.raf = requestAnimationFrame(step);
+}
+function xrUpdate(x, m){
+  const sig = xrSig(m) + "|" + Math.round(x.box.clientWidth) + "x" + Math.round(x.box.clientHeight)
+    + "|" + (document.documentElement.dataset.scheme || "") + (document.documentElement.dataset.skin || "");
+  if(x.title) x.title.textContent = m ? m.k : "—";
+  if(x.say){
+    const why = ((m && m.why) || "").split(". ")[0].replace(/\.+$/, "");
+    const t = !m ? "" : (m.stocks.length ? `${m.up} of ${m.stocks.length} of ${m.k}'s own stocks up, ${m.down} down - shown, not a vote. ` : "")
+      + (m.fired ? `Signal: ${m.word}.` : `No trade yet${why ? " - " + why : ""}.`);
+    if(x.say.textContent !== t) x.say.textContent = t;
+  }
+  x.m = m;
+  if(!m || sig === x.sig || x.box.clientWidth < 10) return;
+  x.sig = sig;
+  xrLayout(x, m);
+  xrPaint(x, XR.still ? null : performance.now());
+  xrLoop();
+}
+function xrayAll(s){
+  const m = xrModel(s);
+  const sb = $("xrsigbox");
+  if(sb) xrUpdate(xrInst("sig", sb, $("xrsigsay"), $("xrsigidx")), m);
+  const home = $("xrdash");
+  if(home){
+    if(!home.dataset.built){
+      home.dataset.built = "1";
+      home.innerHTML = `<div class="xr-h">Market X-Ray &middot; <span data-xr-idx>—</span></div>`
+        + `<p class="xr-sub">The index's own stocks, up and down; then the tool's votes and checks; then the signal.</p>`
+        + `<div class="xr-box" data-xr-box></div><p class="xr-say" data-xr-say role="status"></p>`;
+    }
+    home.hidden = !m;
+    if(m) xrUpdate(xrInst("home", home.querySelector("[data-xr-box]"), home.querySelector("[data-xr-say]"),
+                          home.querySelector("[data-xr-idx]")), m);
+  }
+}
 function sigMovers(){
   const el = $("sigmovers");
   if(!el) return;
@@ -11712,6 +11959,8 @@ function homeDraw(s){
       + (sn.nse ? `<small>NSE right now: ${esc(sn.nse)}</small>` : "") + `</div>` : "";
     if(ns.innerHTML !== h) ns.innerHTML = h;
   }
+  // the Market X-Ray (27 Oct 2026) - its own slot as well
+  try{ xrayAll(s); }catch(e){}
   // the big candle (26 Oct 2026) - its own slot too, so a phone shows it
   const bce = $("bcdash");
   if(bce && s){
