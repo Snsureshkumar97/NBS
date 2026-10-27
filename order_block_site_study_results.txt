@@ -1,0 +1,63 @@
+================================================================================================================================================================
+ THE ORDER-BLOCK.COM METHOD ON THE INDICES - at-the-money options, per lot after costs, ₹  (trades, won, total, PF, worst drop, worst day)
+================================================================================================================================================================
+                                                TO 15 AUG 2025                                                      | HELD-OUT
+ NIFTY
+    the tool's rules                             1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    the tool's rules + big candle (live now)     1694   49% ₹  +337,763 PF 1.29 DD ₹  34,215 day ₹  -7,487  |  410   49% ₹   +71,011 PF 1.24 DD ₹  38,219 day ₹  -9,241
+    AS THEIR GUIDES  <- THEIR METHOD             1339   45% ₹   -40,297 PF 0.93 DD ₹  59,375 day ₹  -4,944  |  295   45% ₹   -22,928 PF 0.85 DD ₹  31,204 day ₹  -4,431
+    no market side                               2278   43% ₹  -130,512 PF 0.88 DD ₹ 139,899 day ₹  -5,655  |  516   42% ₹   -51,432 PF 0.81 DD ₹  60,314 day ₹  -4,539
+    fixed 2R target                              1914   45% ₹   -72,549 PF 0.92 DD ₹ 122,018 day ₹  -4,944  |  435   46% ₹   -16,052 PF 0.93 DD ₹  35,010 day ₹  -4,955
+    stop on a touch                              1350   35% ₹   -10,565 PF 0.98 DD ₹  43,980 day ₹  -2,261  |  297   33% ₹   -27,061 PF 0.79 DD ₹  34,483 day ₹  -3,687
+    swings of 3                                  1128   45% ₹    +9,085 PF 1.02 DD ₹  41,064 day ₹  -4,944  |  263   46% ₹    -8,720 PF 0.93 DD ₹  22,445 day ₹  -4,431
+   drop  their method vs the tool's rules + big candle profit: in-sample  -378,061  held-out   -93,939   worst drop:  +25,160 /   -7,015   worst day:   +2,543 /   +4,809
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹121,841 (today's ₹63,165), chance of a loss 84%;  held-out: 95% worst drop ₹61,428 (today's ₹47,673), chance of a loss 87%
+   their method's exits: {'stop': 847, 'target': 666, 'close': 121}
+ BANKNIFTY
+    the tool's rules                             1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    the tool's rules + big candle (live now)     1624   48% ₹  +348,397 PF 1.22 DD ₹  39,282 day ₹ -11,110  |  449   46% ₹   +42,080 PF 1.09 DD ₹  44,129 day ₹ -11,147
+    AS THEIR GUIDES  <- THEIR METHOD             1413   45% ₹   -84,438 PF 0.90 DD ₹ 108,988 day ₹  -6,023  |  278   43% ₹   -55,053 PF 0.74 DD ₹  56,053 day ₹  -6,711
+    no market side                               2316   44% ₹  -172,813 PF 0.88 DD ₹ 199,368 day ₹  -8,833  |  489   43% ₹   -77,206 PF 0.78 DD ₹  88,201 day ₹  -6,711
+    fixed 2R target                              1998   45% ₹   -56,993 PF 0.96 DD ₹ 148,663 day ₹  -8,450  |  409   44% ₹   -75,719 PF 0.77 DD ₹  89,011 day ₹  -7,228
+    stop on a touch                              1427   34% ₹  -159,580 PF 0.79 DD ₹ 167,922 day ₹  -3,948  |  280   34% ₹   -44,337 PF 0.75 DD ₹  44,778 day ₹  -4,438
+    swings of 3                                  1205   44% ₹   -40,566 PF 0.95 DD ₹  71,939 day ₹  -5,724  |  248   40% ₹   -58,108 PF 0.71 DD ₹  58,108 day ₹  -6,711
+   drop  their method vs the tool's rules + big candle profit: in-sample  -432,835  held-out   -97,133   worst drop:  +69,706 /  +11,925   worst day:   +5,086 /   +4,436
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹188,852 (today's ₹91,186), chance of a loss 94%;  held-out: 95% worst drop ₹105,184 (today's ₹100,213), chance of a loss 98%
+   their method's exits: {'stop': 864, 'target': 691, 'close': 136}
+ SENSEX
+    the tool's rules                             1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    the tool's rules + big candle (live now)     1648   49% ₹  +325,348 PF 1.28 DD ₹  35,831 day ₹  -7,578  |  400   51% ₹   +84,551 PF 1.32 DD ₹  32,426 day ₹  -8,167
+    AS THEIR GUIDES  <- THEIR METHOD             1307   45% ₹   -35,792 PF 0.94 DD ₹  65,102 day ₹  -4,010  |  297   51% ₹   +31,561 PF 1.23 DD ₹   9,953 day ₹  -3,907
+    no market side                               2201   42% ₹  -148,824 PF 0.86 DD ₹ 166,057 day ₹  -5,834  |  504   47% ₹   +28,661 PF 1.12 DD ₹  20,830 day ₹  -5,286
+    fixed 2R target                              1871   45% ₹  -105,185 PF 0.88 DD ₹ 125,059 day ₹  -5,633  |  453   48% ₹   +18,359 PF 1.08 DD ₹  18,480 day ₹  -3,907
+    stop on a touch                              1315   36% ₹   -15,602 PF 0.97 DD ₹  46,101 day ₹  -3,439  |  298   37% ₹    +7,095 PF 1.06 DD ₹  16,471 day ₹  -3,138
+    swings of 3                                  1097   45% ₹   -16,614 PF 0.97 DD ₹  44,714 day ₹  -4,010  |  259   50% ₹   +29,179 PF 1.25 DD ₹  12,788 day ₹  -3,907
+   drop  their method vs the tool's rules + big candle profit: in-sample  -361,140  held-out   -52,990   worst drop:  +29,271 /  -22,473   worst day:   +3,568 /   +4,260
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹114,689 (today's ₹64,654), chance of a loss 82%;  held-out: 95% worst drop ₹24,058 (today's ₹43,473), chance of a loss 6%
+   their method's exits: {'stop': 818, 'target': 677, 'close': 109}
+ MIDCPNIFTY
+    the tool's rules                              722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    the tool's rules + big candle (live now)      766   49% ₹  +222,376 PF 1.26 DD ₹  32,381 day ₹ -11,241  |  477   50% ₹  +123,538 PF 1.23 DD ₹  38,456 day ₹ -13,290
+    AS THEIR GUIDES  <- THEIR METHOD              449   48% ₹   -63,311 PF 0.80 DD ₹  69,519 day ₹  -5,170  |  270   44% ₹   -54,261 PF 0.74 DD ₹  62,874 day ₹  -4,688
+    no market side                                769   44% ₹   -96,992 PF 0.82 DD ₹ 101,125 day ₹  -7,481  |  471   42% ₹   -93,789 PF 0.75 DD ₹ 106,943 day ₹  -9,163
+    fixed 2R target                               651   47% ₹   -65,680 PF 0.87 DD ₹  97,047 day ₹  -9,890  |  395   43% ₹  -104,189 PF 0.70 DD ₹ 115,835 day ₹  -5,665
+    stop on a touch                               451   37% ₹   -77,260 PF 0.73 DD ₹  81,666 day ₹  -4,951  |  271   35% ₹   -61,313 PF 0.67 DD ₹  67,774 day ₹  -4,207
+    swings of 3                                   374   46% ₹   -57,731 PF 0.80 DD ₹  63,680 day ₹  -5,170  |  226   44% ₹   -52,715 PF 0.71 DD ₹  57,067 day ₹  -4,547
+   drop  their method vs the tool's rules + big candle profit: in-sample  -285,687  held-out  -177,799   worst drop:  +37,139 /  +24,418   worst day:   +6,071 /   +8,602
+           walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹128,323 (today's ₹86,053), chance of a loss 96%;  held-out: 95% worst drop ₹98,028 (today's ₹84,653), chance of a loss 99%
+   their method's exits: {'stop': 363, 'target': 298, 'close': 58}
+
+================================================================================================================================================================
+ THE SAME METHOD ON THE 56 MARKET-MAP F&O STOCKS (Sep 2023 - Oct 2026), the move in % per trade after 0.06% costs (no options)
+================================================================================================================================================================
+   AS THEIR GUIDES      to 15 Aug 2025    4041 trades  won  49%  avg -0.028% a trade (before costs +0.032%)  total   -112.4%  PF 0.84
+   AS THEIR GUIDES      held-out          2840 trades  won  49%  avg -0.028% a trade (before costs +0.032%)  total    -79.1%  PF 0.82
+                        exits: {'stop': 3242, 'target': 2999, 'close': 640}
+   no market side       to 15 Aug 2025   43217 trades  won  47%  avg -0.037% a trade (before costs +0.023%)  total  -1601.0%  PF 0.78
+   no market side       held-out         26944 trades  won  46%  avg -0.042% a trade (before costs +0.018%)  total  -1121.0%  PF 0.73
+   fixed 2R target      to 15 Aug 2025    5783 trades  won  49%  avg -0.028% a trade (before costs +0.032%)  total   -160.9%  PF 0.86
+   fixed 2R target      held-out          3972 trades  won  49%  avg -0.030% a trade (before costs +0.030%)  total   -118.1%  PF 0.82
+   stop on a touch      to 15 Aug 2025    4071 trades  won  38%  avg -0.039% a trade (before costs +0.021%)  total   -157.5%  PF 0.75
+   stop on a touch      held-out          2853 trades  won  37%  avg -0.040% a trade (before costs +0.020%)  total   -115.0%  PF 0.71
+   swings of 3          to 15 Aug 2025    3342 trades  won  49%  avg -0.030% a trade (before costs +0.030%)  total   -101.2%  PF 0.83
+   swings of 3          held-out          2299 trades  won  49%  avg -0.023% a trade (before costs +0.037%)  total    -52.7%  PF 0.85
