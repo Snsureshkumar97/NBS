@@ -53,11 +53,14 @@ check("the route serves only those three files, as font/woff2",
 check("nothing is loaded from another site (the page's own policy stays default-src 'self')",
       "fonts.googleapis" not in SRC and "fonts.gstatic" not in SRC and "default-src 'self' 'unsafe-inline'" in SRC)
 
-print("2. BOTH SCHEMES STAY READABLE")
+print("2. EVERY SCHEME STAYS READABLE")
 light = tokens(':root[data-look="kite"]')
 dark = dict(light, **tokens(':root[data-look="kite"][data-scheme="dark"]'))
+# the terminal scheme (27 Oct 2026): the dark one with its own colours over it
+terminal = dict(dark, **tokens(':root[data-look="kite"][data-scheme="dark"][data-skin="terminal"]'))
 check("the survey found both schemes' colours", len(light) >= 30 and len(dark) >= 30, (len(light), len(dark)))
-for name, t in (("white", light), ("dark", dark)):
+check("...and the terminal scheme's own", len(tokens(':root[data-look="kite"][data-scheme="dark"][data-skin="terminal"]')) >= 20)
+for name, t in (("white", light), ("dark", dark), ("terminal", terminal)):
     for ink in ("ink", "ink-2", "ink-3", "up", "down", "warn", "accent", "accent-text", "note-ink"):
         grounds = ("note-bg",) if ink == "note-ink" else ("bg", "surface", "raised")
         worst = min(ratio(t[ink], t[g]) for g in grounds)

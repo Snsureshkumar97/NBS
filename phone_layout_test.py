@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 SRC = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_server.py")).read()
-CSS = SRC[:SRC.index("</style>\n<script>\n// There is one look, Zerodha's, in two schemes")]
+CSS = SRC[:SRC.index("</style>\n<script>\n// There is one look, Zerodha's, in three schemes")]
 PHONE = CSS[CSS.index("THE PHONE PASS"):]
 
 fails = []

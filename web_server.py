@@ -5570,19 +5570,62 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .botnav{border-top:1px solid var(--bd);box-shadow:0 -12px 30px -20px rgba(0,0,0,.5) !important}
   :root[data-look="kite"] .botnav button.on{color:var(--accent)}
 }
+/* =====================================================================
+   THE TERMINAL SCHEME (27 Oct 2026) - the user, after looking at order-block.com: "yes build the terminal theme".
+   The dark scheme - every dark rule still applies - with a trading-terminal palette of its own: a near-black page under
+   a faint grid, deep blue-black panels, neon green and pink-red for profit and loss, one violet for actions, headlines
+   in a green-teal-blue gradient, figures in Geist Mono. Our own colours and type, nobody's name or logo. A third button
+   in the menu's theme switch: data-skin="terminal" over data-scheme="dark" (the head script). redesign_test.py checks
+   its contrast like the other two.
+   ===================================================================== */
+:root[data-look="kite"][data-scheme="dark"][data-skin="terminal"]{
+  --bg:#07090d; --surface:#0d1118; --raised:#11161f; --sunken:#0a0d13;
+  --bd:#1a212d; --bd-soft:#151b25;
+  --ink:#edf2f9; --ink-2:#a2aec1; --ink-3:#7d889c;
+  --up:#19e58c; --down:#ff4d67; --warn:#ffb020; --accent:#7b7bff;
+  --brand:#7b7bff; --accent-strong:#5856f2; --accent-text:#9d9dff;
+  --teal:#2dd4bf; --sky:#45b8ff;
+  --ema-fast:#7b7bff; --ema-slow:#ffb020; --vwap:#f472b6;
+  --rsi:#2dd4bf; --macd-line:#f472b6; --macd-signal:#a2aec1; --adx:#ffb020; --supertrend:#19e58c;
+  --atm:#161c33;
+  --grid:rgba(255,255,255,.03); --wash-a:rgba(25,229,140,.07); --wash-b:rgba(123,123,255,.09);
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 18px 40px -16px rgba(0,0,0,.7);
+}
+/* the page: a terminal's faint grid under the two soft washes */
+:root[data-look="kite"][data-skin="terminal"] body{
+  background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,
+             linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,
+             radial-gradient(1100px 520px at 12% -8%,var(--wash-b),transparent 62%),
+             radial-gradient(900px 480px at 100% 0%,var(--wash-a),transparent 60%),var(--bg);background-attachment:fixed}
+/* headlines: tight, heavy, in the green-teal-blue gradient */
+:root[data-look="kite"][data-skin="terminal"] :is(h1,.htitle,.welcome h1){font-family:var(--f-ui);font-weight:800;letter-spacing:-1px;
+  background:linear-gradient(92deg,var(--up) 5%,var(--teal) 55%,var(--sky));-webkit-background-clip:text;background-clip:text;
+  color:transparent}
+:root[data-look="kite"][data-skin="terminal"] :is(h2,h3){font-family:var(--f-ui);font-weight:750;letter-spacing:-.5px}
+:root[data-look="kite"][data-skin="terminal"] .herocard #bias{font-family:var(--f-ui);font-weight:800;letter-spacing:-1.6px}
+/* figures: the numbers in the terminal's mono */
+:root[data-look="kite"][data-skin="terminal"] :is(td.r,th.r,.knum,.kr b,.psum b,.ticker .tk-p,.mkt .px,.tile .v){font-family:var(--f-mono)}
+:root[data-look="kite"][data-skin="terminal"] .psum .kd-mkt b{font-family:var(--f-ui)}      /* a market's name, not a figure */
+/* the brand mark in the menu bar picks up the gradient too */
+:root[data-look="kite"][data-skin="terminal"] :is(.sbrand b,.sbrand strong){
+  background:linear-gradient(92deg,var(--up) 5%,var(--teal) 55%,var(--sky));-webkit-background-clip:text;background-clip:text;color:transparent}
 </style>
 <script>
-// There is one look, Zerodha's, in two schemes: white (the default) and dark. Set before anything paints, so the
-// page never flashes the other one. `theme` is what the TradingView tab reads. The old three-look switch stored
-// "terminal" for the dark screen; that becomes the dark scheme, anything else the white one.
+// There is one look, Zerodha's, in three schemes: white (the default), dark, and terminal (27 Oct 2026) - the dark
+// scheme with a palette of its own, data-skin="terminal". Set before anything paints, so the page never flashes another
+// one. `theme` is what the TradingView tab reads. The old three-look switch stored "terminal" in nbs.look.v1 for the
+// dark screen; that becomes the dark scheme, anything else the white one.
 (function(){
   const de = document.documentElement;
-  let scheme = "light";
+  let scheme = "light", skin = "";
   try{
     const v = localStorage.getItem("nbs.scheme.v1");
-    scheme = (v === "dark" || v === "light") ? v : (localStorage.getItem("nbs.look.v1") === "terminal" ? "dark" : "light");
+    scheme = (v === "dark" || v === "light") ? v : v === "terminal" ? "dark"
+      : (localStorage.getItem("nbs.look.v1") === "terminal" ? "dark" : "light");
+    if(v === "terminal") skin = "terminal";
   }catch(e){}
   de.dataset.look = "kite"; de.dataset.scheme = scheme; de.dataset.theme = scheme;
+  if(skin) de.dataset.skin = skin;
   const m = document.querySelector('meta[name="color-scheme"]');
   if(m) m.setAttribute("content", scheme);
 })();
@@ -5678,7 +5721,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <button class="tab" data-tab="admin" role="tab" type="button" hidden><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></i>Admin</button>
 </nav>
  <div class="looksw" id="looksw" role="group" aria-label="Theme"><span>Theme</span>
-  <button type="button" data-scheme="light">White</button><button type="button" data-scheme="dark">Dark</button></div>
+  <button type="button" data-scheme="light">White</button><button type="button" data-scheme="dark">Dark</button><button type="button" data-scheme="terminal">Terminal</button></div>
  <div class="sidefoot">
   <div class="su">Signed in<b id="sideuser">&mdash;</b><small id="siderenew"></small></div>
   <a class="sout" href="/logout" title="Sign out" aria-label="Sign out"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1011.4 0"/></svg></a>
@@ -13854,12 +13897,15 @@ async function newsFetch(force){
 // ============================================================ palette
 // One look, two schemes: white and dark. Kept per browser; switching reloads, because the charts are drawn in the
 // scheme's colours as they are built.
-const SCHEMES = {light: "White", dark: "Dark"};
-const SCHEME = document.documentElement.dataset.scheme === "dark" ? "dark" : "light";
+const SCHEMES = {light: "White", dark: "Dark", terminal: "Terminal"};
+const SCHEME = document.documentElement.dataset.skin === "terminal" ? "terminal"
+  : document.documentElement.dataset.scheme === "dark" ? "dark" : "light";
+// the Home button steps through them: White, Dark, Terminal, White again
+const NEXT_SCHEME = {light: "dark", dark: "terminal", terminal: "light"};
 function setScheme(v){ try{ localStorage.setItem("nbs.scheme.v1", v); }catch(e){} location.reload(); }
 { const lb = document.getElementById("lookbtn");
   if(lb){ lb.textContent = "Theme: " + SCHEMES[SCHEME];
-    lb.addEventListener("click", () => setScheme(SCHEME === "dark" ? "light" : "dark")); }
+    lb.addEventListener("click", () => setScheme(NEXT_SCHEME[SCHEME])); }
   document.querySelectorAll("#looksw button[data-scheme]").forEach(b => {
     const on = b.dataset.scheme === SCHEME;
     b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
@@ -13957,8 +14003,8 @@ function palItems(){
             run:() => { HIDDEN = new Set(); try{ localStorage.removeItem(PKEY); }catch(e){} resetLayout(); }});
   out.push({t:"Do", label:"Clear the open ticket",
             run:() => { const b = $("tclear"); if(b && b.style.display !== "none") b.click(); }});
-  out.push({t:"Do", label: SCHEME === "dark" ? "Switch to the white theme" : "Switch to the dark theme",
-            sub:"now " + SCHEMES[SCHEME], run:() => setScheme(SCHEME === "dark" ? "light" : "dark")});
+  out.push({t:"Do", label: "Switch to the " + SCHEMES[NEXT_SCHEME[SCHEME]].toLowerCase() + " theme",
+            sub:"now " + SCHEMES[SCHEME], run:() => setScheme(NEXT_SCHEME[SCHEME])});
   out.push({t:"Do", label:"Log out", run:() => location.href="/logout"});
   return out;
 }

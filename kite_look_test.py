@@ -38,7 +38,7 @@ def contrast(a, b):
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
-CSS = SRC[:SRC.index("</style>\n<script>\n// There is one look, Zerodha's, in two schemes")]
+CSS = SRC[:SRC.index("</style>\n<script>\n// There is one look, Zerodha's, in three schemes")]
 block = re.search(r':root\[data-look="kite"\]\{(.*?)\}', CSS, re.S)
 dblock = re.search(r':root\[data-look="kite"\]\[data-scheme="dark"\]\{(.*?)\}', CSS, re.S)
 hexes = lambda blk: dict(re.findall(r"--([\w-]+):(#[0-9a-fA-F]{6})", blk.group(1))) if blk else {}
@@ -182,17 +182,18 @@ check("no rule of the look paints a colour literal except white type on a colour
            if not re.search(r"color:#fff|#c62828", l) and not re.fullmatch(r"\s*(--[\w-]+:[^;]+;\s*)+", l)], [l.strip()[:80] for l in re.findall(r"[^\n]*#[0-9a-fA-F]{3,6}\b[^\n]*", KITE.split(":root[data-look=\"kite\"] *,")[1]) if not re.search(r"color:#fff|#c62828", l) and not re.fullmatch(r"\s*(--[\w-]+:[^;]+;\s*)+", l)][:4])
 check("the survey found the rules it should (so the test is not passing on an empty list)", len(dark) >= 15 and len(light) >= 6, (len(dark), len(light)))
 
-print("5. THE SWITCH: WHITE AND DARK")
-check("a two-way switch in the menu: White, Dark",
-      'id="looksw"' in SRC and 'data-scheme="light">White</button>' in SRC and 'data-scheme="dark">Dark</button>' in SRC and "data-look=\"glass\">" not in SRC)
-check("...and the Home button names the scheme and swaps it", 'lb.textContent = "Theme: " + SCHEMES[SCHEME]' in SRC
-      and 'setScheme(SCHEME === "dark" ? "light" : "dark")' in SRC)
-check("white is the default", 'let scheme = "light";' in SRC)
+print("5. THE SWITCH: WHITE, DARK AND TERMINAL (27 Oct 2026)")
+check("a three-way switch in the menu: White, Dark, Terminal",
+      'id="looksw"' in SRC and 'data-scheme="light">White</button>' in SRC and 'data-scheme="dark">Dark</button>' in SRC
+      and 'data-scheme="terminal">Terminal</button>' in SRC and "data-look=\"glass\">" not in SRC)
+check("...and the Home button names the scheme and steps to the next", 'lb.textContent = "Theme: " + SCHEMES[SCHEME]' in SRC
+      and 'setScheme(NEXT_SCHEME[SCHEME])' in SRC and 'const NEXT_SCHEME = {light: "dark", dark: "terminal", terminal: "light"};' in SRC)
+check("white is the default", 'let scheme = "light", skin = "";' in SRC)
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
 if not NODE:
     check("node is available to run the page's own switch code", False, "install node")
 else:
-    h0 = SRC.index("// There is one look, Zerodha's, in two schemes: white (the default) and dark.")
+    h0 = SRC.index("// There is one look, Zerodha's, in three schemes: white (the default), dark, and terminal")
     h1 = SRC.index("</script></head><body>", h0)
     head_js = SRC[SRC.index("(function(){", h0):h1]
     s0 = SRC.index("const SCHEMES = {light:")
@@ -206,12 +207,17 @@ function head(store, throws){
   const doc = {documentElement: {dataset: {}}, querySelector: sel => sel === 'meta[name="color-scheme"]' ? meta : null};
   const localStorage = {getItem(k){ if(throws) throw new Error("blocked"); return store[k] === undefined ? null : store[k]; }};
   new Function("document", "localStorage", %s)(doc, localStorage);
-  return {look: doc.documentElement.dataset.look, scheme: doc.documentElement.dataset.scheme, theme: doc.documentElement.dataset.theme, meta: meta.content};
+  const out = {look: doc.documentElement.dataset.look, scheme: doc.documentElement.dataset.scheme, theme: doc.documentElement.dataset.theme, meta: meta.content};
+  if(doc.documentElement.dataset.skin !== undefined) out.skin = doc.documentElement.dataset.skin;
+  return out;
 }
 let r = head({});
 assert.deepStrictEqual(r, {look: "kite", scheme: "light", theme: "light", meta: "light"}, "nothing saved: white");
 r = head({"nbs.scheme.v1": "dark"}); assert.deepStrictEqual(r, {look: "kite", scheme: "dark", theme: "dark", meta: "dark"}, "dark, and the browser's own widgets and the TradingView tab told");
 assert.strictEqual(head({"nbs.scheme.v1": "light"}).scheme, "light");
+r = head({"nbs.scheme.v1": "terminal"});
+assert.deepStrictEqual(r, {look: "kite", scheme: "dark", theme: "dark", meta: "dark", skin: "terminal"}, "terminal: the dark scheme with its own skin, TradingView told dark");
+assert.strictEqual(head({"nbs.scheme.v1": "dark"}).skin, undefined, "dark has no skin");
 assert.strictEqual(head({"nbs.scheme.v1": "neon"}).scheme, "light", "an unknown value never reaches the page");
 assert.strictEqual(head({"nbs.scheme.v1": "DARK"}).scheme, "light", "the value is exact");
 assert.strictEqual(head({"nbs.look.v1": "terminal"}).scheme, "dark", "the old switch's dark screen carries over as the dark scheme");
@@ -225,8 +231,9 @@ function page(scheme){
   const saved = {}; let reloaded = 0; const clicks = {};
   const mk = (data) => ({dataset: data || {}, classList: {t: {}, toggle(c, on){ this.t[c] = on; }}, attrs: {}, setAttribute(k, v){ this.attrs[k] = v; },
                          addEventListener(ev, f){ clicks[(data && data.scheme) || "btn"] = f; }, textContent: ""});
-  const lookbtn = mk(); const btns = ["light", "dark"].map(k => mk({scheme: k}));
-  const document = {documentElement: {dataset: {scheme}}, getElementById: id => id === "lookbtn" ? lookbtn : null,
+  const lookbtn = mk(); const btns = ["light", "dark", "terminal"].map(k => mk({scheme: k}));
+  const ds = scheme === "terminal" ? {scheme: "dark", skin: "terminal"} : {scheme};
+  const document = {documentElement: {dataset: ds}, getElementById: id => id === "lookbtn" ? lookbtn : null,
                     querySelectorAll: sel => sel === "#looksw button[data-scheme]" ? btns : []};
   const localStorage = {setItem(k, v){ saved[k] = v; }};
   const location = {reload(){ reloaded++; }};
@@ -239,7 +246,11 @@ assert.strictEqual(p.btns[0].attrs["aria-pressed"], "true"); assert.strictEqual(
 p.clicks["btn"]();
 assert.strictEqual(p.saved["nbs.scheme.v1"], "dark", "the Home button swaps to the other scheme"); assert.strictEqual(p.reloaded, 1);
 p = page("dark"); assert.strictEqual(p.lookbtn.textContent, "Theme: Dark"); p.clicks["btn"]();
-assert.strictEqual(p.saved["nbs.scheme.v1"], "light", "...and back");
+assert.strictEqual(p.saved["nbs.scheme.v1"], "terminal", "...then to Terminal");
+p = page("terminal"); assert.strictEqual(p.api.SCHEME, "terminal"); assert.strictEqual(p.lookbtn.textContent, "Theme: Terminal");
+assert.strictEqual(p.btns[2].attrs["aria-pressed"], "true", "the menu marks Terminal as the one in use"); p.clicks["btn"]();
+assert.strictEqual(p.saved["nbs.scheme.v1"], "light", "...and round to White");
+p = page("dark"); p.clicks["terminal"](); assert.strictEqual(p.saved["nbs.scheme.v1"], "terminal", "the menu chooses Terminal");
 p = page("light"); p.clicks["dark"]();
 assert.strictEqual(p.saved["nbs.scheme.v1"], "dark", "the switch in the menu chooses that scheme"); assert.strictEqual(p.reloaded, 1);
 p = page("dark"); p.clicks["dark"]();
