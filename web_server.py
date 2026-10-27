@@ -3699,15 +3699,16 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .se-tag.se-call{color:var(--down)}
 .se-tag.se-put{color:var(--up)}
 .kdsellers .kd-sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 8px;line-height:1.5;max-width:760px}
-/* the Market X-Ray (27 Oct 2026): the canvas fills its box; tall on a phone, where it runs top to bottom */
-.xr-box{position:relative;width:100%;height:clamp(300px,36vw,440px)}
+/* the Market X-Ray (27 Oct 2026), a page of its own: the canvas fills its box, and the box is as tall as the index's
+   stocks need (a row each, set by xrFit) - across a wide screen, down a phone's two columns */
+.xr-box{position:relative;width:100%;height:460px}
 .xr-box canvas.xr{display:block;width:100%;height:100%}
-@media (max-width:600px){.xr-box{height:560px}}
 .xr-say{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ink-2)}
-.xrdash{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
-.xrdash[hidden]{display:none}
-.xrdash .xr-h{font-size:15px;font-weight:600;color:var(--ink)}
-.xrdash .xr-sub{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:2px 0 6px}
+.xr-idx{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+.xr-chip{font:inherit;font-size:13px;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--bd);
+  background:transparent;color:var(--ink-2);cursor:pointer}
+.xr-chip:hover{color:var(--ink);border-color:var(--ink-3)}
+.xr-chip[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
 /* the big candle on the home pane (26 Oct 2026) - its own slot, every width */
 .bcdash:empty{display:none}
 .bcdash{margin:10px 0 14px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
@@ -5217,7 +5218,6 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .pane[data-pane="signal"].on{display:flex;flex-direction:column}
   :root[data-look="kite"] #sigcard{order:1}
   :root[data-look="kite"] #posgkcard{order:2}
-  :root[data-look="kite"] #xraycard{order:1}
   /* the market trend, the day's move and the confidence: a band across the top of the page (the user, 25 Sep 2026) */
   :root[data-look="kite"] .pane[data-pane="signal"] .top3{order:0;gap:36px;margin:2px 0 10px;padding:0 0 12px;
     border-bottom:1px solid var(--bd-soft);grid-template-columns:1fr 1.3fr .8fr}
@@ -5254,7 +5254,6 @@ button.mgroup:hover{color:var(--ink-2)}
   :root[data-look="kite"] .sessnote{order:2}
   :root[data-look="kite"] .kdash{display:block;order:2;margin:10px 0 6px}
   :root[data-look="kite"] .bcdash{order:2}
-  :root[data-look="kite"] .xrdash{order:2}
   :root[data-look="kite"] .kdsellers{order:2;margin:0 0 14px}
   :root[data-look="kite"] .dashbulk{order:3;display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
   :root[data-look="kite"] .kdlots{order:2;margin-top:10px}
@@ -5699,6 +5698,7 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="mgrp" data-grp="market">
    <button class="mgroup mtoggle" type="button" aria-expanded="true">Market<span class="chev"><svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
    <div class="mgrp-items">
+    <button class="tab" data-tab="xray" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><path d="M6 12c4 0 5-6 9-6M6 12h12M6 12c4 0 5 6 9 6"/></svg></i>Market X-Ray</button>
     <button class="tab" data-tab="gates" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3"/></svg></i>Gate tracks</button>
     <button class="tab" data-tab="market" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></i>Market</button>
     <button class="tab" data-tab="pulse" role="tab" type="button"><i><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></i>Market pulse</button>
@@ -5839,7 +5839,6 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="sessnote" id="sessnote"></div>
   <div class="kdash" id="kdash"></div>
   <div class="bcdash" id="bcdash"></div>
-  <div class="xrdash" id="xrdash" hidden></div>
   <div class="hsec">
    <h2 class="htitle">Global markets</h2>
    <p class="hsub">Where the wider market is sitting, before you look at a single
@@ -5932,11 +5931,6 @@ button.mgroup:hover{color:var(--ink-2)}
   <div class="room" id="sigcpr"></div>
   <div class="room" id="sigmovers"></div>
   <div class="gnote" id="gnote"></div>
-  </div>
-  <div class="card xraycard" id="xraycard" data-panel="xray">
-   <p class="eyebrow" role="heading" aria-level="2">Market X-Ray &middot; <span id="xrsigidx">&mdash;</span></p>
-   <div class="xr-box" id="xrsigbox"></div>
-   <p class="xr-say" id="xrsigsay" role="status"></p>
   </div>
   <div class="top3" data-panel="trend">
   <div class="card">
@@ -6058,6 +6052,20 @@ button.mgroup:hover{color:var(--ink-2)}
   </div>
   <div class="card" data-panel="movers" id="moverscard">
    <div class="kdmov" id="kdmov"></div>
+  </div>
+ </section>
+
+ <!-- The Market X-Ray, a page of its own (the user, 27 Oct 2026: "give me separate tab so it can have lot of space") -->
+ <section class="pane" data-pane="xray">
+  <div class="card xraycard" id="xraycard" data-panel="xray">
+   <p class="eyebrow" role="heading" aria-level="2">Market X-Ray &middot; <span id="xrsigidx">&mdash;</span></p>
+   <div class="xr-idx" id="xridx" role="group" aria-label="Index"></div>
+   <div class="xr-box" id="xrsigbox"></div>
+   <p class="xr-say" id="xrsigsay" role="status"></p>
+   <div class="gnote">Each thread is one of the index's own stocks: green up today, red down, brighter the bigger the move
+    - shown, not a vote. They gather, then run through the tool's votes and checks: lit when they agree with the
+    market's lean or are met, dark when not, grey with no reading. The signal fires when every check passes. Display
+    only - the same checks the Signal page and the Gate tracks show.</div>
   </div>
  </section>
 
@@ -6631,6 +6639,7 @@ let TAB = "home";         // the section on screen
 let GATED_FOR = null;     // which market the tabs were last gated for
 const DESK = [
   ["signal", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='4'/><circle cx='12' cy='12' r='1'/></svg>", "Signal", "The call, its strike, the ladder and what is holding it back."],
+  ["xray", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='4' cy='12' r='2'/><circle cx='20' cy='12' r='2'/><path d='M6 12c4 0 5-6 9-6M6 12h12M6 12c4 0 5 6 9 6'/></svg>", "Market X-Ray", "The index's own stocks as threads, then the votes and checks, then the signal."],
   ["positions", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2'/><path d='M3 13h18'/></svg>", "Positions", "Today's trades, open and closed, live and paper - and the bulk buttons."],
   ["tradeset", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0'/><circle cx='16' cy='6' r='2'/><circle cx='10' cy='12' r='2'/><circle cx='18' cy='18' r='2'/></svg>", "Trade settings", "Each index's lots and system, and whether it places live orders."],
   ["journal", "<svg class='ico' viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z'/><path d='M5 17a3 3 0 013-3h11'/></svg>", "Journal", "Your record by day: the running total, the calendar and the risk."],
@@ -11007,9 +11016,9 @@ function chainDraw(d){
 // drawn when it becomes visible, because an element with no box cannot.
 const TABS = ["home", "positions", "tradeset", "signal", "chart", "chain", "watchlist", "marketbot", "market", "pulse", "sector",
               "spikes", "vol", "greeks", "levels", "internals", "strength",
-              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk", "gates"];
+              "season", "news", "record", "admin", "journal", "screener", "gann", "tradingview", "aidesk", "gates", "xray"];
 const TAB_LABEL = {home:"Home", positions:"Positions", tradeset:"Trade settings", signal:"Signal", chart:"Chart", chain:"Option chain", watchlist:"Watchlist", marketbot:"Ask TradePicker",
-                   gates:"Gate tracks", market:"Market", pulse:"Market pulse", sector:"Sector scope",
+                   gates:"Gate tracks", xray:"Market X-Ray", market:"Market", pulse:"Market pulse", sector:"Sector scope",
                    spikes:"Momentum spikes", vol:"Volatility", greeks:"Greeks & IV",
                    levels:"Levels", gann:"Gann levels", tradingview:"TradingView",
                    internals:"Internals", strength:"Relative strength",
@@ -11110,6 +11119,7 @@ function showTab(name, push){
   if(name === "news") newsFetch();
   if(name === "home"){ homeDraw(LAST); markets_(); }
   if(name === "gates") gatesDraw(LAST, true);
+  if(name === "xray") xrayAll(LAST);
   gateTabs();
 }
 document.querySelectorAll(".tab").forEach(b =>
@@ -11666,19 +11676,24 @@ function moverRow(x, max){
 // heat map has just fetched for it (MAPDATA) - no fetch of its own. Nothing for an index with no stock list, or Exness.
 // MARKET X-RAY (the user, 27 Oct 2026, after order-block.com's Market X-Ray: "threads coming out of sensex and going
 // through all the market and showing what is going up and what is going down and the thread should go from our votes
-// and then the signal fires", "same like in the website"). The index on screen at the start; a thread to each of its
-// own stocks - green up, red down, brighter the bigger the move (the market map's streamed prices, MAPDATA); the stocks'
-// threads gathered, then the tool's own votes and checks, each lit when it agrees and dark when it does not; the signal at
-// the end, fired when every check is met, or the check it waits on. Light runs along the lit threads (still, under
-// prefers-reduced-motion). Display only: the stocks are context - breadth was tested as a vote and did not help - and the
-// votes and checks are the ones the ticket reads (gateSteps / gateStage, the Gate tracks' own). Top to bottom on a phone.
+// and then the signal fires", "same like in the website"; a page of its own the same day: "give me separate tab so it can
+// have lot of space"). The index on screen at the start; a thread to each of its own stocks - green up, red down,
+// brighter the bigger the move (the market map's streamed prices, MAPDATA), every one named, the box as tall as they need;
+// the stocks' threads gathered, then the tool's own votes and checks, each lit when it agrees and dark when it does not;
+// the signal at the end, fired when every check is met, or the check it waits on. Light runs along the lit threads (still,
+// under prefers-reduced-motion). Display only: the stocks are context - breadth was tested as a vote and did not help -
+// and the votes and checks are the ones the ticket reads (gateSteps / gateStage, the Gate tracks' own). Left to right on
+// a wide screen; on a phone top to bottom, the rising stocks in a column on the left and the falling on the right.
 const XR = {inst: {}, raf: 0, last: 0, still: (() => { try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){ return false; } })()};
 function xrModel(s){
   const k = CUR, r = s && (s.indices || {})[k];
   if(!r) return null;
   const ts = (s.tickets || {})[k], w = (s.why || {})[k] || {};
-  const stocks = (MAPDATA && MAPDATA.index === k ? MAPDATA.tiles || [] : [])
-    .filter(t => t && t.pct != null && isFinite(t.pct)).map(t => ({n: t.sym, p: t.pct})).sort((a, b) => b.p - a.p);
+  // the map's list for this index (null until it has come): every stock listed, priced or not - none for an index with
+  // no list of its own (Midcap)
+  const map = MAPDATA && MAPDATA.index === k ? MAPDATA.tiles || [] : null;
+  const stocks = (map || []).filter(t => t && t.pct != null && isFinite(t.pct)).map(t => ({n: t.sym, p: t.pct}))
+    .sort((a, b) => b.p - a.p);
   const g = gateSteps(r, ts), st = gateStage(r, ts, g);
   const lean = r.bias === "BULLISH" ? 1 : r.bias === "BEARISH" ? -1 : 0;
   const short = (t, n) => { t = String(t || ""); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
@@ -11695,7 +11710,8 @@ function xrModel(s){
   const word = open ? `IN TRADE · ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`
     : fired ? (side > 0 ? "BUY CE" : "BUY PE") : "NO TRADE";
   const tr = r.trend || {};
-  return {k, spot: r.spot, pct: tr.day_change_pct, stocks, checks, side, fired, word, why: st[2] || "",
+  return {k, spot: r.spot, pct: tr.day_change_pct, stocks, listed: map ? map.length : null, checks, side, fired, word,
+          why: st[2] || "",
           up: stocks.filter(x => x.p > 0).length, down: stocks.filter(x => x.p < 0).length};
 }
 function xrSig(m){
@@ -11703,6 +11719,7 @@ function xrSig(m){
               m.stocks.map(x => x.n + x.p.toFixed(2)).join(","), m.checks.map(x => x.n + x.v).join(",")].join("|") : "";
 }
 // one place the X-Ray is drawn: {box, canvas, say, title}; laid out again when the data, the size or the theme change
+// the one place it is drawn: {box, canvas, say, title}; laid out again when the data, the size or the theme change
 function xrInst(id, box, say, title){
   let x = XR.inst[id];
   if(!x){
@@ -11714,10 +11731,33 @@ function xrInst(id, box, say, title){
     if(typeof IntersectionObserver === "function"){
       new IntersectionObserver(es => { for(const e of es) x.seen = e.isIntersecting; xrLoop(); }).observe(box);
     } else x.seen = true;
-    // laid out again at its new size - a phone turned, a pane shown (a hidden box has no size, so nothing is drawn there)
+    // laid out again at its new size - a phone turned, the page shown (a hidden box has no size, so nothing is drawn there)
     if(typeof ResizeObserver === "function") new ResizeObserver(() => { if(x.m){ x.sig = ""; xrUpdate(x, x.m); } }).observe(box);
   }
   return x;
+}
+// a phone's two columns: rising on the left, falling on the right, the biggest move at the top of each; a stock that has
+// not moved goes under the shorter one
+function xrCols(stocks){
+  const L = stocks.filter(s => s.p > 0), R = stocks.filter(s => s.p < 0).sort((a, b) => a.p - b.p);
+  for(const s of stocks.filter(s => s.p === 0)) (L.length <= R.length ? L : R).push(s);
+  return [L, R];
+}
+// how tall the box is drawn: a row for every stock so each one has its name - down a wide box, or down the taller of a
+// phone's two columns - with the votes and the signal after
+const XR_ROW = 18, XR_WIDE = 560;
+const XR_T = {top: 96, row: XR_ROW + 2, gat: 52, chk: 110, sig: 230, end: 44};
+function xrHeight(W, m){
+  const n = m ? m.stocks.length : 0;
+  if(W >= XR_WIDE) return Math.max(460, XR_ROW * n + 110);
+  const rows = Math.max(1, ...(m ? xrCols(m.stocks) : [[], []]).map(c => c.length));
+  return XR_T.top + (rows - 1) * XR_T.row + XR_T.gat + XR_T.sig + XR_T.end;
+}
+function xrFit(x, m){
+  const W = Math.round(x.box.clientWidth);
+  if(W < 10 || !m) return;
+  const h = xrHeight(W, m) + "px";
+  if(x.box.style.height !== h) x.box.style.height = h;
 }
 function xrBez(a, b, c, d, t){
   const u = 1 - t;
@@ -11728,31 +11768,55 @@ function xrLayout(x, m){
   const W = Math.max(280, Math.round(x.box.clientWidth)), H = Math.max(260, Math.round(x.box.clientHeight));
   x.canvas.width = W * dpr; x.canvas.height = H * dpr;
   x.canvas.style.width = W + "px"; x.canvas.style.height = H + "px";
-  const tall = W < 560;
-  // (flow, across) in 0..1 -> pixels: left to right on a wide box, top to bottom on a narrow one
-  const P = (u, v) => tall ? [v * W, u * H] : [u * W, v * H];
+  const tall = W < XR_WIDE;
   const col = {up: css("--up") || "#19e58c", down: css("--down") || "#ff4d67", ink: css("--ink") || "#eee",
                ink2: css("--ink-2") || "#aaa", ink3: css("--ink-3") || "#888", bd: css("--bd") || "#333",
                acc: css("--accent") || "#7b7bff", surf: css("--surface") || "#111"};
   const mono = css("--f-mono") || "monospace", ui = css("--f-ui") || "sans-serif";
-  const U = tall ? {idx: .07, stk: .30, gat: .46, chk: .70, sig: .92} : {idx: .07, stk: .38, gat: .53, chk: .74, sig: .92};
   const n = m.stocks.length, maxp = Math.max(.25, ...m.stocks.map(s => Math.abs(s.p)));
-  const curve = (p0, p1) => tall
-    ? [p0, [p0[0], (p0[1] + p1[1]) / 2], [p1[0], (p0[1] + p1[1]) / 2], p1]
-    : [p0, [(p0[0] + p1[0]) / 2, p0[1]], [(p0[0] + p1[0]) / 2, p1[1]], p1];
-  const I = P(U.idx, .5), G = P(U.gat, .5), S = P(U.sig, .5);
-  const paths = [];
-  const stockPts = m.stocks.map((s, i) => {
-    const v = n > 1 ? .06 + .88 * i / (n - 1) : .5;
-    const pt = P(U.stk, v), str = Math.min(1, Math.abs(s.p) / maxp);
-    const c = s.p > 0 ? col.up : s.p < 0 ? col.down : col.ink3;
-    paths.push({segs: [curve(I, pt), curve(pt, G)], c, a: .18 + .55 * str, w: .8 + 1.2 * str, live: s.p !== 0, sp: .25 + .5 * str});
-    return {pt, s, c, str};
-  });
+  // a curve that leaves and arrives level: across on a wide box, down on a phone
+  const across = (p0, p1) => [p0, [(p0[0] + p1[0]) / 2, p0[1]], [(p0[0] + p1[0]) / 2, p1[1]], p1];
+  const down = (p0, p1) => [p0, [p0[0], (p0[1] + p1[1]) / 2], [p1[0], (p0[1] + p1[1]) / 2], p1];
+  const curve = tall ? down : across;
+  const paths = [], stockPts = [];
+  const thread = (segs, s) => {
+    const k = Math.min(1, Math.abs(s.p) / maxp);
+    paths.push({segs, c: s.p > 0 ? col.up : s.p < 0 ? col.down : col.ink3, a: .18 + .55 * k, w: .8 + 1.2 * k,
+                live: s.p !== 0, sp: .25 + .5 * k, k});
+  };
+  let I, G, S, checkAt, cols = null, c = 0;
+  if(!tall){
+    // across: the index, a row for each stock (the biggest rise at the top, the biggest fall at the foot), gathered,
+    // the checks, the signal
+    const U = {idx: .06, stk: .34, gat: .56, chk: .75, sig: .93};
+    I = [U.idx * W, H / 2]; G = [U.gat * W, H / 2]; S = [U.sig * W, H / 2];
+    m.stocks.forEach((s, i) => {
+      const pt = [U.stk * W, n > 1 ? H * (.05 + .9 * i / (n - 1)) : H / 2];
+      thread([across(I, pt), across(pt, G)], s);
+      stockPts.push({pt, s, side: 1});
+    });
+    // the checks bunched about the middle - a long list of stocks does not spread seven checks over a metre of screen
+    checkAt = v => [U.chk * W, H / 2 + (v - .5) / .76 * Math.min(.76 * H, (m.checks.length - 1) * 58)];
+  } else {
+    // down a phone: the index at the top, its rising stocks in a column on the left and the falling on the right, each
+    // reached by a branch off its own strand down the middle, gathered under them, the checks in a row, the signal
+    const cx = W / 2;
+    c = Math.min(46, W * .13);
+    const [L, R] = cols = xrCols(m.stocks), rows = Math.max(1, L.length, R.length);
+    const y0 = XR_T.top, yE = y0 + (rows - 1) * XR_T.row;
+    I = [cx, 44]; G = [cx, yE + XR_T.gat]; S = [cx, G[1] + XR_T.sig];
+    [[L, -1], [R, 1]].forEach(([list, d]) => list.forEach((s, i) => {
+      const pt = [cx + d * c, y0 + i * XR_T.row], sx = cx + d * 5, bx = sx + (pt[0] - sx) * .3;
+      thread([[I, [sx, I[1] + (pt[1] - I[1]) * .6], [bx, pt[1]], pt],
+              [pt, [bx, pt[1]], [sx, pt[1] + (G[1] - pt[1]) * .6], G]], s);
+      stockPts.push({pt, s, side: d});
+    }));
+    checkAt = v => [W * v, G[1] + XR_T.chk];
+  }
+  if(!n) paths.push({segs: [curve(I, G)], c: col.ink3, a: .35, w: 1.2, live: true, sp: .4, k: 0});
   const nc = m.checks.length;
   const checkPts = m.checks.map((c, i) => {
-    const v = nc > 1 ? .12 + .76 * i / (nc - 1) : .5;
-    const pt = P(U.chk, v);
+    const pt = checkAt(nc > 1 ? (tall ? .08 + .84 * i / (nc - 1) : .12 + .76 * i / (nc - 1)) : .5);
     // a vote's own colour (up / down / none); a check met in the accent, failed in the fall colour
     const cc = c.v === 1 ? col.up : c.v === -1 ? col.down : c.v === 2 ? col.acc : c.v === -2 ? col.down : col.ink3;
     const agrees = c.v === 2 || (m.side && c.v === m.side);
@@ -11779,9 +11843,10 @@ function xrLayout(x, m){
                                                   g.lineJoin = "round"; g.lineWidth = 3.5; g.strokeStyle = col.surf;
                                                   g.strokeText(t, pt[0] + dx, pt[1] + dy);
                                                   g.fillStyle = c; g.fillText(t, pt[0] + dx, pt[1] + dy); };
+  const pct = v => `${v > 0 ? "+" : v < 0 ? "\u2212" : ""}${Math.abs(v).toFixed(2)}%`;
   // the index
   dot(I, 7, col.acc, col.ink);
-  const ip = m.pct == null ? "" : `${m.pct >= 0 ? "+" : "−"}${Math.abs(m.pct).toFixed(2)}%`;
+  const ip = m.pct == null ? "" : pct(m.pct);
   if(tall){
     label(m.k, I, 14, -7, col.ink, `600 13px ${ui}`);
     label(`${m.spot != null ? num(m.spot, 0) : ""} ${ip}`, I, 14, 9, m.pct >= 0 ? col.up : col.down, `500 12px ${mono}`);
@@ -11790,22 +11855,30 @@ function xrLayout(x, m){
     label(m.spot != null ? num(m.spot, 0) : "", I, 0, 20, col.ink2, `500 12px ${mono}`, "center");
     label(ip, I, 0, 35, m.pct >= 0 ? col.up : col.down, `600 12px ${mono}`, "center");
   }
-  // the stocks: every one a dot; words for all of a short list, five at each end of a long one - spread out when the dots
-  // sit closer than a line of words - and on a phone the one at each end, under the end of the row, where there is room
-  const ends = tall ? 1 : 5, gap = n > 1 ? .88 * H / (n - 1) : 99, every = tall ? 1 : Math.max(1, Math.ceil(13 / gap));
-  const pick = [...Array(ends).keys()].map(j => j * every).filter(i => i < n / 2);
-  const named = new Set(!tall && every === 1 && n <= 14 ? stockPts.map((_, i) => i)
-    : [...pick, ...pick.map(i => n - 1 - i)]);
-  stockPts.forEach((q, i) => {
-    dot(q.pt, 2 + 1.5 * q.str, q.c);
-    if(!named.has(i)) return;
-    const t = `${q.s.n} ${q.s.p > 0 ? "+" : "\u2212"}${Math.abs(q.s.p).toFixed(2)}%`;
-    if(tall) label(t, q.pt, 0, 16, q.c, `500 10px ${mono}`, i === 0 ? "left" : "right");
-    else label(t, q.pt, 8, 0, q.c, `500 11px ${mono}`);
+  // the stocks: every one a dot and its words - beside it across a wide box, on the outside of its column on a phone,
+  // where the longest name sets a size that fits them all inside the box
+  const words = q => `${q.s.n} ${pct(q.s.p)}`;
+  let fs = tall ? 10.5 : 11;
+  if(tall && stockPts.length){
+    g.font = `500 ${fs}px ${mono}`;
+    const room = W / 2 - c - 8 - 3, widest = Math.max(...stockPts.map(q => g.measureText(words(q)).width));
+    if(widest > room) fs = Math.max(8.5, Math.floor(fs * room / widest * 10) / 10);
+  }
+  stockPts.forEach(q => {
+    const k = Math.min(1, Math.abs(q.s.p) / maxp), sc = q.s.p > 0 ? col.up : q.s.p < 0 ? col.down : col.ink3;
+    dot(q.pt, 2 + 1.5 * k, sc);
+    label(words(q), q.pt, q.side < 0 ? -8 : 8, 0, sc, `500 ${fs}px ${mono}`, q.side < 0 ? "right" : "left");
   });
+  if(cols){
+    label(`Rising \u00b7 ${cols[0].filter(s => s.p > 0).length}`, I, -14, XR_T.top - 44 - 22, col.up, `600 11px ${ui}`, "right");
+    label(`Falling \u00b7 ${cols[1].filter(s => s.p < 0).length}`, I, 14, XR_T.top - 44 - 22, col.down, `600 11px ${ui}`);
+  }
+  if(!n) label(m.listed ? `Waiting for the first prices of its ${m.listed} stocks`
+               : m.listed === 0 ? `No stock list for ${m.k} - its votes and checks only` : `Loading ${m.k}'s stocks\u2026`,
+               [(I[0] + G[0]) / 2, (I[1] + G[1]) / 2], 0, tall ? 0 : -14, col.ink3, `500 12px ${ui}`, "center");
   // the gathering point: how many up, how many down
   dot(G, 4, col.ink2);
-  if(n) label(`${m.up}▲ ${m.down}▼`, G, tall ? 10 : 0, tall ? 0 : -16, col.ink2, `600 11px ${mono}`, tall ? "left" : "center");
+  if(n) label(`${m.up}\u25b2 ${m.down}\u25bc`, G, tall ? 10 : 0, tall ? 0 : -16, col.ink2, `600 11px ${mono}`, tall ? "left" : "center");
   // the checks
   checkPts.forEach((q, i) => {
     dot(q.pt, 5, q.cc, q.agrees ? col.ink : null);
@@ -11860,9 +11933,10 @@ function xrLoop(){
   XR.raf = requestAnimationFrame(step);
 }
 function xrUpdate(x, m){
+  xrFit(x, m);
   const sig = xrSig(m) + "|" + Math.round(x.box.clientWidth) + "x" + Math.round(x.box.clientHeight)
     + "|" + (document.documentElement.dataset.scheme || "") + (document.documentElement.dataset.skin || "");
-  if(x.title) x.title.textContent = m ? m.k : "—";
+  if(x.title) x.title.textContent = m ? m.k : "\u2014";
   if(x.say){
     const why = ((m && m.why) || "").split(". ")[0].replace(/\.+$/, "");
     const t = !m ? "" : (m.stocks.length ? `${m.up} of ${m.stocks.length} of ${m.k}'s own stocks up, ${m.down} down - shown, not a vote. ` : "")
@@ -11876,22 +11950,31 @@ function xrUpdate(x, m){
   xrPaint(x, XR.still ? null : performance.now());
   xrLoop();
 }
-function xrayAll(s){
-  const m = xrModel(s);
-  const sb = $("xrsigbox");
-  if(sb) xrUpdate(xrInst("sig", sb, $("xrsigsay"), $("xrsigidx")), m);
-  const home = $("xrdash");
-  if(home){
-    if(!home.dataset.built){
-      home.dataset.built = "1";
-      home.innerHTML = `<div class="xr-h">Market X-Ray &middot; <span data-xr-idx>—</span></div>`
-        + `<p class="xr-sub">The index's own stocks, up and down; then the tool's votes and checks; then the signal.</p>`
-        + `<div class="xr-box" data-xr-box></div><p class="xr-say" data-xr-say role="status"></p>`;
-    }
-    home.hidden = !m;
-    if(m) xrUpdate(xrInst("home", home.querySelector("[data-xr-box]"), home.querySelector("[data-xr-say]"),
-                          home.querySelector("[data-xr-idx]")), m);
+// the indices to look at, one press each - the watchlist's own list, in its order (the same switch as its cards)
+const XR_NAME = {NIFTY: "Nifty", BANKNIFTY: "Bank Nifty", SENSEX: "Sensex", MIDCPNIFTY: "Midcap Select"};
+function xrChips(s){
+  const el = $("xridx");
+  if(!el || !s || !s.indices) return;
+  const ks = s.order || Object.keys(s.indices), sig = ks.join(",") + "|" + CUR;
+  if(el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
+  if(!el.dataset.on){
+    el.dataset.on = "1";
+    el.addEventListener("click", e => {
+      const b = e.target && e.target.closest && e.target.closest(".xr-chip");
+      if(b && b.dataset.k && b.dataset.k !== CUR) selectIndex(b.dataset.k);
+    });
   }
+  el.innerHTML = ks.map(k => `<button type="button" class="xr-chip" data-k="${esc(k)}" aria-pressed="${k === CUR}">`
+                            + `${esc(XR_NAME[k] || k)}</button>`).join("");
+}
+// drawn only while its page is on screen
+function xrayAll(s){
+  if(TAB !== "xray") return;
+  const box = $("xrsigbox");
+  if(!box) return;
+  xrChips(s);
+  xrUpdate(xrInst("tab", box, $("xrsigsay"), $("xrsigidx")), xrModel(s));
 }
 function sigMovers(){
   const el = $("sigmovers");
@@ -11960,7 +12043,6 @@ function homeDraw(s){
     if(ns.innerHTML !== h) ns.innerHTML = h;
   }
   // the Market X-Ray (27 Oct 2026) - its own slot as well
-  try{ xrayAll(s); }catch(e){}
   // the big candle (26 Oct 2026) - its own slot too, so a phone shows it
   const bce = $("bcdash");
   if(bce && s){
@@ -12947,7 +13029,8 @@ function gateTabs(){
   // Greeks is NOT in this list: Bitcoin's own greeks and implied volatility come from Delta
   // (_api_greeks_venue), so its tab has a Bitcoin screen. It was hidden here from before that
   // existed, which left a finished screen with no way to open it.
-  [["sector", crypto], ["market", crypto], ["vol", crypto], ["levels", crypto],
+  // the X-Ray's threads are an index's own stocks, and a coin or gold has none
+  [["sector", crypto], ["market", crypto], ["xray", crypto], ["vol", crypto], ["levels", crypto],
    ["internals", crypto], ["strength", crypto], ["season", crypto],
    ["screener", crypto]].forEach(([name, hide]) => {
     const btn = document.querySelector(`.menu .tab[data-tab="${name}"]`);

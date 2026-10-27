@@ -24,18 +24,21 @@ a = src.index("const XR = {")
 z = src.index("function sigMovers(){")
 xr = src[a:z]
 
-print("1. WHERE IT IS DRAWN")
+print("1. WHERE IT IS DRAWN - A PAGE OF ITS OWN (\"give me separate tab so it can have lot of space\")")
+pane = src[src.index('<section class="pane" data-pane="xray">'):src.index("</section>", src.index('data-pane="xray">'))]
 sig = src[src.index('<section class="pane" data-pane="signal">'):src.index("</section>", src.index('data-pane="signal">'))]
 home = src[src.index('<section class="pane on" data-pane="home">'):src.index("</section>", src.index('data-pane="home"'))]
-check("on the Signal page, under the signal card", 'id="xraycard"' in sig and 'id="xrsigbox"' in sig and 'id="xrsigsay"' in sig
-      and sig.index('id="xraycard"') > sig.index('id="sigcard"'))
-check("and on the Dashboard (the main screen), its own slot outside #kdash so phones get it too",
-      '<div class="xrdash" id="xrdash" hidden></div>' in home and home.index('id="xrdash"') > home.index('id="kdash"'))
-check("drawn with every reading, on both, and a failure there cannot stop the page",
-      src.count("try{ xrayAll(s); }catch(e){}") == 2
-      and "try{ xrayAll(s); }catch(e){}" in src[src.index("function homeDraw(s){"):src.index("\n}\n", src.index("function homeDraw(s){"))])
-check("the words under it are read out when they change (role=status)", 'id="xrsigsay" role="status"' in sig
-      and 'data-xr-say role="status"' in xr)
+check("its own page: the box, the words under it, the index buttons and what it shows",
+      'id="xrsigbox"' in pane and 'id="xrsigsay" role="status"' in pane and 'id="xridx"' in pane and "shown, not a vote" in pane)
+check("reached from the Market menu, named, drawn when opened and with every reading - only while it is on screen",
+      'data-tab="xray"' in src and '"gates", "xray"];' in src and 'xray:"Market X-Ray"' in src
+      and 'if(name === "xray") xrayAll(LAST);' in src and 'if(TAB !== "xray") return;' in xr
+      and src.count("try{ xrayAll(s); }catch(e){}") == 1)
+check("no longer squeezed onto the Signal page or the Dashboard - the Dashboard keeps a tile to it",
+      "xraycard" not in sig and "xr-box" not in home and "xrdash" not in src and '["xray", "<svg' in src)
+check("hidden on the crypto screen: a coin or gold has no stocks of its own", '["xray", crypto]' in src)
+check("the index buttons are the watchlist's own list and the same switch", "s.order || Object.keys(s.indices)" in xr
+      and "selectIndex(b.dataset.k)" in xr and 'aria-pressed="${k === CUR}"' in xr)
 
 print("2. DISPLAY ONLY")
 check("no fetch, no order, no setting of its own - it reads LAST / MAPDATA and the Gate tracks' own checks",
@@ -54,8 +57,9 @@ check("laid out again when the box changes size or the scheme changes",
       "new ResizeObserver(" in xr and "document.documentElement.dataset.scheme" in xr and "document.documentElement.dataset.skin" in xr)
 check("the additive glow only on a dark card (it adds up to white on a light one)",
       'x.glow ? "lighter" : "source-over"' in xr)
-check("top to bottom on a narrow box (a phone), left to right on a wide one; a tall box on phones",
-      "const tall = W < 560;" in xr and re.search(r"@media \(max-width:600px\)\{[^}]*\.xr-box\{height:560px\}", src))
+check("top to bottom on a narrow box (a phone), left to right on a wide one; the box as tall as its stocks need",
+      "const tall = W < XR_WIDE;" in xr and "XR_WIDE = 560" in xr and "xrFit(x, m);" in xr)
+check("on a phone the longest name sets a size that fits every name inside the box", "measureText(words(q))" in xr)
 
 print("4. THE MODEL (node)")
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
@@ -66,8 +70,10 @@ else:
     g1 = src.index("let GT_HTML")
     m0 = src.index("function xrModel(")
     m1 = src.index("function xrInst(")
+    c0 = src.index("function xrCols(")
+    c1 = src.index("function xrBez(")
     u0 = src.index("function xrUpdate(")
-    u1 = src.index("function xrayAll(")
+    u1 = src.index("// the indices to look at")
     base = dict(spot=73598.7, bias="NEUTRAL", agree=2, dissent=1, adx=24.0, adx_needed=20, adx_blocked=False,
                 not_worth_it=False, macd_blocked=False, reach_points=140.0, ticket_gate_ratio=1.4, ticket_gate_need=1.0,
                 trend={"day_change_pct": 0.16})
@@ -82,7 +88,7 @@ const money = v => (v >= 0 ? "+" : "-") + "Rs" + Math.abs(Math.round(v));
 global.matchMedia = () => ({matches: false});
 global.document = {documentElement: {dataset: {scheme: "dark", skin: "terminal"}}};
 let CUR = "SENSEX", MAPDATA = {index: "SENSEX", tiles: ''' + json.dumps(tiles) + r'''};
-''' + src[g0:g1] + src[a:src.index("function xrModel(")] + src[m0:m1] + src[u0:u1] + r'''
+''' + src[g0:g1] + src[a:src.index("function xrModel(")] + src[m0:m1] + src[c0:c1] + src[u0:u1] + r'''
 const B = ''' + json.dumps(base) + r''', V = ''' + json.dumps(votes) + r''';
 const st = (r, ts) => ({indices: {SENSEX: r}, tickets: {SENSEX: ts}, why: {SENSEX: {votes: V}}});
 const say = m => { const x = {box: {clientWidth: 0, clientHeight: 0}, say: {textContent: ""}, title: {textContent: ""}};
@@ -121,6 +127,27 @@ m = xrModel(st(B, {ticket: null, wait: {code: "neutral"}}));
 assert.strictEqual(m.stocks.length, 0); assert.ok(say(m)[0].startsWith("No trade yet"), say(m)[0]);
 assert.strictEqual(xrModel({indices: {}}), null, "no reading for the index: nothing");
 console.log("ok:switch");
+// a row for every stock: as tall as the list across a wide box; on a phone, the taller of its two columns
+MAPDATA = {index: "SENSEX", tiles: ''' + json.dumps(tiles) + r'''};
+m = xrModel(st(B, {ticket: null, wait: {code: "neutral"}}));
+assert.strictEqual(m.listed, 6);
+assert.strictEqual(xrHeight(900, m), 460, "a short list keeps the least height");
+const many = {stocks: Array.from({length: 49}, (_, i) => ({n: "S" + i, p: i < 30 ? 1 : -1}))};
+assert.strictEqual(xrHeight(900, many), 18 * 49 + 110, "49 stocks across: a row of 18 each");
+assert.strictEqual(xrHeight(375, many), XR_T.top + 29 * XR_T.row + XR_T.gat + XR_T.sig + XR_T.end, "down a phone: the 30-row column");
+const [L, R] = xrCols([{n: "a", p: 2}, {n: "b", p: .5}, {n: "c", p: -.1}, {n: "d", p: -3}, {n: "e", p: 0}, {n: "f", p: 0}]);
+assert.deepStrictEqual(L.map(x => x.n), ["a", "b", "e"]); assert.deepStrictEqual(R.map(x => x.n), ["d", "c", "f"],
+  "rising left, falling right, biggest move first, an unmoved stock under the shorter column");
+const box = {clientWidth: 900, clientHeight: 0, style: {height: ""}};
+xrFit({box}, many); assert.strictEqual(box.style.height, (18 * 49 + 110) + "px");
+console.log("ok:height");
+// the map came for this index, but no prices yet: listed, none drawn
+MAPDATA = {index: "SENSEX", tiles: [{sym: "A", pct: null}, {sym: "B", pct: null}]};
+m = xrModel(st(B, {ticket: null, wait: {code: "neutral"}}));
+assert.strictEqual(m.listed, 2); assert.strictEqual(m.stocks.length, 0);
+MAPDATA = {index: "SENSEX", tiles: []};
+assert.strictEqual(xrModel(st(B, {ticket: null, wait: {code: "neutral"}})).listed, 0, "an index with no list of its own");
+console.log("ok:listed");
 '''
     rr = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
     out = rr.stdout + rr.stderr
@@ -128,7 +155,10 @@ console.log("ok:switch");
                       ("ready", "every check passes on a bearish lean: fired, BUY PE"),
                       ("trade", "an open ticket: IN TRADE with its strike, side from the option"),
                       ("rule", "a rule index: its own conditions are the checks"),
-                      ("switch", "another index's map on hand: no stocks rather than the wrong ones")):
+                      ("switch", "another index's map on hand: no stocks rather than the wrong ones"),
+                      ("height", "a row for every stock: the box as tall as the list (wide) or its taller column (phone); "
+                                 "rising left, falling right"),
+                      ("listed", "the list come but no prices yet, and an index with no list: told apart")):
         check(name, f"ok:{tag}" in out, out[-700:] if f"ok:{tag}" not in out else "")
 
 print()
