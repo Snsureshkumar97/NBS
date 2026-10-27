@@ -11706,16 +11706,26 @@ function xrModel(s){
   }
   const tk = ts && ts.ticket, open = !!(tk && (tk.open || tk.status === "OPEN"));
   const side = open ? (tk.option_type === "PE" ? -1 : 1) : lean;
-  const fired = open || st[0] === "Entry ready";
-  const word = open ? `IN TRADE · ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`
-    : fired ? (side > 0 ? "BUY CE" : "BUY PE") : "NO TRADE";
+  // the call is the Signal card's own headline (Buy CE / Buy PE whenever the votes lean - the user, 27 Oct 2026: "banknifty
+  // shows a trade in signal but it does[n't] show in market x ray"); it FIRES - the ring that breathes - only when a
+  // ticket is open or every check passes, and is HELD, with what holds it, when a check or the session does
+  const fired = open || st[0] === "Entry ready", held = !open && !!lean && !fired;
+  const call = v => r.cfd ? (v > 0 ? "BUY" : "SELL") : (v > 0 ? "BUY CE" : "BUY PE");
+  const word = open ? `IN TRADE · ${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}` : lean ? call(lean) : "NO TRADE";
+  const hs = st[3] >= 0 ? g.steps[st[3]] : null, sess = !!(hs && (hs.n === "Market" || hs.n === "Ticket"));
+  const sub = held ? `held \u00b7 ${sess ? String(st[0] || "").toLowerCase() : "waiting for " + hs.n}` : "";
+  // today's ticket after it has closed (a stop, a target, the bell): still on the page until the next one
+  const closed = !!(tk && !open && /^CLOSED/.test(String(tk.status || "")));
+  const doneK = closed ? `${tk.strike != null ? tk.strike + " " : ""}${tk.option_type || ""}`.trim() : "";
+  const doneWhy = closed ? String(tk.status).replace(/^CLOSED\s*[\u2014-]?\s*/, "") || "closed" : "";
+  const done = closed ? `${doneK} \u00b7 ${doneWhy}` : "";
   const tr = r.trend || {};
-  return {k, spot: r.spot, pct: tr.day_change_pct, stocks, listed: map ? map.length : null, checks, side, fired, word,
-          why: st[2] || "",
+  return {k, spot: r.spot, pct: tr.day_change_pct, stocks, listed: map ? map.length : null, checks, side, fired, held, word,
+          sub, done, doneK, doneWhy, sess, hold: st[0] || "", why: st[2] || "",
           up: stocks.filter(x => x.p > 0).length, down: stocks.filter(x => x.p < 0).length};
 }
 function xrSig(m){
-  return m ? [m.k, m.spot != null ? Math.round(m.spot) : "", m.pct != null ? m.pct.toFixed(2) : "", m.word, m.why, m.side,
+  return m ? [m.k, m.spot != null ? Math.round(m.spot) : "", m.pct != null ? m.pct.toFixed(2) : "", m.word, m.sub, m.done, m.why, m.side,
               m.stocks.map(x => x.n + x.p.toFixed(2)).join(","), m.checks.map(x => x.n + x.v).join(",")].join("|") : "";
 }
 // one place the X-Ray is drawn: {box, canvas, say, title}; laid out again when the data, the size or the theme change
@@ -11746,7 +11756,7 @@ function xrCols(stocks){
 // how tall the box is drawn: a row for every stock so each one has its name - down a wide box, or down the taller of a
 // phone's two columns - with the votes and the signal after
 const XR_ROW = 18, XR_WIDE = 560;
-const XR_T = {top: 96, row: XR_ROW + 2, gat: 52, chk: 110, sig: 230, end: 44};
+const XR_T = {top: 96, row: XR_ROW + 2, gat: 52, chk: 110, sig: 230, end: 64};     // end: room for two lines under the ring
 function xrHeight(W, m){
   const n = m ? m.stocks.length : 0;
   if(W >= XR_WIDE) return Math.max(460, XR_ROW * n + 110);
@@ -11886,11 +11896,16 @@ function xrLayout(x, m){
     if(tall) label(t, q.pt, 0, i % 2 ? 14 : -14, q.agrees ? col.ink : col.ink3, `500 10px ${ui}`, "center");
     else label(t, q.pt, 10, 0, q.agrees ? col.ink : col.ink3, `500 12px ${ui}`);
   });
-  // the signal
-  const sc = m.fired ? (m.side < 0 ? col.down : col.up) : col.ink3;
+  // the signal: its call in the call's colour, fired or held; under it what holds it, and today's closed ticket
+  const sc = m.fired || m.held ? (m.side < 0 ? col.down : col.up) : col.ink3;
   dot(S, 13, col.surf, sc);
-  dot(S, 6, sc);
+  if(m.held){ g.globalAlpha = .45; dot(S, 6, sc); g.globalAlpha = 1; } else dot(S, 6, sc);
   label(m.word, S, 0, tall ? -26 : -30, sc, `700 ${tall ? 13 : 14}px ${ui}`, tall ? "center" : "right");
+  // under the ring: centred on a phone; on a wide box short lines against the right edge, clear of the checks' words
+  const lines = [m.sub ? [m.sub, col.ink2] : null].concat(m.done ? (tall ? [[`today: ${m.done}`, col.ink3]]
+                : [[`today: ${m.doneK}`, col.ink3], [m.doneWhy, col.ink3]]) : []).filter(Boolean);
+  const lx = tall ? S : [Math.min(S[0] + 14, W - 6), S[1]];
+  lines.forEach(([t, c], i) => label(t, lx, 0, 28 + 15 * i, c, `500 11px ${ui}`, tall ? "center" : "right"));
   x.static = off; x.paths = paths; x.S = S; x.sc = sc; x.W = W; x.H = H; x.dpr = dpr; x.fired = m.fired;
   x.glow = document.documentElement.dataset.scheme === "dark";     // light adds up to white on a light card
 }
@@ -11939,8 +11954,10 @@ function xrUpdate(x, m){
   if(x.title) x.title.textContent = m ? m.k : "\u2014";
   if(x.say){
     const why = ((m && m.why) || "").split(". ")[0].replace(/\.+$/, "");
+    const held = m && m.held ? (m.sess ? m.hold.toLowerCase() + (why ? " - " + why : "") : why || m.sub) : "";
     const t = !m ? "" : (m.stocks.length ? `${m.up} of ${m.stocks.length} of ${m.k}'s own stocks up, ${m.down} down - shown, not a vote. ` : "")
-      + (m.fired ? `Signal: ${m.word}.` : `No trade yet${why ? " - " + why : ""}.`);
+      + (m.fired ? `Signal: ${m.word}.` : m.held ? `Signal: ${m.word}, held - ${held}.` : `No trade${why ? " - " + why : ""}.`)
+      + (m.done ? ` Today's ticket: ${m.done}.` : "");
     if(x.say.textContent !== t) x.say.textContent = t;
   }
   x.m = m;

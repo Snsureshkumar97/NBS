@@ -100,14 +100,32 @@ assert.strictEqual(m.up, 3); assert.strictEqual(m.down, 1);
 assert.deepStrictEqual(m.checks.map(c => c.n + ":" + c.v), ["Trend:1", "MACD:1", "RSI:-1", "PCR:0", "ADX:2", "Room:2", "R:R:2"]);
 assert.strictEqual(m.fired, false); assert.strictEqual(m.word, "NO TRADE"); assert.strictEqual(m.side, 0);
 let [t, ti] = say(m);
-assert.ok(t.startsWith("3 of 5 of SENSEX's own stocks up, 1 down - shown, not a vote. No trade yet - "), t);
+assert.ok(t.startsWith("3 of 5 of SENSEX's own stocks up, 1 down - shown, not a vote. No trade - "), t);
 assert.ok(!t.includes(". .") && t.endsWith("."), t); assert.strictEqual(ti, "SENSEX");
 console.log("ok:watch");
 // every check passes on a bearish lean: fired, BUY PE
 m = xrModel(st(Object.assign({}, B, {bias: "BEARISH"}), {ticket: null, wait: null}));
 assert.strictEqual(m.fired, true); assert.strictEqual(m.word, "BUY PE"); assert.strictEqual(m.side, -1);
-assert.ok(say(m)[0].endsWith("Signal: BUY PE."), say(m)[0]);
+assert.ok(say(m)[0].endsWith("Signal: BUY PE."), say(m)[0]); assert.strictEqual(m.held, false); assert.strictEqual(m.sub, "");
 console.log("ok:ready");
+// the Signal card's call while the session holds it - Bank Nifty after its 11:03 stop on 27 Oct 2026, the market closed:
+// the call is drawn (held, what holds it) rather than NO TRADE, and today's closed ticket is named
+m = xrModel(st(Object.assign({}, B, {bias: "BULLISH"}),
+               {ticket: {open: false, status: "CLOSED \u2014 stop-loss hit", strike: 54600, option_type: "CE", pnl: -4362},
+                wait: {code: "closed", badge: "MARKET CLOSED", base: "The session is over"}}));
+assert.strictEqual(m.word, "BUY CE"); assert.strictEqual(m.fired, false); assert.strictEqual(m.held, true);
+assert.strictEqual(m.side, 1); assert.strictEqual(m.sub, "held \u00b7 market closed");
+assert.strictEqual(m.done, "54600 CE \u00b7 stop-loss hit");
+t = say(m)[0];
+assert.ok(t.includes("Signal: BUY CE, held - market closed - The session is over.") && t.endsWith("Today's ticket: 54600 CE \u00b7 stop-loss hit."), t);
+// held by a check, in session
+m = xrModel(st(Object.assign({}, B, {bias: "BEARISH", adx: 17.2, adx_blocked: true}), {ticket: null, wait: {code: "neutral"}}));
+assert.strictEqual(m.word, "BUY PE"); assert.strictEqual(m.held, true); assert.strictEqual(m.sub, "held \u00b7 waiting for ADX");
+assert.ok(say(m)[0].includes("Signal: BUY PE, held - Waiting for trend strength (ADX)"), say(m)[0]);
+// no lean: no call, nothing held
+m = xrModel(st(B, {ticket: null, wait: {code: "neutral"}}));
+assert.strictEqual(m.word, "NO TRADE"); assert.strictEqual(m.held, false); assert.strictEqual(m.done, "");
+console.log("ok:held");
 // an open ticket: in trade, its strike, the side from the option
 m = xrModel(st(Object.assign({}, B, {bias: "BEARISH"}), {ticket: {open: true, strike: 73600, option_type: "CE", pnl: 900},
                                                          wait: {code: "position_open"}}));
@@ -124,7 +142,7 @@ console.log("ok:rule");
 // another index's map on hand (the user just switched): no stocks drawn rather than the wrong ones
 MAPDATA = {index: "NIFTY", tiles: [{sym: "Z", pct: 1}]};
 m = xrModel(st(B, {ticket: null, wait: {code: "neutral"}}));
-assert.strictEqual(m.stocks.length, 0); assert.ok(say(m)[0].startsWith("No trade yet"), say(m)[0]);
+assert.strictEqual(m.stocks.length, 0); assert.ok(say(m)[0].startsWith("No trade - "), say(m)[0]);
 assert.strictEqual(xrModel({indices: {}}), null, "no reading for the index: nothing");
 console.log("ok:switch");
 // a row for every stock: as tall as the list across a wide box; on a phone, the taller of its two columns
@@ -153,6 +171,8 @@ console.log("ok:listed");
     out = rr.stdout + rr.stderr
     for tag, name in (("watch", "watching: stocks sorted by move (no-price left out), votes then ADX/Room/R:R, NO TRADE and why"),
                       ("ready", "every check passes on a bearish lean: fired, BUY PE"),
+                      ("held", "the Signal card's call while held (market closed / a check): BUY CE, held and why - "
+                               "not NO TRADE - and today's closed ticket named"),
                       ("trade", "an open ticket: IN TRADE with its strike, side from the option"),
                       ("rule", "a rule index: its own conditions are the checks"),
                       ("switch", "another index's map on hand: no stocks rather than the wrong ones"),
