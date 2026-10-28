@@ -182,13 +182,14 @@ def price(key, when, entry_spot, side, legs, sigma, days):
     exp = ps.expiry_on_or_after(key, when.date(), days)
     call = side == "CE"
     K = round(entry_spot / step) * step
-    p0 = rs.bs(entry_spot, K, ps.years_to(exp, when), sigma, call)
+    import pricing
+    p0 = pricing.premium(entry_spot, K, exp, when, sigma, call)        # pricing.py: corrected to real prices
     if p0 <= 0.5:
         return None
     buy = p0 * (1 + ps.SLIP) * qty
     sells, orders = 0.0, 1
     for spot, t_exit in legs:
-        p1 = rs.bs(spot, K, ps.years_to(exp, t_exit), sigma, call)
+        p1 = pricing.premium(spot, K, exp, t_exit, sigma, call)
         sells += max(p1 * (1 - ps.SLIP), 0.0) * qty
         orders += 1
     brokerage = rs.BROKERAGE_PER_ORDER * orders

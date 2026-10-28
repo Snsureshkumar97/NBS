@@ -290,3 +290,270 @@ ALL FOUR POOLED   the TradingView walk: the rating vs a coin  (to 15 Aug 2025 | 
       TV_RATING                                  7076   38% ₹+1,258,879 PF 1.21 DD ₹ 111,887 day ₹ -32,953  | 1867   39% ₹  +357,875 PF 1.21 DD ₹ 137,529 day ₹ -34,205
       COIN (seed 1)                             22525   36% ₹  +330,448 PF 1.02 DD ₹ 235,550 day ₹ -35,260  | 6170   36% ₹  -208,629 PF 0.95 DD ₹ 276,967 day ₹ -45,505
       COIN (seed 2)                             22293   36% ₹  +618,432 PF 1.04 DD ₹ 276,808 day ₹ -43,629  | 6134   35% ₹  -272,096 PF 0.94 DD ₹ 369,938 day ₹ -33,412
+
+#### RE-RUN 28 Oct 2026 WITH pricing.py (prices corrected to the recorder's real option prices)
+========================================================================================================================
+NIFTY   per lot after costs, stops filled honestly  (to 15 Aug 2025 | held out)
+  SYSTEMS
+      RULES                                      1545   47% ₹  -228,247 PF 0.79 DD ₹ 230,076 day ₹  -8,483  |  387   47% ₹   -64,246 PF 0.79 DD ₹  81,527 day ₹ -10,011
+      ALL_AGREE                                   960   49% ₹  -116,036 PF 0.82 DD ₹ 123,141 day ₹  -6,091  |  269   48% ₹   -32,250 PF 0.84 DD ₹  50,912 day ₹  -4,647
+      COIN                                       2983   42% ₹  -670,605 PF 0.66 DD ₹ 675,008 day ₹  -7,601  |  734   43% ₹  -138,213 PF 0.75 DD ₹ 159,410 day ₹ -14,066
+      TV_RATING                                  2093   36% ₹  -197,166 PF 0.89 DD ₹ 266,293 day ₹ -14,891  |  448   38% ₹   -14,326 PF 0.96 DD ₹  66,800 day ₹  -8,404
+      TREND_RIDER                                1323   35% ₹  -117,704 PF 0.89 DD ₹ 164,105 day ₹  -7,169  |  351   34% ₹   -41,632 PF 0.87 DD ₹  61,886 day ₹  -5,784
+      CAMARILLA                                   842   37% ₹   -47,036 PF 0.95 DD ₹ 140,564 day ₹  -8,244  |  217   41% ₹   -25,701 PF 0.91 DD ₹  61,167 day ₹  -9,766
+      SUPERTR                                     638   38% ₹   -75,300 PF 0.92 DD ₹ 117,036 day ₹  -9,167  |  146   40% ₹   -19,497 PF 0.91 DD ₹  56,485 day ₹  -9,365
+      ORB15                                      1211   37% ₹  -211,006 PF 0.87 DD ₹ 220,105 day ₹  -6,635  |  283   37% ₹  -109,061 PF 0.76 DD ₹ 165,366 day ₹  -7,255
+      ORB30                                      1173   37% ₹  -259,812 PF 0.84 DD ₹ 271,216 day ₹  -7,910  |  268   38% ₹   -84,036 PF 0.79 DD ₹ 132,371 day ₹  -6,998
+      BIG_CANDLE                                  332   38% ₹   +52,049 PF 1.12 DD ₹  66,788 day ₹  -7,101  |   61   43% ₹    +7,786 PF 1.11 DD ₹  16,554 day ₹  -4,231
+      RULES + BIG_CANDLE                         1694   45% ₹  -164,304 PF 0.88 DD ₹ 226,501 day ₹  -8,483  |  410   45% ₹   -65,030 PF 0.81 DD ₹  79,057 day ₹ -10,439
+      TV_RATING + BIG_CANDLE                     2178   36% ₹  -240,469 PF 0.88 DD ₹ 306,265 day ₹ -14,891  |  464   37% ₹   -17,598 PF 0.96 DD ₹  62,000 day ₹  -7,566
+  THE RULES' EXIT (rules entries)
+      TODAY                                      1545   47% ₹  -228,247 PF 0.79 DD ₹ 230,076 day ₹  -8,483  |  387   47% ₹   -64,246 PF 0.79 DD ₹  81,527 day ₹ -10,011
+      NO_TRAIL                                   1545   47% ₹  -228,585 PF 0.79 DD ₹ 230,413 day ₹  -8,483  |  387   47% ₹   -64,246 PF 0.79 DD ₹  81,527 day ₹ -10,011
+      NO_2H_BE                                   1475   55% ₹  -329,675 PF 0.74 DD ₹ 331,721 day ₹  -8,737  |  362   58% ₹   -75,135 PF 0.78 DD ₹  88,112 day ₹  -7,070
+      NO_REENTRY                                 1395   46% ₹  -244,705 PF 0.76 DD ₹ 246,421 day ₹  -8,483  |  358   46% ₹   -74,093 PF 0.75 DD ₹  91,045 day ₹ -10,011
+      FIXED_T3                                   1106   39% ₹  -364,763 PF 0.73 DD ₹ 374,643 day ₹  -8,737  |  266   42% ₹   -84,404 PF 0.77 DD ₹ 111,569 day ₹  -7,070
+      FIXED_T2                                   1241   45% ₹  -339,043 PF 0.75 DD ₹ 345,426 day ₹  -8,737  |  294   46% ₹  -102,113 PF 0.73 DD ₹ 118,047 day ₹  -7,070
+      FIXED_T1                                   1539   59% ₹  -365,791 PF 0.72 DD ₹ 376,710 day ₹  -8,737  |  379   62% ₹   -51,715 PF 0.85 DD ₹  74,980 day ₹  -7,070
+      BE_2H_ONLY                                 1191   33% ₹  -268,773 PF 0.78 DD ₹ 277,058 day ₹  -8,483  |  294   34% ₹   -67,196 PF 0.80 DD ₹  94,259 day ₹ -10,011
+      FIRST_CLOSE                                1344   27% ₹  -327,954 PF 0.71 DD ₹ 342,267 day ₹  -8,737  |  356   24% ₹   -75,839 PF 0.75 DD ₹  90,829 day ₹  -7,070
+      TODAY_FIRST_CLOSE                          1716   37% ₹  -237,816 PF 0.75 DD ₹ 239,507 day ₹  -6,091  |  453   33% ₹   -69,765 PF 0.74 DD ₹  73,470 day ₹ -10,011
+  THE RULES' ENTRY (today's exit)
+      NO_GATES                                   3802   49% ₹  -741,044 PF 0.71 DD ₹ 743,106 day ₹ -11,564  |  888   50% ₹  -192,086 PF 0.71 DD ₹ 197,414 day ₹ -13,130
+      ADX_GATE_ONLY                              2734   49% ₹  -493,146 PF 0.74 DD ₹ 496,338 day ₹  -9,568  |  654   50% ₹  -100,403 PF 0.79 DD ₹ 104,135 day ₹ -10,234
+      ROOM_ONLY                                  2007   46% ₹  -335,694 PF 0.77 DD ₹ 342,525 day ₹  -8,483  |  485   46% ₹   -84,554 PF 0.78 DD ₹ 101,665 day ₹ -10,011
+   KEEP  ALL_AGREE vs RULES today                     profit: in-sample  +112,211  held-out   +31,996   worst drop: -106,934 /  -30,615   worst day:   +2,391 /   +5,365
+   drop  COIN vs RULES today                          profit: in-sample  -442,358  held-out   -73,967   worst drop: +444,933 /  +77,883   worst day:     +881 /   -4,054
+   drop  exit NO_TRAIL vs RULES today                 profit: in-sample      -338  held-out        +0   worst drop:     +338 /       +0   worst day:       +0 /       +0
+   drop  exit NO_2H_BE vs RULES today                 profit: in-sample  -101,427  held-out   -10,889   worst drop: +101,645 /   +6,585   worst day:     -254 /   +2,941
+   drop  exit NO_REENTRY vs RULES today               profit: in-sample   -16,457  held-out    -9,847   worst drop:  +16,346 /   +9,518   worst day:       +0 /       +0
+   drop  exit FIXED_T3 vs RULES today                 profit: in-sample  -136,516  held-out   -20,158   worst drop: +144,567 /  +30,042   worst day:     -254 /   +2,941
+   drop  exit FIXED_T2 vs RULES today                 profit: in-sample  -110,796  held-out   -37,867   worst drop: +115,350 /  +36,520   worst day:     -254 /   +2,941
+   drop  exit FIXED_T1 vs RULES today                 profit: in-sample  -137,544  held-out   +12,530   worst drop: +146,634 /   -6,546   worst day:     -254 /   +2,941
+   drop  exit BE_2H_ONLY vs RULES today               profit: in-sample   -40,525  held-out    -2,950   worst drop:  +46,982 /  +12,732   worst day:       +0 /       +0
+   drop  exit FIRST_CLOSE vs RULES today              profit: in-sample   -99,707  held-out   -11,593   worst drop: +112,191 /   +9,302   worst day:     -254 /   +2,941
+   drop  exit TODAY_FIRST_CLOSE vs RULES today        profit: in-sample    -9,569  held-out    -5,519   worst drop:   +9,431 /   -8,057   worst day:   +2,391 /       +0
+   drop  entry NO_GATES vs RULES today                profit: in-sample  -512,797  held-out  -127,840   worst drop: +513,030 / +115,888   worst day:   -3,081 /   -3,118
+   drop  entry ADX_GATE_ONLY vs RULES today           profit: in-sample  -264,899  held-out   -36,158   worst drop: +266,263 /  +22,608   worst day:   -1,085 /     -223
+   drop  entry ROOM_ONLY vs RULES today               profit: in-sample  -107,447  held-out   -20,309   worst drop: +112,449 /  +20,139   worst day:       +0 /       +0
+   KEEP  TV_RATING vs RULES                           profit: in-sample   +31,081  held-out   +49,919   worst drop:  +36,218 /  -14,727   worst day:   -6,408 /   +1,607
+   KEEP  TREND_RIDER vs RULES                         profit: in-sample  +110,543  held-out   +22,614   worst drop:  -65,971 /  -19,641   worst day:   +1,314 /   +4,228
+   KEEP  CAMARILLA vs RULES                           profit: in-sample  +181,211  held-out   +38,545   worst drop:  -89,512 /  -20,360   worst day:     +239 /     +245
+   KEEP  SUPERTR vs RULES                             profit: in-sample  +152,948  held-out   +44,749   worst drop: -113,039 /  -25,042   worst day:     -684 /     +646
+   KEEP  BIG_CANDLE vs RULES                          profit: in-sample  +280,296  held-out   +72,032   worst drop: -163,287 /  -64,973   worst day:   +1,382 /   +5,781
+   drop  RULES + BIG_CANDLE vs RULES                  profit: in-sample   +63,943  held-out      -784   worst drop:   -3,575 /   -2,470   worst day:       +0 /     -427
+   drop  TV_RATING + BIG_CANDLE vs RULES              profit: in-sample   -12,221  held-out   +46,648   worst drop:  +76,190 /  -19,527   worst day:   -6,408 /   +2,445
+========================================================================================================================
+BANKNIFTY   per lot after costs, stops filled honestly  (to 15 Aug 2025 | held out)
+  SYSTEMS
+      RULES                                      1467   48% ₹  -303,197 PF 0.79 DD ₹ 335,864 day ₹  -8,397  |  429   51% ₹   -20,350 PF 0.95 DD ₹  45,601 day ₹  -9,763
+      ALL_AGREE                                   938   46% ₹  -276,039 PF 0.71 DD ₹ 287,090 day ₹  -7,662  |  280   51% ₹    -4,463 PF 0.98 DD ₹  28,233 day ₹  -6,484
+      COIN                                       2887   44% ₹  -740,962 PF 0.71 DD ₹ 766,505 day ₹ -11,459  |  725   46% ₹  -228,015 PF 0.70 DD ₹ 238,458 day ₹ -22,741
+      TV_RATING                                  2110   35% ₹  -213,513 PF 0.91 DD ₹ 288,286 day ₹ -14,219  |  488   44% ₹   +33,630 PF 1.07 DD ₹  72,216 day ₹ -10,855
+      TREND_RIDER                                1340   35% ₹  -112,599 PF 0.93 DD ₹ 201,297 day ₹ -11,869  |  327   43% ₹   +24,817 PF 1.08 DD ₹  46,691 day ₹  -8,831
+      CAMARILLA                                   768   39% ₹    +9,757 PF 1.01 DD ₹ 134,512 day ₹ -10,885  |  198   42% ₹   -11,895 PF 0.96 DD ₹  63,068 day ₹ -12,347
+      SUPERTR                                     599   41% ₹   +97,244 PF 1.09 DD ₹  99,381 day ₹  -8,808  |  156   47% ₹   -11,054 PF 0.96 DD ₹  59,798 day ₹ -11,816
+      ORB15                                      1197   36% ₹  -303,075 PF 0.86 DD ₹ 342,647 day ₹ -10,955  |  270   47% ₹   +36,995 PF 1.08 DD ₹  68,866 day ₹ -10,049
+      ORB30                                      1139   37% ₹  -328,066 PF 0.84 DD ₹ 385,391 day ₹  -8,810  |  255   48% ₹   +35,817 PF 1.09 DD ₹  61,894 day ₹ -10,049
+      BIG_CANDLE                                  359   39% ₹   -19,622 PF 0.97 DD ₹  81,151 day ₹  -6,839  |   57   51% ₹   +48,033 PF 1.63 DD ₹  20,175 day ₹  -6,052
+      RULES + BIG_CANDLE                         1624   46% ₹  -258,461 PF 0.86 DD ₹ 307,693 day ₹ -11,704  |  449   51% ₹    +2,928 PF 1.01 DD ₹  51,182 day ₹ -10,264
+      TV_RATING + BIG_CANDLE                     2167   36% ₹  -201,200 PF 0.92 DD ₹ 264,787 day ₹ -14,219  |  501   44% ₹   +42,150 PF 1.08 DD ₹  67,224 day ₹ -10,855
+  THE RULES' EXIT (rules entries)
+      TODAY                                      1467   48% ₹  -303,197 PF 0.79 DD ₹ 335,864 day ₹  -8,397  |  429   51% ₹   -20,350 PF 0.95 DD ₹  45,601 day ₹  -9,763
+      NO_TRAIL                                   1467   48% ₹  -306,301 PF 0.79 DD ₹ 338,967 day ₹  -8,397  |  429   51% ₹   -17,403 PF 0.96 DD ₹  45,601 day ₹  -9,763
+      NO_2H_BE                                   1389   55% ₹  -343,020 PF 0.79 DD ₹ 379,464 day ₹  -8,857  |  398   57% ₹    -8,057 PF 0.98 DD ₹  56,433 day ₹ -10,428
+      NO_REENTRY                                 1358   46% ₹  -300,235 PF 0.78 DD ₹ 341,178 day ₹  -8,397  |  407   51% ₹   -21,094 PF 0.95 DD ₹  43,322 day ₹  -6,702
+      FIXED_T3                                   1066   39% ₹  -405,216 PF 0.77 DD ₹ 450,325 day ₹ -10,474  |  299   43% ₹      +204 PF 1.00 DD ₹  79,474 day ₹ -10,428
+      FIXED_T2                                   1191   44% ₹  -386,034 PF 0.78 DD ₹ 432,539 day ₹ -10,474  |  338   48% ₹   +23,135 PF 1.04 DD ₹  71,731 day ₹ -10,428
+      FIXED_T1                                   1454   59% ₹  -384,713 PF 0.77 DD ₹ 417,689 day ₹  -8,857  |  419   58% ₹    -7,704 PF 0.98 DD ₹  63,767 day ₹ -10,428
+      BE_2H_ONLY                                 1146   32% ₹  -344,785 PF 0.79 DD ₹ 376,615 day ₹ -10,474  |  332   42% ₹   +45,451 PF 1.11 DD ₹  57,134 day ₹  -9,616
+      FIRST_CLOSE                                1320   29% ₹  -278,401 PF 0.80 DD ₹ 332,828 day ₹  -9,262  |  384   34% ₹    -7,415 PF 0.98 DD ₹  60,405 day ₹  -8,746
+      TODAY_FIRST_CLOSE                          1665   38% ₹  -306,803 PF 0.77 DD ₹ 330,864 day ₹  -8,397  |  501   41% ₹   -28,147 PF 0.92 DD ₹  35,184 day ₹  -9,763
+  THE RULES' ENTRY (today's exit)
+      NO_GATES                                   3926   50% ₹  -860,141 PF 0.75 DD ₹ 862,388 day ₹ -13,697  |  858   51% ₹  -116,124 PF 0.85 DD ₹ 142,847 day ₹ -11,508
+      ADX_GATE_ONLY                              2734   51% ₹  -407,388 PF 0.83 DD ₹ 412,178 day ₹ -11,545  |  624   54% ₹   -36,690 PF 0.94 DD ₹  83,872 day ₹ -10,216
+      ROOM_ONLY                                  1998   48% ₹  -405,613 PF 0.79 DD ₹ 446,413 day ₹ -11,382  |  538   51% ₹    +6,788 PF 1.01 DD ₹  33,628 day ₹  -9,080
+   KEEP  ALL_AGREE vs RULES today                     profit: in-sample   +27,159  held-out   +15,887   worst drop:  -48,773 /  -17,368   worst day:     +735 /   +3,279
+   drop  COIN vs RULES today                          profit: in-sample  -437,765  held-out  -207,665   worst drop: +430,641 / +192,857   worst day:   -3,062 /  -12,977
+   drop  exit NO_TRAIL vs RULES today                 profit: in-sample    -3,103  held-out    +2,946   worst drop:   +3,103 /       -0   worst day:       +0 /       +0
+   drop  exit NO_2H_BE vs RULES today                 profit: in-sample   -39,822  held-out   +12,293   worst drop:  +43,600 /  +10,832   worst day:     -460 /     -665
+   drop  exit NO_REENTRY vs RULES today               profit: in-sample    +2,963  held-out      -745   worst drop:   +5,314 /   -2,279   worst day:       +0 /   +3,061
+   drop  exit FIXED_T3 vs RULES today                 profit: in-sample  -102,018  held-out   +20,553   worst drop: +114,461 /  +33,874   worst day:   -2,077 /     -665
+   drop  exit FIXED_T2 vs RULES today                 profit: in-sample   -82,836  held-out   +43,484   worst drop:  +96,675 /  +26,130   worst day:   -2,077 /     -665
+   drop  exit FIXED_T1 vs RULES today                 profit: in-sample   -81,515  held-out   +12,645   worst drop:  +81,826 /  +18,166   worst day:     -460 /     -665
+   drop  exit BE_2H_ONLY vs RULES today               profit: in-sample   -41,587  held-out   +65,801   worst drop:  +40,751 /  +11,534   worst day:   -2,077 /     +147
+   KEEP  exit FIRST_CLOSE vs RULES today              profit: in-sample   +24,797  held-out   +12,935   worst drop:   -3,036 /  +14,804   worst day:     -865 /   +1,017
+   drop  exit TODAY_FIRST_CLOSE vs RULES today        profit: in-sample    -3,605  held-out    -7,797   worst drop:   -5,000 /  -10,416   worst day:       +0 /       +0
+   drop  entry NO_GATES vs RULES today                profit: in-sample  -556,943  held-out   -95,774   worst drop: +526,524 /  +97,246   worst day:   -5,300 /   -1,745
+   drop  entry ADX_GATE_ONLY vs RULES today           profit: in-sample  -104,191  held-out   -16,341   worst drop:  +76,314 /  +38,272   worst day:   -3,148 /     -453
+   drop  entry ROOM_ONLY vs RULES today               profit: in-sample  -102,416  held-out   +27,138   worst drop: +110,549 /  -11,973   worst day:   -2,985 /     +684
+   KEEP  TV_RATING vs RULES                           profit: in-sample   +89,685  held-out   +53,980   worst drop:  -47,578 /  +26,616   worst day:   -5,822 /   -1,092
+   KEEP  TREND_RIDER vs RULES                         profit: in-sample  +190,599  held-out   +45,167   worst drop: -134,567 /   +1,090   worst day:   -3,472 /     +932
+   KEEP  CAMARILLA vs RULES                           profit: in-sample  +312,955  held-out    +8,455   worst drop: -201,352 /  +17,467   worst day:   -2,488 /   -2,584
+   KEEP  SUPERTR vs RULES                             profit: in-sample  +400,441  held-out    +9,296   worst drop: -236,483 /  +14,197   worst day:     -411 /   -2,053
+   KEEP  BIG_CANDLE vs RULES                          profit: in-sample  +283,575  held-out   +68,383   worst drop: -254,713 /  -25,426   worst day:   +1,558 /   +3,711
+   KEEP  RULES + BIG_CANDLE vs RULES                  profit: in-sample   +44,736  held-out   +23,278   worst drop:  -28,170 /   +5,581   worst day:   -3,307 /     -500
+   KEEP  TV_RATING + BIG_CANDLE vs RULES              profit: in-sample  +101,997  held-out   +62,500   worst drop:  -71,077 /  +21,623   worst day:   -5,822 /   -1,092
+========================================================================================================================
+SENSEX   per lot after costs, stops filled honestly  (to 15 Aug 2025 | held out)
+  SYSTEMS
+      RULES                                      1484   48% ₹  -182,454 PF 0.83 DD ₹ 207,850 day ₹  -8,627  |  370   50% ₹   -38,812 PF 0.86 DD ₹  44,808 day ₹  -9,434
+      ALL_AGREE                                   934   49% ₹  -110,299 PF 0.83 DD ₹ 119,332 day ₹  -6,222  |  228   49% ₹   -26,036 PF 0.84 DD ₹  33,776 day ₹  -4,741
+      COIN                                       2934   41% ₹  -738,864 PF 0.64 DD ₹ 746,502 day ₹ -10,069  |  737   43% ₹  -194,609 PF 0.66 DD ₹ 201,144 day ₹ -17,357
+      TV_RATING                                  2077   36% ₹  -172,085 PF 0.91 DD ₹ 249,999 day ₹ -16,717  |  467   36% ₹   -62,345 PF 0.86 DD ₹  81,448 day ₹  -8,641
+      CAMARILLA                                   827   39% ₹    -4,633 PF 1.00 DD ₹ 101,463 day ₹  -7,147  |  212   43% ₹   -12,093 PF 0.96 DD ₹  57,591 day ₹  -8,759
+      SUPERTR                                     629   39% ₹   -13,035 PF 0.99 DD ₹ 120,998 day ₹  -8,454  |  146   42% ₹    +5,913 PF 1.03 DD ₹  47,009 day ₹  -8,929
+      ORB15                                      1198   39% ₹  -227,460 PF 0.87 DD ₹ 238,004 day ₹  -6,225  |  276   38% ₹   -67,271 PF 0.84 DD ₹ 121,689 day ₹  -7,085
+      ORB30                                      1160   38% ₹  -221,291 PF 0.86 DD ₹ 237,621 day ₹  -7,281  |  264   41% ₹   -67,832 PF 0.83 DD ₹ 105,577 day ₹  -7,712
+      BIG_CANDLE                                  339   37% ₹   +14,598 PF 1.03 DD ₹  81,013 day ₹  -7,551  |   51   45% ₹   +28,613 PF 1.56 DD ₹  18,674 day ₹  -4,576
+      RULES + BIG_CANDLE                         1649   46% ₹  -134,189 PF 0.90 DD ₹ 207,907 day ₹  -8,056  |  400   48% ₹   -45,618 PF 0.86 DD ₹  55,277 day ₹ -10,139
+      TV_RATING + BIG_CANDLE                     2169   36% ₹  -174,166 PF 0.91 DD ₹ 262,188 day ₹ -16,717  |  477   36% ₹   -51,462 PF 0.88 DD ₹  70,809 day ₹  -9,814
+  THE RULES' EXIT (rules entries)
+      TODAY                                      1484   48% ₹  -182,454 PF 0.83 DD ₹ 207,850 day ₹  -8,627  |  370   50% ₹   -38,812 PF 0.86 DD ₹  44,808 day ₹  -9,434
+      NO_TRAIL                                   1484   48% ₹  -183,374 PF 0.83 DD ₹ 208,770 day ₹  -8,627  |  370   50% ₹   -39,286 PF 0.86 DD ₹  45,283 day ₹  -9,434
+      NO_2H_BE                                   1417   56% ₹  -257,449 PF 0.79 DD ₹ 279,532 day ₹  -8,627  |  349   60% ₹   -44,501 PF 0.86 DD ₹  58,059 day ₹  -6,929
+      NO_REENTRY                                 1362   48% ₹  -165,506 PF 0.83 DD ₹ 200,777 day ₹  -8,627  |  345   52% ₹   -30,781 PF 0.88 DD ₹  43,384 day ₹  -9,434
+      FIXED_T3                                   1065   39% ₹  -302,805 PF 0.77 DD ₹ 321,841 day ₹  -8,627  |  241   43% ₹   -25,269 PF 0.92 DD ₹  66,132 day ₹  -6,929
+      FIXED_T2                                   1192   46% ₹  -299,434 PF 0.77 DD ₹ 317,704 day ₹  -8,627  |  282   48% ₹   -53,292 PF 0.84 DD ₹  77,663 day ₹  -6,929
+      FIXED_T1                                   1478   59% ₹  -350,110 PF 0.72 DD ₹ 370,141 day ₹  -8,627  |  369   62% ₹   -46,887 PF 0.85 DD ₹  61,311 day ₹  -6,929
+      BE_2H_ONLY                                 1139   32% ₹  -245,984 PF 0.79 DD ₹ 259,715 day ₹  -8,627  |  261   36% ₹   -21,623 PF 0.93 DD ₹  48,131 day ₹  -9,434
+      FIRST_CLOSE                                1308   28% ₹  -254,409 PF 0.76 DD ₹ 281,508 day ₹  -6,450  |  316   28% ₹   -26,363 PF 0.90 DD ₹  61,660 day ₹  -6,929
+      TODAY_FIRST_CLOSE                          1675   39% ₹  -167,883 PF 0.82 DD ₹ 196,119 day ₹  -7,609  |  424   37% ₹   -62,018 PF 0.75 DD ₹  66,731 day ₹  -9,434
+  THE RULES' ENTRY (today's exit)
+      NO_GATES                                   3872   50% ₹  -724,059 PF 0.73 DD ₹ 729,739 day ₹  -9,651  |  907   52% ₹  -172,701 PF 0.72 DD ₹ 172,701 day ₹ -13,200
+      ADX_GATE_ONLY                              2745   50% ₹  -438,800 PF 0.77 DD ₹ 454,605 day ₹  -9,422  |  675   52% ₹   -82,567 PF 0.82 DD ₹  89,038 day ₹  -9,434
+      ROOM_ONLY                                  1994   47% ₹  -316,796 PF 0.78 DD ₹ 345,707 day ₹  -8,627  |  445   53% ₹   -26,236 PF 0.92 DD ₹  40,379 day ₹  -9,434
+   KEEP  ALL_AGREE vs RULES today                     profit: in-sample   +72,155  held-out   +12,776   worst drop:  -88,518 /  -11,033   worst day:   +2,405 /   +4,693
+   drop  COIN vs RULES today                          profit: in-sample  -556,410  held-out  -155,797   worst drop: +538,652 / +156,335   worst day:   -1,442 /   -7,923
+   drop  exit NO_TRAIL vs RULES today                 profit: in-sample      -920  held-out      -475   worst drop:     +920 /     +475   worst day:       +0 /       +0
+   drop  exit NO_2H_BE vs RULES today                 profit: in-sample   -74,994  held-out    -5,690   worst drop:  +71,682 /  +13,251   worst day:       +0 /   +2,504
+   KEEP  exit NO_REENTRY vs RULES today               profit: in-sample   +16,948  held-out    +8,031   worst drop:   -7,073 /   -1,424   worst day:       +0 /       +0
+   drop  exit FIXED_T3 vs RULES today                 profit: in-sample  -120,351  held-out   +13,542   worst drop: +113,992 /  +21,324   worst day:       +0 /   +2,504
+   drop  exit FIXED_T2 vs RULES today                 profit: in-sample  -116,980  held-out   -14,481   worst drop: +109,854 /  +32,854   worst day:       +0 /   +2,504
+   drop  exit FIXED_T1 vs RULES today                 profit: in-sample  -167,656  held-out    -8,075   worst drop: +162,291 /  +16,503   worst day:       +0 /   +2,504
+   drop  exit BE_2H_ONLY vs RULES today               profit: in-sample   -63,530  held-out   +17,189   worst drop:  +51,865 /   +3,323   worst day:       +0 /       +0
+   drop  exit FIRST_CLOSE vs RULES today              profit: in-sample   -71,955  held-out   +12,448   worst drop:  +73,659 /  +16,851   worst day:   +2,177 /   +2,504
+   drop  exit TODAY_FIRST_CLOSE vs RULES today        profit: in-sample   +14,571  held-out   -23,206   worst drop:  -11,730 /  +21,923   worst day:   +1,018 /       +0
+   drop  entry NO_GATES vs RULES today                profit: in-sample  -541,605  held-out  -133,890   worst drop: +521,889 / +127,893   worst day:   -1,024 /   -3,766
+   drop  entry ADX_GATE_ONLY vs RULES today           profit: in-sample  -256,346  held-out   -43,755   worst drop: +246,755 /  +44,229   worst day:     -795 /       +0
+   drop  entry ROOM_ONLY vs RULES today               profit: in-sample  -134,342  held-out   +12,576   worst drop: +137,858 /   -4,429   worst day:       +0 /       +0
+   drop  TV_RATING vs RULES                           profit: in-sample   +10,369  held-out   -23,533   worst drop:  +42,149 /  +36,640   worst day:   -8,091 /     +792
+   KEEP  CAMARILLA vs RULES                           profit: in-sample  +177,822  held-out   +26,719   worst drop: -106,387 /  +12,783   worst day:   +1,480 /     +675
+   KEEP  SUPERTR vs RULES                             profit: in-sample  +169,419  held-out   +44,724   worst drop:  -86,852 /   +2,201   worst day:     +172 /     +505
+   KEEP  BIG_CANDLE vs RULES                          profit: in-sample  +197,052  held-out   +67,425   worst drop: -126,837 /  -26,134   worst day:   +1,076 /   +4,858
+   drop  RULES + BIG_CANDLE vs RULES                  profit: in-sample   +48,265  held-out    -6,806   worst drop:      +57 /  +10,469   worst day:     +571 /     -705
+   drop  TV_RATING + BIG_CANDLE vs RULES              profit: in-sample    +8,288  held-out   -12,651   worst drop:  +54,338 /  +26,001   worst day:   -8,091 /     -380
+========================================================================================================================
+MIDCPNIFTY   per lot after costs, stops filled honestly  (to 15 Aug 2025 | held out)
+  SYSTEMS
+      RULES                                       722   53% ₹  +117,735 PF 1.17 DD ₹  33,022 day ₹ -10,389  |  456   53% ₹   +57,955 PF 1.12 DD ₹  46,095 day ₹ -11,073
+      ALL_AGREE                                   449   54% ₹   +55,099 PF 1.14 DD ₹  28,098 day ₹  -7,505  |  291   49% ₹   -22,223 PF 0.93 DD ₹  56,828 day ₹  -9,130
+      COIN                                       1201   44% ₹  -161,206 PF 0.86 DD ₹ 199,215 day ₹ -11,196  |  705   43% ₹  -162,640 PF 0.80 DD ₹ 186,594 day ₹ -12,582
+      TV_RATING                                   796   45% ₹   +97,322 PF 1.11 DD ₹  71,783 day ₹ -19,058  |  464   46% ₹  +105,528 PF 1.20 DD ₹  34,571 day ₹ -12,192
+      CAMARILLA                                   305   49% ₹  +230,584 PF 1.54 DD ₹  23,355 day ₹  -9,342  |  184   45% ₹  +110,198 PF 1.35 DD ₹  65,705 day ₹ -13,008
+      SUPERTR                                     241   54% ₹  +270,541 PF 1.74 DD ₹  49,531 day ₹ -15,309  |  160   52% ₹  +155,511 PF 1.58 DD ₹  32,729 day ₹ -11,595
+      ORB15                                       456   48% ₹  +292,534 PF 1.38 DD ₹  93,610 day ₹ -10,703  |  273   45% ₹   -23,197 PF 0.96 DD ₹  66,688 day ₹ -11,023
+      ORB30                                       430   51% ₹  +284,268 PF 1.43 DD ₹  34,712 day ₹ -12,676  |  263   44% ₹   -59,742 PF 0.89 DD ₹ 109,402 day ₹ -11,023
+      BIG_CANDLE                                  168   48% ₹  +127,691 PF 1.46 DD ₹  29,147 day ₹ -12,170  |   67   43% ₹   +22,969 PF 1.20 DD ₹  24,038 day ₹  -6,026
+      RULES + BIG_CANDLE                          766   52% ₹  +159,184 PF 1.19 DD ₹  34,022 day ₹ -12,170  |  477   53% ₹   +74,957 PF 1.14 DD ₹  35,154 day ₹ -12,593
+      TV_RATING + BIG_CANDLE                      834   45% ₹  +175,988 PF 1.18 DD ₹  42,036 day ₹ -19,058  |  486   46% ₹   +77,456 PF 1.14 DD ₹  36,297 day ₹ -17,322
+  THE RULES' EXIT (rules entries)
+      TODAY                                       722   53% ₹  +117,735 PF 1.17 DD ₹  33,022 day ₹ -10,389  |  456   53% ₹   +57,955 PF 1.12 DD ₹  46,095 day ₹ -11,073
+      NO_TRAIL                                    722   53% ₹  +117,735 PF 1.17 DD ₹  33,022 day ₹ -10,389  |  455   53% ₹   +60,454 PF 1.13 DD ₹  46,095 day ₹ -11,073
+      NO_2H_BE                                    684   57% ₹  +112,107 PF 1.15 DD ₹  43,481 day ₹ -10,389  |  432   58% ₹   +41,241 PF 1.07 DD ₹  61,272 day ₹ -11,826
+      NO_REENTRY                                  668   54% ₹  +130,501 PF 1.21 DD ₹  35,500 day ₹ -10,389  |  417   51% ₹   +25,406 PF 1.06 DD ₹  48,094 day ₹ -11,073
+      FIXED_T3                                    519   46% ₹  +154,628 PF 1.20 DD ₹  45,379 day ₹ -10,389  |  319   45% ₹   +70,891 PF 1.13 DD ₹  66,082 day ₹ -11,826
+      FIXED_T2                                    583   51% ₹  +189,347 PF 1.25 DD ₹  37,996 day ₹ -10,389  |  350   48% ₹   +46,995 PF 1.09 DD ₹  60,411 day ₹ -11,826
+      FIXED_T1                                    708   59% ₹   +86,947 PF 1.11 DD ₹  42,074 day ₹ -10,389  |  450   59% ₹   +20,844 PF 1.04 DD ₹  55,109 day ₹ -11,826
+      BE_2H_ONLY                                  559   44% ₹  +161,238 PF 1.23 DD ₹  37,331 day ₹ -10,389  |  343   42% ₹   +95,854 PF 1.21 DD ₹  56,573 day ₹ -11,073
+      FIRST_CLOSE                                 649   38% ₹  +132,815 PF 1.21 DD ₹  36,288 day ₹  -9,888  |  411   37% ₹   +12,715 PF 1.03 DD ₹  63,775 day ₹ -11,826
+      TODAY_FIRST_CLOSE                           811   44% ₹   +87,118 PF 1.14 DD ₹  31,413 day ₹  -9,888  |  525   42% ₹   -11,652 PF 0.98 DD ₹  72,989 day ₹ -11,073
+  THE RULES' ENTRY (today's exit)
+      NO_GATES                                   1407   53% ₹   -33,205 PF 0.97 DD ₹ 120,879 day ₹ -14,472  |  860   53% ₹   -81,054 PF 0.91 DD ₹ 118,755 day ₹ -12,614
+      ADX_GATE_ONLY                              1046   52% ₹   -35,066 PF 0.97 DD ₹  93,222 day ₹ -14,814  |  586   52% ₹   -32,387 PF 0.95 DD ₹  66,833 day ₹ -11,660
+      ROOM_ONLY                                   910   55% ₹  +179,474 PF 1.22 DD ₹  31,390 day ₹ -10,389  |  609   53% ₹   +24,611 PF 1.04 DD ₹  67,687 day ₹ -11,073
+   drop  ALL_AGREE vs RULES today                     profit: in-sample   -62,636  held-out   -80,178   worst drop:   -4,924 /  +10,733   worst day:   +2,884 /   +1,944
+   drop  COIN vs RULES today                          profit: in-sample  -278,941  held-out  -220,595   worst drop: +166,193 / +140,499   worst day:     -807 /   -1,509
+   drop  exit NO_TRAIL vs RULES today                 profit: in-sample        +0  held-out    +2,499   worst drop:       +0 /       +0   worst day:       +0 /       +0
+   drop  exit NO_2H_BE vs RULES today                 profit: in-sample    -5,628  held-out   -16,714   worst drop:  +10,460 /  +15,176   worst day:       +0 /     -753
+   drop  exit NO_REENTRY vs RULES today               profit: in-sample   +12,766  held-out   -32,549   worst drop:   +2,479 /   +1,999   worst day:       +0 /       +0
+   KEEP  exit FIXED_T3 vs RULES today                 profit: in-sample   +36,893  held-out   +12,936   worst drop:  +12,357 /  +19,986   worst day:       +0 /     -753
+   drop  exit FIXED_T2 vs RULES today                 profit: in-sample   +71,612  held-out   -10,960   worst drop:   +4,974 /  +14,315   worst day:       +0 /     -753
+   drop  exit FIXED_T1 vs RULES today                 profit: in-sample   -30,788  held-out   -37,111   worst drop:   +9,053 /   +9,014   worst day:       +0 /     -753
+   KEEP  exit BE_2H_ONLY vs RULES today               profit: in-sample   +43,503  held-out   +37,899   worst drop:   +4,310 /  +10,477   worst day:       +0 /       +0
+   drop  exit FIRST_CLOSE vs RULES today              profit: in-sample   +15,081  held-out   -45,240   worst drop:   +3,266 /  +17,680   worst day:     +501 /     -753
+   drop  exit TODAY_FIRST_CLOSE vs RULES today        profit: in-sample   -30,616  held-out   -69,607   worst drop:   -1,609 /  +26,894   worst day:     +501 /       +0
+   drop  entry NO_GATES vs RULES today                profit: in-sample  -150,940  held-out  -139,009   worst drop:  +87,857 /  +72,659   worst day:   -4,083 /   -1,541
+   drop  entry ADX_GATE_ONLY vs RULES today           profit: in-sample  -152,801  held-out   -90,341   worst drop:  +60,201 /  +20,738   worst day:   -4,425 /     -586
+   drop  entry ROOM_ONLY vs RULES today               profit: in-sample   +61,739  held-out   -33,344   worst drop:   -1,632 /  +21,592   worst day:       +0 /       +0
+   drop  TV_RATING vs RULES                           profit: in-sample   -20,413  held-out   +47,573   worst drop:  +38,761 /  -11,524   worst day:   -8,668 /   -1,119
+   KEEP  CAMARILLA vs RULES                           profit: in-sample  +112,849  held-out   +52,243   worst drop:   -9,666 /  +19,610   worst day:   +1,047 /   -1,934
+   KEEP  SUPERTR vs RULES                             profit: in-sample  +152,807  held-out   +97,556   worst drop:  +16,509 /  -13,366   worst day:   -4,920 /     -522
+   drop  BIG_CANDLE vs RULES                          profit: in-sample    +9,957  held-out   -34,986   worst drop:   -3,874 /  -22,057   worst day:   -1,781 /   +5,047
+   KEEP  RULES + BIG_CANDLE vs RULES                  profit: in-sample   +41,449  held-out   +17,002   worst drop:   +1,000 /  -10,941   worst day:   -1,781 /   -1,520
+   KEEP  TV_RATING + BIG_CANDLE vs RULES              profit: in-sample   +58,253  held-out   +19,501   worst drop:   +9,014 /   -9,799   worst day:   -8,668 /   -6,248
+========================================================================================================================
+ALL FOUR POOLED   per lot after costs, stops filled honestly  (to 15 Aug 2025 | held out)
+  SYSTEMS
+      RULES                                      5218   48% ₹  -596,164 PF 0.86 DD ₹ 740,505 day ₹ -32,524  | 1642   50% ₹   -65,453 PF 0.96 DD ₹ 161,061 day ₹ -40,282
+      ALL_AGREE                                  3281   49% ₹  -447,275 PF 0.83 DD ₹ 482,405 day ₹ -15,208  | 1068   49% ₹   -84,972 PF 0.91 DD ₹ 123,053 day ₹ -14,625
+      COIN                                      10005   43% ₹-2,311,638 PF 0.70 DD ₹2,315,708 day ₹ -22,588  | 2901   44% ₹  -723,477 PF 0.73 DD ₹ 751,627 day ₹ -35,067
+      TV_RATING                                  7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481
+      TREND_RIDER                                2663   35% ₹  -230,303 PF 0.91 DD ₹ 348,279 day ₹ -17,580  |  678   38% ₹   -16,815 PF 0.97 DD ₹  89,279 day ₹ -14,037
+      CAMARILLA                                  2742   40% ₹  +188,672 PF 1.05 DD ₹ 331,871 day ₹ -26,552  |  811   43% ₹   +60,509 PF 1.05 DD ₹ 230,789 day ₹ -42,251
+      SUPERTR                                    2107   41% ₹  +279,451 PF 1.08 DD ₹ 235,429 day ₹ -31,954  |  608   45% ₹  +130,873 PF 1.14 DD ₹ 109,654 day ₹ -31,569
+      ORB15                                      4062   39% ₹  -449,007 PF 0.93 DD ₹ 653,548 day ₹ -27,787  | 1102   42% ₹  -162,534 PF 0.91 DD ₹ 302,944 day ₹ -26,913
+      ORB30                                      3902   39% ₹  -524,900 PF 0.91 DD ₹ 718,235 day ₹ -34,311  | 1050   43% ₹  -175,793 PF 0.90 DD ₹ 324,669 day ₹ -33,129
+      BIG_CANDLE                                 1198   40% ₹  +174,715 PF 1.10 DD ₹ 190,000 day ₹ -29,999  |  236   45% ₹  +107,401 PF 1.34 DD ₹  45,355 day ₹ -18,282
+      RULES + BIG_CANDLE                         5733   47% ₹  -397,770 PF 0.92 DD ₹ 718,365 day ₹ -29,999  | 1736   49% ₹   -32,763 PF 0.98 DD ₹ 135,588 day ₹ -41,415
+      TV_RATING + BIG_CANDLE                     7348   37% ₹  -439,848 PF 0.94 DD ₹ 717,226 day ₹ -39,385  | 1928   41% ₹   +50,545 PF 1.03 DD ₹ 192,384 day ₹ -33,869
+  THE RULES' EXIT (rules entries)
+      TODAY                                      5218   48% ₹  -596,164 PF 0.86 DD ₹ 740,505 day ₹ -32,524  | 1642   50% ₹   -65,453 PF 0.96 DD ₹ 161,061 day ₹ -40,282
+      NO_TRAIL                                   5218   48% ₹  -600,525 PF 0.86 DD ₹ 744,764 day ₹ -32,524  | 1641   50% ₹   -60,482 PF 0.96 DD ₹ 158,773 day ₹ -40,282
+      NO_2H_BE                                   4965   56% ₹  -818,036 PF 0.83 DD ₹ 953,871 day ₹ -32,741  | 1541   58% ₹   -86,453 PF 0.95 DD ₹ 181,497 day ₹ -30,545
+      NO_REENTRY                                 4783   48% ₹  -579,945 PF 0.85 DD ₹ 761,526 day ₹ -29,192  | 1527   50% ₹  -100,563 PF 0.93 DD ₹ 166,743 day ₹ -33,796
+      FIXED_T3                                   3756   40% ₹  -918,157 PF 0.82 DD ₹1,019,354 day ₹ -34,513  | 1125   44% ₹   -38,579 PF 0.98 DD ₹ 263,280 day ₹ -30,398
+      FIXED_T2                                   4207   46% ₹  -835,164 PF 0.84 DD ₹ 951,216 day ₹ -34,513  | 1264   47% ₹   -85,276 PF 0.95 DD ₹ 266,785 day ₹ -30,398
+      FIXED_T1                                   5179   59% ₹-1,013,666 PF 0.80 DD ₹1,099,382 day ₹ -32,153  | 1617   60% ₹   -85,463 PF 0.95 DD ₹ 192,280 day ₹ -30,500
+      BE_2H_ONLY                                 4035   34% ₹  -698,303 PF 0.85 DD ₹ 837,180 day ₹ -34,295  | 1230   39% ₹   +52,486 PF 1.04 DD ₹ 189,150 day ₹ -40,135
+      FIRST_CLOSE                                4621   30% ₹  -727,949 PF 0.83 DD ₹ 874,455 day ₹ -21,519  | 1467   31% ₹   -96,903 PF 0.93 DD ₹ 234,177 day ₹ -28,236
+      TODAY_FIRST_CLOSE                          5867   39% ₹  -625,384 PF 0.84 DD ₹ 692,306 day ₹ -22,436  | 1903   39% ₹  -171,582 PF 0.87 DD ₹ 211,806 day ₹ -40,282
+  THE RULES' ENTRY (today's exit)
+      NO_GATES                                  13007   50% ₹-2,358,449 PF 0.76 DD ₹2,361,242 day ₹ -33,545  | 3513   51% ₹  -561,966 PF 0.81 DD ₹ 564,095 day ₹ -33,355
+      ADX_GATE_ONLY                              9259   50% ₹-1,374,401 PF 0.81 DD ₹1,406,091 day ₹ -27,257  | 2539   52% ₹  -252,047 PF 0.88 DD ₹ 284,015 day ₹ -40,282
+      ROOM_ONLY                                  6909   48% ₹  -878,629 PF 0.84 DD ₹1,054,333 day ₹ -32,524  | 2077   51% ₹   -79,391 PF 0.96 DD ₹ 146,917 day ₹ -32,823
+   drop  ALL_AGREE vs RULES today                     profit: in-sample  +148,889  held-out   -19,519   worst drop: -258,100 /  -38,008   worst day:  +17,316 /  +25,657
+           walk-forward: beats today's in 9 of 13 half-years;  first two years: 95% worst drop ₹696,099 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹259,757 (today's ₹316,786), chance of a loss 82%
+   drop  COIN vs RULES today                          profit: in-sample -1,715,474  held-out  -658,025   worst drop: +1,575,203 / +590,566   worst day:   +9,936 /   +5,215
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹2,595,469 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹930,838 (today's ₹316,786), chance of a loss 100%
+   drop  exit NO_TRAIL vs RULES today                 profit: in-sample    -4,361  held-out    +4,970   worst drop:   +4,259 /   -2,288   worst day:       +0 /       +0
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹933,891 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹312,295 (today's ₹316,786), chance of a loss 70%
+   drop  exit NO_2H_BE vs RULES today                 profit: in-sample  -221,872  held-out   -21,000   worst drop: +213,366 /  +20,436   worst day:     -217 /   +9,737
+           walk-forward: beats today's in 4 of 13 half-years;  first two years: 95% worst drop ₹1,184,006 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹383,269 (today's ₹316,786), chance of a loss 74%
+   drop  exit NO_REENTRY vs RULES today               profit: in-sample   +16,219  held-out   -35,110   worst drop:  +21,021 /   +5,682   worst day:   +3,331 /   +6,486
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹895,748 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹328,430 (today's ₹316,786), chance of a loss 82%
+   drop  exit FIXED_T3 vs RULES today                 profit: in-sample  -321,992  held-out   +26,873   worst drop: +278,849 / +102,219   worst day:   -1,989 /   +9,884
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹1,366,462 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹428,273 (today's ₹316,786), chance of a loss 59%
+   drop  exit FIXED_T2 vs RULES today                 profit: in-sample  -239,000  held-out   -19,823   worst drop: +210,711 / +105,723   worst day:   -1,989 /   +9,884
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹1,238,737 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹432,573 (today's ₹316,786), chance of a loss 70%
+   drop  exit FIXED_T1 vs RULES today                 profit: in-sample  -417,502  held-out   -20,010   worst drop: +358,877 /  +31,219   worst day:     +370 /   +9,782
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹1,347,561 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹378,467 (today's ₹316,786), chance of a loss 73%
+   drop  exit BE_2H_ONLY vs RULES today               profit: in-sample  -102,139  held-out  +117,938   worst drop:  +96,676 /  +28,089   worst day:   -1,772 /     +147
+           walk-forward: beats today's in 8 of 13 half-years;  first two years: 95% worst drop ₹1,121,423 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹312,711 (today's ₹316,786), chance of a loss 38%
+   drop  exit FIRST_CLOSE vs RULES today              profit: in-sample  -131,784  held-out   -31,450   worst drop: +133,950 /  +73,116   worst day:  +11,005 /  +12,045
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹1,105,282 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹422,362 (today's ₹316,786), chance of a loss 74%
+   drop  exit TODAY_FIRST_CLOSE vs RULES today        profit: in-sample   -29,220  held-out  -106,130   worst drop:  -48,199 /  +50,745   worst day:  +10,087 /       +0
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹910,702 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹388,305 (today's ₹316,786), chance of a loss 94%
+   drop  entry NO_GATES vs RULES today                profit: in-sample -1,762,285  held-out  -496,513   worst drop: +1,620,737 / +403,034   worst day:   -1,021 /   +6,927
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹2,852,895 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹847,259 (today's ₹316,786), chance of a loss 100%
+   drop  entry ADX_GATE_ONLY vs RULES today           profit: in-sample  -778,236  held-out  -186,595   worst drop: +665,586 / +122,954   worst day:   +5,267 /       +0
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹1,791,671 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹508,986 (today's ₹316,786), chance of a loss 97%
+   drop  entry ROOM_ONLY vs RULES today               profit: in-sample  -282,465  held-out   -13,939   worst drop: +313,828 /  -14,144   worst day:       +0 /   +7,458
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹1,255,244 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹349,443 (today's ₹316,786), chance of a loss 74%
+   KEEP  TV_RATING vs RULES                           profit: in-sample  +110,723  held-out  +127,940   worst drop:  -14,525 /  +47,667   worst day:   -5,337 /   +4,801
+   KEEP  TREND_RIDER vs RULES                         profit: in-sample  +365,861  held-out   +48,638   worst drop: -392,226 /  -71,783   worst day:  +14,943 /  +26,245
+   KEEP  CAMARILLA vs RULES                           profit: in-sample  +784,836  held-out  +125,962   worst drop: -408,633 /  +69,728   worst day:   +5,972 /   -1,969
+   KEEP  SUPERTR vs RULES                             profit: in-sample  +875,615  held-out  +196,326   worst drop: -505,076 /  -51,408   worst day:     +570 /   +8,713
+   KEEP  BIG_CANDLE vs RULES                          profit: in-sample  +770,879  held-out  +172,854   worst drop: -550,505 / -115,706   worst day:   +2,524 /  +22,000
+   KEEP  RULES + BIG_CANDLE vs RULES                  profit: in-sample  +198,394  held-out   +32,690   worst drop:  -22,140 /  -25,473   worst day:   +2,524 /   -1,133
+   KEEP  TV_RATING + BIG_CANDLE vs RULES              profit: in-sample  +156,316  held-out  +115,998   worst drop:  -23,279 /  +31,323   worst day:   -6,862 /   +6,413

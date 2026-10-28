@@ -45,6 +45,15 @@ RESULT (28 Oct 2026, history to 26 Oct 2026; honest_retest_results.txt). Per lot
   +106,541). Camarilla, Supertrend and ORB were picked after looking (indian_strategies_study, 22 Oct) - their 2020-23
   is new data to them, but treat them as candidates, not proven.
 
+RE-RUN WITH pricing.py (28 Oct 2026, the same day - option prices corrected to the recorder's real ones; results file,
+second half). Per lot after costs, to 15 Aug 2025 / held out. Weekly options lose their edge to decay near expiry:
+  the rules: Nifty -228,247 / -64,246, Bank Nifty -303,197 / -20,350, Sensex -182,454 / -38,812, Midcap +117,735 /
+  +57,955. The TradingView rating: Nifty -197,166 / -14,326, Bank Nifty -213,513 / +33,630, Sensex -172,085 / -62,345,
+  Midcap +97,322 / +105,528. The big candle: Nifty +52,049 / +7,786, Bank Nifty -19,622 / +48,033, Sensex +14,598 /
+  +28,613, Midcap +127,691 / +22,969. Midcap (monthly options) makes money on every system; Camarilla +230,584 /
+  +110,198 and Supertrend +270,541 / +155,511 there. The coin -2,311,638 / -723,477. The rules' exit: today's steps
+  -596,164 / -65,453 pooled, the fixed stop out at T3 -918,157 / -38,579 - no longer better in both periods.
+
     /usr/bin/python3 honest_retest.py          (with HOME at the six-year history)
     /usr/bin/python3 honest_retest.py tvcoin   (the TradingView walk's own coin control)
 """

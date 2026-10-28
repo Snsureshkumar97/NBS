@@ -221,7 +221,8 @@ def _tv_job(k):
         s = sigma_by_day.get(t_in.date())
         net = vea.price_trade(k, days, t_in, entry, t_out, px, s, side == "CE") if s and s == s else None
         row = None if net is None else {"when": t_in, "exit_time": t_out, "net": net, "side": side, "closed_via": via,
-                                        "index": k, "entry_spot": entry}
+                                        "index": k, "entry_spot": entry, "exit_spot": float(px),
+                                        "sigma": float(s)}          # for live_vs_backtest.py's real-price check
         return row, bar15_of(p)
 
     def tr_exit(i, side):

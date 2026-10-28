@@ -72,11 +72,12 @@ def opt_net(key, days, t_in, t_out, s_in, s_out, side, sigma):
     exp = ps.expiry_on_or_after(key, t_in.date(), days)
     call = side == "CE"
     K = round(s_in / step) * step
-    p0 = rs.bs(s_in, K, ps.years_to(exp, t_in), sigma, call)
+    import pricing
+    p0 = pricing.premium(s_in, K, exp, t_in, sigma, call)               # pricing.py: corrected to real prices
     if p0 <= 0.5:
         return None
     buy = p0 * (1 + ps.SLIP) * qty
-    p1 = rs.bs(s_out, K, ps.years_to(exp, t_out), sigma, call)
+    p1 = pricing.premium(s_out, K, exp, t_out, sigma, call)
     sells = max(p1 * (1 - ps.SLIP), 0.0) * qty
     brokerage = rs.BROKERAGE_PER_ORDER * 2
     txn = rs.TXN[exch] * (buy + sells)

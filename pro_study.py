@@ -64,6 +64,7 @@ import screener
 import backtest_intraday as bt
 import config
 import fills
+import pricing
 import regime_study as rs
 
 IST = "Asia/Kolkata"
@@ -231,14 +232,14 @@ def price(key, df, A, i, tr, legs, sigma, next_expiry_on_expiry_day=False):
         exp = expiry_on_or_after(key, when.date() + dt.timedelta(days=1), A["days"])
     call = tr["side"] == "CE"
     K = round(tr["entry"] / step) * step
-    p0 = rs.bs(tr["entry"], K, years_to(exp, when), sigma, call)
+    p0 = pricing.premium(tr["entry"], K, exp, when, sigma, call)     # pricing.py: corrected to real prices
     if p0 <= 0.5:
         return None
     buy = p0 * (1 + SLIP) * qty
     sells, orders = 0.0, 1
     for spot, j, w in legs:
         t_exit = df.index[j] + pd.Timedelta(minutes=15)
-        p1 = rs.bs(spot, K, years_to(exp, t_exit), sigma, call)
+        p1 = pricing.premium(spot, K, exp, t_exit, sigma, call)
         sells += max(p1 * (1 - SLIP), 0.0) * qty * w
         orders += 1
     brokerage = rs.BROKERAGE_PER_ORDER * orders
