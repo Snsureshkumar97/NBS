@@ -1,0 +1,180 @@
+========================================================================================================================
+ALL FOUR POOLED  the rules  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      5218   48% ₹  -596,164 PF 0.86 DD ₹ 740,505 day ₹ -32,524  | 1642   50% ₹   -65,453 PF 0.96 DD ₹ 161,061 day ₹ -40,282
+      LEVELS_1.0                                 2239   48% ₹  -275,369 PF 0.85 DD ₹ 337,080 day ₹ -12,313  |  781   50% ₹    -2,692 PF 1.00 DD ₹  84,911 day ₹ -28,695
+      LEVELS_0.5                                 3962   48% ₹  -524,235 PF 0.84 DD ₹ 594,926 day ₹ -19,260  | 1323   48% ₹  -143,975 PF 0.89 DD ₹ 189,791 day ₹ -38,361
+      LEVELS_1.5                                 1607   48% ₹  -167,828 PF 0.87 DD ₹ 221,496 day ₹ -12,313  |  545   49% ₹    +5,308 PF 1.01 DD ₹  67,410 day ₹ -25,713
+      ROUND_1.0                                  3445   48% ₹  -540,788 PF 0.80 DD ₹ 627,096 day ₹ -13,348  |  989   49% ₹   -84,659 PF 0.90 DD ₹ 144,281 day ₹ -14,510
+      TARGET                                     5271   49% ₹  -640,147 PF 0.85 DD ₹ 766,555 day ₹ -32,524  | 1673   51% ₹   -72,787 PF 0.95 DD ₹ 160,698 day ₹ -40,282
+   KEEP  LEVELS_1.0 vs today                          profit: in-sample  +320,795  held-out   +62,761   worst drop: -403,425 /  -76,151   worst day:  +20,211 /  +11,587
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹480,564 (today's ₹931,581), chance of a loss 99%;  held-out: 95% worst drop ₹185,376 (today's ₹316,786), chance of a loss 51%  -> STEADY
+   drop  LEVELS_0.5 vs today                          profit: in-sample   +71,929  held-out   -78,522   worst drop: -145,579 /  +28,730   worst day:  +13,264 /   +1,921
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹801,536 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹357,429 (today's ₹316,786), chance of a loss 90%
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample  +428,336  held-out   +70,760   worst drop: -519,009 /  -93,651   worst day:  +20,211 /  +14,569
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹344,355 (today's ₹931,581), chance of a loss 96%;  held-out: 95% worst drop ₹149,088 (today's ₹316,786), chance of a loss 48%  -> STEADY
+   drop  ROUND_1.0 vs today                           profit: in-sample   +55,377  held-out   -19,206   worst drop: -113,409 /  -16,780   worst day:  +19,176 /  +25,771
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹758,595 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹235,621 (today's ₹316,786), chance of a loss 87%
+   drop  TARGET vs today                              profit: in-sample   -43,983  held-out    -7,334   worst drop:  +26,050 /     -363   worst day:       +0 /       +0
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹969,399 (today's ₹931,581), chance of a loss 100%;  held-out: 95% worst drop ₹323,017 (today's ₹316,786), chance of a loss 74%
+========================================================================================================================
+NIFTY  the rules  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      1545   47% ₹  -228,247 PF 0.79 DD ₹ 230,076 day ₹  -8,483  |  387   47% ₹   -64,246 PF 0.79 DD ₹  81,527 day ₹ -10,011
+      LEVELS_1.0                                  672   46% ₹  -111,755 PF 0.76 DD ₹ 137,664 day ₹  -6,091  |  202   43% ₹   -50,136 PF 0.69 DD ₹  61,412 day ₹  -5,206
+      LEVELS_0.5                                 1143   46% ₹  -213,968 PF 0.74 DD ₹ 214,953 day ₹  -8,396  |  308   46% ₹   -65,338 PF 0.74 DD ₹  78,745 day ₹  -8,091
+      LEVELS_1.5                                  487   46% ₹   -73,282 PF 0.78 DD ₹  88,026 day ₹  -6,091  |  146   41% ₹   -42,716 PF 0.65 DD ₹  52,324 day ₹  -5,206
+      ROUND_1.0                                   810   44% ₹  -165,984 PF 0.69 DD ₹ 183,885 day ₹  -4,581  |  174   44% ₹   -16,684 PF 0.84 DD ₹  31,722 day ₹  -5,121
+      TARGET                                     1555   47% ₹  -231,755 PF 0.79 DD ₹ 233,768 day ₹  -8,483  |  395   48% ₹   -64,166 PF 0.79 DD ₹  83,145 day ₹ -10,011
+   KEEP  LEVELS_1.0 vs today                          profit: in-sample  +116,492  held-out   +14,110   worst drop:  -92,411 /  -20,115   worst day:   +2,391 /   +4,806
+   drop  LEVELS_0.5 vs today                          profit: in-sample   +14,279  held-out    -1,092   worst drop:  -15,122 /   -2,782   worst day:      +87 /   +1,921
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample  +154,966  held-out   +21,530   worst drop: -142,050 /  -29,203   worst day:   +2,391 /   +4,806
+   KEEP  ROUND_1.0 vs today                           profit: in-sample   +62,263  held-out   +47,562   worst drop:  -46,191 /  -49,805   worst day:   +3,901 /   +4,890
+   drop  TARGET vs today                              profit: in-sample    -3,508  held-out       +80   worst drop:   +3,692 /   +1,619   worst day:       +0 /       +0
+========================================================================================================================
+BANKNIFTY  the rules  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      1467   48% ₹  -303,197 PF 0.79 DD ₹ 335,864 day ₹  -8,397  |  429   51% ₹   -20,350 PF 0.95 DD ₹  45,601 day ₹  -9,763
+      LEVELS_1.0                                  597   49% ₹   -73,811 PF 0.86 DD ₹  97,020 day ₹  -6,154  |  180   51% ₹    +7,434 PF 1.04 DD ₹  22,486 day ₹  -5,685
+      LEVELS_0.5                                 1127   49% ₹  -139,456 PF 0.87 DD ₹ 196,578 day ₹  -7,684  |  339   51% ₹   -15,149 PF 0.96 DD ₹  44,649 day ₹ -11,384
+      LEVELS_1.5                                  443   49% ₹   -56,866 PF 0.86 DD ₹  71,269 day ₹  -5,675  |  121   50% ₹   +25,321 PF 1.25 DD ₹  18,831 day ₹  -5,642
+      ROUND_1.0                                  1101   47% ₹  -270,896 PF 0.74 DD ₹ 305,604 day ₹  -7,308  |  310   52% ₹   -26,594 PF 0.91 DD ₹  64,968 day ₹  -9,792
+      TARGET                                     1481   48% ₹  -313,233 PF 0.79 DD ₹ 346,959 day ₹  -8,397  |  438   51% ₹   -19,131 PF 0.95 DD ₹  46,605 day ₹  -9,763
+   KEEP  LEVELS_1.0 vs today                          profit: in-sample  +229,386  held-out   +27,784   worst drop: -238,844 /  -23,114   worst day:   +2,242 /   +4,078
+   KEEP  LEVELS_0.5 vs today                          profit: in-sample  +163,742  held-out    +5,201   worst drop: -139,285 /     -951   worst day:     +713 /   -1,621
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample  +246,332  held-out   +45,671   worst drop: -264,594 /  -26,769   worst day:   +2,722 /   +4,121
+   drop  ROUND_1.0 vs today                           profit: in-sample   +32,301  held-out    -6,244   worst drop:  -30,260 /  +19,368   worst day:   +1,089 /      -29
+   drop  TARGET vs today                              profit: in-sample   -10,036  held-out    +1,219   worst drop:  +11,095 /   +1,004   worst day:       +0 /       +0
+========================================================================================================================
+SENSEX  the rules  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      1484   48% ₹  -182,454 PF 0.83 DD ₹ 207,850 day ₹  -8,627  |  370   50% ₹   -38,812 PF 0.86 DD ₹  44,808 day ₹  -9,434
+      LEVELS_1.0                                  649   46% ₹  -126,542 PF 0.73 DD ₹ 152,096 day ₹  -6,222  |  180   52% ₹   -12,173 PF 0.91 DD ₹  20,422 day ₹  -9,434
+      LEVELS_0.5                                 1133   47% ₹  -223,053 PF 0.74 DD ₹ 236,693 day ₹  -8,355  |  289   43% ₹   -81,507 PF 0.66 DD ₹  82,311 day ₹  -9,434
+      LEVELS_1.5                                  457   45% ₹   -91,791 PF 0.72 DD ₹ 104,818 day ₹  -6,222  |  127   46% ₹   -26,582 PF 0.74 DD ₹  27,386 day ₹  -9,434
+      ROUND_1.0                                  1071   49% ₹  -142,789 PF 0.81 DD ₹ 168,792 day ₹  -7,699  |  240   47% ₹   -55,301 PF 0.71 DD ₹  65,417 day ₹  -4,203
+      TARGET                                     1495   48% ₹  -194,727 PF 0.82 DD ₹ 220,023 day ₹  -8,627  |  375   50% ₹   -36,323 PF 0.87 DD ₹  43,235 day ₹  -9,434
+   KEEP  LEVELS_1.0 vs today                          profit: in-sample   +55,912  held-out   +26,638   worst drop:  -55,754 /  -24,386   worst day:   +2,405 /       +0
+   drop  LEVELS_0.5 vs today                          profit: in-sample   -40,599  held-out   -42,696   worst drop:  +28,843 /  +37,503   worst day:     +272 /       +0
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample   +90,663  held-out   +12,230   worst drop: -103,031 /  -17,423   worst day:   +2,405 /       +0
+   drop  ROUND_1.0 vs today                           profit: in-sample   +39,665  held-out   -16,489   worst drop:  -39,058 /  +20,609   worst day:     +928 /   +5,231
+   drop  TARGET vs today                              profit: in-sample   -12,273  held-out    +2,489   worst drop:  +12,173 /   -1,573   worst day:       +0 /       +0
+========================================================================================================================
+MIDCPNIFTY  the rules  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                       722   53% ₹  +117,735 PF 1.17 DD ₹  33,022 day ₹ -10,389  |  456   53% ₹   +57,955 PF 1.12 DD ₹  46,095 day ₹ -11,073
+      LEVELS_1.0                                  321   53% ₹   +36,739 PF 1.12 DD ₹  35,907 day ₹  -8,742  |  219   55% ₹   +52,183 PF 1.25 DD ₹  33,732 day ₹ -11,073
+      LEVELS_0.5                                  559   52% ₹   +52,241 PF 1.10 DD ₹  35,728 day ₹  -9,223  |  387   51% ₹   +18,019 PF 1.04 DD ₹  46,511 day ₹ -11,073
+      LEVELS_1.5                                  220   55% ₹   +54,111 PF 1.28 DD ₹  20,435 day ₹  -5,487  |  151   57% ₹   +49,284 PF 1.37 DD ₹  21,676 day ₹ -11,073
+      ROUND_1.0                                   463   52% ₹   +38,882 PF 1.10 DD ₹  40,152 day ₹  -8,179  |  265   49% ₹   +13,920 PF 1.06 DD ₹  48,081 day ₹  -7,499
+      TARGET                                      740   53% ₹   +99,568 PF 1.14 DD ₹  41,308 day ₹ -10,389  |  465   53% ₹   +46,833 PF 1.10 DD ₹  46,434 day ₹ -11,073
+   drop  LEVELS_1.0 vs today                          profit: in-sample   -80,996  held-out    -5,772   worst drop:   +2,885 /  -12,364   worst day:   +1,647 /       +0
+   drop  LEVELS_0.5 vs today                          profit: in-sample   -65,494  held-out   -39,936   worst drop:   +2,707 /     +416   worst day:   +1,166 /       +0
+   drop  LEVELS_1.5 vs today                          profit: in-sample   -63,624  held-out    -8,671   worst drop:  -12,587 /  -24,419   worst day:   +4,902 /       +0
+   drop  ROUND_1.0 vs today                           profit: in-sample   -78,853  held-out   -44,035   worst drop:   +7,130 /   +1,985   worst day:   +2,210 /   +3,574
+   drop  TARGET vs today                              profit: in-sample   -18,167  held-out   -11,122   worst drop:   +8,287 /     +339   worst day:       +0 /       +0
+========================================================================================================================
+ALL FOUR POOLED  the TradingView rating  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481
+      LEVELS_1.0                                 3495   39% ₹   -96,943 PF 0.97 DD ₹ 322,836 day ₹ -29,109  |  924   40% ₹   +78,865 PF 1.10 DD ₹  93,474 day ₹ -33,869
+      LEVELS_0.5                                 5094   38% ₹  -321,900 PF 0.93 DD ₹ 513,047 day ₹ -29,109  | 1375   41% ₹    -8,528 PF 0.99 DD ₹ 183,046 day ₹ -33,869
+      LEVELS_1.5                                 2672   40% ₹  +122,255 PF 1.05 DD ₹ 181,534 day ₹ -19,919  |  724   41% ₹  +139,842 PF 1.23 DD ₹  73,678 day ₹ -33,869
+      ROUND_1.0                                  4381   40% ₹  -595,481 PF 0.83 DD ₹ 628,774 day ₹ -13,465  | 1127   42% ₹  -194,852 PF 0.80 DD ₹ 251,003 day ₹ -13,666
+   KEEP  LEVELS_1.0 vs today                          profit: in-sample  +388,499  held-out   +16,378   worst drop: -403,144 / -115,254   worst day:   +8,751 /   +1,612
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹559,353 (today's ₹1,165,232), chance of a loss 67%;  held-out: 95% worst drop ₹218,193 (today's ₹391,203), chance of a loss 28%  -> STEADY
+   drop  LEVELS_0.5 vs today                          profit: in-sample  +163,542  held-out   -71,015   worst drop: -212,933 /  -25,682   worst day:   +8,751 /   +1,612
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹834,132 (today's ₹1,165,232), chance of a loss 88%;  held-out: 95% worst drop ₹322,152 (today's ₹391,203), chance of a loss 52%
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample  +607,696  held-out   +77,355   worst drop: -544,445 / -135,050   worst day:  +17,941 /   +1,612
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹359,249 (today's ₹1,165,232), chance of a loss 29%;  held-out: 95% worst drop ₹161,434 (today's ₹391,203), chance of a loss 12%  -> STEADY
+   drop  ROUND_1.0 vs today                           profit: in-sample  -110,040  held-out  -257,339   worst drop:  -97,205 /  +42,275   worst day:  +24,395 /  +21,815
+           walk-forward: beats today's in 8 of 13 half-years;  first two years: 95% worst drop ₹884,435 (today's ₹1,165,232), chance of a loss 100%;  held-out: 95% worst drop ₹342,303 (today's ₹391,203), chance of a loss 99%
+========================================================================================================================
+NIFTY  the TradingView rating  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      2093   36% ₹  -197,166 PF 0.89 DD ₹ 266,293 day ₹ -14,891  |  448   38% ₹   -14,326 PF 0.96 DD ₹  66,800 day ₹  -8,404
+      LEVELS_1.0                                 1041   37% ₹   -58,570 PF 0.93 DD ₹ 134,546 day ₹  -8,184  |  234   36% ₹   -19,137 PF 0.90 DD ₹  36,726 day ₹  -6,322
+      LEVELS_0.5                                 1509   37% ₹  -157,678 PF 0.87 DD ₹ 226,426 day ₹  -8,184  |  332   36% ₹   -47,326 PF 0.84 DD ₹  57,899 day ₹  -6,322
+      LEVELS_1.5                                  791   38% ₹    +2,910 PF 1.00 DD ₹  86,519 day ₹  -8,184  |  185   36% ₹    +2,693 PF 1.02 DD ₹  28,660 day ₹  -6,322
+      ROUND_1.0                                  1063   41% ₹  -193,442 PF 0.72 DD ₹ 194,098 day ₹  -4,528  |  203   40% ₹   -42,226 PF 0.70 DD ₹  54,842 day ₹  -4,583
+   drop  LEVELS_1.0 vs today                          profit: in-sample  +138,596  held-out    -4,810   worst drop: -131,747 /  -30,074   worst day:   +6,706 /   +2,083
+   drop  LEVELS_0.5 vs today                          profit: in-sample   +39,489  held-out   -32,999   worst drop:  -39,867 /   -8,901   worst day:   +6,706 /   +2,083
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample  +200,077  held-out   +17,019   worst drop: -179,774 /  -38,140   worst day:   +6,706 /   +2,083
+   drop  ROUND_1.0 vs today                           profit: in-sample    +3,725  held-out   -27,899   worst drop:  -72,196 /  -11,958   worst day:  +10,363 /   +3,822
+========================================================================================================================
+BANKNIFTY  the TradingView rating  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      2110   35% ₹  -213,513 PF 0.91 DD ₹ 288,286 day ₹ -14,219  |  488   44% ₹   +33,630 PF 1.07 DD ₹  72,216 day ₹ -10,855
+      LEVELS_1.0                                 1020   37% ₹   -34,657 PF 0.97 DD ₹ 147,615 day ₹  -9,397  |  235   43% ₹   +21,075 PF 1.10 DD ₹  53,524 day ₹ -10,775
+      LEVELS_0.5                                 1504   37% ₹   -83,218 PF 0.95 DD ₹ 180,918 day ₹  -9,441  |  353   45% ₹   +15,618 PF 1.05 DD ₹  50,073 day ₹ -10,775
+      LEVELS_1.5                                  758   39% ₹   +68,675 PF 1.09 DD ₹  73,483 day ₹  -7,828  |  178   45% ₹   +30,050 PF 1.19 DD ₹  30,002 day ₹ -10,775
+      ROUND_1.0                                  1476   38% ₹  -262,821 PF 0.83 DD ₹ 303,430 day ₹ -11,028  |  340   44% ₹   -76,673 PF 0.77 DD ₹ 104,813 day ₹  -8,934
+   drop  LEVELS_1.0 vs today                          profit: in-sample  +178,856  held-out   -12,556   worst drop: -140,671 /  -18,693   worst day:   +4,822 /      +80
+   drop  LEVELS_0.5 vs today                          profit: in-sample  +130,295  held-out   -18,013   worst drop: -107,368 /  -22,143   worst day:   +4,778 /      +80
+   drop  LEVELS_1.5 vs today                          profit: in-sample  +282,188  held-out    -3,580   worst drop: -214,803 /  -42,214   worst day:   +6,391 /      +80
+   drop  ROUND_1.0 vs today                           profit: in-sample   -49,308  held-out  -110,303   worst drop:  +15,143 /  +32,597   worst day:   +3,191 /   +1,921
+========================================================================================================================
+SENSEX  the TradingView rating  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                      2077   36% ₹  -172,085 PF 0.91 DD ₹ 249,999 day ₹ -16,717  |  467   36% ₹   -62,345 PF 0.86 DD ₹  81,448 day ₹  -8,641
+      LEVELS_1.0                                 1040   39% ₹   -72,437 PF 0.91 DD ₹ 150,229 day ₹  -6,831  |  223   35% ₹   -30,132 PF 0.84 DD ₹  45,715 day ₹  -8,641
+      LEVELS_0.5                                 1509   38% ₹  -195,728 PF 0.84 DD ₹ 247,343 day ₹  -6,831  |  345   34% ₹  -102,761 PF 0.69 DD ₹ 122,056 day ₹  -8,641
+      LEVELS_1.5                                  829   37% ₹   -49,436 PF 0.93 DD ₹ 130,413 day ₹  -7,159  |  181   33% ₹   -30,059 PF 0.80 DD ₹  39,496 day ₹  -8,641
+      ROUND_1.0                                  1380   40% ₹  -179,226 PF 0.82 DD ₹ 206,978 day ₹  -5,867  |  304   38% ₹   -93,922 PF 0.63 DD ₹ 110,208 day ₹  -5,336
+   KEEP  LEVELS_1.0 vs today                          profit: in-sample   +99,648  held-out   +32,214   worst drop:  -99,770 /  -35,733   worst day:   +9,887 /       +0
+   drop  LEVELS_0.5 vs today                          profit: in-sample   -23,643  held-out   -40,416   worst drop:   -2,656 /  +40,608   worst day:   +9,887 /       +0
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample  +122,649  held-out   +32,286   worst drop: -119,586 /  -41,952   worst day:   +9,559 /       +0
+   drop  ROUND_1.0 vs today                           profit: in-sample    -7,141  held-out   -31,577   worst drop:  -43,021 /  +28,760   worst day:  +10,850 /   +3,305
+========================================================================================================================
+MIDCPNIFTY  the TradingView rating  per lot after costs, honest fills, realistic prices  (to 15 Aug 2025 | held out)
+      TODAY                                       796   45% ₹   +97,322 PF 1.11 DD ₹  71,783 day ₹ -19,058  |  464   46% ₹  +105,528 PF 1.20 DD ₹  34,571 day ₹ -12,192
+      LEVELS_1.0                                  394   49% ₹   +68,721 PF 1.19 DD ₹  67,745 day ₹  -8,519  |  232   46% ₹  +107,059 PF 1.50 DD ₹  22,929 day ₹  -8,317
+      LEVELS_0.5                                  572   49% ₹  +114,724 PF 1.21 DD ₹  96,890 day ₹ -12,397  |  345   49% ₹  +125,941 PF 1.38 DD ₹  36,978 day ₹ -12,126
+      LEVELS_1.5                                  294   51% ₹  +100,105 PF 1.37 DD ₹  42,391 day ₹  -7,673  |  180   51% ₹  +137,157 PF 1.93 DD ₹  16,138 day ₹  -8,317
+      ROUND_1.0                                   462   48% ₹   +40,007 PF 1.11 DD ₹  54,795 day ₹  -7,393  |  280   48% ₹   +17,969 PF 1.08 DD ₹  30,885 day ₹  -4,594
+   drop  LEVELS_1.0 vs today                          profit: in-sample   -28,601  held-out    +1,530   worst drop:   -4,038 /  -11,642   worst day:  +10,538 /   +3,875
+   KEEP  LEVELS_0.5 vs today                          profit: in-sample   +17,402  held-out   +20,413   worst drop:  +25,107 /   +2,407   worst day:   +6,661 /      +66
+   KEEP  LEVELS_1.5 vs today                          profit: in-sample    +2,783  held-out   +31,629   worst drop:  -29,392 /  -18,433   worst day:  +11,385 /   +3,875
+   drop  ROUND_1.0 vs today                           profit: in-sample   -57,315  held-out   -87,559   worst drop:  -16,988 /   -3,687   worst day:  +11,665 /   +7,598
+
+#### OPTION WALLS (sr_study.py walls)
+OPTION WALLS - 297 trades with a recorded chain at their entry minute, 10 Sep - 26 Oct, real prices, per lot after costs
+   the wall (the strike with the most open interest on the trade's side within 2%) sat a median 0.55% from the index
+   wall closer than 0.25%  TV      kept 126:   -32,511 ( -258 a trade)   skipped  39:   -17,285 ( -443 a trade)
+   wall closer than 0.25%  RULES   kept 106:    +7,477 (  +71 a trade)   skipped  26:   -12,200 ( -469 a trade)
+   wall closer than 0.25%  both    kept 232:   -25,034 ( -108 a trade)   skipped  65:   -29,485 ( -454 a trade)
+   wall closer than 0.40%  TV      kept 104:   -11,097 ( -107 a trade)   skipped  61:   -38,698 ( -634 a trade)
+   wall closer than 0.40%  RULES   kept  82:   +11,851 ( +145 a trade)   skipped  50:   -16,574 ( -331 a trade)
+   wall closer than 0.40%  both    kept 186:      +754 (   +4 a trade)   skipped 111:   -55,273 ( -498 a trade)
+   wall closer than 0.60%  TV      kept  77:   +19,509 ( +253 a trade)   skipped  88:   -69,304 ( -788 a trade)
+   wall closer than 0.60%  RULES   kept  59:   +14,948 ( +253 a trade)   skipped  73:   -19,671 ( -269 a trade)
+   wall closer than 0.60%  both    kept 136:   +34,457 ( +253 a trade)   skipped 161:   -88,976 ( -553 a trade)
+
+#### THE TRADINGVIEW RATING: LEVELS_1.5 WITH THE 14-DAY EXPIRY (pricing.MIN_DTE = 14)
+==============================================================================================================
+ALL FOUR POOLED  the TradingView rating, realistic prices (to 15 Aug 2025 | held out)
+    TODAY      expiry nearest                    7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481
+    TODAY      expiry 14+ days                   7076   47% ₹+1,226,589 PF 1.21 DD ₹  96,715 day ₹ -40,222  | 1867   51% ₹  +621,547 PF 1.41 DD ₹  67,285 day ₹ -38,883
+    LEVELS_1.5 expiry nearest                    2672   40% ₹  +122,255 PF 1.05 DD ₹ 181,534 day ₹ -19,919  |  724   41% ₹  +139,842 PF 1.23 DD ₹  73,678 day ₹ -33,869
+    LEVELS_1.5 expiry 14+ days                   2672   48% ₹  +640,890 PF 1.32 DD ₹  75,774 day ₹ -21,906  |  724   51% ₹  +316,853 PF 1.63 DD ₹  51,865 day ₹ -33,190
+   KEEP  LEVELS_1.5 + 14 days vs today                profit: in-sample +1,126,331  held-out  +254,366   worst drop: -650,206 / -156,863   worst day:  +15,954 /   +2,291
+           walk-forward: beats today's in 13 of 13 half-years;  first two years: 95% worst drop ₹147,387 (today's ₹1,165,232), chance of a loss 0%;  held-out: 95% worst drop ₹95,7
+==============================================================================================================
+NIFTY  the TradingView rating, realistic prices (to 15 Aug 2025 | held out)
+    TODAY      expiry nearest                    2093   36% ₹  -197,166 PF 0.89 DD ₹ 266,293 day ₹ -14,891  |  448   38% ₹   -14,326 PF 0.96 DD ₹  66,800 day ₹  -8,404
+    TODAY      expiry 14+ days                   2093   47% ₹  +313,370 PF 1.22 DD ₹  40,133 day ₹ -17,263  |  448   50% ₹  +138,704 PF 1.45 DD ₹  28,532 day ₹  -9,383
+    LEVELS_1.5 expiry nearest                     791   38% ₹    +2,910 PF 1.00 DD ₹  86,519 day ₹  -8,184  |  185   36% ₹    +2,693 PF 1.02 DD ₹  28,660 day ₹  -6,322
+    LEVELS_1.5 expiry 14+ days                    791   47% ₹  +159,618 PF 1.31 DD ₹  33,683 day ₹  -8,633  |  185   49% ₹   +47,343 PF 1.40 DD ₹  16,432 day ₹  -5,910
+   KEEP  LEVELS_1.5 + 14 days vs today                profit: in-sample  +356,785  held-out   +61,669   worst drop: -232,610 /  -50,368   worst day:   +6,258 /   +2,494
+==============================================================================================================
+BANKNIFTY  the TradingView rating, realistic prices (to 15 Aug 2025 | held out)
+    TODAY      expiry nearest                    2110   35% ₹  -213,513 PF 0.91 DD ₹ 288,286 day ₹ -14,219  |  488   44% ₹   +33,630 PF 1.07 DD ₹  72,216 day ₹ -10,855
+    TODAY      expiry 14+ days                   2110   46% ₹  +371,593 PF 1.19 DD ₹  66,037 day ₹ -15,147  |  488   51% ₹  +150,414 PF 1.35 DD ₹  33,585 day ₹ -11,505
+    LEVELS_1.5 expiry nearest                     758   39% ₹   +68,675 PF 1.09 DD ₹  73,483 day ₹  -7,828  |  178   45% ₹   +30,050 PF 1.19 DD ₹  30,002 day ₹ -10,775
+    LEVELS_1.5 expiry 14+ days                    758   48% ₹  +218,813 PF 1.33 DD ₹  37,340 day ₹ -11,056  |  178   49% ₹   +71,229 PF 1.52 DD ₹  23,179 day ₹ -10,775
+   KEEP  LEVELS_1.5 + 14 days vs today                profit: in-sample  +432,326  held-out   +37,598   worst drop: -250,946 /  -49,037   worst day:   +3,163 /      +80
+==============================================================================================================
+SENSEX  the TradingView rating, realistic prices (to 15 Aug 2025 | held out)
+    TODAY      expiry nearest                    2077   36% ₹  -172,085 PF 0.91 DD ₹ 249,999 day ₹ -16,717  |  467   36% ₹   -62,345 PF 0.86 DD ₹  81,448 day ₹  -8,641
+    TODAY      expiry 14+ days                   2077   47% ₹  +278,374 PF 1.18 DD ₹  47,618 day ₹ -17,369  |  467   49% ₹   +80,863 PF 1.24 DD ₹  22,591 day ₹  -8,374
+    LEVELS_1.5 expiry nearest                     829   37% ₹   -49,436 PF 0.93 DD ₹ 130,413 day ₹  -7,159  |  181   33% ₹   -30,059 PF 0.80 DD ₹  39,496 day ₹  -8,641
+    LEVELS_1.5 expiry 14+ days                    829   46% ₹  +119,086 PF 1.21 DD ₹  42,870 day ₹  -8,040  |  181   45% ₹   +17,642 PF 1.15 DD ₹  23,923 day ₹  -8,374
+   KEEP  LEVELS_1.5 + 14 days vs today                profit: in-sample  +291,171  held-out   +79,988   worst drop: -207,129 /  -57,525   worst day:   +8,677 /     +268
+==============================================================================================================
+MIDCPNIFTY  the TradingView rating, realistic prices (to 15 Aug 2025 | held out)
+    TODAY      expiry nearest                     796   45% ₹   +97,322 PF 1.11 DD ₹  71,783 day ₹ -19,058  |  464   46% ₹  +105,528 PF 1.20 DD ₹  34,571 day ₹ -12,192
+    TODAY      expiry 14+ days                    796   51% ₹  +263,252 PF 1.32 DD ₹  59,145 day ₹ -21,365  |  464   54% ₹  +251,565 PF 1.56 DD ₹  20,934 day ₹ -12,192
+    LEVELS_1.5 expiry nearest                     294   51% ₹  +100,105 PF 1.37 DD ₹  42,391 day ₹  -7,673  |  180   51% ₹  +137,157 PF 1.93 DD ₹  16,138 day ₹  -8,317
+    LEVELS_1.5 expiry 14+ days                    294   54% ₹  +143,372 PF 1.56 DD ₹  34,931 day ₹  -7,673  |  180   60% ₹  +180,640 PF 2.38 DD ₹  12,802 day ₹  -8,317
+   KEEP  LEVELS_1.5 + 14 days vs today                profit: in-sample   +46,050  held-out   +75,111   worst drop:  -36,852 /  -21,769   worst day:  +11,385 /   +3,875
