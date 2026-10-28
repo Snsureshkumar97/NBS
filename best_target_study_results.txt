@@ -1,0 +1,214 @@
+NOTE: the '+ big candle' lines below put all four indices in ONE slot (a bug fixed after this run) - they understate both sides; ignore them. Rules-only lines are unaffected.
+########################################################################################################################
+STOP PLAN: FIRST CLOSE
+   choice learned to 15 Aug 2025 (room cut 1.38R, fallback T3):  <25/am/room-=T1-T2  <25/am/room+=T3  <25/pm/room-=T3  <25/pm/room+=T3  25-35/am/room-=T3  25-35/am/room+=T2-T3  25-35/pm/room-=T2  25-35/pm/room+=T3  35+/am/room-=T2  35+/am/room+=T2  35+/pm/room-=T3  35+/pm/room+=T3
+   walk-forward fallbacks by half-year: 2:T3 3:T3 4:T3 5:T3 6:T3 7:T3 8:T3 9:T3 10:T3 11:T3 12:T3
+========================================================================================================================
+ALL FOUR POOLED  [first close]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              5217   50% ₹  +707,391 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +247,972 PF 1.18 DD ₹  96,805 day ₹ -40,569
+    one target T1 for every trade                5871   43% ₹  -450,886 PF 0.88 DD ₹ 497,601 day ₹ -20,497  | 1892   42% ₹  -113,625 PF 0.92 DD ₹ 195,504 day ₹ -32,212
+    one target T1-T2 for every trade             5384   36% ₹  -213,643 PF 0.95 DD ₹ 289,529 day ₹ -19,477  | 1720   34% ₹  -125,288 PF 0.91 DD ₹ 207,556 day ₹ -29,721
+    one target T2 for every trade                5029   32% ₹   -71,611 PF 0.98 DD ₹ 227,788 day ₹ -19,938  | 1591   30% ₹   -84,759 PF 0.94 DD ₹ 181,493 day ₹ -29,721
+    one target T2-T3 for every trade             4784   29% ₹    -2,633 PF 1.00 DD ₹ 180,196 day ₹ -19,938  | 1514   28% ₹   -62,978 PF 0.96 DD ₹ 195,746 day ₹ -29,721
+    one target T3 for every trade                4620   27% ₹   +58,095 PF 1.02 DD ₹ 154,860 day ₹ -19,938  | 1467   27% ₹    +7,055 PF 1.01 DD ₹ 174,610 day ₹ -29,721
+    THE CHOOSER, learned to Aug 2025             4868   30% ₹   +43,124 PF 1.01 DD ₹ 159,182 day ₹ -19,938  | 1534   29% ₹   -77,047 PF 0.95 DD ₹ 178,795 day ₹ -29,721
+    THE CHOOSER, walk-forward                    4833   30% ₹   -54,234 PF 0.99 DD ₹ 235,617 day ₹ -19,938  | 1521   29% ₹   -59,057 PF 0.96 DD ₹ 185,250 day ₹ -29,721
+    (ceiling) hindsight best level               4967   42% ₹+2,282,265 PF 1.64 DD ₹  40,361 day ₹ -19,056  | 1587   40% ₹  +757,985 PF 1.56 DD ₹  49,772 day ₹ -25,559
+   drop  CHOOSER (learned to Aug 2025) vs today       profit: in-sample  -664,267  held-out  -325,019   worst drop:  +85,128 /  +81,990   worst day:  +10,745 /  +10,848
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹411,893 (today's ₹153,383), chance of a loss 42%;  held-out: 95% worst drop ₹383,837 (today's ₹148,568), chance of a loss 71%
+   drop  CHOOSER vs always T3                         profit: in-sample   -14,971  held-out   -84,102   worst drop:   +4,322 /   +4,185   worst day:       +0 /       +0
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹411,893 (today's ₹425,187), chance of a loss 42%;  held-out: 95% worst drop ₹383,837 (today's ₹339,841), chance of a loss 71%
+   walk-forward Aug 2021 on: today +900,782 | chooser -95,921 | always T3 +82,520 | ceiling +2,693,160 | chooser beats today in 0 of 11 half-years, always-T3 in 1
+   walk-forward levels used: {'T3': 2522, 'T2': 1145, 'T2-T3': 901, 'T1-T2': 847, 'T1': 119}
+    + big candle: today                          2675   49% ₹  +510,385 PF 1.24 DD ₹  45,556 day ₹ -11,442  |  724   51% ₹  +130,707 PF 1.21 DD ₹  43,491 day ₹  -9,474
+    + big candle: THE CHOOSER (walk-forward)     2407   32% ₹  +154,489 PF 1.08 DD ₹  75,502 day ₹ -11,442  |  625   30% ₹    +7,761 PF 1.01 DD ₹  81,740 day ₹ -11,250
+========================================================================================================================
+NIFTY  [first close]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    one target T1 for every trade                1721   43% ₹  -132,547 PF 0.86 DD ₹ 146,115 day ₹  -7,416  |  450   40% ₹    -5,118 PF 0.98 DD ₹  33,617 day ₹  -6,267
+    one target T1-T2 for every trade             1561   35% ₹   -94,913 PF 0.90 DD ₹ 113,877 day ₹  -7,603  |  409   32% ₹   -24,673 PF 0.91 DD ₹  50,188 day ₹  -6,267
+    one target T2 for every trade                1456   32% ₹   -54,748 PF 0.94 DD ₹  72,635 day ₹  -7,603  |  380   27% ₹   -25,333 PF 0.90 DD ₹  43,674 day ₹  -6,267
+    one target T2-T3 for every trade             1395   30% ₹   -18,811 PF 0.98 DD ₹  58,706 day ₹  -7,603  |  362   24% ₹   -14,437 PF 0.94 DD ₹  38,821 day ₹  -6,267
+    one target T3 for every trade                1344   27% ₹   -34,245 PF 0.96 DD ₹  57,441 day ₹  -7,603  |  356   24% ₹    +4,716 PF 1.02 DD ₹  33,971 day ₹  -6,267
+    THE CHOOSER, learned to Aug 2025             1409   30% ₹   -34,579 PF 0.96 DD ₹  72,432 day ₹  -7,603  |  369   25% ₹   -21,687 PF 0.92 DD ₹  46,138 day ₹  -6,267
+    THE CHOOSER, walk-forward                    1414   31% ₹   -57,179 PF 0.94 DD ₹  79,517 day ₹  -7,603  |  369   25% ₹    -8,986 PF 0.96 DD ₹  36,953 day ₹  -6,267
+    (ceiling) hindsight best level               1438   42% ₹  +520,595 PF 1.60 DD ₹  24,649 day ₹  -7,416  |  385   40% ₹  +162,156 PF 1.66 DD ₹  13,399 day ₹  -6,267
+   walk-forward Aug 2021 on: today +216,701 | chooser -60,245 | always T2-T3 -25,809 | ceiling +591,047 | chooser beats today in 1 of 11 half-years, always-T2-T3 in 4
+========================================================================================================================
+BANKNIFTY  [first close]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    one target T1 for every trade                1663   43% ₹  -182,848 PF 0.86 DD ₹ 209,350 day ₹  -8,627  |  499   40% ₹   -57,301 PF 0.87 DD ₹  78,565 day ₹ -11,136
+    one target T1-T2 for every trade             1528   36% ₹   -91,167 PF 0.93 DD ₹ 145,946 day ₹  -8,998  |  445   33% ₹   -69,051 PF 0.84 DD ₹  84,857 day ₹  -8,644
+    one target T2 for every trade                1426   31% ₹   -44,617 PF 0.96 DD ₹ 112,027 day ₹  -8,998  |  419   29% ₹   -39,591 PF 0.91 DD ₹  66,061 day ₹  -8,644
+    one target T2-T3 for every trade             1364   28% ₹   -15,204 PF 0.99 DD ₹ 102,387 day ₹  -8,998  |  396   27% ₹   -43,812 PF 0.90 DD ₹  81,750 day ₹  -8,644
+    one target T3 for every trade                1320   26% ₹   +11,032 PF 1.01 DD ₹  90,569 day ₹  -8,998  |  384   26% ₹   -40,118 PF 0.91 DD ₹  73,109 day ₹  -8,644
+    THE CHOOSER, learned to Aug 2025             1390   29% ₹    -5,714 PF 1.00 DD ₹  89,082 day ₹  -8,998  |  403   29% ₹   -48,214 PF 0.89 DD ₹  71,034 day ₹  -8,644
+    THE CHOOSER, walk-forward                    1377   29% ₹   -19,324 PF 0.98 DD ₹ 110,631 day ₹  -8,998  |  394   28% ₹   -52,004 PF 0.88 DD ₹  78,875 day ₹  -8,644
+    (ceiling) hindsight best level               1417   41% ₹  +753,385 PF 1.64 DD ₹  26,945 day ₹  -8,627  |  416   38% ₹  +168,521 PF 1.41 DD ₹  23,294 day ₹  -8,550
+   walk-forward Aug 2021 on: today +167,942 | chooser -94,432 | always T3 -52,190 | ceiling +745,730 | chooser beats today in 0 of 11 half-years, always-T3 in 4
+========================================================================================================================
+SENSEX  [first close]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    one target T1 for every trade                1682   43% ₹  -143,450 PF 0.85 DD ₹ 170,230 day ₹  -6,241  |  425   44% ₹    +5,150 PF 1.02 DD ₹  33,824 day ₹  -5,767
+    one target T1-T2 for every trade             1552   36% ₹   -77,181 PF 0.92 DD ₹ 117,450 day ₹  -6,241  |  389   37% ₹   +24,479 PF 1.11 DD ₹  34,372 day ₹  -5,767
+    one target T2 for every trade                1441   31% ₹   -60,373 PF 0.94 DD ₹ 117,459 day ₹  -6,241  |  352   33% ₹   +30,856 PF 1.14 DD ₹  26,433 day ₹  -5,767
+    one target T2-T3 for every trade             1359   28% ₹   -32,368 PF 0.96 DD ₹  88,547 day ₹  -6,241  |  332   30% ₹   +37,981 PF 1.17 DD ₹  36,372 day ₹  -5,767
+    one target T3 for every trade                1307   27% ₹      +888 PF 1.00 DD ₹  72,078 day ₹  -6,241  |  316   28% ₹   +52,153 PF 1.24 DD ₹  34,878 day ₹  -5,767
+    THE CHOOSER, learned to Aug 2025             1388   30% ₹   -12,924 PF 0.99 DD ₹  66,545 day ₹  -6,241  |  334   31% ₹   +28,102 PF 1.13 DD ₹  37,361 day ₹  -5,767
+    THE CHOOSER, walk-forward                    1371   30% ₹   -40,356 PF 0.96 DD ₹  90,079 day ₹  -6,241  |  332   30% ₹   +36,582 PF 1.17 DD ₹  34,878 day ₹  -5,767
+    (ceiling) hindsight best level               1418   42% ₹  +525,960 PF 1.60 DD ₹  34,222 day ₹  -6,241  |  344   42% ₹  +178,573 PF 1.82 DD ₹  19,109 day ₹  -5,767
+   walk-forward Aug 2021 on: today +209,764 | chooser +30,780 | always T3 +87,594 | ceiling +625,323 | chooser beats today in 1 of 11 half-years, always-T3 in 2
+========================================================================================================================
+MIDCPNIFTY  [first close]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3               722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    one target T1 for every trade                 805   44% ₹    +7,958 PF 1.01 DD ₹  43,278 day ₹ -10,703  |  518   43% ₹   -56,357 PF 0.89 DD ₹  91,526 day ₹ -12,505
+    one target T1-T2 for every trade              743   37% ₹   +49,619 PF 1.07 DD ₹  42,412 day ₹ -10,703  |  477   36% ₹   -56,042 PF 0.89 DD ₹  92,682 day ₹ -12,505
+    one target T2 for every trade                 706   34% ₹   +88,127 PF 1.13 DD ₹  39,147 day ₹ -10,703  |  440   32% ₹   -50,691 PF 0.90 DD ₹ 100,944 day ₹ -12,505
+    one target T2-T3 for every trade              666   31% ₹   +63,749 PF 1.10 DD ₹  49,502 day ₹ -10,703  |  424   30% ₹   -42,711 PF 0.92 DD ₹  96,550 day ₹ -12,505
+    one target T3 for every trade                 649   29% ₹   +80,420 PF 1.12 DD ₹  45,460 day ₹ -10,703  |  411   29% ₹    -9,696 PF 0.98 DD ₹  76,831 day ₹ -12,505
+    THE CHOOSER, learned to Aug 2025              681   31% ₹   +96,341 PF 1.15 DD ₹  36,767 day ₹ -10,703  |  428   31% ₹   -35,248 PF 0.93 DD ₹  88,063 day ₹ -12,505
+    THE CHOOSER, walk-forward                     671   30% ₹   +62,625 PF 1.10 DD ₹  42,530 day ₹ -10,703  |  426   30% ₹   -34,649 PF 0.93 DD ₹  93,138 day ₹ -12,505
+    (ceiling) hindsight best level                694   42% ₹  +482,325 PF 1.75 DD ₹  31,630 day ₹ -10,703  |  442   41% ₹  +248,735 PF 1.51 DD ₹  32,155 day ₹ -12,505
+   walk-forward Aug 2021 on: today +306,375 | chooser +27,976 | always T2 +37,436 | ceiling +731,060 | chooser beats today in 1 of 7 half-years, always-T2 in 5
+########################################################################################################################
+STOP PLAN: FIXED STOP
+   choice learned to 15 Aug 2025 (room cut 1.38R, fallback T3):  <25/am/room-=T1-T2  <25/am/room+=T3  <25/pm/room-=T2-T3  <25/pm/room+=T2-T3  25-35/am/room-=T2-T3  25-35/am/room+=T3  25-35/pm/room-=T2  25-35/pm/room+=T2  35+/am/room-=T2  35+/am/room+=T2  35+/pm/room-=T3  35+/pm/room+=T1
+   walk-forward fallbacks by half-year: 2:T3 3:T2 4:T2 5:T2 6:T2-T3 7:T3 8:T3 9:T3 10:T3 11:T3 12:T3
+========================================================================================================================
+ALL FOUR POOLED  [fixed stop]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              5217   50% ₹  +707,391 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +247,972 PF 1.18 DD ₹  96,805 day ₹ -40,569
+    one target T1 for every trade                5178   60% ₹  -260,256 PF 0.94 DD ₹ 366,004 day ₹ -30,585  | 1617   62% ₹   +21,571 PF 1.01 DD ₹ 127,757 day ₹ -32,212
+    one target T1-T2 for every trade             4591   54% ₹    +2,353 PF 1.00 DD ₹ 193,253 day ₹ -29,565  | 1401   54% ₹   -20,149 PF 0.99 DD ₹ 196,467 day ₹ -31,957
+    one target T2 for every trade                4206   49% ₹  +126,950 PF 1.03 DD ₹ 198,326 day ₹ -33,069  | 1264   51% ₹   +50,447 PF 1.03 DD ₹ 199,038 day ₹ -31,957
+    one target T2-T3 for every trade             3928   46% ₹  +163,225 PF 1.04 DD ₹ 166,611 day ₹ -33,069  | 1183   48% ₹   +83,442 PF 1.05 DD ₹ 195,145 day ₹ -31,957
+    one target T3 for every trade                3755   44% ₹  +182,223 PF 1.04 DD ₹ 157,481 day ₹ -33,069  | 1125   47% ₹  +122,366 PF 1.07 DD ₹ 184,040 day ₹ -31,957
+    THE CHOOSER, learned to Aug 2025             4028   48% ₹  +201,808 PF 1.04 DD ₹ 152,404 day ₹ -33,069  | 1205   51% ₹   +98,291 PF 1.06 DD ₹ 174,709 day ₹ -31,957
+    THE CHOOSER, walk-forward                    3958   47% ₹  +159,481 PF 1.03 DD ₹ 175,533 day ₹ -33,069  | 1194   50% ₹  +115,958 PF 1.07 DD ₹ 174,024 day ₹ -31,957
+    (ceiling) hindsight best level               4151   57% ₹+2,884,792 PF 1.72 DD ₹  46,036 day ₹ -26,365  | 1259   58% ₹  +971,519 PF 1.65 DD ₹  61,623 day ₹ -25,566
+   drop  CHOOSER (learned to Aug 2025) vs today       profit: in-sample  -505,583  held-out  -149,681   worst drop:  +78,350 /  +77,904   worst day:   -2,387 /   +8,612
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹379,633 (today's ₹153,383), chance of a loss 20%;  held-out: 95% worst drop ₹309,878 (today's ₹148,568), chance of a loss 29%
+   drop  CHOOSER vs always T3                         profit: in-sample   +19,585  held-out   -24,075   worst drop:   -5,076 /   -9,331   worst day:       +0 /       +0
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹379,633 (today's ₹431,065), chance of a loss 20%;  held-out: 95% worst drop ₹309,878 (today's ₹315,835), chance of a loss 29%
+   walk-forward Aug 2021 on: today +900,782 | chooser +258,543 | always T3 +287,693 | ceiling +3,411,028 | chooser beats today in 0 of 11 half-years, always-T3 in 4
+   walk-forward levels used: {'T3': 1885, 'T2': 1530, 'T1-T2': 528, 'T2-T3': 516, 'T1': 33}
+    + big candle: today                          2675   49% ₹  +510,385 PF 1.24 DD ₹  45,556 day ₹ -11,442  |  724   51% ₹  +130,707 PF 1.21 DD ₹  43,491 day ₹  -9,474
+    + big candle: THE CHOOSER (walk-forward)     1896   47% ₹  +338,235 PF 1.16 DD ₹  66,297 day ₹ -11,442  |  462   48% ₹   +41,135 PF 1.06 DD ₹  55,839 day ₹ -11,250
+========================================================================================================================
+NIFTY  [fixed stop]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    one target T1 for every trade                1539   60% ₹   -85,661 PF 0.92 DD ₹ 107,925 day ₹  -7,416  |  379   64% ₹   +32,759 PF 1.11 DD ₹  27,014 day ₹  -6,309
+    one target T1-T2 for every trade             1357   53% ₹   -26,593 PF 0.98 DD ₹  58,667 day ₹  -7,603  |  325   56% ₹   +18,349 PF 1.06 DD ₹  46,173 day ₹  -6,309
+    one target T2 for every trade                1241   49% ₹   +10,785 PF 1.01 DD ₹  45,764 day ₹  -7,603  |  294   51% ₹    +2,803 PF 1.01 DD ₹  55,358 day ₹  -6,309
+    one target T2-T3 for every trade             1163   47% ₹   +63,267 PF 1.06 DD ₹  38,303 day ₹  -7,603  |  277   49% ₹   +16,417 PF 1.05 DD ₹  55,619 day ₹  -6,309
+    one target T3 for every trade                1106   44% ₹   +33,528 PF 1.03 DD ₹  43,351 day ₹  -7,603  |  266   48% ₹   +32,395 PF 1.10 DD ₹  54,979 day ₹  -6,309
+    THE CHOOSER, learned to Aug 2025             1188   49% ₹   +32,765 PF 1.03 DD ₹  38,635 day ₹  -7,603  |  286   51% ₹   +26,502 PF 1.08 DD ₹  54,210 day ₹  -6,309
+    THE CHOOSER, walk-forward                    1168   48% ₹   +27,206 PF 1.02 DD ₹  48,710 day ₹  -7,603  |  285   51% ₹   +21,033 PF 1.07 DD ₹  61,164 day ₹  -6,309
+    (ceiling) hindsight best level               1209   56% ₹  +682,067 PF 1.69 DD ₹  17,276 day ₹  -7,416  |  293   59% ₹  +223,398 PF 1.84 DD ₹  16,846 day ₹  -6,309
+   walk-forward Aug 2021 on: today +216,701 | chooser +54,814 | always T2-T3 +91,406 | ceiling +812,712 | chooser beats today in 1 of 11 half-years, always-T2-T3 in 4
+========================================================================================================================
+BANKNIFTY  [fixed stop]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    one target T1 for every trade                1454   60% ₹   -98,060 PF 0.93 DD ₹ 151,990 day ₹  -8,627  |  419   59% ₹   -41,320 PF 0.92 DD ₹  69,819 day ₹ -11,136
+    one target T1-T2 for every trade             1294   53% ₹   -39,963 PF 0.97 DD ₹ 120,218 day ₹ -11,553  |  364   50% ₹   -83,977 PF 0.85 DD ₹ 109,125 day ₹ -11,188
+    one target T2 for every trade                1191   48% ₹   -24,690 PF 0.98 DD ₹ 116,992 day ₹ -11,553  |  338   49% ₹   -13,763 PF 0.97 DD ₹  87,646 day ₹ -11,188
+    one target T2-T3 for every trade             1116   44% ₹    -9,776 PF 0.99 DD ₹  90,720 day ₹ -11,553  |  314   47% ₹   -13,082 PF 0.97 DD ₹  91,396 day ₹ -11,188
+    one target T3 for every trade                1066   42% ₹      -445 PF 1.00 DD ₹  84,395 day ₹ -11,553  |  299   45% ₹   -32,144 PF 0.94 DD ₹  93,583 day ₹ -11,188
+    THE CHOOSER, learned to Aug 2025             1145   47% ₹   +15,834 PF 1.01 DD ₹  78,482 day ₹ -11,553  |  316   48% ₹   -39,453 PF 0.92 DD ₹  96,713 day ₹ -11,188
+    THE CHOOSER, walk-forward                    1125   45% ₹   -28,003 PF 0.98 DD ₹ 108,149 day ₹ -11,553  |  312   48% ₹   -25,933 PF 0.95 DD ₹  87,765 day ₹ -11,188
+    (ceiling) hindsight best level               1178   57% ₹  +946,639 PF 1.71 DD ₹  30,151 day ₹  -8,627  |  332   55% ₹  +211,560 PF 1.45 DD ₹  35,381 day ₹  -9,760
+   walk-forward Aug 2021 on: today +167,942 | chooser -89,715 | always T3 -68,368 | ceiling +921,975 | chooser beats today in 0 of 11 half-years, always-T3 in 3
+========================================================================================================================
+SENSEX  [fixed stop]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    one target T1 for every trade                1477   60% ₹  -108,752 PF 0.90 DD ₹ 137,581 day ₹  -8,440  |  369   66% ₹   +35,160 PF 1.13 DD ₹  31,825 day ₹  -5,767
+    one target T1-T2 for every trade             1312   54% ₹   -17,520 PF 0.98 DD ₹  87,406 day ₹  -8,440  |  315   57% ₹   +35,296 PF 1.12 DD ₹  39,457 day ₹  -5,767
+    one target T2 for every trade                1191   49% ₹    +5,367 PF 1.00 DD ₹  91,705 day ₹  -8,440  |  282   54% ₹   +42,408 PF 1.15 DD ₹  34,378 day ₹  -5,767
+    one target T2-T3 for every trade             1109   46% ₹   +21,485 PF 1.02 DD ₹  81,111 day ₹  -8,440  |  258   50% ₹   +60,036 PF 1.22 DD ₹  31,346 day ₹  -5,767
+    one target T3 for every trade                1064   45% ₹   +43,380 PF 1.04 DD ₹  63,172 day ₹  -8,440  |  241   49% ₹   +77,781 PF 1.29 DD ₹  28,358 day ₹  -5,767
+    THE CHOOSER, learned to Aug 2025             1142   48% ₹   +36,142 PF 1.03 DD ₹  58,912 day ₹  -8,440  |  260   54% ₹   +63,789 PF 1.24 DD ₹  30,420 day ₹  -5,767
+    THE CHOOSER, walk-forward                    1119   48% ₹   +37,117 PF 1.03 DD ₹  70,735 day ₹  -8,440  |  258   53% ₹   +64,196 PF 1.24 DD ₹  31,166 day ₹  -5,767
+    (ceiling) hindsight best level               1182   58% ₹  +691,509 PF 1.72 DD ₹  26,636 day ₹  -8,440  |  276   62% ₹  +237,172 PF 2.01 DD ₹  22,650 day ₹  -5,767
+   walk-forward Aug 2021 on: today +209,764 | chooser +113,621 | always T3 +133,468 | ceiling +812,376 | chooser beats today in 3 of 11 half-years, always-T3 in 5
+========================================================================================================================
+MIDCPNIFTY  [fixed stop]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3               722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    one target T1 for every trade                 708   60% ₹   +32,216 PF 1.04 DD ₹  62,588 day ₹ -10,703  |  450   61% ₹    -5,028 PF 0.99 DD ₹  77,038 day ₹ -12,505
+    one target T1-T2 for every trade              628   55% ₹   +86,429 PF 1.11 DD ₹  60,233 day ₹ -10,703  |  397   54% ₹   +10,183 PF 1.02 DD ₹  63,850 day ₹ -12,505
+    one target T2 for every trade                 583   52% ₹  +135,488 PF 1.17 DD ₹  50,139 day ₹ -10,703  |  350   49% ₹   +18,999 PF 1.03 DD ₹  72,557 day ₹ -12,505
+    one target T2-T3 for every trade              540   49% ₹   +88,249 PF 1.11 DD ₹  62,388 day ₹ -10,703  |  334   48% ₹   +20,071 PF 1.04 DD ₹  78,137 day ₹ -12,505
+    one target T3 for every trade                 519   47% ₹  +105,760 PF 1.14 DD ₹  57,087 day ₹ -10,703  |  319   47% ₹   +44,334 PF 1.08 DD ₹  72,256 day ₹ -12,505
+    THE CHOOSER, learned to Aug 2025              553   51% ₹  +117,068 PF 1.15 DD ₹  51,682 day ₹ -10,703  |  343   50% ₹   +47,454 PF 1.09 DD ₹  67,004 day ₹ -12,505
+    THE CHOOSER, walk-forward                     546   51% ₹  +123,161 PF 1.16 DD ₹  47,713 day ₹ -10,703  |  339   50% ₹   +56,662 PF 1.10 DD ₹  63,465 day ₹ -12,505
+    (ceiling) hindsight best level                582   57% ₹  +564,577 PF 1.80 DD ₹  30,478 day ₹ -10,703  |  358   55% ₹  +299,388 PF 1.58 DD ₹  33,283 day ₹ -12,505
+   walk-forward Aug 2021 on: today +306,375 | chooser +179,824 | always T2 +154,488 | ceiling +863,965 | chooser beats today in 1 of 7 half-years, always-T2 in 3
+########################################################################################################################
+STOP PLAN: TODAY'S STEPS
+   choice learned to 15 Aug 2025 (room cut 1.37R, fallback T3):  <25/am/room-=T2-T3  <25/am/room+=T3  <25/pm/room-=T3  <25/pm/room+=T3  25-35/am/room-=T3  25-35/am/room+=T3  25-35/pm/room-=T3  25-35/pm/room+=T3  35+/am/room-=T3  35+/am/room+=T3  35+/pm/room-=T3  35+/pm/room+=T3
+   walk-forward fallbacks by half-year: 2:T3 3:T3 4:T3 5:T3 6:T3 7:T3 8:T3 9:T3 10:T3 11:T3 12:T3
+========================================================================================================================
+ALL FOUR POOLED  [today's steps]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              5217   50% ₹  +707,391 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +247,972 PF 1.18 DD ₹  96,805 day ₹ -40,569
+    one target T1 for every trade                5398   51% ₹  -271,074 PF 0.93 DD ₹ 361,079 day ₹ -30,672  | 1718   50% ₹   -25,151 PF 0.98 DD ₹ 131,853 day ₹ -40,558
+    one target T1-T2 for every trade             5296   50% ₹  +370,327 PF 1.09 DD ₹  80,016 day ₹ -30,683  | 1674   50% ₹  +179,628 PF 1.13 DD ₹ 101,422 day ₹ -40,569
+    one target T2 for every trade                5243   50% ₹  +496,465 PF 1.13 DD ₹  77,089 day ₹ -30,683  | 1653   50% ₹  +202,154 PF 1.14 DD ₹  98,262 day ₹ -40,569
+    one target T2-T3 for every trade             5220   50% ₹  +665,567 PF 1.17 DD ₹  73,758 day ₹ -30,683  | 1648   50% ₹  +237,165 PF 1.17 DD ₹  95,326 day ₹ -40,569
+    one target T3 for every trade                5217   50% ₹  +707,391 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +247,972 PF 1.18 DD ₹  96,805 day ₹ -40,569
+    THE CHOOSER, learned to Aug 2025             5216   50% ₹  +713,030 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +248,482 PF 1.18 DD ₹  96,805 day ₹ -40,569
+    THE CHOOSER, walk-forward                    5222   50% ₹  +672,053 PF 1.17 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +237,888 PF 1.17 DD ₹  95,850 day ₹ -40,569
+    (ceiling) hindsight best level               5008   50% ₹  +994,881 PF 1.26 DD ₹  74,403 day ₹ -27,471  | 1588   49% ₹  +311,229 PF 1.23 DD ₹  91,755 day ₹ -33,904
+   KEEP  CHOOSER (learned to Aug 2025) vs today       profit: in-sample    +5,639  held-out      +510   worst drop:       +0 /       +0   worst day:       +0 /       +0
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹153,020 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹148,668 (today's ₹148,568), chance of a loss 3%  -> KEEP, FRAGILE (wins too few half-years)
+   KEEP  CHOOSER vs always T3                         profit: in-sample    +5,639  held-out      +510   worst drop:       +0 /       +0   worst day:       +0 /       +0
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹153,020 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹148,668 (today's ₹148,568), chance of a loss 3%  -> KEEP, FRAGILE (wins too few half-years)
+   walk-forward Aug 2021 on: today +900,782 | chooser +855,360 | always T3 +900,782 | ceiling +1,205,822 | chooser beats today in 3 of 11 half-years, always-T3 in 3
+   walk-forward levels used: {'T3': 4190, 'T2-T3': 1402, 'T1-T2': 271, 'T1': 74, 'T2': 43}
+    + big candle: today                          2675   49% ₹  +510,385 PF 1.24 DD ₹  45,556 day ₹ -11,442  |  724   51% ₹  +130,707 PF 1.21 DD ₹  43,491 day ₹  -9,474
+    + big candle: THE CHOOSER (walk-forward)     2681   49% ₹  +483,109 PF 1.23 DD ₹  45,548 day ₹ -11,442  |  724   51% ₹  +129,007 PF 1.21 DD ₹  43,491 day ₹  -9,474
+========================================================================================================================
+NIFTY  [today's steps]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    one target T1 for every trade                1600   51% ₹   -54,195 PF 0.94 DD ₹  75,499 day ₹  -7,487  |  406   50% ₹   +10,951 PF 1.04 DD ₹  25,993 day ₹  -9,038
+    one target T1-T2 for every trade             1567   51% ₹   +99,469 PF 1.10 DD ₹  37,186 day ₹  -7,487  |  395   51% ₹   +51,256 PF 1.19 DD ₹  26,512 day ₹  -9,038
+    one target T2 for every trade                1554   51% ₹  +125,511 PF 1.13 DD ₹  36,059 day ₹  -7,487  |  388   51% ₹   +40,629 PF 1.16 DD ₹  27,486 day ₹  -9,038
+    one target T2-T3 for every trade             1548   50% ₹  +168,296 PF 1.17 DD ₹  35,596 day ₹  -7,487  |  388   51% ₹   +50,409 PF 1.19 DD ₹  27,315 day ₹  -9,038
+    one target T3 for every trade                1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    THE CHOOSER, learned to Aug 2025             1544   50% ₹  +179,485 PF 1.19 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    THE CHOOSER, walk-forward                    1548   50% ₹  +169,152 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +54,367 PF 1.21 DD ₹  27,315 day ₹  -9,038
+    (ceiling) hindsight best level               1477   50% ₹  +239,969 PF 1.26 DD ₹  29,582 day ₹  -7,487  |  373   50% ₹   +66,795 PF 1.26 DD ₹  26,401 day ₹  -9,038
+   walk-forward Aug 2021 on: today +216,701 | chooser +206,327 | always T3 +216,701 | ceiling +278,313 | chooser beats today in 3 of 11 half-years, always-T3 in 3
+========================================================================================================================
+BANKNIFTY  [today's steps]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    one target T1 for every trade                1520   50% ₹  -146,354 PF 0.89 DD ₹ 170,475 day ₹  -8,627  |  451   47% ₹   -42,024 PF 0.91 DD ₹  63,601 day ₹ -11,136
+    one target T1-T2 for every trade             1488   50% ₹   +59,134 PF 1.04 DD ₹  49,540 day ₹  -8,627  |  439   46% ₹    -1,153 PF 1.00 DD ₹  42,770 day ₹ -11,147
+    one target T2 for every trade                1473   49% ₹   +90,949 PF 1.07 DD ₹  45,934 day ₹  -8,627  |  434   47% ₹   +14,687 PF 1.03 DD ₹  41,003 day ₹ -11,147
+    one target T2-T3 for every trade             1466   49% ₹  +149,056 PF 1.11 DD ₹  38,255 day ₹  -8,627  |  431   46% ₹   +19,112 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    one target T3 for every trade                1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    THE CHOOSER, learned to Aug 2025             1467   49% ₹  +170,523 PF 1.13 DD ₹  35,644 day ₹  -8,627  |  429   46% ₹   +18,487 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    THE CHOOSER, walk-forward                    1467   49% ₹  +152,677 PF 1.11 DD ₹  38,827 day ₹  -8,627  |  429   46% ₹   +17,327 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    (ceiling) hindsight best level               1407   49% ₹  +256,592 PF 1.20 DD ₹  30,732 day ₹  -8,627  |  421   46% ₹   +42,480 PF 1.10 DD ₹  36,613 day ₹  -6,592
+   walk-forward Aug 2021 on: today +167,942 | chooser +150,126 | always T3 +167,942 | ceiling +263,794 | chooser beats today in 5 of 11 half-years, always-T3 in 5
+========================================================================================================================
+SENSEX  [today's steps]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3              1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    one target T1 for every trade                1535   50% ₹   -91,771 PF 0.91 DD ₹ 128,488 day ₹  -8,440  |  390   53% ₹   +14,697 PF 1.06 DD ₹  23,264 day ₹  -8,110
+    one target T1-T2 for every trade             1511   51% ₹   +71,359 PF 1.07 DD ₹  45,806 day ₹  -8,440  |  378   53% ₹   +54,315 PF 1.22 DD ₹  22,480 day ₹  -8,110
+    one target T2 for every trade                1492   51% ₹  +115,443 PF 1.12 DD ₹  45,156 day ₹  -8,440  |  372   53% ₹   +54,666 PF 1.23 DD ₹  23,934 day ₹  -8,110
+    one target T2-T3 for every trade             1484   50% ₹  +154,918 PF 1.16 DD ₹  44,286 day ₹  -8,440  |  372   53% ₹   +63,004 PF 1.26 DD ₹  23,934 day ₹  -8,110
+    one target T3 for every trade                1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    THE CHOOSER, learned to Aug 2025             1483   50% ₹  +163,583 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +64,484 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    THE CHOOSER, walk-forward                    1484   50% ₹  +157,916 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +62,206 PF 1.26 DD ₹  23,934 day ₹  -8,110
+    (ceiling) hindsight best level               1431   50% ₹  +245,439 PF 1.27 DD ₹  43,921 day ₹  -8,440  |  355   53% ₹   +84,563 PF 1.37 DD ₹  25,816 day ₹  -8,110
+   walk-forward Aug 2021 on: today +209,764 | chooser +202,612 | always T3 +209,764 | ceiling +293,442 | chooser beats today in 4 of 11 half-years, always-T3 in 4
+========================================================================================================================
+MIDCPNIFTY  [today's steps]  rules only, per lot after costs  (to 15 Aug 2025 | held out)
+    today: three targets, out at T3               722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    one target T1 for every trade                 743   51% ₹   +21,246 PF 1.03 DD ₹  47,923 day ₹ -10,703  |  471   50% ₹    -8,775 PF 0.98 DD ₹  79,436 day ₹ -12,274
+    one target T1-T2 for every trade              730   51% ₹  +140,365 PF 1.20 DD ₹  35,569 day ₹ -10,703  |  462   50% ₹   +75,209 PF 1.16 DD ₹  49,367 day ₹ -12,274
+    one target T2 for every trade                 724   51% ₹  +164,562 PF 1.24 DD ₹  34,388 day ₹ -10,703  |  459   51% ₹   +92,172 PF 1.19 DD ₹  49,376 day ₹ -12,274
+    one target T2-T3 for every trade              722   51% ₹  +193,297 PF 1.28 DD ₹  31,942 day ₹ -10,703  |  457   51% ₹  +104,640 PF 1.22 DD ₹  49,398 day ₹ -12,274
+    one target T3 for every trade                 722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    THE CHOOSER, learned to Aug 2025              722   51% ₹  +199,440 PF 1.29 DD ₹  32,275 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    THE CHOOSER, walk-forward                     723   51% ₹  +192,307 PF 1.28 DD ₹  32,577 day ₹ -10,703  |  456   50% ₹  +103,988 PF 1.22 DD ₹  49,398 day ₹ -12,274
+    (ceiling) hindsight best level                693   51% ₹  +252,881 PF 1.37 DD ₹  32,136 day ₹ -10,703  |  439   49% ₹  +117,392 PF 1.25 DD ₹  48,940 day ₹ -12,274
+   walk-forward Aug 2021 on: today +306,375 | chooser +296,295 | always T3 +306,375 | ceiling +370,273 | chooser beats today in 1 of 7 half-years, always-T3 in 1

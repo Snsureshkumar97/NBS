@@ -349,6 +349,7 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=Non
     trades, last_i = [], -10 ** 9
     blocked = {"neutral": 0, "adx": 0, "no_room": 0}
 
+    opens = df["Open"].to_numpy()
     highs = df["High"].to_numpy()
     lows = df["Low"].to_numpy()
     closes = df["Close"].to_numpy()
@@ -424,8 +425,8 @@ def run(index_key, df, hold_bars=None, square_off=None, min_gap_bars=4, gate=Non
             # pessimistic reading is the only defensible one.
             if (lo <= stop) if ce else (hi >= stop):
                 sl_hit = True
-                if exit_px is None:
-                    exit_px, exit_bar, reason = stop, j, "stop"
+                if exit_px is None:                  # at the open when it opens past the stop (fills.py)
+                    exit_px, exit_bar, reason = (min(stop, opens[j]) if ce else max(stop, opens[j])), j, "stop"
                 final_r = -1.0
                 break
             excursion = ((hi - entry) if ce else (entry - lo)) / risk

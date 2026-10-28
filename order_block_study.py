@@ -180,7 +180,7 @@ def rules_rows(key, make=None, room_hook=None):
     nifty = bt.fetch_history("NIFTY", years=3, use_cache=True)
     nrv = np.log(rs.daily_close(nifty)).diff().rolling(20).std() * math.sqrt(252)
     F = rs.features(df, rs.load_vix(), nrv)
-    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(),
+    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(), "op": df["Open"].to_numpy(),
          "end": (pd.Series(df.index.date) != pd.Series(df.index.date).shift(-1)).to_numpy(), "days": set(df.index.date)}
     pre = bt.precompute(df, key)
     st = ind.supertrend(df, *config.supertrend_params(key))[0].to_numpy()

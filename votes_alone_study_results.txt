@@ -1,0 +1,249 @@
+========================================================================================================================
+ALL FOUR POOLED   rules, per lot after costs  (to 15 Aug 2025 | held out)
+  BASELINES
+      TODAY                                      5217   50% ₹  +707,391 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +247,972 PF 1.18 DD ₹  96,805 day ₹ -40,569
+      ALL_AGREE                                  3281   50% ₹  +347,903 PF 1.14 DD ₹  71,656 day ₹ -15,162  | 1068   48% ₹  +108,839 PF 1.12 DD ₹  60,117 day ₹ -14,280
+  ONE VOTE, ADX gate and room kept
+      TREND_ONLY                                 6569   50% ₹+1,263,277 PF 1.27 DD ₹  60,437 day ₹ -19,910  | 1977   49% ₹  +390,086 PF 1.24 DD ₹ 113,614 day ₹ -22,481
+      MACD_ONLY                                  7517   50% ₹+2,679,687 PF 1.49 DD ₹  88,964 day ₹ -29,764  | 2285   50% ₹  +719,891 PF 1.37 DD ₹  65,432 day ₹ -33,426
+      RSI_ONLY                                   6604   51% ₹  +844,646 PF 1.17 DD ₹ 106,571 day ₹ -37,072  | 2032   50% ₹  +281,579 PF 1.16 DD ₹  94,929 day ₹ -33,426
+      VWAP_ONLY                                  7332   51% ₹+2,476,888 PF 1.46 DD ₹  77,008 day ₹ -22,371  | 2240   50% ₹  +666,917 PF 1.34 DD ₹  53,025 day ₹ -47,943
+  ONE VOTE, nothing else
+      TREND_BARE                                14363   55% ₹+3,001,681 PF 1.32 DD ₹  81,799 day ₹ -46,546  | 3801   55% ₹  +719,407 PF 1.25 DD ₹ 168,083 day ₹ -27,967
+      MACD_BARE                                 16134   57% ₹+3,991,687 PF 1.38 DD ₹  76,583 day ₹ -32,837  | 4337   56% ₹+1,052,428 PF 1.32 DD ₹  61,617 day ₹ -20,555
+      RSI_BARE                                  15258   57% ₹+1,808,214 PF 1.18 DD ₹ 112,207 day ₹ -32,901  | 4127   56% ₹  +258,782 PF 1.08 DD ₹ 207,607 day ₹ -45,592
+      VWAP_BARE                                 16084   57% ₹+4,108,891 PF 1.40 DD ₹  65,805 day ₹ -26,338  | 4338   56% ₹  +836,610 PF 1.25 DD ₹  63,416 day ₹ -31,443
+  ONE GATE, today's votes kept
+      ADX_GATE_ONLY                              9251   57% ₹+1,401,086 PF 1.23 DD ₹  91,519 day ₹ -24,288  | 2535   56% ₹  +363,222 PF 1.19 DD ₹  70,527 day ₹ -40,569
+      ROOM_ONLY                                  6908   51% ₹  +994,958 PF 1.19 DD ₹  71,285 day ₹ -30,683  | 2077   51% ₹  +347,032 PF 1.20 DD ₹ 100,001 day ₹ -32,915
+      NO_GATES                                  12994   58% ₹+1,845,754 PF 1.22 DD ₹  83,558 day ₹ -30,636  | 3510   58% ₹  +395,078 PF 1.15 DD ₹ 113,691 day ₹ -31,810
+   drop  ALL_AGREE vs TODAY                           profit: in-sample  -359,488  held-out  -139,134   worst drop:   -2,398 /  -36,688   worst day:  +15,521 /  +26,289
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹151,496 (today's ₹153,383), chance of a loss 1%;  held-out: 95% worst drop ₹134,895 (today's ₹148,568), chance of a loss 13%
+   KEEP  TREND_ONLY vs TODAY                          profit: in-sample  +555,887  held-out  +142,114   worst drop:  -13,618 /  +16,810   worst day:  +10,773 /  +18,088
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹121,122 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹120,229 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  MACD_ONLY vs TODAY                           profit: in-sample +1,972,296  held-out  +471,919   worst drop:  +14,910 /  -31,373   worst day:     +919 /   +7,143
+           walk-forward: beats today's in 13 of 13 half-years;  first two years: 95% worst drop ₹78,691 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹99,307 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  RSI_ONLY vs TODAY                            profit: in-sample  +137,255  held-out   +33,607   worst drop:  +32,516 /   -1,876   worst day:   -6,389 /   +7,143
+           walk-forward: beats today's in 8 of 13 half-years;  first two years: 95% worst drop ₹156,248 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹160,501 (today's ₹148,568), chance of a loss 2%  -> STEADY
+   KEEP  VWAP_ONLY vs TODAY                           profit: in-sample +1,769,497  held-out  +418,945   worst drop:   +2,953 /  -43,780   worst day:   +8,312 /   -7,374
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹88,309 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹120,216 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  TREND_BARE vs TODAY                          profit: in-sample +2,294,290  held-out  +471,435   worst drop:   +7,745 /  +71,278   worst day:  -15,863 /  +12,602
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹116,617 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹125,740 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  MACD_BARE vs TODAY                           profit: in-sample +3,284,296  held-out  +804,456   worst drop:   +2,529 /  -35,188   worst day:   -2,154 /  +20,014
+           walk-forward: beats today's in 13 of 13 half-years;  first two years: 95% worst drop ₹103,290 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹90,553 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  RSI_BARE vs TODAY                            profit: in-sample +1,100,823  held-out   +10,810   worst drop:  +38,152 / +110,802   worst day:   -2,218 /   -5,023
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹165,626 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹255,875 (today's ₹148,568), chance of a loss 9%  -> KEEP, FRAGILE (deeper 95% drop)
+   KEEP  VWAP_BARE vs TODAY                           profit: in-sample +3,401,500  held-out  +588,638   worst drop:   -8,249 /  -33,388   worst day:   +4,345 /   +9,126
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹100,094 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹135,882 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  ADX_GATE_ONLY vs TODAY                       profit: in-sample  +693,695  held-out  +115,250   worst drop:  +17,464 /  -26,277   worst day:   +6,394 /       +0
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹145,504 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹145,474 (today's ₹148,568), chance of a loss 1%  -> STEADY
+   KEEP  ROOM_ONLY vs TODAY                           profit: in-sample  +287,568  held-out   +99,060   worst drop:   -2,769 /   +3,197   worst day:       +0 /   +7,654
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹147,740 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹129,868 (today's ₹148,568), chance of a loss 0%  -> STEADY
+   KEEP  NO_GATES vs TODAY                            profit: in-sample +1,138,363  held-out  +147,106   worst drop:   +9,504 /  +16,886   worst day:      +46 /   +8,759
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹151,973 (today's ₹153,383), chance of a loss 0%;  held-out: 95% worst drop ₹158,259 (today's ₹148,568), chance of a loss 1%  -> STEADY
+========================================================================================================================
+NIFTY   rules, per lot after costs  (to 15 Aug 2025 | held out)
+  BASELINES
+      TODAY                                      1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+      ALL_AGREE                                   960   52% ₹  +131,177 PF 1.23 DD ₹  25,131 day ₹  -6,003  |  269   51% ₹   +53,494 PF 1.31 DD ₹  16,037 day ₹  -4,503
+  ONE VOTE, ADX gate and room kept
+      TREND_ONLY                                 1936   50% ₹  +304,763 PF 1.26 DD ₹  29,432 day ₹  -7,754  |  483   49% ₹   +91,855 PF 1.29 DD ₹  29,883 day ₹  -5,404
+      MACD_ONLY                                  2243   50% ₹  +602,980 PF 1.45 DD ₹  34,832 day ₹  -7,647  |  564   50% ₹  +184,788 PF 1.49 DD ₹  20,668 day ₹  -8,136
+      RSI_ONLY                                   1951   52% ₹  +238,303 PF 1.20 DD ₹  39,207 day ₹  -7,487  |  501   51% ₹   +93,093 PF 1.27 DD ₹  28,092 day ₹  -9,678
+      VWAP_ONLY                                  2170   51% ₹  +520,855 PF 1.39 DD ₹  27,330 day ₹  -7,105  |  547   49% ₹  +125,495 PF 1.32 DD ₹  18,997 day ₹  -6,720
+  ONE VOTE, nothing else
+      TREND_BARE                                 4234   56% ₹  +819,858 PF 1.36 DD ₹  26,774 day ₹ -11,757  |  941   56% ₹  +179,404 PF 1.30 DD ₹  46,549 day ₹  -9,437
+      MACD_BARE                                  4779   56% ₹  +839,115 PF 1.32 DD ₹  33,841 day ₹ -13,405  | 1096   57% ₹  +233,841 PF 1.35 DD ₹  28,888 day ₹  -9,771
+      RSI_BARE                                   4528   57% ₹  +472,450 PF 1.19 DD ₹  63,650 day ₹ -10,733  | 1055   58% ₹  +107,147 PF 1.16 DD ₹  46,445 day ₹ -10,272
+      VWAP_BARE                                  4771   58% ₹  +922,773 PF 1.36 DD ₹  29,911 day ₹  -9,158  | 1098   56% ₹  +176,453 PF 1.24 DD ₹  25,283 day ₹ -12,798
+  ONE GATE, today's votes kept
+      ADX_GATE_ONLY                              2732   57% ₹  +300,692 PF 1.19 DD ₹  45,843 day ₹  -9,377  |  652   58% ₹  +110,509 PF 1.28 DD ₹  28,185 day ₹  -9,038
+      ROOM_ONLY                                  2007   51% ₹  +214,656 PF 1.17 DD ₹  35,003 day ₹  -7,726  |  485   50% ₹   +65,210 PF 1.19 DD ₹  28,899 day ₹  -9,038
+      NO_GATES                                   3795   57% ₹  +382,559 PF 1.18 DD ₹  44,773 day ₹ -10,135  |  888   59% ₹   +88,922 PF 1.16 DD ₹  48,015 day ₹  -9,400
+   drop  ALL_AGREE vs TODAY                           profit: in-sample   -45,202  held-out    -4,022   worst drop:   -7,597 /  -11,279   worst day:   +1,485 /   +4,535
+   KEEP  TREND_ONLY vs TODAY                          profit: in-sample  +128,384  held-out   +34,339   worst drop:   -3,295 /   +2,568   worst day:     -266 /   +3,633
+   KEEP  MACD_ONLY vs TODAY                           profit: in-sample  +426,602  held-out  +127,273   worst drop:   +2,105 /   -6,647   worst day:     -159 /     +902
+   KEEP  RSI_ONLY vs TODAY                            profit: in-sample   +61,924  held-out   +35,578   worst drop:   +6,480 /     +776   worst day:       +0 /     -641
+   KEEP  VWAP_ONLY vs TODAY                           profit: in-sample  +344,477  held-out   +67,979   worst drop:   -5,398 /   -8,318   worst day:     +382 /   +2,317
+   KEEP  TREND_BARE vs TODAY                          profit: in-sample  +643,479  held-out  +121,889   worst drop:   -5,954 /  +19,234   worst day:   -4,270 /     -399
+   KEEP  MACD_BARE vs TODAY                           profit: in-sample  +662,737  held-out  +176,325   worst drop:   +1,113 /   +1,573   worst day:   -5,917 /     -733
+   KEEP  RSI_BARE vs TODAY                            profit: in-sample  +296,071  held-out   +49,631   worst drop:  +30,923 /  +19,129   worst day:   -3,246 /   -1,234
+   KEEP  VWAP_BARE vs TODAY                           profit: in-sample  +746,395  held-out  +118,937   worst drop:   -2,816 /   -2,032   worst day:   -1,670 /   -3,761
+   KEEP  ADX_GATE_ONLY vs TODAY                       profit: in-sample  +124,313  held-out   +52,993   worst drop:  +13,115 /     +870   worst day:   -1,890 /       +0
+   KEEP  ROOM_ONLY vs TODAY                           profit: in-sample   +38,277  held-out    +7,695   worst drop:   +2,275 /   +1,584   worst day:     -238 /       +0
+   KEEP  NO_GATES vs TODAY                            profit: in-sample  +206,181  held-out   +31,407   worst drop:  +12,046 /  +20,700   worst day:   -2,648 /     -362
+========================================================================================================================
+BANKNIFTY   rules, per lot after costs  (to 15 Aug 2025 | held out)
+  BASELINES
+      TODAY                                      1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+      ALL_AGREE                                   938   47% ₹   +14,401 PF 1.02 DD ₹  46,094 day ₹  -7,552  |  280   46% ₹   +23,162 PF 1.09 DD ₹  26,641 day ₹  -8,218
+  ONE VOTE, ADX gate and room kept
+      TREND_ONLY                                 1857   50% ₹  +418,053 PF 1.26 DD ₹  34,718 day ₹  -7,880  |  496   45% ₹   +50,205 PF 1.10 DD ₹  63,348 day ₹  -8,397
+      MACD_ONLY                                  2122   50% ₹+1,111,186 PF 1.61 DD ₹  30,240 day ₹ -10,356  |  574   49% ₹  +226,842 PF 1.41 DD ₹  35,635 day ₹ -11,147
+      RSI_ONLY                                   1866   50% ₹  +210,834 PF 1.13 DD ₹  44,344 day ₹  -9,819  |  518   48% ₹   +15,847 PF 1.03 DD ₹  48,846 day ₹ -11,147
+      VWAP_ONLY                                  2091   50% ₹  +974,499 PF 1.53 DD ₹  72,408 day ₹ -10,189  |  570   48% ₹  +158,634 PF 1.27 DD ₹  33,785 day ₹ -18,244
+  ONE VOTE, nothing else
+      TREND_BARE                                 4327   55% ₹+1,144,154 PF 1.34 DD ₹  57,685 day ₹ -11,556  |  933   53% ₹  +165,570 PF 1.20 DD ₹ 121,378 day ₹ -11,859
+      MACD_BARE                                  4811   57% ₹+1,751,404 PF 1.48 DD ₹  55,965 day ₹ -15,855  | 1068   56% ₹  +344,295 PF 1.39 DD ₹  34,324 day ₹ -13,955
+      RSI_BARE                                   4572   57% ₹  +732,027 PF 1.21 DD ₹  49,983 day ₹ -18,324  | 1006   54% ₹   -36,668 PF 0.96 DD ₹ 157,311 day ₹ -16,288
+      VWAP_BARE                                  4801   58% ₹+1,865,021 PF 1.52 DD ₹  51,499 day ₹ -16,131  | 1065   55% ₹  +274,681 PF 1.30 DD ₹  52,438 day ₹ -18,952
+  ONE GATE, today's votes kept
+      ADX_GATE_ONLY                              2733   58% ₹  +586,746 PF 1.29 DD ₹  33,246 day ₹ -12,016  |  623   54% ₹   +77,330 PF 1.14 DD ₹  42,048 day ₹ -11,147
+      ROOM_ONLY                                  1998   51% ₹  +317,060 PF 1.18 DD ₹  75,475 day ₹ -10,925  |  538   49% ₹   +66,567 PF 1.13 DD ₹  24,422 day ₹  -9,664
+      NO_GATES                                   3924   58% ₹  +807,770 PF 1.28 DD ₹  59,246 day ₹ -11,532  |  857   56% ₹   +85,336 PF 1.12 DD ₹  69,386 day ₹ -10,700
+   drop  ALL_AGREE vs TODAY                           profit: in-sample  -156,237  held-out    +5,979   worst drop:   +9,719 /  -13,895   worst day:   +1,075 /   +2,929
+   KEEP  TREND_ONLY vs TODAY                          profit: in-sample  +247,416  held-out   +33,022   worst drop:   -1,657 /  +22,812   worst day:     +746 /   +2,750
+   KEEP  MACD_ONLY vs TODAY                           profit: in-sample  +940,549  held-out  +209,659   worst drop:   -6,135 /   -4,901   worst day:   -1,729 /       +0
+   drop  RSI_ONLY vs TODAY                            profit: in-sample   +40,196  held-out    -1,335   worst drop:   +7,969 /   +8,310   worst day:   -1,193 /       +0
+   KEEP  VWAP_ONLY vs TODAY                           profit: in-sample  +803,862  held-out  +141,451   worst drop:  +36,033 /   -6,751   worst day:   -1,563 /   -7,097
+   KEEP  TREND_BARE vs TODAY                          profit: in-sample  +973,516  held-out  +148,388   worst drop:  +21,310 /  +80,842   worst day:   -2,929 /     -712
+   KEEP  MACD_BARE vs TODAY                           profit: in-sample +1,580,767  held-out  +327,113   worst drop:  +19,590 /   -6,213   worst day:   -7,228 /   -2,808
+   drop  RSI_BARE vs TODAY                            profit: in-sample  +561,389  held-out   -53,850   worst drop:  +13,608 / +116,775   worst day:   -9,697 /   -5,141
+   KEEP  VWAP_BARE vs TODAY                           profit: in-sample +1,694,384  held-out  +257,498   worst drop:  +15,124 /  +11,902   worst day:   -7,504 /   -7,805
+   KEEP  ADX_GATE_ONLY vs TODAY                       profit: in-sample  +416,109  held-out   +60,147   worst drop:   -3,129 /   +1,512   worst day:   -3,389 /       +0
+   KEEP  ROOM_ONLY vs TODAY                           profit: in-sample  +146,423  held-out   +49,384   worst drop:  +39,100 /  -16,114   worst day:   -2,298 /   +1,483
+   KEEP  NO_GATES vs TODAY                            profit: in-sample  +637,133  held-out   +68,154   worst drop:  +22,871 /  +28,850   worst day:   -2,905 /     +447
+========================================================================================================================
+SENSEX   rules, per lot after costs  (to 15 Aug 2025 | held out)
+  BASELINES
+      TODAY                                      1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+      ALL_AGREE                                   934   51% ₹  +110,546 PF 1.19 DD ₹  31,328 day ₹  -6,241  |  228   51% ₹   +36,349 PF 1.26 DD ₹  18,014 day ₹  -4,561
+  ONE VOTE, ADX gate and room kept
+      TREND_ONLY                                 1923   50% ₹  +313,355 PF 1.26 DD ₹  40,858 day ₹  -6,241  |  470   51% ₹   +64,472 PF 1.21 DD ₹  30,959 day ₹  -6,257
+      MACD_ONLY                                  2169   51% ₹  +680,662 PF 1.52 DD ₹  34,546 day ₹  -8,440  |  551   52% ₹  +194,102 PF 1.55 DD ₹  22,904 day ₹  -7,582
+      RSI_ONLY                                   1930   51% ₹  +245,782 PF 1.21 DD ₹  50,684 day ₹  -8,440  |  480   54% ₹   +74,642 PF 1.24 DD ₹  21,436 day ₹  -4,576
+      VWAP_ONLY                                  2111   52% ₹  +659,870 PF 1.51 DD ₹  26,824 day ₹  -8,975  |  529   50% ₹  +147,373 PF 1.40 DD ₹  16,843 day ₹  -6,964
+  ONE VOTE, nothing else
+      TREND_BARE                                 4273   56% ₹  +874,887 PF 1.37 DD ₹  36,602 day ₹ -13,538  | 1012   58% ₹  +196,550 PF 1.32 DD ₹  27,123 day ₹  -9,710
+      MACD_BARE                                  4816   57% ₹+1,041,961 PF 1.40 DD ₹  30,745 day ₹ -13,670  | 1135   61% ₹  +343,738 PF 1.53 DD ₹  16,490 day ₹ -10,297
+      RSI_BARE                                   4554   57% ₹  +559,079 PF 1.22 DD ₹  60,859 day ₹ -13,447  | 1079   60% ₹  +164,613 PF 1.26 DD ₹  34,316 day ₹ -13,124
+      VWAP_BARE                                  4796   57% ₹  +917,332 PF 1.34 DD ₹  37,702 day ₹ -13,796  | 1140   59% ₹  +288,875 PF 1.42 DD ₹  22,332 day ₹ -10,367
+  ONE GATE, today's votes kept
+      ADX_GATE_ONLY                              2740   58% ₹  +371,810 PF 1.24 DD ₹  39,162 day ₹  -6,859  |  674   59% ₹  +126,594 PF 1.34 DD ₹  19,825 day ₹  -8,110
+      ROOM_ONLY                                  1993   51% ₹  +175,645 PF 1.14 DD ₹  49,669 day ₹  -8,440  |  445   55% ₹  +100,054 PF 1.36 DD ₹  25,416 day ₹  -8,110
+      NO_GATES                                   3868   58% ₹  +428,091 PF 1.20 DD ₹  59,244 day ₹ -10,171  |  906   61% ₹  +141,800 PF 1.29 DD ₹  30,088 day ₹ -13,324
+   drop  ALL_AGREE vs TODAY                           profit: in-sample   -51,449  held-out   -28,929   worst drop:  -12,182 /   -5,920   worst day:   +2,199 /   +3,549
+   drop  TREND_ONLY vs TODAY                          profit: in-sample  +151,360  held-out      -806   worst drop:   -2,652 /   +7,024   worst day:   +2,199 /   +1,853
+   KEEP  MACD_ONLY vs TODAY                           profit: in-sample  +518,667  held-out  +128,824   worst drop:   -8,963 /   -1,031   worst day:       +0 /     +528
+   KEEP  RSI_ONLY vs TODAY                            profit: in-sample   +83,787  held-out    +9,363   worst drop:   +7,175 /   -2,498   worst day:       +0 /   +3,534
+   KEEP  VWAP_ONLY vs TODAY                           profit: in-sample  +497,875  held-out   +82,094   worst drop:  -16,686 /   -7,091   worst day:     -535 /   +1,146
+   KEEP  TREND_BARE vs TODAY                          profit: in-sample  +712,891  held-out  +131,271   worst drop:   -6,907 /   +3,188   worst day:   -5,098 /   -1,600
+   KEEP  MACD_BARE vs TODAY                           profit: in-sample  +879,966  held-out  +278,460   worst drop:  -12,765 /   -7,444   worst day:   -5,230 /   -2,187
+   KEEP  RSI_BARE vs TODAY                            profit: in-sample  +397,084  held-out   +99,334   worst drop:  +17,350 /  +10,382   worst day:   -5,007 /   -5,014
+   KEEP  VWAP_BARE vs TODAY                           profit: in-sample  +755,337  held-out  +223,597   worst drop:   -5,807 /   -1,602   worst day:   -5,356 /   -2,257
+   KEEP  ADX_GATE_ONLY vs TODAY                       profit: in-sample  +209,815  held-out   +61,315   worst drop:   -4,347 /   -4,109   worst day:   +1,581 /       +0
+   KEEP  ROOM_ONLY vs TODAY                           profit: in-sample   +13,650  held-out   +34,776   worst drop:   +6,160 /   +1,482   worst day:       +0 /       +0
+   KEEP  NO_GATES vs TODAY                            profit: in-sample  +266,096  held-out   +76,521   worst drop:  +15,734 /   +6,154   worst day:   -1,731 /   -5,214
+========================================================================================================================
+MIDCPNIFTY   rules, per lot after costs  (to 15 Aug 2025 | held out)
+  BASELINES
+      TODAY                                       722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+      ALL_AGREE                                   449   49% ₹   +91,779 PF 1.22 DD ₹  29,375 day ₹  -7,891  |  291   46% ₹    -4,167 PF 0.99 DD ₹  44,031 day ₹ -10,074
+  ONE VOTE, ADX gate and room kept
+      TREND_ONLY                                  853   49% ₹  +227,106 PF 1.28 DD ₹  37,576 day ₹ -10,871  |  528   50% ₹  +183,555 PF 1.34 DD ₹  53,058 day ₹ -13,738
+      MACD_ONLY                                   983   48% ₹  +284,859 PF 1.30 DD ₹  31,600 day ₹ -10,859  |  596   47% ₹  +114,158 PF 1.17 DD ₹  63,944 day ₹ -17,591
+      RSI_ONLY                                    857   48% ₹  +149,727 PF 1.17 DD ₹  42,835 day ₹ -11,325  |  533   50% ₹   +97,997 PF 1.18 DD ₹  48,218 day ₹ -12,274
+      VWAP_ONLY                                   960   49% ₹  +321,663 PF 1.35 DD ₹  50,750 day ₹ -14,089  |  594   52% ₹  +235,417 PF 1.39 DD ₹  24,754 day ₹ -21,106
+  ONE VOTE, nothing else
+      TREND_BARE                                 1529   52% ₹  +162,783 PF 1.11 DD ₹  66,469 day ₹ -17,222  |  915   52% ₹  +177,883 PF 1.20 DD ₹  60,396 day ₹ -14,895
+      MACD_BARE                                  1728   53% ₹  +359,206 PF 1.23 DD ₹  65,299 day ₹ -13,700  | 1038   52% ₹  +130,553 PF 1.12 DD ₹  45,334 day ₹ -21,221
+      RSI_BARE                                   1604   53% ₹   +44,659 PF 1.03 DD ₹ 112,380 day ₹ -16,915  |  987   52% ₹   +23,691 PF 1.02 DD ₹ 107,665 day ₹ -14,988
+      VWAP_BARE                                  1716   56% ₹  +403,764 PF 1.26 DD ₹  39,053 day ₹ -15,536  | 1035   53% ₹   +96,602 PF 1.09 DD ₹  43,992 day ₹ -24,736
+  ONE GATE, today's votes kept
+      ADX_GATE_ONLY                              1046   54% ₹  +141,838 PF 1.14 DD ₹  35,151 day ₹ -15,202  |  586   52% ₹   +48,790 PF 1.08 DD ₹  48,320 day ₹ -12,704
+      ROOM_ONLY                                   910   53% ₹  +287,597 PF 1.34 DD ₹  26,733 day ₹ -10,499  |  609   51% ₹  +115,200 PF 1.18 DD ₹  66,438 day ₹ -12,274
+      NO_GATES                                   1407   56% ₹  +227,334 PF 1.18 DD ₹  49,055 day ₹ -15,202  |  859   55% ₹   +79,020 PF 1.09 DD ₹  51,991 day ₹ -13,128
+   drop  ALL_AGREE vs TODAY                           profit: in-sample  -106,601  held-out  -112,162   worst drop:   -4,145 /   -5,368   worst day:   +2,812 /   +2,201
+   KEEP  TREND_ONLY vs TODAY                          profit: in-sample   +28,727  held-out   +75,559   worst drop:   +4,056 /   +3,660   worst day:     -167 /   -1,464
+   KEEP  MACD_ONLY vs TODAY                           profit: in-sample   +86,479  held-out    +6,163   worst drop:   -1,920 /  +14,545   worst day:     -156 /   -5,317
+   drop  RSI_ONLY vs TODAY                            profit: in-sample   -48,652  held-out    -9,999   worst drop:   +9,316 /   -1,180   worst day:     -622 /       +0
+   KEEP  VWAP_ONLY vs TODAY                           profit: in-sample  +123,283  held-out  +127,421   worst drop:  +17,231 /  -24,644   worst day:   -3,386 /   -8,831
+   drop  TREND_BARE vs TODAY                          profit: in-sample   -35,597  held-out   +69,887   worst drop:  +32,949 /  +10,998   worst day:   -6,519 /   -2,621
+   KEEP  MACD_BARE vs TODAY                           profit: in-sample  +160,826  held-out   +22,557   worst drop:  +31,779 /   -4,064   worst day:   -2,997 /   -8,946
+   drop  RSI_BARE vs TODAY                            profit: in-sample  -153,721  held-out   -84,305   worst drop:  +78,860 /  +58,267   worst day:   -6,211 /   -2,713
+   drop  VWAP_BARE vs TODAY                           profit: in-sample  +205,385  held-out   -11,394   worst drop:   +5,533 /   -5,406   worst day:   -4,833 /  -12,461
+   drop  ADX_GATE_ONLY vs TODAY                       profit: in-sample   -56,542  held-out   -59,205   worst drop:   +1,632 /   -1,079   worst day:   -4,499 /     -430
+   KEEP  ROOM_ONLY vs TODAY                           profit: in-sample   +89,218  held-out    +7,205   worst drop:   -6,787 /  +17,040   worst day:     +204 /       +0
+   drop  NO_GATES vs TODAY                            profit: in-sample   +28,954  held-out   -28,976   worst drop:  +15,535 /   +2,593   worst day:   -4,499 /     -854
+
+#### CONTROLS (votes_alone_study.py controls)
+========================================================================================================================
+ALL FOUR POOLED   CONTROLS  (to 15 Aug 2025 | held out)   then: index move caught, mean % of entry
+  stops filled: at the stop (as every study)
+      TODAY                                      5217   50% ₹  +707,391 PF 1.18 DD ₹  74,054 day ₹ -30,683  | 1642   50% ₹  +247,972 PF 1.18 DD ₹  96,805 day ₹ -40,569   +0.033%
+      MACD_ONLY                                  7517   50% ₹+2,679,687 PF 1.49 DD ₹  88,964 day ₹ -29,764  | 2285   50% ₹  +719,891 PF 1.37 DD ₹  65,432 day ₹ -33,426   +0.060%
+      VWAP_ONLY                                  7332   51% ₹+2,476,888 PF 1.46 DD ₹  77,008 day ₹ -22,371  | 2240   50% ₹  +666,917 PF 1.34 DD ₹  53,025 day ₹ -47,943   +0.057%
+      MACD_AGAINST_ONLY                         10697   46% ₹+9,095,465 PF 2.25 DD ₹  40,101 day ₹ -27,604  | 3089   44% ₹+2,246,341 PF 1.85 DD ₹  43,170 day ₹ -35,052   +0.115%
+      COIN_A_ONLY                               10002   47% ₹+7,310,544 PF 2.05 DD ₹  50,535 day ₹ -16,416  | 2901   46% ₹+1,834,300 PF 1.74 DD ₹  56,961 day ₹ -30,192   +0.102%
+      COIN_B_ONLY                                9961   48% ₹+7,296,795 PF 2.07 DD ₹  48,830 day ₹ -13,653  | 2915   47% ₹+2,002,557 PF 1.83 DD ₹  40,173 day ₹ -23,835   +0.105%
+  stops filled: at the open when it opens past
+      TODAY                                      5217   49% ₹   -99,851 PF 0.97 DD ₹ 255,704 day ₹ -31,231  | 1642   48% ₹   -22,028 PF 0.98 DD ₹ 131,227 day ₹ -40,569   +0.012%
+      MACD_ONLY                                  7517   48% ₹  -422,900 PF 0.92 DD ₹ 493,439 day ₹ -29,764  | 2285   47% ₹  -157,398 PF 0.92 DD ₹ 218,502 day ₹ -36,132   +0.008%
+      VWAP_ONLY                                  7332   49% ₹  -244,268 PF 0.96 DD ₹ 303,219 day ₹ -23,464  | 2240   48% ₹  -117,733 PF 0.94 DD ₹ 177,882 day ₹ -47,943   +0.010%
+      MACD_AGAINST_ONLY                         10697   42% ₹-1,753,190 PF 0.77 DD ₹1,772,617 day ₹ -37,446  | 3089   41% ₹  -874,127 PF 0.69 DD ₹ 896,058 day ₹ -43,962   -0.009%
+      COIN_A_ONLY                               10002   44% ₹-1,430,509 PF 0.80 DD ₹1,435,919 day ₹ -21,869  | 2901   43% ₹  -645,992 PF 0.76 DD ₹ 679,579 day ₹ -39,101   -0.004%
+      COIN_B_ONLY                                9961   44% ₹-1,260,650 PF 0.82 DD ₹1,319,176 day ₹ -20,074  | 2915   44% ₹  -536,946 PF 0.79 DD ₹ 578,404 day ₹ -44,982   -0.001%
+========================================================================================================================
+NIFTY   CONTROLS  (to 15 Aug 2025 | held out)   then: index move caught, mean % of entry
+  stops filled: at the stop (as every study)
+      TODAY                                      1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038   +0.027%
+      MACD_ONLY                                  2243   50% ₹  +602,980 PF 1.45 DD ₹  34,832 day ₹  -7,647  |  564   50% ₹  +184,788 PF 1.49 DD ₹  20,668 day ₹  -8,136   +0.051%
+      VWAP_ONLY                                  2170   51% ₹  +520,855 PF 1.39 DD ₹  27,330 day ₹  -7,105  |  547   49% ₹  +125,495 PF 1.32 DD ₹  18,997 day ₹  -6,720   +0.042%
+      MACD_AGAINST_ONLY                          3192   46% ₹+2,095,097 PF 2.14 DD ₹  28,385 day ₹  -9,809  |  787   41% ₹  +392,414 PF 1.68 DD ₹  28,069 day ₹ -12,677   +0.088%
+      COIN_A_ONLY                                2982   48% ₹+1,673,269 PF 1.97 DD ₹  29,070 day ₹  -7,585  |  734   46% ₹  +470,378 PF 1.98 DD ₹  29,497 day ₹ -16,264   +0.082%
+      COIN_B_ONLY                                2972   48% ₹+1,676,937 PF 1.97 DD ₹  19,879 day ₹ -10,001  |  743   49% ₹  +536,167 PF 2.15 DD ₹  14,497 day ₹  -6,184   +0.086%
+  stops filled: at the open when it opens past
+      TODAY                                      1545   49% ₹   -16,621 PF 0.98 DD ₹  62,582 day ₹  -7,487  |  387   49% ₹    +4,480 PF 1.02 DD ₹  32,145 day ₹  -9,038   +0.010%
+      MACD_ONLY                                  2243   47% ₹  -112,772 PF 0.92 DD ₹ 125,232 day ₹ -12,037  |  564   47% ₹   -13,562 PF 0.97 DD ₹  46,630 day ₹  -8,136   +0.008%
+      VWAP_ONLY                                  2170   50% ₹   -97,099 PF 0.93 DD ₹ 106,838 day ₹  -7,105  |  547   47% ₹   -42,215 PF 0.89 DD ₹  59,092 day ₹  -6,720   +0.005%
+      MACD_AGAINST_ONLY                          3192   42% ₹  -430,678 PF 0.77 DD ₹ 441,303 day ₹ -11,054  |  787   38% ₹  -237,679 PF 0.61 DD ₹ 245,472 day ₹ -15,742   -0.010%
+      COIN_A_ONLY                                2982   44% ₹  -350,266 PF 0.80 DD ₹ 358,822 day ₹  -7,585  |  734   44% ₹   -51,693 PF 0.90 DD ₹  80,176 day ₹ -18,531   -0.002%
+      COIN_B_ONLY                                2972   45% ₹  -275,466 PF 0.85 DD ₹ 294,842 day ₹ -10,001  |  743   45% ₹   -46,496 PF 0.91 DD ₹  69,095 day ₹  -7,170   +0.003%
+========================================================================================================================
+BANKNIFTY   CONTROLS  (to 15 Aug 2025 | held out)   then: index move caught, mean % of entry
+  stops filled: at the stop (as every study)
+      TODAY                                      1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147   +0.030%
+      MACD_ONLY                                  2122   50% ₹+1,111,186 PF 1.61 DD ₹  30,240 day ₹ -10,356  |  574   49% ₹  +226,842 PF 1.41 DD ₹  35,635 day ₹ -11,147   +0.078%
+      VWAP_ONLY                                  2091   50% ₹  +974,499 PF 1.53 DD ₹  72,408 day ₹ -10,189  |  570   48% ₹  +158,634 PF 1.27 DD ₹  33,785 day ₹ -18,244   +0.072%
+      MACD_AGAINST_ONLY                          3097   47% ₹+4,029,917 PF 2.67 DD ₹  25,200 day ₹ -13,154  |  773   45% ₹  +795,208 PF 2.08 DD ₹  25,692 day ₹ -19,319   +0.174%
+      COIN_A_ONLY                                2887   49% ₹+3,360,042 PF 2.46 DD ₹  38,662 day ₹ -10,709  |  725   45% ₹  +500,106 PF 1.68 DD ₹  32,381 day ₹ -18,244   +0.152%
+      COIN_B_ONLY                                2887   50% ₹+3,587,201 PF 2.65 DD ₹  27,340 day ₹ -10,110  |  724   47% ₹  +586,778 PF 1.86 DD ₹  24,548 day ₹  -9,091   +0.165%
+  stops filled: at the open when it opens past
+      TODAY                                      1467   48% ₹  -109,311 PF 0.92 DD ₹ 142,737 day ₹  -8,738  |  429   45% ₹   -58,126 PF 0.87 DD ₹  67,650 day ₹ -11,147   +0.005%
+      MACD_ONLY                                  2122   47% ₹  -196,947 PF 0.89 DD ₹ 215,738 day ₹ -10,356  |  574   47% ₹   -54,459 PF 0.90 DD ₹  81,963 day ₹ -13,303   +0.003%
+      VWAP_ONLY                                  2091   48% ₹  -195,598 PF 0.90 DD ₹ 217,447 day ₹ -10,189  |  570   46% ₹   -83,191 PF 0.86 DD ₹  94,278 day ₹ -18,244   +0.002%
+      MACD_AGAINST_ONLY                          3097   42% ₹  -509,362 PF 0.80 DD ₹ 543,630 day ₹ -13,468  |  773   43% ₹  -235,563 PF 0.70 DD ₹ 248,389 day ₹ -19,319   -0.006%
+      COIN_A_ONLY                                2887   45% ₹  -438,103 PF 0.82 DD ₹ 478,414 day ₹ -11,578  |  725   43% ₹  -280,300 PF 0.65 DD ₹ 290,713 day ₹ -22,509   -0.006%
+      COIN_B_ONLY                                2887   46% ₹  -243,472 PF 0.89 DD ₹ 304,478 day ₹ -11,578  |  724   44% ₹  -169,934 PF 0.77 DD ₹ 187,992 day ₹ -22,102   +0.007%
+========================================================================================================================
+SENSEX   CONTROLS  (to 15 Aug 2025 | held out)   then: index move caught, mean % of entry
+  stops filled: at the stop (as every study)
+      TODAY                                      1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110   +0.027%
+      MACD_ONLY                                  2169   51% ₹  +680,662 PF 1.52 DD ₹  34,546 day ₹  -8,440  |  551   52% ₹  +194,102 PF 1.55 DD ₹  22,904 day ₹  -7,582   +0.052%
+      VWAP_ONLY                                  2111   52% ₹  +659,870 PF 1.51 DD ₹  26,824 day ₹  -8,975  |  529   50% ₹  +147,373 PF 1.40 DD ₹  16,843 day ₹  -6,964   +0.049%
+      MACD_AGAINST_ONLY                          3163   46% ₹+2,238,978 PF 2.23 DD ₹  21,672 day ₹  -8,298  |  775   46% ₹  +601,267 PF 2.13 DD ₹  18,731 day ₹ -13,074   +0.094%
+      COIN_A_ONLY                                2932   46% ₹+1,611,422 PF 1.90 DD ₹  30,375 day ₹  -9,199  |  737   49% ₹  +531,144 PF 2.07 DD ₹  18,704 day ₹ -13,074   +0.077%
+      COIN_B_ONLY                                2932   46% ₹+1,611,422 PF 1.90 DD ₹  30,375 day ₹  -9,199  |  737   49% ₹  +531,144 PF 2.07 DD ₹  18,704 day ₹ -13,074   +0.077%
+  stops filled: at the open when it opens past
+      TODAY                                      1483   49% ₹   -13,273 PF 0.99 DD ₹  87,867 day ₹  -8,440  |  370   51% ₹   +17,619 PF 1.07 DD ₹  27,197 day ₹  -8,110   +0.011%
+      MACD_ONLY                                  2169   49% ₹   -52,163 PF 0.96 DD ₹ 133,367 day ₹  -8,440  |  551   49% ₹    -4,463 PF 0.99 DD ₹  48,086 day ₹  -7,582   +0.009%
+      VWAP_ONLY                                  2111   50% ₹   +24,270 PF 1.02 DD ₹  55,196 day ₹ -10,424  |  529   48% ₹   -44,174 PF 0.88 DD ₹  53,410 day ₹  -6,964   +0.010%
+      MACD_AGAINST_ONLY                          3163   42% ₹  -428,267 PF 0.77 DD ₹ 430,355 day ₹ -11,747  |  775   42% ₹  -169,736 PF 0.70 DD ₹ 188,072 day ₹ -19,717   -0.009%
+      COIN_A_ONLY                                2932   43% ₹  -428,993 PF 0.77 DD ₹ 437,783 day ₹ -10,424  |  737   44% ₹  -126,136 PF 0.76 DD ₹ 143,914 day ₹ -19,717   -0.009%
+      COIN_B_ONLY                                2932   43% ₹  -428,993 PF 0.77 DD ₹ 437,783 day ₹ -10,424  |  737   44% ₹  -126,136 PF 0.76 DD ₹ 143,914 day ₹ -19,717   -0.009%
+========================================================================================================================
+MIDCPNIFTY   CONTROLS  (to 15 Aug 2025 | held out)   then: index move caught, mean % of entry
+  stops filled: at the stop (as every study)
+      TODAY                                       722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274   +0.059%
+      MACD_ONLY                                   983   48% ₹  +284,859 PF 1.30 DD ₹  31,600 day ₹ -10,859  |  596   47% ₹  +114,158 PF 1.17 DD ₹  63,944 day ₹ -17,591   +0.060%
+      VWAP_ONLY                                   960   49% ₹  +321,663 PF 1.35 DD ₹  50,750 day ₹ -14,089  |  594   52% ₹  +235,417 PF 1.39 DD ₹  24,754 day ₹ -21,106   +0.072%
+      MACD_AGAINST_ONLY                          1245   42% ₹  +731,473 PF 1.62 DD ₹  33,049 day ₹ -11,051  |  754   42% ₹  +457,451 PF 1.57 DD ₹  47,118 day ₹ -11,231   +0.101%
+      COIN_A_ONLY                                1201   44% ₹  +665,811 PF 1.59 DD ₹  34,647 day ₹ -11,469  |  705   43% ₹  +332,673 PF 1.43 DD ₹  46,746 day ₹ -10,588   +0.091%
+      COIN_B_ONLY                                1170   43% ₹  +421,235 PF 1.36 DD ₹  53,634 day ₹ -14,213  |  711   44% ₹  +348,468 PF 1.46 DD ₹  43,662 day ₹ -14,844   +0.078%
+  stops filled: at the open when it opens past
+      TODAY                                       722   49% ₹   +39,354 PF 1.06 DD ₹  56,959 day ₹ -10,703  |  456   49% ₹   +14,000 PF 1.03 DD ₹  66,757 day ₹ -12,274   +0.031%
+      MACD_ONLY                                   983   46% ₹   -61,017 PF 0.94 DD ₹ 125,326 day ₹ -10,859  |  596   46% ₹   -84,914 PF 0.88 DD ₹ 134,489 day ₹ -17,591   +0.017%
+      VWAP_ONLY                                   960   47% ₹   +24,158 PF 1.03 DD ₹  97,937 day ₹ -14,089  |  594   51% ₹   +51,847 PF 1.08 DD ₹  57,944 day ₹ -21,106   +0.033%
+      MACD_AGAINST_ONLY                          1245   40% ₹  -384,882 PF 0.69 DD ₹ 390,851 day ₹ -13,494  |  754   40% ₹  -231,149 PF 0.73 DD ₹ 242,002 day ₹ -11,231   -0.010%
+      COIN_A_ONLY                                1201   42% ₹  -213,147 PF 0.82 DD ₹ 242,692 day ₹ -11,469  |  705   42% ₹  -187,863 PF 0.77 DD ₹ 212,723 day ₹ -12,748   +0.002%
+      COIN_B_ONLY                                1170   41% ₹  -312,719 PF 0.74 DD ₹ 330,860 day ₹ -14,213  |  711   43% ₹  -194,381 PF 0.77 DD ₹ 217,612 day ₹ -21,529   -0.006%

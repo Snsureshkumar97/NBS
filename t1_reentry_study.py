@@ -37,6 +37,7 @@ VARIANTS = ("today", "A", "B")
 def sim(A, i, tr, st, target, wait_bars=None, hold_bars=26):
     """opening_window_study.simulate_live (realistic breakeven), with how it ended: ([(exit spot, bar, 1.0)], how,
     T1 touched). how: "stop" | "target" | "breakeven-close" | "close". Asserted equal to simulate_live's legs."""
+    import fills
     import opening_window_study as ows
     wait_bars = ows.WAIT_BARS if wait_bars is None else wait_bars
     hi, lo, cl, end = A["hi"], A["lo"], A["cl"], A["end"]
@@ -45,7 +46,7 @@ def sim(A, i, tr, st, target, wait_bars=None, hold_bars=26):
     n = len(cl)
     for j in range(i + 1, min(i + 1 + hold_bars, n)):
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
-            return [(stop, j, 1.0)], "stop", t1_done
+            return [(fills.stop_fill(A, j, stop, ce), j, 1.0)], "stop", t1_done    # fills.py: open when past
         if not t1_done and ((hi[j] >= tr["t1"]) if ce else (lo[j] <= tr["t1"])):
             t1_done = True
             stop = max(stop, tr["t1"]) if ce else min(stop, tr["t1"])
@@ -114,7 +115,7 @@ def _job(key):
     vix = rs.load_vix()
     nrv = np.log(rs.daily_close(nifty)).diff().rolling(20).std() * math.sqrt(252)
     F = rs.features(df, vix, nrv)
-    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(),
+    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(), "op": df["Open"].to_numpy(),
          "end": (pd.Series(df.index.date) != pd.Series(df.index.date).shift(-1)).to_numpy(), "days": set(df.index.date)}
     pre = bt.precompute(df, key)
     st = ind.supertrend(df, *config.supertrend_params(key))[0].to_numpy()

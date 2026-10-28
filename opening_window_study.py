@@ -40,6 +40,7 @@ import pandas as pd
 import backtest_intraday as bt
 import conditional_cooldown_study as ccs
 import config
+import fills
 import indicators as ind
 import pro_study as ps
 import regime_study as rs
@@ -61,7 +62,7 @@ def simulate_live(A, i, tr, st, target, realistic_be=True, wait_bars=WAIT_BARS, 
         if not realistic_be and not t1_done and (j - i) >= wait_bars:
             stop = max(stop, tr["entry"]) if ce else min(stop, tr["entry"])
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
-            return [(stop, j, 1.0)]
+            return [(fills.stop_fill(A, j, stop, ce), j, 1.0)]     # at the open when it opens past (fills.py)
         if not t1_done and ((hi[j] >= tr["t1"]) if ce else (lo[j] <= tr["t1"])):
             t1_done = True
             stop = max(stop, tr["t1"]) if ce else min(stop, tr["t1"])

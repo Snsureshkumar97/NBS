@@ -1,0 +1,86 @@
+========================================================================================================================
+NIFTY   (to 15 Aug 2025 | held out)
+    rules, three targets (today)                 1545   50% ₹  +176,379 PF 1.18 DD ₹  32,727 day ₹  -7,487  |  387   50% ₹   +57,515 PF 1.22 DD ₹  27,315 day ₹  -9,038
+    rules, one target T3 + first close (THE IDEA)  1344   27% ₹   -34,245 PF 0.96 DD ₹  57,441 day ₹  -7,603  |  356   24% ₹    +4,716 PF 1.02 DD ₹  33,971 day ₹  -6,267
+    (info) one target T2 + first close           1456   32% ₹   -54,748 PF 0.94 DD ₹  72,635 day ₹  -7,603  |  380   27% ₹   -25,333 PF 0.90 DD ₹  43,674 day ₹  -6,267
+    (info) no target + first close               1249   24% ₹   +86,836 PF 1.09 DD ₹  59,297 day ₹  -7,603  |  330   23% ₹   +37,766 PF 1.16 DD ₹  35,497 day ₹  -6,267
+    (info) one target T3, nothing moves the stop  1106   44% ₹   +33,528 PF 1.03 DD ₹  43,351 day ₹  -7,603  |  266   48% ₹   +32,395 PF 1.10 DD ₹  54,979 day ₹  -6,309
+    (info) three targets + first close           1716   37% ₹   +98,087 PF 1.12 DD ₹  41,987 day ₹  -6,003  |  453   34% ₹   +29,818 PF 1.13 DD ₹  19,212 day ₹  -9,038
+    big candle, 2R (today)                        332   41% ₹  +206,003 PF 1.59 DD ₹  36,011 day ₹  -6,606  |   61   46% ₹   +34,282 PF 1.56 DD ₹  10,537 day ₹  -4,150
+    big candle, 2R + first close                  332   27% ₹  +112,742 PF 1.43 DD ₹  27,307 day ₹  -6,606  |   61   30% ₹   +18,527 PF 1.33 DD ₹  14,110 day ₹  -4,150
+    rules + big candle, today                    1694   49% ₹  +337,763 PF 1.29 DD ₹  34,215 day ₹  -7,487  |  410   49% ₹   +71,011 PF 1.24 DD ₹  38,219 day ₹  -9,241
+    rules + big candle, THE IDEA                 1513   27% ₹   +71,167 PF 1.07 DD ₹  42,097 day ₹  -7,603  |  390   24% ₹   +13,163 PF 1.05 DD ₹  38,086 day ₹  -6,470
+    (info) today + first close on both           1878   36% ₹  +191,220 PF 1.19 DD ₹  35,613 day ₹  -7,415  |  483   32% ₹   +31,358 PF 1.12 DD ₹  29,760 day ₹  -9,241
+    (info) one target T3, no first close         1260   43% ₹  +202,618 PF 1.15 DD ₹  41,180 day ₹  -9,711  |  293   47% ₹   +53,558 PF 1.16 DD ₹  47,374 day ₹  -7,354
+   drop  THE IDEA vs today                            profit: in-sample  -266,596  held-out   -57,848   worst drop:   +7,882 /     -133   worst day:     -116 /   +2,771
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹140,980 (today's ₹63,165), chance of a loss 21%;  held-out: 95% worst drop ₹87,816 (today's ₹47,673), chance of a loss 39%
+   drop  (info) first close added to today            profit: in-sample  -146,544  held-out   -39,653   worst drop:   +1,398 /   -8,459   worst day:      +72 /       +0
+           walk-forward: beats today's in 4 of 13 half-years;  first two years: 95% worst drop ₹74,990 (today's ₹63,165), chance of a loss 1%;  held-out: 95% worst drop ₹58,067 (today's ₹47,673), chance of a loss 20%
+========================================================================================================================
+BANKNIFTY   (to 15 Aug 2025 | held out)
+    rules, three targets (today)                 1467   49% ₹  +170,637 PF 1.13 DD ₹  36,375 day ₹  -8,627  |  429   46% ₹   +17,183 PF 1.04 DD ₹  40,536 day ₹ -11,147
+    rules, one target T3 + first close (THE IDEA)  1320   26% ₹   +11,032 PF 1.01 DD ₹  90,569 day ₹  -8,998  |  384   26% ₹   -40,118 PF 0.91 DD ₹  73,109 day ₹  -8,644
+    (info) one target T2 + first close           1426   31% ₹   -44,617 PF 0.96 DD ₹ 112,027 day ₹  -8,998  |  419   29% ₹   -39,591 PF 0.91 DD ₹  66,061 day ₹  -8,644
+    (info) no target + first close               1208   23% ₹   +61,601 PF 1.05 DD ₹  93,983 day ₹  -8,998  |  368   25% ₹   -19,966 PF 0.95 DD ₹  52,564 day ₹  -8,644
+    (info) one target T3, nothing moves the stop  1066   42% ₹      -445 PF 1.00 DD ₹  84,395 day ₹ -11,553  |  299   45% ₹   -32,144 PF 0.94 DD ₹  93,583 day ₹ -11,188
+    (info) three targets + first close           1665   36% ₹   +69,251 PF 1.06 DD ₹  48,609 day ₹  -8,627  |  501   33% ₹    +2,158 PF 1.01 DD ₹  34,772 day ₹ -11,147
+    big candle, 2R (today)                        359   42% ₹  +181,060 PF 1.37 DD ₹  52,751 day ₹  -6,541  |   57   51% ₹   +53,779 PF 1.70 DD ₹  20,339 day ₹  -6,093
+    big candle, 2R + first close                  359   28% ₹  +139,901 PF 1.43 DD ₹  38,489 day ₹  -6,541  |   57   39% ₹   +39,689 PF 1.62 DD ₹  12,237 day ₹  -5,635
+    rules + big candle, today                    1624   48% ₹  +348,397 PF 1.22 DD ₹  39,282 day ₹ -11,110  |  449   46% ₹   +42,080 PF 1.09 DD ₹  44,129 day ₹ -11,147
+    rules + big candle, THE IDEA                 1501   26% ₹  +120,390 PF 1.09 DD ₹  70,123 day ₹ -11,110  |  406   28% ₹    +3,459 PF 1.01 DD ₹  58,434 day ₹ -12,085
+    (info) today + first close on both           1843   35% ₹  +210,456 PF 1.15 DD ₹  53,271 day ₹ -11,110  |  523   34% ₹   +31,886 PF 1.08 DD ₹  39,937 day ₹ -11,147
+    (info) one target T3, no first close         1230   42% ₹  +171,633 PF 1.10 DD ₹  61,456 day ₹ -11,553  |  318   46% ₹   +11,431 PF 1.02 DD ₹  73,677 day ₹ -11,188
+   drop  THE IDEA vs today                            profit: in-sample  -228,007  held-out   -38,621   worst drop:  +30,841 /  +14,306   worst day:       +0 /     -938
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹166,979 (today's ₹91,186), chance of a loss 13%;  held-out: 95% worst drop ₹141,859 (today's ₹100,213), chance of a loss 47%
+   drop  (info) first close added to today            profit: in-sample  -137,940  held-out   -10,194   worst drop:  +13,989 /   -4,192   worst day:       +0 /       +0
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹105,433 (today's ₹91,186), chance of a loss 2%;  held-out: 95% worst drop ₹104,982 (today's ₹100,213), chance of a loss 29%
+========================================================================================================================
+SENSEX   (to 15 Aug 2025 | held out)
+    rules, three targets (today)                 1483   50% ₹  +161,995 PF 1.17 DD ₹  43,510 day ₹  -8,440  |  370   52% ₹   +65,278 PF 1.27 DD ₹  23,934 day ₹  -8,110
+    rules, one target T3 + first close (THE IDEA)  1307   27% ₹      +888 PF 1.00 DD ₹  72,078 day ₹  -6,241  |  316   28% ₹   +52,153 PF 1.24 DD ₹  34,878 day ₹  -5,767
+    (info) one target T2 + first close           1441   31% ₹   -60,373 PF 0.94 DD ₹ 117,459 day ₹  -6,241  |  352   33% ₹   +30,856 PF 1.14 DD ₹  26,433 day ₹  -5,767
+    (info) no target + first close               1210   24% ₹  +102,719 PF 1.12 DD ₹  59,233 day ₹  -6,241  |  302   26% ₹   +81,127 PF 1.38 DD ₹  25,526 day ₹  -5,767
+    (info) one target T3, nothing moves the stop  1064   45% ₹   +43,380 PF 1.04 DD ₹  63,172 day ₹  -8,440  |  241   49% ₹   +77,781 PF 1.29 DD ₹  28,358 day ₹  -5,767
+    (info) three targets + first close           1674   38% ₹  +123,363 PF 1.15 DD ₹  43,532 day ₹  -7,181  |  424   37% ₹   +22,771 PF 1.11 DD ₹  29,010 day ₹  -8,110
+    big candle, 2R (today)                        339   40% ₹  +175,895 PF 1.47 DD ₹  48,667 day ₹  -6,971  |   51   55% ₹   +61,078 PF 2.68 DD ₹  12,165 day ₹  -3,779
+    big candle, 2R + first close                  339   26% ₹  +116,764 PF 1.42 DD ₹  37,173 day ₹  -6,971  |   51   37% ₹   +46,142 PF 2.58 DD ₹   7,534 day ₹  -3,779
+    rules + big candle, today                    1648   49% ₹  +325,348 PF 1.28 DD ₹  35,831 day ₹  -7,578  |  400   51% ₹   +84,551 PF 1.32 DD ₹  32,426 day ₹  -8,167
+    rules + big candle, THE IDEA                 1484   27% ₹  +116,095 PF 1.11 DD ₹  41,902 day ₹  -6,971  |  348   28% ₹   +72,285 PF 1.30 DD ₹  41,770 day ₹  -7,489
+    (info) today + first close on both           1848   36% ₹  +239,617 PF 1.24 DD ₹  36,308 day ₹  -7,578  |  455   36% ₹   +43,895 PF 1.19 DD ₹  35,444 day ₹  -8,167
+    (info) one target T3, no first close         1221   44% ₹  +200,739 PF 1.15 DD ₹  63,444 day ₹  -9,679  |  272   48% ₹   +94,665 PF 1.32 DD ₹  36,477 day ₹  -7,489
+   drop  THE IDEA vs today                            profit: in-sample  -209,254  held-out   -12,266   worst drop:   +6,071 /   +9,345   worst day:     +607 /     +678
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹120,383 (today's ₹64,654), chance of a loss 9%;  held-out: 95% worst drop ₹55,480 (today's ₹43,473), chance of a loss 6%
+   drop  (info) first close added to today            profit: in-sample   -85,732  held-out   -40,656   worst drop:     +477 /   +3,019   worst day:       +0 /       +0
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹65,950 (today's ₹64,654), chance of a loss 0%;  held-out: 95% worst drop ₹48,432 (today's ₹43,473), chance of a loss 11%
+========================================================================================================================
+MIDCPNIFTY   (to 15 Aug 2025 | held out)
+    rules, three targets (today)                  722   51% ₹  +198,380 PF 1.28 DD ₹  33,520 day ₹ -10,703  |  456   50% ₹  +107,996 PF 1.23 DD ₹  49,398 day ₹ -12,274
+    rules, one target T3 + first close (THE IDEA)   649   29% ₹   +80,420 PF 1.12 DD ₹  45,460 day ₹ -10,703  |  411   29% ₹    -9,696 PF 0.98 DD ₹  76,831 day ₹ -12,505
+    (info) one target T2 + first close            706   34% ₹   +88,127 PF 1.13 DD ₹  39,147 day ₹ -10,703  |  440   32% ₹   -50,691 PF 0.90 DD ₹ 100,944 day ₹ -12,505
+    (info) no target + first close                604   26% ₹  +100,176 PF 1.16 DD ₹  46,784 day ₹ -10,703  |  381   29% ₹   +12,730 PF 1.03 DD ₹  81,242 day ₹ -12,505
+    (info) one target T3, nothing moves the stop   519   47% ₹  +105,760 PF 1.14 DD ₹  57,087 day ₹ -10,703  |  319   47% ₹   +44,334 PF 1.08 DD ₹  72,256 day ₹ -12,505
+    (info) three targets + first close            811   38% ₹  +144,004 PF 1.23 DD ₹  30,899 day ₹ -10,703  |  525   37% ₹   +30,762 PF 1.06 DD ₹  69,612 day ₹ -12,274
+    big candle, 2R (today)                        168   48% ₹  +126,183 PF 1.45 DD ₹  28,511 day ₹ -11,241  |   67   43% ₹   +17,014 PF 1.14 DD ₹  25,391 day ₹  -6,135
+    big candle, 2R + first close                  168   33% ₹  +115,075 PF 1.60 DD ₹  34,033 day ₹ -11,241  |   67   24% ₹   +11,475 PF 1.12 DD ₹  25,152 day ₹  -6,135
+    rules + big candle, today                     766   49% ₹  +222,376 PF 1.26 DD ₹  32,381 day ₹ -11,241  |  477   50% ₹  +123,538 PF 1.23 DD ₹  38,456 day ₹ -13,290
+    rules + big candle, THE IDEA                  702   29% ₹  +138,284 PF 1.19 DD ₹  51,516 day ₹ -11,241  |  439   28% ₹    -9,296 PF 0.98 DD ₹  72,661 day ₹ -13,290
+    (info) today + first close on both            862   37% ₹  +184,236 PF 1.26 DD ₹  27,071 day ₹ -11,241  |  554   36% ₹   +39,414 PF 1.07 DD ₹  63,278 day ₹ -13,290
+    (info) one target T3, no first close          571   46% ₹  +144,400 PF 1.16 DD ₹  58,657 day ₹ -11,241  |  341   46% ₹   +64,551 PF 1.11 DD ₹  64,016 day ₹ -13,290
+   drop  THE IDEA vs today                            profit: in-sample   -84,092  held-out  -132,834   worst drop:  +19,135 /  +34,205   worst day:       +0 /       +0
+           walk-forward: beats today's in 1 of 7 half-years;  first two years: 95% worst drop ₹114,697 (today's ₹86,053), chance of a loss 6%;  held-out: 95% worst drop ₹167,430 (today's ₹84,653), chance of a loss 56%
+   drop  (info) first close added to today            profit: in-sample   -38,141  held-out   -84,124   worst drop:   -5,310 /  +24,822   worst day:       +0 /       +0
+           walk-forward: beats today's in 2 of 7 half-years;  first two years: 95% worst drop ₹77,663 (today's ₹86,053), chance of a loss 1%;  held-out: 95% worst drop ₹116,827 (today's ₹84,653), chance of a loss 28%
+========================================================================================================================
+ALL FOUR POOLED
+    today                                        5732   49% ₹+1,233,885 PF 1.26 DD ₹  78,024 day ₹ -26,926  | 1736   49% ₹  +321,181 PF 1.20 DD ₹  96,380 day ₹ -40,829
+    THE IDEA                                     5200   27% ₹  +445,936 PF 1.10 DD ₹ 105,767 day ₹ -26,926  | 1583   27% ₹   +79,611 PF 1.05 DD ₹ 151,323 day ₹ -29,981
+    (info) today + first close                   6431   36% ₹  +825,528 PF 1.20 DD ₹  76,699 day ₹ -26,926  | 2015   35% ₹  +146,553 PF 1.10 DD ₹  79,551 day ₹ -40,829
+    (info) one target T3, no first close         4282   44% ₹  +719,390 PF 1.14 DD ₹ 141,210 day ₹ -30,499  | 1224   47% ₹  +224,206 PF 1.13 DD ₹ 158,590 day ₹ -32,218
+   drop  THE IDEA vs today                            profit: in-sample  -787,949  held-out  -241,570   worst drop:  +27,742 /  +54,943   worst day:       +0 /  +10,848
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹325,939 (today's ₹160,053), chance of a loss 5%;  held-out: 95% worst drop ₹330,140 (today's ₹161,392), chance of a loss 34%
+   drop  (info) first close added to today            profit: in-sample  -408,356  held-out  -174,627   worst drop:   -1,325 /  -16,830   worst day:       +0 /       +0
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹170,318 (today's ₹160,053), chance of a loss 0%;  held-out: 95% worst drop ₹212,797 (today's ₹161,392), chance of a loss 16%
+   NIFTY       THE IDEA's rules exits: {'stop at entry': 688, 'stop': 415, 'close': 323, 'target': 274}
+   BANKNIFTY   THE IDEA's rules exits: {'stop at entry': 704, 'stop': 392, 'close': 348, 'target': 260}
+   SENSEX      THE IDEA's rules exits: {'stop at entry': 668, 'stop': 384, 'close': 301, 'target': 270}
+   MIDCPNIFTY  THE IDEA's rules exits: {'stop at entry': 409, 'close': 265, 'stop': 245, 'target': 141}

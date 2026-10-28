@@ -55,6 +55,7 @@ import pandas as pd
 
 import backtest_intraday as bt
 import config
+import fills
 import pro_study as ps
 import regime_study as rs
 import signal_engine as se
@@ -147,7 +148,7 @@ def simulate_reversal(A, opt_arr, i, tr, hold_bars=26, square_off=True):
     n = len(cl)
     for j in range(i + 1, min(i + 1 + hold_bars, n)):
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
-            legs.append((stop, j, rem)); return legs
+            legs.append((fills.stop_fill(A, j, stop, ce), j, rem)); return legs      # fills.py: open when past
         tgt = tr[target]
         if tgt is not None and ((hi[j] >= tgt) if ce else (lo[j] <= tgt)):
             legs.append((tgt, j, rem)); return legs

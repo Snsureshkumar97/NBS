@@ -63,6 +63,7 @@ import screener
 
 import backtest_intraday as bt
 import config
+import fills
 import regime_study as rs
 
 IST = "Asia/Kolkata"
@@ -178,7 +179,7 @@ def simulate(A, i, tr, hold_bars=26, square_off=True,
     n = len(cl)
     for j in range(i + 1, min(i + 1 + hold_bars, n)):
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
-            legs.append((stop, j, rem)); return legs
+            legs.append((fills.stop_fill(A, j, stop, ce), j, rem)); return legs      # fills.py: open when past
         if not t1_done and ((hi[j] >= tr["t1"]) if ce else (lo[j] <= tr["t1"])):
             t1_done = True
             if half_at_t1 or runner_after_t1:

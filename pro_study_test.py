@@ -178,6 +178,7 @@ check("WITH the flag: T1 (110) ratchets the stop, and the SAME pullback to 105 (
 
 print("17. trail_after_t1_supertrend: TIGHTENS FURTHER THAN THE FLAT T1 RATCHET ALONE WOULD")
 A = arr(hi=[112, 116, 118], lo=[108, 112, 113], cl=[111, 114, 116])
+A["op"] = [111.0, 111.0, 115.5]   # bar 2 opens above the trailed stop, so the stop is hit inside it (fills.py)
 st = [105.0, 115.0, 115.0]
 legs_flat = ps.simulate(A, -1, trade(), target="t2", ratchet_to_t1=True)
 check("flat ratchet alone: stop stays at T1 (110) the whole time - bar 2's low (113) never "
@@ -189,9 +190,14 @@ check("with the trail: bar 1's Supertrend reading (115) tightens the stop PAST T
       "bar 2's low (113) now falls below it, closing the trade earlier and higher (115) "
       "than the flat ratchet alone ever would have on these same bars",
       legs_trail == [(115.0, 2, 1.0)], legs_trail)
+A_gap = {k: v for k, v in A.items() if k != "op"}   # bar 2 opens where bar 1 closed (114), already under 115
+legs_gap = ps.simulate(A_gap, -1, trade(), target="t2", ratchet_to_t1=True, trail_after_t1_supertrend=st)
+check("...and when bar 2 opens already under the trailed stop (at bar 1's close, 114), it sells at that open, "
+      "not at 115 (fills.py, 28 Oct 2026: the old fill paid this)", legs_gap == [(114.0, 2, 1.0)], legs_gap)
 
 print("18. trail_after_t1_supertrend: NEVER LOOSENS, EVEN WHEN THE SUPERTREND LINE ITSELF DROPS")
 A = arr(hi=[112, 116, 118], lo=[108, 112, 90], cl=[111, 114, 95])
+A["op"] = [111.0, 111.0, 115.5]   # opens above 115, falls through it inside the candle
 st = [105.0, 115.0, 95.0]      # the trail itself drops sharply in bar 2 - must not loosen the stop
 legs = ps.simulate(A, -1, trade(), target="t2", ratchet_to_t1=True, trail_after_t1_supertrend=st)
 check("bar 2's low (90) still stops out at 115 (the BEST level the trail ever reached, from "
@@ -202,6 +208,7 @@ check("bar 2's low (90) still stops out at 115 (the BEST level the trail ever re
 print("19. trail_after_t1_supertrend WITHOUT ratchet_to_t1: STILL APPLIES ONCE T1 IS TOUCHED - "
       "THE TWO FLAGS ARE INDEPENDENT, NOT A SINGLE COMBINED SWITCH")
 A = arr(hi=[112, 116, 118], lo=[108, 112, 102], cl=[111, 114, 104])
+A["op"] = [111.0, 111.0, 115.5]   # opens above 115, falls through it inside the candle
 st = [105.0, 115.0, 115.0]
 legs = ps.simulate(A, -1, trade(), target="t2", trail_after_t1_supertrend=st)
 check("even with ratchet_to_t1 left False (so T1 itself never sets the stop), the trail still "

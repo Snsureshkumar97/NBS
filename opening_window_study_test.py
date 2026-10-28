@@ -34,7 +34,9 @@ flat = arrays([101] + [99] * 12, [99] + [93] * 12, [100] + [94] * 12)
 legs = ows.simulate_live(flat, 0, CE, NAN, "t2", realistic_be=True)
 check("price already under entry at 2 hours: sold at the market there (94), at bar 8", legs == [(94.0, 8, 1.0)], legs)
 legs_old = ows.simulate_live(flat, 0, CE, NAN, "t2", realistic_be=False)
-check("the old fill books it at the entry (100) - the optimism this study corrects", legs_old == [(100.0, 8, 1.0)], legs_old)
+check("the old breakeven (stop to entry with the price already under it) now fills at that candle's open (94), "
+      "not at the entry - fills.py, 28 Oct 2026, ended the optimism this study corrected", legs_old == [(94.0, 8, 1.0)],
+      legs_old)
 up = arrays([101] + [102] * 8 + [103, 99, 99, 99], [99] + [100.5] * 8 + [101, 98, 98, 98], [100] + [101] * 8 + [102, 99, 99, 99])
 legs = ows.simulate_live(up, 0, CE, NAN, "t2")
 check("price above entry at 2 hours: the stop moves to entry, hit later at entry", legs == [(100.0, 10, 1.0)], legs)

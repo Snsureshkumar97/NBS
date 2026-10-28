@@ -96,7 +96,8 @@ def walk(bars, start, side, stop, target, custom_exit=None, last="15:15"):
             return float(bars["Close"].iloc[j - 1]), j - 1
         hi, lo = float(bars["High"].iloc[j]), float(bars["Low"].iloc[j])
         if stop is not None and ((lo <= stop) if side == "CE" else (hi >= stop)):
-            return stop, j
+            op = float(bars["Open"].iloc[j])                  # fills.py: at the open when it opens past the stop
+            return (min(stop, op) if side == "CE" else max(stop, op)), j
         if target is not None and ((hi >= target) if side == "CE" else (lo <= target)):
             return target, j
         if custom_exit and custom_exit(j):

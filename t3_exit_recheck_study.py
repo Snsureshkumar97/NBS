@@ -40,6 +40,7 @@ RULES = ("SENSEX", "MIDCPNIFTY")
 def sim(A, i, tr, st, target, step_t2=False, wait_bars=None, hold_bars=26):
     """opening_window_study.simulate_live (realistic breakeven), out at `target`; step_t2 also moves the stop to T2
     when T2 is touched (a T3 exit, as tickets._check_price does). -> ([(exit spot, bar, 1.0)], how, T1 touched)."""
+    import fills
     import opening_window_study as ows
     wait_bars = ows.WAIT_BARS if wait_bars is None else wait_bars
     hi, lo, cl, end = A["hi"], A["lo"], A["cl"], A["end"]
@@ -49,7 +50,7 @@ def sim(A, i, tr, st, target, step_t2=False, wait_bars=None, hold_bars=26):
     n = len(cl)
     for j in range(i + 1, min(i + 1 + hold_bars, n)):
         if (lo[j] <= stop) if ce else (hi[j] >= stop):
-            return [(stop, j, 1.0)], "stop", t1_done
+            return [(fills.stop_fill(A, j, stop, ce), j, 1.0)], "stop", t1_done    # fills.py: open when past
         if not t1_done and ((hi[j] >= tr["t1"]) if ce else (lo[j] <= tr["t1"])):
             t1_done = True
             stop = tighten(stop, tr["t1"])
@@ -103,7 +104,7 @@ def _job(key):
     vix = rs.load_vix()
     nrv = np.log(rs.daily_close(nifty)).diff().rolling(20).std() * math.sqrt(252)
     F = rs.features(df, vix, nrv)
-    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(),
+    A = {"hi": df["High"].to_numpy(), "lo": df["Low"].to_numpy(), "cl": df["Close"].to_numpy(), "op": df["Open"].to_numpy(),
          "end": (pd.Series(df.index.date) != pd.Series(df.index.date).shift(-1)).to_numpy(), "days": set(df.index.date)}
     pre = bt.precompute(df, key)
     st = ind.supertrend(df, *config.supertrend_params(key))[0].to_numpy()
