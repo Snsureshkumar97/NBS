@@ -36,6 +36,34 @@ check("record() takes its strikes from strike_window, on the day's own low and h
 check("still read-only: it asks Zerodha for prices and places nothing",
       "place_order" not in src and "historical_data" in src)
 
+print("3. A PASSING KITE FAILURE IS ASKED AGAIN (the user, 28 Oct 2026: \"yes add the retry\")")
+import datetime as dt
+waits = []
+ro.time.sleep = waits.append                                  # no real waiting in a test
+class FakeKite:
+    def __init__(self, errors):
+        self.errors, self.calls = list(errors), 0
+    def historical_data(self, token, frm, to, interval, oi=True):
+        self.calls += 1
+        if self.errors:
+            raise Exception(self.errors.pop(0))
+        return [{"date": frm, "open": 1, "high": 1, "low": 1, "close": 1, "volume": 0, "oi": 0}]
+bad_gateway = "Unknown Content-Type (text/html) with response: (b'<html><title>502 Bad Gateway</title></html>')"
+k = FakeKite([bad_gateway])
+df = ro._hist(k, 123, dt.date(2026, 10, 28))
+check("a 502 once: asked again, and the candles are kept", len(df) == 1 and k.calls == 2, (len(df), k.calls))
+check("...after a 2-second wait", ro.RETRY_WAIT[0] in waits, waits)
+k = FakeKite([bad_gateway, "Gateway Timeout 504"])
+check("two passing failures: the third try keeps it", len(ro._hist(k, 123, dt.date(2026, 10, 28))) == 1 and k.calls == 3)
+k = FakeKite([bad_gateway] * 3)
+check("three in a row: given up, an empty frame, no fourth call", ro._hist(k, 123, dt.date(2026, 10, 28)).empty
+      and k.calls == 3, k.calls)
+k = FakeKite(["Invalid token"])
+check("a real error (not a passing one) is not asked again", ro._hist(k, 123, dt.date(2026, 10, 28)).empty
+      and k.calls == 1, k.calls)
+k = FakeKite(["Too many requests"])
+check("the rate limit is still asked again", len(ro._hist(k, 123, dt.date(2026, 10, 28))) == 1 and k.calls == 2)
+
 print()
 print("FAILED: " + ", ".join(fails) if fails else "ALL OK")
 sys.exit(1 if fails else 0)

@@ -49,6 +49,10 @@ WIDE_PCT = 0.06           # ...and every strike within this share of the day's r
                           # recorder and start collecting" - the far strikes, so option selling can be tested on real prices)
 EXPIRIES = 2              # nearest N expiries per index
 REQ_SLEEP = 0.36          # Kite's historical API allows 3 requests a second
+# Worth asking again: Kite's rate limit, and its gateway's passing failures - "502 Bad Gateway" lost about one contract a
+# day, four on 28 Oct 2026's first wide run (the user: "yes add the retry"). Seconds before the 2nd and 3rd try.
+TRANSIENT = ("Too many", "502", "503", "504", "Bad Gateway", "Gateway Time", "timed out", "Connection")
+RETRY_WAIT = (2, 5)
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
 
@@ -88,8 +92,8 @@ def _hist(k, token, day, interval="minute", oi=True):
             time.sleep(REQ_SLEEP)
             return pd.DataFrame(rows)
         except Exception as exc:
-            if "Too many" in str(exc) and attempt < 2:
-                time.sleep(2)
+            if any(t in str(exc) for t in TRANSIENT) and attempt < 2:
+                time.sleep(RETRY_WAIT[attempt])
                 continue
             print(f"    token {token}: {exc}")
             time.sleep(REQ_SLEEP)
