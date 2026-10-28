@@ -26,6 +26,7 @@ half weeks: about one standard error for the rating - but the same way as the co
 
     python3 real_price_check.py OPTION_HISTORY_DIR      (HOME at the six-year history, candles to 26 Oct 2026)
     python3 real_price_check.py daily OPTION_HISTORY_DIR    (the same, day by day)
+    python3 real_price_check.py daily_levels OPTION_HISTORY_DIR    (day by day, with the levels check)
 """
 import os
 import sys
@@ -218,5 +219,64 @@ def daily():
           f"{int((su == 0).sum())} flat; best {su.max():+,.0f}, worst {su.min():+,.0f}, total {su.sum():+,.0f}")
 
 
+def _tv_levels(key):
+    """The TradingView rating with the levels check (sr_study LEVELS_1.5, levels.py), rows as _job's."""
+    import sr_study as sr
+    rows = sr._job((key, "TV", "LEVELS_1.5"))[1]
+    return key, [dict(r, how="level" if r["closed_via"] in ("stop", "target") else "close") for r in rows]
+
+
+def daily_levels():
+    """Day by day with the levels check on (the user, 28 Oct 2026: "give me day by day with these rules")."""
+    import multiprocessing as mp
+    import live_vs_backtest as lv
+    import order_block_site_study as obs
+    P = lv.Prices(sys.argv[2])
+    with mp.get_context("spawn").Pool(processes=6, maxtasksperchild=1) as pool:
+        tvl = dict(pool.map(_tv_levels, KEYS))
+        got = dict(pool.map(_job, [(k, s_) for k in KEYS for s_ in ("TV", "BC")], chunksize=1))
+    s = lambda rows: sorted(rows, key=lambda r: pd.Timestamp(r["when"]))
+    win = lambda rows, k: s([dict(r, index=k) for r in rows if SINCE <= pd.Timestamp(r["when"]) < UNTIL])
+    per = []
+    for k in KEYS:
+        tv, tl, bc = win(got[(k, "TV")], k), win(tvl[k], k), win(got[(k, "BC")], k)
+        new = s(obs.slot(tl, bc)) if k != "MIDCPNIFTY" else tl
+        old = s(obs.slot(tv, bc)) if k != "MIDCPNIFTY" else tv
+        for name, rows in (("NEW", new), ("OLD", old)):
+            for r in rows:
+                a = real_net(r, P, 0)
+                b = real_net(r, P, 1) if name == "NEW" else None
+                per.append({"day": pd.Timestamp(r["when"]).date(), "index": k, "system": name,
+                            "near": a[0] if a else None, "next": b[0] if b else None})
+    d = pd.DataFrame(per)
+    days = sorted(set(d["day"]))
+    f = lambda v: "      -" if v is None or v != v else f"{v:+8,.0f}"
+    print("REAL RECORDED OPTION PRICES, DAY BY DAY - per lot, after charges and 0.25% slippage a side")
+    print("NEW = the TradingView rating with yesterday's levels (1.5x room) + the big candle (Midcap: no big candle)")
+    print("OLD = the same without the levels check (your account's setup until now)")
+    print(f"{'day':12s} {'NEW':>8s} {'trades':>6s} {'running':>9s} | {'NEW next exp':>12s} {'running':>9s} | "
+          f"{'OLD':>8s} {'trades':>6s} {'running':>9s}")
+    rn = rx = ro = 0.0
+    for day in days:
+        x = d[d["day"] == day]
+        nw, od = x[x.system == "NEW"], x[x.system == "OLD"]
+        a, b, c = nw["near"].dropna().sum(), nw["next"].dropna().sum(), od["near"].dropna().sum()
+        rn, rx, ro = rn + a, rx + b, ro + c
+        print(f"{day.strftime('%a %d %b'):12s} {f(a)} {len(nw['near'].dropna()):6d} {rn:+9,.0f} | {f(b):>12s} "
+              f"{rx:+9,.0f} | {f(c)} {len(od['near'].dropna()):6d} {ro:+9,.0f}")
+    for name in ("NEW", "OLD"):
+        g = d[d.system == name].groupby("day")["near"].sum()
+        print(f"{name}: {len(g)} days with trades - {int((g > 0).sum())} up, {int((g < 0).sum())} down; "
+              f"{int(d[d.system == name]['near'].notna().sum())} trades priced; total {g.sum():+,.0f}")
+    print()
+    print("NEW, BY INDEX AND DAY (nearest expiry)")
+    print(f"{'day':12s} " + " ".join(f"{k:>10s}" for k in KEYS) + f" {'all four':>10s}")
+    for day in days:
+        x = d[(d["day"] == day) & (d["system"] == "NEW")]
+        cells = [f"{x[x['index'] == k]['near'].dropna().sum():+10,.0f}" if len(x[x['index'] == k]['near'].dropna())
+                 else f"{'-':>10s}" for k in KEYS]
+        print(f"{day.strftime('%a %d %b'):12s} " + " ".join(cells) + f" {x['near'].dropna().sum():+10,.0f}")
+
+
 if __name__ == "__main__":
-    daily() if sys.argv[1:2] == ["daily"] else main()
+    {"daily": daily, "daily_levels": daily_levels}.get(sys.argv[1] if len(sys.argv) > 1 else "", main)()

@@ -676,6 +676,15 @@ BIG_CANDLE_DEFAULT = "off"
 # nearest; the signal (and its chain: votes, room, sellers) is unchanged. Per account and index in Trade settings,
 # "nearest" unless the user picks it. PAPER ONLY: live_orders places no real order for a far-expiry ticket while
 # FAR_EXPIRY_LIVE_ORDERS is False.
+# YESTERDAY'S LEVELS IN THE WAY (levels.py; the user, 28 Oct 2026: "yes build it"). "on": a ticket on that index is held
+# when yesterday's high, low or a floor pivot lies closer than LEVELS_ROOM_R x the trade's risk in the trade's direction
+# (the TradingView rating, the Trend Rider and the rules; not the big candle, never tested with it). sr_study.py: the
+# TradingView rating -69 -> +46 a trade over five years, +33 -> +193 the year after, at 1.5x. Per account and index in
+# Trade settings, "off" unless the user turns it on. It only ever holds a ticket - it never places one.
+LEVELS_CHOICES = ("off", "on")
+LEVELS_DEFAULT = "off"
+LEVELS_ROOM_R = 1.5
+
 EXPIRY_CHOICES = ("nearest", "far")
 EXPIRY_DEFAULT = "nearest"
 FAR_EXPIRY_DAYS = 14

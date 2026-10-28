@@ -2420,7 +2420,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            votes=(form.get("votes") or None), votes_index=(form.get("votes_index") or "").upper() or None,
                            bigc=(form.get("bigc") or None), bigc_index=(form.get("bigc_index") or "").upper() or None,
                            expiry=(form.get("expiry") or None),
-                           expiry_index=(form.get("expiry_index") or "").upper() or None)
+                           expiry_index=(form.get("expiry_index") or "").upper() or None,
+                           levels=(form.get("levels") or None),
+                           levels_index=(form.get("levels_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -6791,8 +6793,11 @@ function lotsDash(s){
   // far_expiry_days out (expiry_study.py), paper only.
   const expBy = sess.expiry_by || {}, expChoices = sess.expiry_choices || [], expOn = expChoices.length > 0;
   const EXPNAME = {nearest: "Nearest", far: `${sess.far_expiry_days || 14}+ days · paper`};
+  // Yesterday's levels in the way, per index (28 Oct 2026; levels.py) - a ticket waits for room, off by default.
+  const lvlBy = sess.levels_by || {}, lvlChoices = sess.levels_choices || [], lvlOn = lvlChoices.length > 0;
+  const LVLNAME = {off: "Off", on: `On · ${sess.levels_room_r || 1.5}x room`};
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
-    + "|" + votesChoices.join(",") + "|" + bigcChoices.join(",") + "|" + expChoices.join(",")
+    + "|" + votesChoices.join(",") + "|" + bigcChoices.join(",") + "|" + expChoices.join(",") + "|" + lvlChoices.join(",")
     + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
@@ -6800,7 +6805,7 @@ function lotsDash(s){
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
-      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle</th>" : ""}${expOn ? "<th>Expiry</th>" : ""}</tr></thead><tbody>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle</th>" : ""}${expOn ? "<th>Expiry</th>" : ""}${lvlOn ? "<th>Levels</th>" : ""}</tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -6820,6 +6825,8 @@ function lotsDash(s){
               + bigcChoices.map(v => `<option value="${v}">${esc(BIGCNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + (expOn ? `<td data-th="Expiry"><label><span class="kdl-sr">${esc(k)} expiry</span><select data-exp="${esc(k)}">`
               + expChoices.map(v => `<option value="${v}">${esc(EXPNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+          + (lvlOn ? `<td data-th="Levels"><label><span class="kdl-sr">${esc(k)} levels</span><select data-lvl="${esc(k)}">`
+              + lvlChoices.map(v => `<option value="${v}">${esc(LVLNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + `</tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
@@ -6861,6 +6868,31 @@ function lotsDash(s){
           if(was) bs.value = was;
           if(msg) msg.textContent = `${k}: the big candle could not be changed (are you still signed in?) - still ${BIGCNAME[was] || was}.`;
         }finally{ bs.disabled = false; }
+        return;
+      }
+      const ls2 = e.target.closest("select[data-lvl]");
+      if(ls2 && ls2.dataset && ls2.dataset.lvl){
+        const k = ls2.dataset.lvl, want = ls2.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        ls2.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({levels: want, levels_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.levels_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          ls2.value = got;
+          if(msg) msg.textContent = got === "on"
+            ? `${k}: a ticket waits when yesterday's high, low or a pivot is closer than ${sess.levels_room_r || 1.5}x its risk in its way (not the big candle).`
+            : `${k}: yesterday's levels no longer hold tickets.`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).levels_by || {})[k];
+          if(was) ls2.value = was;
+          if(msg) msg.textContent = `${k}: the levels check could not be changed (are you still signed in?) - still ${LVLNAME[was] || was}.`;
+        }finally{ ls2.disabled = false; }
         return;
       }
       const xs = e.target.closest("select[data-exp]");
@@ -6985,6 +7017,12 @@ function lotsDash(s){
     const k = sel.dataset && sel.dataset.exp;
     if(!k) return;
     const v = expBy[k];
+    if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
+  });
+  el.querySelectorAll("select[data-lvl]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.lvl;
+    if(!k) return;
+    const v = lvlBy[k];
     if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
   });
   el.querySelectorAll("select[data-votes]").forEach(sel => {

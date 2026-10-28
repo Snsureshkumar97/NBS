@@ -53,26 +53,7 @@ RULES_V = ("TODAY", "LEVELS_1.0", "LEVELS_0.5", "LEVELS_1.5", "ROUND_1.0", "TARG
 TV_V = ("TODAY", "LEVELS_1.0", "LEVELS_0.5", "LEVELS_1.5", "ROUND_1.0")
 
 
-def day_levels(df):
-    """{date: sorted levels from the day before}: its high, low and floor pivots."""
-    d = df.groupby(df.index.date).agg(H=("High", "max"), L=("Low", "min"), C=("Close", "last"))
-    out, prev = {}, None
-    for day, row in d.iterrows():
-        if prev is not None:
-            H, L, C = prev
-            P = (H + L + C) / 3
-            out[day] = sorted({H, L, P, 2 * P - L, 2 * P - H, P + (H - L), P - (H - L)})
-        prev = (row.H, row.L, row.C)
-    return out
-
-
-def next_level(levels, price, up):
-    """The nearest level strictly beyond `price` in that direction, or None."""
-    if up:
-        above = [x for x in levels if x > price]
-        return min(above) if above else None
-    below = [x for x in levels if x < price]
-    return max(below) if below else None
+from levels import day_levels, next_level   # noqa: E402,F401  (one source of the levels, live and here)
 
 
 def round_levels(key, price):
