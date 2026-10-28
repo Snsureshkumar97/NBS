@@ -2418,7 +2418,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            lots_index=(form.get("lots_index") or "").upper() or None,
                            system=(form.get("system") or None), system_index=(form.get("system_index") or "").upper() or None,
                            votes=(form.get("votes") or None), votes_index=(form.get("votes_index") or "").upper() or None,
-                           bigc=(form.get("bigc") or None), bigc_index=(form.get("bigc_index") or "").upper() or None)
+                           bigc=(form.get("bigc") or None), bigc_index=(form.get("bigc_index") or "").upper() or None,
+                           expiry=(form.get("expiry") or None),
+                           expiry_index=(form.get("expiry_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -6785,8 +6787,12 @@ function lotsDash(s){
   // The big candle, per index (26 Oct 2026; big_candle.py) - one of the index's own tickets, off by default.
   const bigcBy = sess.bigc_by || {}, bigcChoices = sess.bigc_choices || [], bigcOn = bigcChoices.length > 0;
   const BIGCNAME = {off: "Off", on: "On"};
+  // Which expiry a ticket buys, per index (28 Oct 2026; config.EXPIRY_CHOICES) - the nearest, or the first at least
+  // far_expiry_days out (expiry_study.py), paper only.
+  const expBy = sess.expiry_by || {}, expChoices = sess.expiry_choices || [], expOn = expChoices.length > 0;
+  const EXPNAME = {nearest: "Nearest", far: `${sess.far_expiry_days || 14}+ days · paper`};
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
-    + "|" + votesChoices.join(",") + "|" + bigcChoices.join(",")
+    + "|" + votesChoices.join(",") + "|" + bigcChoices.join(",") + "|" + expChoices.join(",")
     + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
@@ -6794,7 +6800,7 @@ function lotsDash(s){
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
-      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle</th>" : ""}</tr></thead><tbody>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle</th>" : ""}${expOn ? "<th>Expiry</th>" : ""}</tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -6812,6 +6818,8 @@ function lotsDash(s){
           // last: the newest column - Live orders stays in view on a narrower screen
           + (bigcOn ? `<td data-th="Big candle"><label><span class="kdl-sr">${esc(k)} big candle</span><select data-bigc="${esc(k)}">`
               + bigcChoices.map(v => `<option value="${v}">${esc(BIGCNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+          + (expOn ? `<td data-th="Expiry"><label><span class="kdl-sr">${esc(k)} expiry</span><select data-exp="${esc(k)}">`
+              + expChoices.map(v => `<option value="${v}">${esc(EXPNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + `</tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
@@ -6853,6 +6861,31 @@ function lotsDash(s){
           if(was) bs.value = was;
           if(msg) msg.textContent = `${k}: the big candle could not be changed (are you still signed in?) - still ${BIGCNAME[was] || was}.`;
         }finally{ bs.disabled = false; }
+        return;
+      }
+      const xs = e.target.closest("select[data-exp]");
+      if(xs && xs.dataset && xs.dataset.exp){
+        const k = xs.dataset.exp, want = xs.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        xs.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({expiry: want, expiry_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.expiry_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          xs.value = got;
+          if(msg) msg.textContent = got === "far"
+            ? `${k}: new tickets buy the expiry at least ${sess.far_expiry_days || 14} days out - on paper only, never a real order (the signal is unchanged).`
+            : `${k}: new tickets buy the nearest expiry, as before (one already open keeps its contract).`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).expiry_by || {})[k];
+          if(was) xs.value = was;
+          if(msg) msg.textContent = `${k}: the expiry could not be changed (are you still signed in?) - still ${EXPNAME[was] || was}.`;
+        }finally{ xs.disabled = false; }
         return;
       }
       const vs = e.target.closest("select[data-votes]");
@@ -6946,6 +6979,12 @@ function lotsDash(s){
     const k = sel.dataset && sel.dataset.bigc;
     if(!k) return;
     const v = bigcBy[k];
+    if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
+  });
+  el.querySelectorAll("select[data-exp]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.exp;
+    if(!k) return;
+    const v = expBy[k];
     if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
   });
   el.querySelectorAll("select[data-votes]").forEach(sel => {
@@ -8544,6 +8583,7 @@ function ticketBox(r, state){
     c.style.display = "";
     c.title = "The ticket's levels were frozen when it was issued.";
     c.innerHTML = `<b>${esc(contractName(tk.index, String(tk.strike), tk.option_type, tk.cfd))}</b>`
+      + (tk.far_expiry ? ` <small class="sub">· far expiry, paper only</small>` : "")
                 + (tk.cfd ? ` · live price · spread paid ${tk.entry_spread != null ? esc(num(tk.entry_spread, 2)) : "—"}`
                    : ` · ${tk.tracked_on === "premium" ? "live premium" : "on the index"}`)
                 + ` · issued ${esc(String(tk.entry_time || "").slice(0, 5))}`

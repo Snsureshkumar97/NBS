@@ -686,6 +686,26 @@ class KiteDataProvider:
         dates = sorted({i["expiry"] for i in opts})
         return [str(d) for d in dates]
 
+    def far_contract(self, index_key: str, strike, option_type: str, min_days: int, today=None):
+        """The contract a far-expiry ticket buys (config.EXPIRY_CHOICES "far"): this strike and side at the first expiry
+        with at least `min_days` calendar days to run, and its live quote - {"expiry", "ltp", "bid", "ask",
+        "tradingsymbol"} - or None when there is no such contract or no price."""
+        import datetime as _dt
+        today = today or _dt.datetime.now(_IST).date()
+        far = [d for d in self.get_expiry_dates(index_key) if (_dt.date.fromisoformat(d[:10]) - today).days >= min_days]
+        if not far:
+            return None
+        inst = self._option_pick(index_key, strike, option_type, far[0])
+        if not inst or str(inst.get("expiry"))[:10] != far[0][:10]:
+            return None
+        sym = f"{inst['_exchange']}:{inst['tradingsymbol']}"
+        q = (self.kite.quote([sym]) or {}).get(sym) or {}
+        ltp = q.get("last_price")
+        if not ltp or ltp <= 0:
+            return None
+        bid, ask = _best_bid_ask(q.get("depth"))
+        return {"expiry": far[0][:10], "ltp": float(ltp), "bid": bid, "ask": ask, "tradingsymbol": inst["tradingsymbol"]}
+
     def get_option_chain(self, index_key: str, expiry: str = None):
         """`expiry` — one of the ISO date strings from get_expiry_dates();
         if None (default), uses the nearest expiry."""

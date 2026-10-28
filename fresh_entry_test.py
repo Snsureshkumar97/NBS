@@ -100,7 +100,7 @@ check("...and the moment the live price arrives, it opens - frozen from THAT pri
       and abs((t["entry_ltp"] - t["premium_sl"]) - 351.67) < 0.02, t and t["entry_ltp"])
 tsrc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "tickets.py")).read()
 rearm = tsrc[tsrc.index("    def _rearm(self, book, rec):"):tsrc.index("    def _open(self, book, rec):")]
-check("a re-arm (a second ticket the same way) waits for the live price too", "or self._price_hold(rec) is not None):" in rearm)
+check("a re-arm (a second ticket the same way) waits for the live price too", "or self._price_hold(rec) is not None" in rearm)
 cb_book = tickets.TicketBook(owner=None, market="crypto")
 cb_book.fresh_price = lambda n, r: None            # a feed behind it, with no live mark this second
 check("crypto keeps its fallback: no live mark -> no wait (the chain's snapshot, re-anchored when a mark comes)",

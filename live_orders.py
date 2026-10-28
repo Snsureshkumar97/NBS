@@ -448,6 +448,10 @@ class Executor:
             if self.entries_today >= MAX_ENTRIES_PER_DAY:
                 self._note(index, f"No live order: {MAX_ENTRIES_PER_DAY} live entries today is the hard cap.", "warn")
                 return
+            if trade.get("far_expiry") and not getattr(config, "FAR_EXPIRY_LIVE_ORDERS", False):
+                self._note(index, "No live order: this ticket is on the far expiry (Trade settings) - paper only "
+                                  "until it has proved itself.", "warn")
+                return
             if not trade.get("use_premium") or trade.get("premium_sl") is None:
                 self._note(index, "No live order: this ticket is priced off the index, not a live option "
                                   "premium, so its stop is not a premium level.", "warn")

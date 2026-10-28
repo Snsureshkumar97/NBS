@@ -668,6 +668,19 @@ BIG_CANDLE = {"k": 1.5, "target_r": 2.0, "first_close": (9, 45), "last_close": (
 BIG_CANDLE_CHOICES = ("off", "on")
 BIG_CANDLE_DEFAULT = "off"
 
+# WHICH EXPIRY A TICKET BUYS on an Indian index (the user, 28 Oct 2026: "build it, off by default, paper only").
+# expiry_study.py: with option prices corrected to real ones (pricing.py) every system made more the further out the
+# expiry - at least 14 days to run turned the weekly indices from losing to making money in both periods - but the
+# real price evidence that far out is thin (record_options.py keeps every expiry within 35 days from 29 Oct). "far":
+# the at-the-money contract of the first expiry at least FAR_EXPIRY_DAYS calendar days out, bought instead of the
+# nearest; the signal (and its chain: votes, room, sellers) is unchanged. Per account and index in Trade settings,
+# "nearest" unless the user picks it. PAPER ONLY: live_orders places no real order for a far-expiry ticket while
+# FAR_EXPIRY_LIVE_ORDERS is False.
+EXPIRY_CHOICES = ("nearest", "far")
+EXPIRY_DEFAULT = "nearest"
+FAR_EXPIRY_DAYS = 14
+FAR_EXPIRY_LIVE_ORDERS = False
+
 # The Trend Rider's settings: the middle of the block of settings that beat the tool's own system in both test periods
 # (trend_rider_sweep.py: 12 of 60, stop on the last 5-6 candles x 2.5-3.0R x ADX 18-20).
 TREND_RIDER = {"adx_min": 20.0, "swing": 5, "target_r": 2.75}

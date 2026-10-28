@@ -1076,5 +1076,17 @@ drain(ex3)
 check("a trail for a ticket this executor never took is dropped, not mistaken for anything else",
       not fk3.calls and not closed3)
 
+print("A FAR-EXPIRY TICKET IS PAPER ONLY (the user, 28 Oct 2026: \"build it, off by default, paper only\")")
+check("config.FAR_EXPIRY_LIVE_ORDERS ships False", config.FAR_EXPIRY_LIVE_ORDERS is False)
+ex, fk, clk, closed = rig()
+t = dict(ticket(tid="NIFTY-20260918-120000"), far_expiry=True)
+ex.on_ticket_event("opened", t)
+drain(ex)
+check("live orders ON for Nifty, a far-expiry ticket: no order sent", not fk.places(), fk.calls[-3:])
+check("...and no position kept for it", t["trade_id"] not in ex.positions)
+ex, fk, clk, closed = rig()
+open_and_fill(ex, fk, clk, t=ticket(tid="NIFTY-20260918-121500"))
+check("the same ticket on the nearest expiry still places its order", len(fk.places(transaction_type="BUY")) == 1)
+
 print("LIVE ORDERS TEST PASSED" if not fails else f"LIVE ORDERS TEST FAILED: {fails}")
 sys.exit(1 if fails else 0)

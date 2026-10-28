@@ -705,6 +705,29 @@ def rebase_premium(rec: dict, fresh) -> dict:
     return out
 
 
+def onto_contract(rec: dict, far: dict):
+    """`rec` moved onto another contract of the same strike and side - a far expiry (config.EXPIRY_CHOICES "far"): its
+    live price becomes the entry, and the premium stop and targets are rebuilt from the INDEX levels the way every
+    ticket's are (the price plus the index's move to each level times config.APPROX_ATM_DELTA - an at-the-money option's
+    delta is about a half whatever its expiry). None when it cannot be done honestly: no price, or no index levels."""
+    try:
+        ltp = float(far["ltp"])
+    except (TypeError, ValueError, KeyError):
+        return None
+    spot, tg, sl = rec.get("spot"), rec.get("index_targets"), rec.get("index_stop_loss")
+    if not ltp > 0 or spot is None or not tg or any(t is None for t in tg) or sl is None:
+        return None
+    d = config.APPROX_ATM_DELTA
+    out = dict(rec)
+    out["premium_targets"] = [round(ltp + abs(t - spot) * d, 2) for t in tg]
+    out["premium_stop_loss"] = round(max(0.05, ltp - abs(sl - spot) * d), 2)
+    out["live_ltp"] = round(ltp, 2)
+    out["premium_source"] = "live"
+    out["chain_ltp"] = rec.get("live_ltp")       # the nearest expiry's price, kept beside the far one bought
+    out["far_contract"] = dict(far)
+    return out
+
+
 def _find_strike_ltp(oi: dict, strike: int, option_type: str):
     """Look up the real live LTP for a given strike/option_type from the
     fetched option chain data, if available. Returns None if not found."""

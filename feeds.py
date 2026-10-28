@@ -100,6 +100,7 @@ STALL_SECONDS = 45
 # the snapshot's own value stands instead.
 CHAIN_STREAM_SPAN = 12
 CHAIN_TICK_MAX_AGE = 20.0
+FAR_QUOTE_S = 10.0        # a far-expiry contract's looked-up quote is reused this long (_far_quote)
 
 # Stands in for a tick socket on a venue that has none, so the loops can
 # tell "no stream yet" (None) apart from "this market never has one".
@@ -745,6 +746,7 @@ class Feed:
             self.tickets.listeners.append(self.live.on_ticket_event)
         self.tickets.fill_source = self.live
         self.tickets.fresh_price = self._fresh_premium
+        self.tickets.far_quote = self._far_quote
         # The AI desk's paper tickets, in a book of their own - never given a
         # listener, so they can never reach live orders.
         self.ai = None
@@ -769,6 +771,7 @@ class Feed:
         self.streamer = None
         self.tokens = {}          # index name -> instrument token
         self.opt_tokens = {}      # index name -> the open ticket's contract
+        self.far_cache = {}       # (index, strike, side) -> (when, the far-expiry contract and quote, or None)
         self.opt_for = {}         # index name -> the trade_id that contract is for
         self.sug_tokens = {}      # index name -> (strike, type, token) suggested
         self.sug_px = {}          # index name -> that contract's live premium
@@ -1517,6 +1520,28 @@ class Feed:
                 if ev.get("kind") == "closed":
                     self.opt_tokens.pop(name, None)
 
+    def _far_quote(self, name, strike, side):
+        """The far-expiry contract a ticket on `name` would buy and its live quote (tickets.far_quote, for an index this
+        account trades on config.EXPIRY_CHOICES "far"), off the analysis provider - kept FAR_QUOTE_S so a held signal
+        does not ask every pass. None when the provider cannot say (not Kite) or has no price."""
+        try:
+            key = (name, float(strike), side)
+        except (TypeError, ValueError):
+            return None
+        now = time.time()
+        hit = self.far_cache.get(key)
+        if hit and now - hit[0] < FAR_QUOTE_S:
+            return hit[1]
+        got = None
+        try:
+            prov = self._provider_for(name, None)
+            if hasattr(prov, "far_contract"):
+                got = prov.far_contract(name, strike, side, int(getattr(config, "FAR_EXPIRY_DAYS", 14)))
+        except Exception as exc:
+            self._note_fault(f"{name} far expiry", f"{type(exc).__name__}: {exc}")
+        self.far_cache[key] = (now, got)
+        return got
+
     def _fresh_premium(self, name, rec):
         """The mark of the contract `rec` suggests, off the socket, if it arrived in the last few seconds - else None.
 
@@ -1981,8 +2006,9 @@ class Feed:
             return
         try:
             provider = KiteDataProvider(user_kite.api_key_for(self.email), token)
+            # the ticket's OWN expiry - a far-expiry ticket (config.EXPIRY_CHOICES) is not the nearest contract
             tok = provider.option_token(trade["index"], trade["strike"],
-                                        trade["option_type"])
+                                        trade["option_type"], trade.get("expiry"))
         except Exception:
             tok = None
         if not tok:
