@@ -5,7 +5,7 @@ real_price_check.py — the systems' trades over the weeks the recorder has, pri
 The user, 28 Oct 2026: "with the new rules how are the results for these past two months which we have real data".
 The setup since 28 Oct: the TradingView rating on all four indices (with the big candle on Nifty, Bank Nifty and
 Sensex), the rules' stop steps back. record_options.py has kept every traded index option's minute prices since
-10 Sep 2026 (the nearest two expiries; 16-19 Oct lost).
+10 Sep 2026 (the nearest two expiries; every trading day to 26 Oct recorded).
 
 Each system's backtest trades in that window (honest_retest.py's harness: honestly filled stops, one ticket at a
 time per index) - but each priced with the recorded option itself: bought at the entry minute, sold at the minute
@@ -25,6 +25,7 @@ NEXT recorded expiry on the same trades: TradingView + big candle -18,133 agains
 half weeks: about one standard error for the rating - but the same way as the corrected six-year backtest.
 
     python3 real_price_check.py OPTION_HISTORY_DIR      (HOME at the six-year history, candles to 26 Oct 2026)
+    python3 real_price_check.py daily OPTION_HISTORY_DIR    (the same, day by day)
 """
 import os
 import sys
@@ -157,5 +158,65 @@ def main():
         print()
 
 
+def daily():
+    """The same trades, day by day (the user, 28 Oct 2026: "give me by each day")."""
+    import multiprocessing as mp
+    import live_vs_backtest as lv
+    import order_block_site_study as obs
+    P = lv.Prices(sys.argv[2])
+    jobs = [(k, s_) for k in KEYS for s_ in ("TV", "RULES", "BC")]
+    with mp.get_context("spawn").Pool(processes=6, maxtasksperchild=1) as pool:
+        got = dict(pool.map(_job, jobs, chunksize=1))
+    s = lambda rows: sorted(rows, key=lambda r: pd.Timestamp(r["when"]))
+    per = []                                         # one row a priced trade
+    for k in KEYS:
+        tv, ru, bc = (s([dict(r, index=k) for r in got[(k, x)] if SINCE <= pd.Timestamp(r["when"]) < UNTIL])
+                      for x in ("TV", "RULES", "BC"))
+        setup = s(obs.slot(tv, bc)) if k != "MIDCPNIFTY" else tv
+        for name, rows in (("SETUP", setup), ("TV", tv), ("RULES", ru), ("BC", bc)):
+            for r in rows:
+                a, b = real_net(r, P, 0), (real_net(r, P, 1) if name == "SETUP" else None)
+                per.append({"day": pd.Timestamp(r["when"]).date(), "index": k, "system": name,
+                            "near": a[0] if a else None, "next": b[0] if b else None})
+    d = pd.DataFrame(per)
+    days = sorted(set(d["day"]))
+    recorded = {pd.Timestamp(f[:10]).date() for f in os.listdir(sys.argv[2]) if f.endswith(".csv.gz")}
+    f = lambda v: "      -" if v != v or v is None else f"{v:+8,.0f}"
+    print("REAL RECORDED OPTION PRICES, DAY BY DAY - per lot, after charges and 0.25% slippage a side, nearest expiry")
+    print("SETUP = your account since 28 Oct: the TradingView rating + the big candle (Midcap: the rating alone)")
+    print(f"{'day':12s} {'SETUP':>8s} {'trades':>6s} {'running':>9s} | {'TV alone':>8s} {'rules':>8s} {'big cdl':>8s} |"
+          f" {'SETUP on next expiry':>20s}")
+    run = 0.0
+    for day in days:
+        if day not in recorded:
+            print(f"{day.strftime('%a %d %b'):12s}   not recorded (the recorder was down)")
+            continue
+        x = d[d["day"] == day]
+        tot = lambda sysname, col="near": x[(x["system"] == sysname)][col].dropna().sum() \
+            if len(x[(x["system"] == sysname)][col].dropna()) else float("nan")
+        su = x[x["system"] == "SETUP"]
+        sv = su["near"].dropna().sum()
+        run += sv
+        print(f"{day.strftime('%a %d %b'):12s} {f(sv)} {len(su['near'].dropna()):6d} {run:+9,.0f} | {f(tot('TV'))} "
+              f"{f(tot('RULES'))} {f(tot('BC'))} | {f(tot('SETUP', 'next')):>20s}")
+    print()
+    print("SETUP, BY INDEX AND DAY (per lot, nearest expiry; '-' = no trade or no recorded price)")
+    print(f"{'day':12s} " + " ".join(f"{k:>10s}" for k in KEYS) + f" {'all four':>10s}")
+    for day in days:
+        if day not in recorded:
+            continue
+        x = d[(d["day"] == day) & (d["system"] == "SETUP")]
+        cells = []
+        for k in KEYS:
+            v = x[x["index"] == k]["near"].dropna()
+            cells.append(f"{v.sum():+10,.0f}" if len(v) else f"{'-':>10s}")
+        print(f"{day.strftime('%a %d %b'):12s} " + " ".join(cells) + f" {x['near'].dropna().sum():+10,.0f}")
+    su = d[d["system"] == "SETUP"].groupby("day")["near"].sum()
+    su = su[[day in recorded for day in su.index]]
+    print()
+    print(f"SETUP: {len(su)} recorded days - {int((su > 0).sum())} up, {int((su < 0).sum())} down, "
+          f"{int((su == 0).sum())} flat; best {su.max():+,.0f}, worst {su.min():+,.0f}, total {su.sum():+,.0f}")
+
+
 if __name__ == "__main__":
-    main()
+    daily() if sys.argv[1:2] == ["daily"] else main()
