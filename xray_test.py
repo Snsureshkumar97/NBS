@@ -60,6 +60,9 @@ check("the additive glow only on a dark card (it adds up to white on a light one
 check("top to bottom on a narrow box (a phone), left to right on a wide one; the box as tall as its stocks need",
       "const tall = W < XR_WIDE;" in xr and "XR_WIDE = 560" in xr and "xrFit(x, m);" in xr)
 check("on a phone the longest name sets a size that fits every name inside the box", "measureText(words(q))" in xr)
+check("each check's node is green with a tick when it passes, red with a cross when not, grey with a dash - drawn as lines",
+      "const st = xrPass(c, m.side);" in xr and "st === 1 ? col.up : st === -1 ? col.down : st === 0 ? col.ink3" in xr
+      and "mark(q);" in xr and "fillText" not in xr[xr.index("const mark = q =>"):xr.index("mark(q);")])
 
 print("4. THE MODEL (node)")
 NODE = shutil.which("node") or ("/opt/homebrew/bin/node" if os.path.exists("/opt/homebrew/bin/node") else None)
@@ -126,6 +129,13 @@ assert.ok(say(m)[0].includes("Signal: BUY PE, held - Waiting for trend strength 
 m = xrModel(st(B, {ticket: null, wait: {code: "neutral"}}));
 assert.strictEqual(m.word, "NO TRADE"); assert.strictEqual(m.held, false); assert.strictEqual(m.done, "");
 console.log("ok:held");
+// pass / not on the drawing: a check met, or a vote with the lean, passes (green tick) - on a PE call a down vote passes,
+// an up vote does not; no reading is grey; before any lean a vote is shown its own way (null)
+assert.strictEqual(xrPass({v: 2}, 0), 1); assert.strictEqual(xrPass({v: -2}, 1), -1); assert.strictEqual(xrPass({v: 0}, 1), 0);
+assert.strictEqual(xrPass({v: -1}, -1), 1, "a down vote on a PE call passes");
+assert.strictEqual(xrPass({v: 1}, -1), -1, "an up vote on a PE call does not");
+assert.strictEqual(xrPass({v: 1}, 1), 1); assert.strictEqual(xrPass({v: 1}, 0), null, "no lean: its own way");
+console.log("ok:pass");
 // an open ticket: in trade, its strike, the side from the option
 m = xrModel(st(Object.assign({}, B, {bias: "BEARISH"}), {ticket: {open: true, strike: 73600, option_type: "CE", pnl: 900},
                                                          wait: {code: "position_open"}}));
@@ -173,6 +183,8 @@ console.log("ok:listed");
                       ("ready", "every check passes on a bearish lean: fired, BUY PE"),
                       ("held", "the Signal card's call while held (market closed / a check): BUY CE, held and why - "
                                "not NO TRADE - and today's closed ticket named"),
+                      ("pass", "a check met or a vote with the lean passes (a down vote on a PE call too), against it does not, "
+                               "no reading is grey, no lean shows each vote's own way"),
                       ("trade", "an open ticket: IN TRADE with its strike, side from the option"),
                       ("rule", "a rule index: its own conditions are the checks"),
                       ("switch", "another index's map on hand: no stocks rather than the wrong ones"),

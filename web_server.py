@@ -6063,9 +6063,10 @@ button.mgroup:hover{color:var(--ink-2)}
    <div class="xr-box" id="xrsigbox"></div>
    <p class="xr-say" id="xrsigsay" role="status"></p>
    <div class="gnote">Each thread is one of the index's own stocks: green up today, red down, brighter the bigger the move
-    - shown, not a vote. They gather, then run through the tool's votes and checks: lit when they agree with the
-    market's lean or are met, dark when not, grey with no reading. The signal fires when every check passes. Display
-    only - the same checks the Signal page and the Gate tracks show.</div>
+    - shown, not a vote. They gather, then run through the tool's votes and checks: a green tick when it passes (a
+    check met, or a vote with the market's lean), a red cross when it does not, grey with no reading; before the market
+    leans, each vote shows its own way as an arrow. The signal fires when every check passes. Display only - the same
+    checks the Signal page and the Gate tracks show.</div>
   </div>
  </section>
 
@@ -11724,6 +11725,12 @@ function xrModel(s){
           sub, done, doneK, doneWhy, sess, hold: st[0] || "", why: st[2] || "",
           up: stocks.filter(x => x.p > 0).length, down: stocks.filter(x => x.p < 0).length};
 }
+// a check's state on the drawing (the user, 28 Oct 2026: "if the vote pass it dont show green or tick or something"):
+// 1 passed - a check met, or a vote with the market's lean; -1 not - a check not met, or a vote against the lean; 0 no
+// reading, or an abstaining vote; null a vote while the market has no lean (drawn as its own way, an arrow)
+function xrPass(c, side){
+  return c.v === 2 ? 1 : c.v === -2 ? -1 : !c.v ? 0 : side ? (c.v === side ? 1 : -1) : null;
+}
 function xrSig(m){
   return m ? [m.k, m.spot != null ? Math.round(m.spot) : "", m.pct != null ? m.pct.toFixed(2) : "", m.word, m.sub, m.done, m.why, m.side,
               m.stocks.map(x => x.n + x.p.toFixed(2)).join(","), m.checks.map(x => x.n + x.v).join(",")].join("|") : "";
@@ -11827,13 +11834,14 @@ function xrLayout(x, m){
   const nc = m.checks.length;
   const checkPts = m.checks.map((c, i) => {
     const pt = checkAt(nc > 1 ? (tall ? .08 + .84 * i / (nc - 1) : .12 + .76 * i / (nc - 1)) : .5);
-    // a vote's own colour (up / down / none); a check met in the accent, failed in the fall colour
-    const cc = c.v === 1 ? col.up : c.v === -1 ? col.down : c.v === 2 ? col.acc : c.v === -2 ? col.down : col.ink3;
-    const agrees = c.v === 2 || (m.side && c.v === m.side);
-    paths.push({segs: [curve(G, pt)], c: cc, a: c.v ? .55 : .18, w: 1.4, live: !!c.v, sp: .45});
+    // passed green, not passed red, no reading grey; a vote with no lean yet in its own way's colour
+    const st = xrPass(c, m.side);
+    const cc = st === 1 ? col.up : st === -1 ? col.down : st === 0 ? col.ink3 : c.v > 0 ? col.up : col.down;
+    const agrees = st === 1;
+    paths.push({segs: [curve(G, pt)], c: cc, a: st === 0 ? .18 : .55, w: 1.4, live: st !== 0, sp: .45});
     paths.push({segs: [curve(pt, S)], c: agrees ? (m.side < 0 ? col.down : col.up) : col.ink3, a: agrees ? .7 : .14,
                 w: agrees ? 1.8 : 1, live: agrees, sp: .55});
-    return {pt, c, cc, agrees};
+    return {pt, c, cc, agrees, st};
   });
   // the still layer: every thread, every node, every word
   const off = document.createElement("canvas");
@@ -11889,12 +11897,22 @@ function xrLayout(x, m){
   // the gathering point: how many up, how many down
   dot(G, 4, col.ink2);
   if(n) label(`${m.up}\u25b2 ${m.down}\u25bc`, G, tall ? 10 : 0, tall ? 0 : -16, col.ink2, `600 11px ${mono}`, tall ? "left" : "center");
-  // the checks
+  // the checks: in each node a tick (passed), a cross (not), a dash (no reading) or, with no lean yet, the vote's own
+  // arrow - drawn as lines, not characters, so no font can drop them
+  const mark = q => {
+    const [x, y] = q.pt;
+    g.strokeStyle = g.fillStyle = col.surf; g.lineWidth = 1.9; g.lineJoin = g.lineCap = "round"; g.beginPath();
+    if(q.st === 1){ g.moveTo(x - 3.4, y + .2); g.lineTo(x - 1, y + 2.6); g.lineTo(x + 3.4, y - 2.7); g.stroke(); }
+    else if(q.st === -1){ g.moveTo(x - 2.7, y - 2.7); g.lineTo(x + 2.7, y + 2.7); g.moveTo(x + 2.7, y - 2.7); g.lineTo(x - 2.7, y + 2.7); g.stroke(); }
+    else if(q.st === 0){ g.moveTo(x - 3, y); g.lineTo(x + 3, y); g.stroke(); }
+    else { const d = q.c.v > 0 ? -1 : 1; g.moveTo(x, y + 3.4 * d); g.lineTo(x - 3.6, y - 2.6 * d); g.lineTo(x + 3.6, y - 2.6 * d); g.closePath(); g.fill(); }
+  };
   checkPts.forEach((q, i) => {
-    dot(q.pt, 5, q.cc, q.agrees ? col.ink : null);
+    dot(q.pt, 8, q.cc, q.agrees ? col.ink : null);
+    mark(q);
     const t = m.checks[i].n;
-    if(tall) label(t, q.pt, 0, i % 2 ? 14 : -14, q.agrees ? col.ink : col.ink3, `500 10px ${ui}`, "center");
-    else label(t, q.pt, 10, 0, q.agrees ? col.ink : col.ink3, `500 12px ${ui}`);
+    if(tall) label(t, q.pt, 0, i % 2 ? 18 : -18, q.agrees ? col.ink : col.ink3, `500 10px ${ui}`, "center");
+    else label(t, q.pt, 14, 0, q.agrees ? col.ink : col.ink3, `500 12px ${ui}`);
   });
   // the signal: its call in the call's colour, fired or held; under it what holds it, and today's closed ticket
   const sc = m.fired || m.held ? (m.side < 0 ? col.down : col.up) : col.ink3;
