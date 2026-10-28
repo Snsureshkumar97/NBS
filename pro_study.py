@@ -117,6 +117,18 @@ def expiry_on_or_after(key, d, trading_days):
     return _scheduled(key, d)
 
 
+def trade_expiry(key, d, trading_days):
+    """The expiry a trade on day d buys: the first with at least pricing.MIN_DTE calendar days to run (0: the nearest,
+    as every study until 28 Oct 2026). expiry_study.py measures further ones - weekly options lose their value fastest
+    in their last days (pricing_calibration.py)."""
+    exp = expiry_on_or_after(key, d, trading_days)
+    for _ in range(12):
+        if (exp - d).days >= pricing.MIN_DTE:
+            break
+        exp = expiry_on_or_after(key, exp + dt.timedelta(days=1), trading_days)
+    return exp
+
+
 def years_to(expiry_date, when):
     exp = pd.Timestamp(dt.datetime.combine(expiry_date, dt.time(15, 30)), tz=IST)
     return max((exp - when).total_seconds() / (365 * 86400), 1e-6)
@@ -227,7 +239,7 @@ def price(key, df, A, i, tr, legs, sigma, next_expiry_on_expiry_day=False):
     step, qty = meta["strike_step"], meta["lot_size"]
     exch = "BSE" if meta["kite_exchange"] == "BSE" else "NSE"
     when = df.index[i] + pd.Timedelta(minutes=15)             # entry at the bar's close
-    exp = expiry_on_or_after(key, when.date(), A["days"])
+    exp = trade_expiry(key, when.date(), A["days"])
     if next_expiry_on_expiry_day and exp == when.date():
         exp = expiry_on_or_after(key, when.date() + dt.timedelta(days=1), A["days"])
     call = tr["side"] == "CE"

@@ -46,7 +46,8 @@ def mk(plan="fixed", **kw):
 
 
 print("1. AS IT SHIPS")
-check("config.RULES_EXIT is 'fixed'", config.RULES_EXIT == "fixed", config.RULES_EXIT)
+check("config.RULES_EXIT is 'steps' (reverted 28 Oct 2026 - realistic option prices); 'fixed' stays available",
+      config.RULES_EXIT == "steps", config.RULES_EXIT)
 src = open(os.path.join(HERE, "tickets.py")).read()
 check("a new ticket freezes the setting (Indian market only)",
       '"rules_exit": _cfg("RULES_EXIT", "steps") if self.market == "nse_index" else "steps"' in src)

@@ -23,6 +23,9 @@ SIGMA_RATIO = {(0, 0): 0.931, (0, 1): 0.957, (0, 2): 1.074, (0, 3): 1.488, (1, 0
 # premiums lose most of their time value while the market is open. pricing_calibration.py picks w.
 TIME = ("trading", 0.2)        # picked by pricing_calibration.py on the learning weeks (every clock tried was within
 SESSION = 375                   # a few rupees a trade of the others - the correction is the table, not the clock)
+# Which expiry a study's trade buys (pro_study.trade_expiry): the first with at least this many calendar days to run.
+# 0 = the nearest, as the live tool buys today. expiry_study.py (28 Oct 2026) measures further ones.
+MIN_DTE = 0
 
 
 def years(expiry, when, time=None):

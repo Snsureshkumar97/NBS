@@ -1478,7 +1478,10 @@ EXIT_AT_TARGET = "T3"
 # periods, 10 of 13 half-years. The user, 28 Oct 2026: "change rules exit". Only the rules' own tickets (not the AI desk,
 # the TradingView rating or the Trend Rider, which keep the exit they were measured with); frozen on the ticket at entry,
 # so one opened before a change keeps its plan. The T1-exit re-entry needs a T1 step, so it no longer applies to them.
-RULES_EXIT = "fixed"
+# REVERTED the same evening: with option prices corrected to the recorder's real ones (pricing.py, honest_retest.py
+# re-run) the steps -596,164 / -65,453 against the fixed stop's -918,157 / -38,579 - the fixed stop no longer better in
+# both periods. The user: "yes revert the rules exit". "fixed" stays available.
+RULES_EXIT = "steps"
 
 # WHEN a target's step moves the stop (the T1 step; the T2 step on a T3 exit): 15 = once the 15-minute candle that
 # touched it has CLOSED; 0 = on the touching tick itself. The user, 13 Oct 2026: "when the stop moves to t1 its

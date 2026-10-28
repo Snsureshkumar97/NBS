@@ -49,7 +49,7 @@ def price_trade(key, days, t_in, s_in, t_out, s_out, sigma, call):
     meta = config.INSTRUMENTS[key]
     step, qty = meta["strike_step"], meta["lot_size"]
     exch = "BSE" if meta["kite_exchange"] == "BSE" else "NSE"
-    exp = ps.expiry_on_or_after(key, t_in.date(), days)
+    exp = ps.trade_expiry(key, t_in.date(), days)
     K = round(s_in / step) * step
     import pricing
     p0 = pricing.premium(s_in, K, exp, t_in, sigma, call)              # pricing.py: corrected to real prices

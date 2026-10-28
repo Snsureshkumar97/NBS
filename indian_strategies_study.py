@@ -69,7 +69,7 @@ def opt_net(key, days, t_in, t_out, s_in, s_out, side, sigma):
     meta = config.INSTRUMENTS[key]
     step, qty = meta["strike_step"], meta["lot_size"]
     exch = "BSE" if meta["kite_exchange"] == "BSE" else "NSE"
-    exp = ps.expiry_on_or_after(key, t_in.date(), days)
+    exp = ps.trade_expiry(key, t_in.date(), days)
     call = side == "CE"
     K = round(s_in / step) * step
     import pricing

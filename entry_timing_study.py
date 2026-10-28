@@ -179,7 +179,7 @@ def price(key, when, entry_spot, side, legs, sigma, days):
     meta = config.INSTRUMENTS[key]
     step, qty = meta["strike_step"], meta["lot_size"]
     exch = "BSE" if meta["kite_exchange"] == "BSE" else "NSE"
-    exp = ps.expiry_on_or_after(key, when.date(), days)
+    exp = ps.trade_expiry(key, when.date(), days)
     call = side == "CE"
     K = round(entry_spot / step) * step
     import pricing
