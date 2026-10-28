@@ -10,7 +10,10 @@ for good the morning after it settles.
 
 So this keeps them. After each close it saves one-minute candles, with open
 interest, for every strike the day could have suggested - the day's whole
-range plus a margin - on the nearest two expiries of each index, plus the
+range plus a margin - and, from 28 Oct 2026, every strike within 6% of that
+range (the far strikes an option seller would use: a weekly condor two expected
+moves out sits 4-5% away, and the backtest's model over-priced those 2-3x -
+far_otm_check.py), on the nearest two expiries of each index, plus the
 near-month future, the index itself and India VIX. A few months of these files
 is a real-premium dataset: a backtest can then price each trade at what the
 contract actually traded at, spread and expiry-day behaviour included.
@@ -25,6 +28,7 @@ it asks Zerodha for prices and places nothing.
 import argparse
 import datetime as dt
 import gzip
+import math
 import os
 import sys
 import time
@@ -41,6 +45,8 @@ import user_kite         # noqa: E402
 OUT_DIR = os.path.join(os.path.expanduser("~"), "trading-tool-logs", "option_history")
 INDICES = ["NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"]   # Midcap Select from 7 Oct 2026: its real premiums, to check the backtest
 MARGIN_STEPS = 5          # strikes beyond the day's range on each side
+WIDE_PCT = 0.06           # ...and every strike within this share of the day's range (the user, 28 Oct 2026: "widen the
+                          # recorder and start collecting" - the far strikes, so option selling can be tested on real prices)
 EXPIRIES = 2              # nearest N expiries per index
 REQ_SLEEP = 0.36          # Kite's historical API allows 3 requests a second
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
@@ -91,6 +97,14 @@ def _hist(k, token, day, interval="minute", oi=True):
     return pd.DataFrame()
 
 
+def strike_window(low, high, step):
+    """(lowest, highest) strike to keep for a day that traded from `low` to `high`: the day's range and MARGIN_STEPS
+    strikes beyond it, widened to every strike within WIDE_PCT of the range - whichever reaches further."""
+    lo = min((low // step - MARGIN_STEPS) * step, math.floor(low * (1 - WIDE_PCT) / step) * step)
+    hi = max((high // step + 1 + MARGIN_STEPS) * step, math.ceil(high * (1 + WIDE_PCT) / step) * step)
+    return lo, hi
+
+
 def record(day):
     k = _kite()
     frames = []
@@ -134,9 +148,7 @@ def record(day):
             add(_hist(k, f["instrument_token"], day), kind="FUT", index=key,
                 symbol=f["tradingsymbol"], expiry=str(f["expiry"]), strike=None, opt=None)
 
-        step = meta["strike_step"]
-        lo = (spot["low"].min() // step - MARGIN_STEPS) * step
-        hi = (spot["high"].max() // step + 1 + MARGIN_STEPS) * step
+        lo, hi = strike_window(spot["low"].min(), spot["high"].max(), meta["strike_step"])
         opts = [i for i in derivs if i["instrument_type"] in ("CE", "PE")]
         expiries = sorted({i["expiry"] for i in opts})[:EXPIRIES]
         want = [i for i in opts if i["expiry"] in expiries and lo <= i["strike"] <= hi]
