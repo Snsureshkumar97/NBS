@@ -1,0 +1,29 @@
+======================================================================================================================================================
+ NIFTY BREADTH ALONE ON THE YEARS IT WAS NEVER CHOSEN ON (2020-08-01 to 2023-09-18) - per lot, after costs
+======================================================================================================================================================
+ ON ITS OWN
+   T60 1.5R                           765 trades  won  39%  total ₹   -53,158  PF 0.91  worst drop ₹  57,072
+   T60 2.0R                           765 trades  won  33%  total ₹   -64,891  PF 0.90  worst drop ₹  75,275
+   T70 1.5R                           616 trades  won  38%  total ₹   -53,461  PF 0.89  worst drop ₹  53,461
+   T70 2.0R    <- the one checked     616 trades  won  33%  total ₹   -57,323  PF 0.89  worst drop ₹  58,075
+                                    by year  2020: -16,719  2021: -6,715  2022: -9,645  2023: -24,244
+   T80 1.5R                           368 trades  won  37%  total ₹   -45,568  PF 0.86  worst drop ₹  47,460
+   T80 2.0R                           368 trades  won  33%  total ₹   -39,071  PF 0.89  worst drop ₹  40,432
+
+ AS AN ADDITION to today's system (the rules + the big candle), where it holds nothing
+   today                             1064 trades  won  48%  total ₹  +141,816  PF 1.21  worst drop ₹  32,937
+                                    by year  2020: -21,614  2021: +55,069  2022: +63,046  2023: +45,315
+   + T60 1.5R                      1382 trades  won  45%  total ₹   +93,734  PF 1.10  worst drop ₹  35,404   adds ₹-48,081
+   + T60 2.0R                      1338 trades  won  43%  total ₹   +83,111  PF 1.08  worst drop ₹  32,650   adds ₹-58,705
+   + T70 1.5R                      1290 trades  won  46%  total ₹  +108,293  PF 1.12  worst drop ₹  31,870   adds ₹-33,523
+   + T70 2.0R    <- the one checked  1260 trades  won  44%  total ₹  +108,082  PF 1.12  worst drop ₹  28,549   adds ₹-33,733
+   + T80 1.5R                      1201 trades  won  46%  total ₹  +102,547  PF 1.13  worst drop ₹  37,970   adds ₹-39,269
+   + T80 2.0R                      1190 trades  won  45%  total ₹   +97,245  PF 1.12  worst drop ₹  42,714   adds ₹-44,570
+
+ VERDICT for T70 2.0R: on its own PF 1 or below; as an addition takes away ₹33,733  ->  DOES NOT HOLD - the three-year result was luck
+
+ CHECK: the three chosen-on years from the six-year data (breadth_rr_study's figures for Nifty: T70 2.0R on its own +69,007 / +31,565; today's +190,286 / +66,078)
+   first two years  T70 2.0R:   355 trades  won  39%  total ₹   +68,996  PF 1.22  worst drop ₹  23,285
+                    today's:   630 trades  won  50%  total ₹  +195,948  PF 1.40  worst drop ₹  34,215
+   held-out         T70 2.0R:   199 trades  won  40%  total ₹   +31,160  PF 1.16  worst drop ₹  23,529
+                    today's:   366 trades  won  48%  total ₹   +63,436  PF 1.24  worst drop ₹  38,219

@@ -75,7 +75,10 @@ def stock_reads(df, key):
     members = market_map.CONSTITUENTS[key]
     day_mv, lean, sig, wts = {}, {}, {}, {}
     for sym, _, wt in members:
-        s = pd.read_csv(os.path.join(STOCKS, f"{sym}_15m.csv"), index_col=0, parse_dates=True)
+        path = os.path.join(STOCKS, f"{sym}_15m.csv")
+        if not os.path.exists(path):                # a member with no candles fetched (no token under today's name)
+            continue
+        s = pd.read_csv(path, index_col=0, parse_dates=True)
         c = s["Close"]
         day = pd.Series(s.index.date, index=s.index)
         prev = day.map(c.groupby(day.values).last().shift(1))
