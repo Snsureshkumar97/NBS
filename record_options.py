@@ -47,7 +47,10 @@ INDICES = ["NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"]   # Midcap Select from 
 MARGIN_STEPS = 5          # strikes beyond the day's range on each side
 WIDE_PCT = 0.06           # ...and every strike within this share of the day's range (the user, 28 Oct 2026: "widen the
                           # recorder and start collecting" - the far strikes, so option selling can be tested on real prices)
-EXPIRIES = 2              # nearest N expiries per index
+EXPIRIES = 2              # at least the nearest N expiries per index...
+EXPIRY_DAYS = 35          # ...and every expiry within this many days (the user, 28 Oct 2026: "do the recorder change" -
+                          # expiry_study.py found options 14+ days out avoid most of the decay; their real prices are
+                          # needed to trust that: a weekly index's second expiry is only 7-13 days out)
 REQ_SLEEP = 0.36          # Kite's historical API allows 3 requests a second
 # Worth asking again: Kite's rate limit, and its gateway's passing failures - "502 Bad Gateway" lost about one contract a
 # day, four on 28 Oct 2026's first wide run (the user: "yes add the retry"). Seconds before the 2nd and 3rd try.
@@ -99,6 +102,13 @@ def _hist(k, token, day, interval="minute", oi=True):
             time.sleep(REQ_SLEEP)
             return pd.DataFrame()
     return pd.DataFrame()
+
+
+def pick_expiries(all_expiries, day):
+    """The expiries to keep: every one within EXPIRY_DAYS of the day, and never fewer than the nearest EXPIRIES."""
+    ex = sorted(set(all_expiries))
+    near = [e for e in ex if (e - day).days <= EXPIRY_DAYS]
+    return ex[:max(EXPIRIES, len(near))]
 
 
 def strike_window(low, high, step):
@@ -154,7 +164,7 @@ def record(day):
 
         lo, hi = strike_window(spot["low"].min(), spot["high"].max(), meta["strike_step"])
         opts = [i for i in derivs if i["instrument_type"] in ("CE", "PE")]
-        expiries = sorted({i["expiry"] for i in opts})[:EXPIRIES]
+        expiries = pick_expiries([i["expiry"] for i in opts], day)
         want = [i for i in opts if i["expiry"] in expiries and lo <= i["strike"] <= hi]
         n_rows = 0
         for i in sorted(want, key=lambda i: (i["expiry"], i["strike"], i["instrument_type"])):

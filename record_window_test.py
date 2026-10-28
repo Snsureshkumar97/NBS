@@ -64,6 +64,18 @@ check("a real error (not a passing one) is not asked again", ro._hist(k, 123, dt
 k = FakeKite(["Too many requests"])
 check("the rate limit is still asked again", len(ro._hist(k, 123, dt.date(2026, 10, 28))) == 1 and k.calls == 2)
 
+print("4. EVERY EXPIRY WITHIN 35 DAYS (the user, 28 Oct 2026: \"do the recorder change\")")
+d0 = dt.date(2026, 10, 28)
+weekly = [dt.date(2026, 11, 3) + dt.timedelta(weeks=n) for n in range(10)]            # Nifty's Tuesdays
+monthly = [dt.date(2026, 11, 24), dt.date(2026, 12, 29), dt.date(2027, 1, 26)]        # Bank Nifty's last Tuesdays
+got = ro.pick_expiries(weekly + weekly[:3], d0)                                         # (one per contract: repeats)
+check("a weekly index: every expiry to 35 days out - five, the furthest 34 days", got == weekly[:5]
+      and (got[-1] - d0).days == 34, got)
+check("...so options 14+ days out are kept (the nearest two reach only 13)", any((e - d0).days >= 14 for e in got)
+      and all((e - d0).days < 14 for e in weekly[:2]))
+check("a monthly index: never fewer than the nearest two", ro.pick_expiries(monthly, d0) == monthly[:2])
+check("record() keeps them", "expiries = pick_expiries([i[\"expiry\"] for i in opts], day)" in src)
+
 print()
 print("FAILED: " + ", ".join(fails) if fails else "ALL OK")
 sys.exit(1 if fails else 0)
