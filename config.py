@@ -632,7 +632,10 @@ SYSTEM_DEFAULTS = {"NIFTY": "trend_rider", "BANKNIFTY": "trend_rider", "SENSEX":
 # Sensex, the one index where it beat the tool's own system and held up (indian_strategies_robustness.py: +215,988 /
 # +75,447 per lot against the rules' +78,098 / +55,603, better in 5 of 7 half-years and at double slippage, with a
 # deeper Monte Carlo worst drop). Not a default: the user picks it.
-SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY"), "camarilla": ("SENSEX",)}
+# 28 Oct 2026, honest_retest.py (stops filled honestly, six years, per lot, to 15 Aug 2025 / held out): the rating makes
+# money on all four - Nifty +372,208 / +134,754, Bank Nifty +451,200 / +33,674, Sensex +384,473 / +85,684, Midcap
+# +50,998 / +103,763 - where the rules are about break-even; the user: "switch all four to tv rating". Offered on all four.
+SYSTEM_INDICES = {"tv_rating": ("NIFTY", "BANKNIFTY", "SENSEX", "MIDCPNIFTY"), "camarilla": ("SENSEX",)}
 # EVERY VOTE MUST AGREE before a rules ticket on an Indian index (the user, 21 Oct 2026, after the live Nifty and Sensex
 # calls bought at 09:22 on MACD, RSI and VWAP with Trend and PCR not voting stopped out: "i want all 7 votes for the
 # trade" - the Signal page's seven rows; the ADX gate and room to run already had to pass). "all": Trend, MACD, RSI and
@@ -1466,6 +1469,16 @@ PREMIUM_SL_PCT = 25                   # % loss on premium
 # both indices better in both periods. Only the rules' tickets read this: the Trend Rider, the Exness rules and the
 # AI desk fix their own exit at T3. A ticket freezes its exit at entry - one already open keeps the one it opened with.
 EXIT_AT_TARGET = "T3"
+
+# HOW THE RULES' OWN STOP MOVES on an Indian index. "steps": to T1 at T1 and T2 at T2 (at the candle close), the Supertrend
+# trail after T1, the 2-hour breakeven. "fixed": nothing moves it - one stop, out at EXIT_AT_TARGET. The steps only looked
+# best because every study filled a stop at its own price even when the candle opened past it (fills.py, 28 Oct 2026).
+# Filled honestly (honest_retest.py, six years, per lot, to 15 Aug 2025 / held out), the rules with the steps -99,851 /
+# -22,028 over the four indices; with the stop fixed, out at T3, +181,955 / +122,321 - better on every index in both
+# periods, 10 of 13 half-years. The user, 28 Oct 2026: "change rules exit". Only the rules' own tickets (not the AI desk,
+# the TradingView rating or the Trend Rider, which keep the exit they were measured with); frozen on the ticket at entry,
+# so one opened before a change keeps its plan. The T1-exit re-entry needs a T1 step, so it no longer applies to them.
+RULES_EXIT = "fixed"
 
 # WHEN a target's step moves the stop (the T1 step; the T2 step on a T3 exit): 15 = once the 15-minute candle that
 # touched it has CLOSED; 0 = on the touching tick itself. The user, 13 Oct 2026: "when the stop moves to t1 its

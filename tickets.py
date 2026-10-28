@@ -64,7 +64,10 @@ def rules_exit(trade):
     target as it was tested) - and a Trend Rider ticket too when config.TREND_RIDER_EXIT is "rules" (the user, 13 Oct
     2026, after trend_rider_rules_stop_study.py: "Switch to the rules' exit")."""
     if not trade.get("plain_exit"):
-        return True
+        # config.RULES_EXIT "fixed" (honest_retest.py, 28 Oct 2026): the rules' own Indian tickets keep one stop, out at
+        # their exit target - read from the ticket, frozen at entry, so one opened before the switch keeps the steps
+        return not (trade.get("rules_exit") == "fixed" and (trade.get("system") or "rules") == "rules"
+                    and not trade.get("ai_reason") and not trade.get("cfd"))
     if trade.get("system") == "tv_rating":        # tv_rating.py: always the exit it was measured with
         return True
     return trade.get("system") == "trend_rider" and _cfg("TREND_RIDER_EXIT", "ladder") == "rules"
@@ -1797,6 +1800,8 @@ class TicketBook:
             # A rule's reward:risk is fixed with its levels (target over stop); frozen so the open
             # ticket's panel keeps showing it after the rule's reading goes quiet.
             "reward_risk": rec.get("reach_to_risk") if rec.get("target_basis") == "rule" else None,
+            # the rules' own stop plan (config.RULES_EXIT), frozen like exit_at; rules_exit() reads it
+            "rules_exit": _cfg("RULES_EXIT", "steps") if self.market == "nse_index" else "steps",
             "exit_at":("T3" if rec.get("target_basis") in ("plain_r", "rule")
                         else _cfg("EXIT_AT_TARGET", "T3") if _cfg("EXIT_AT_TARGET", "T3") in TARGET_KEYS else "T3"),
             "index_targets": rec["index_targets"],
@@ -1885,7 +1890,7 @@ class TicketBook:
                                        else "other")
             book.last_close_adx = (rec or {}).get("adx")
             book.last_close_t1 = bool(trade.get("sl_hit") and (trade.get("hit") or {}).get("T1")
-                                      and not trade.get("plain_exit"))
+                                      and not trade.get("plain_exit") and rules_exit(trade))     # a T1 STEP's exit
         row = {
             "trade_id": trade.get("trade_id"),                # so the page can say whether it was a live order
             "index": trade["index"], "strike": trade["strike"],
@@ -2094,6 +2099,8 @@ class TicketBook:
             "stop_pending": [{"rung": p["rung"], "level": p["level"], "at": p["at"].strftime("%H:%M")}
                              for p in (trade.get("stop_pending") or [])],
             "stepped": list(trade.get("stepped") or []),
+            # the rules' fixed stop (config.RULES_EXIT "fixed"): the page says the stop stays where it is
+            "fixed_stop": trade.get("rules_exit") == "fixed" and not rules_exit(trade),
             # a TradingView-rating CFD rule's trail (cfd_rules._apply_tv): [start, gap] in price, and whether it is on
             "atr_trail": trade.get("atr_trail"), "trail_active": bool(trade.get("trail_active")),
             "hit": trade["hit"], "hit_time": trade["hit_time"],

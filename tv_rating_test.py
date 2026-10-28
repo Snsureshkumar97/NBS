@@ -151,21 +151,21 @@ check("no index starts on it", [b.system_for(k) for k in ("NIFTY", "BANKNIFTY", 
 b.configure(system="tv_rating", system_index="NIFTY")
 b.configure(system="tv_rating", system_index="SENSEX")
 b.configure(system="tv_rating", system_index="MIDCPNIFTY")
-check("Nifty may be set to it; Sensex and Midcap may not (it measured mixed / worse there)",
-      [b.system_for(k) for k in ("NIFTY", "SENSEX", "MIDCPNIFTY")] == ["tv_rating", "rules", "rules"])
+check("Nifty, Sensex and Midcap may all be set to it (all four since 28 Oct 2026, honest_retest.py)",
+      [b.system_for(k) for k in ("NIFTY", "SENSEX", "MIDCPNIFTY")] == ["tv_rating", "tv_rating", "tv_rating"])
 check("saved across a restart", tickets.TicketBook(market="nse_index", path=path).system_for("NIFTY") == "tv_rating")
 import json
 sp = b._settings_path()
 s = json.load(open(sp))
-s["systems_by"]["SENSEX"] = "tv_rating"                      # a hand-edited or stale settings file
+s["systems_by"]["MIDCPNIFTY"] = "camarilla"                  # a hand-edited or stale settings file
 json.dump(s, open(sp, "w"))
 check("a saved choice it may not have is ignored - the index keeps its default",
-      tickets.TicketBook(market="nse_index", path=path).system_for("SENSEX") == "rules")
+      tickets.TicketBook(market="nse_index", path=path).system_for("MIDCPNIFTY") == "rules")
 ses = b.session()
 check("the page gets each index's own choices", ses["system_choices_by"]["NIFTY"] == ["rules", "trend_rider", "tv_rating"]
       and ses["system_choices_by"]["BANKNIFTY"] == ["rules", "trend_rider", "tv_rating"]
-      and ses["system_choices_by"]["SENSEX"] == ["rules", "trend_rider", "camarilla"]      # camarilla.py, Sensex only (22 Oct 2026)
-      and ses["system_choices_by"]["MIDCPNIFTY"] == ["rules", "trend_rider"], ses["system_choices_by"])
+      and ses["system_choices_by"]["SENSEX"] == ["rules", "trend_rider", "tv_rating", "camarilla"]  # camarilla: Sensex only
+      and ses["system_choices_by"]["MIDCPNIFTY"] == ["rules", "trend_rider", "tv_rating"], ses["system_choices_by"])
 
 print("5. A TICKET THROUGH THE RULE PATH - THE TREND RIDER'S MEASURED EXIT, AND IN AGAIN WHILE IT HOLDS")
 CLOCK = {"now": dt.datetime(2026, 10, 8, 9, 46, 0, tzinfo=IST)}

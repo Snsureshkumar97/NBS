@@ -6776,7 +6776,7 @@ function lotsDash(s){
   const SYSNAME = Object.assign({rules: "Current rules", trend_rider: "Trend Rider", tv_rating: "TradingView rating",
                                  camarilla: "Camarilla breakout"},
                                 sess.system_labels || {});
-  // Each index's own choices: the TradingView rating (tv_rating.py, 13 Oct 2026) is offered on Nifty and Bank Nifty only.
+  // Each index's own choices (config.SYSTEM_INDICES): the TradingView rating on all four since 28 Oct 2026, Camarilla on Sensex.
   const sysBy = sess.system_choices_by || {}, sysFor = k => sysBy[k] || sysChoices;
   // How many votes a rules ticket needs, per index (the user, 21 Oct 2026: "i want all 7 votes for the trade") - the
   // Indian market only; it applies while the index runs the tool's own rules.
@@ -7083,7 +7083,7 @@ function ladder(r, tk){
     const rungs = trl ? trailRungs(base, sgn, tk.atr_trail, tg[2], tk.stop, tk.trail_active)
                : [["T1","T1",tg[0],"var(--up)"],["T2","T2",tg[1],"var(--up)"],
                  ["T3","T3",tg[2],"var(--up)"],
-                 ["Stop", "Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : "")
+                 ["Stop", "Stop" + (tk.fixed_stop ? " · fixed" : "") + (trailedRung ? ` · trailed to ${trailedRung}` : "")
                           + (waitStep ? ` · to ${waitStep.rung} at ${waitStep.at}` : ""), tk.stop, "var(--down)"]];
     // The chance of reaching each of THIS ticket's frozen levels from where the
     // index is now. The live ladder had it; this branch returned before it, so
@@ -12344,7 +12344,8 @@ function aiTicketCard(k, t){
   const trailedRung = beforeExit.slice().reverse().find(rung => t.stepped ? t.stepped.includes(rung) : (t.hit || {})[rung]);
   const waitStep = (t.stop_pending || []).slice(-1)[0];
   const rungs = [["Target · exit", target, "var(--up)", (t.hit || {})[exitKey], (t.hit_time || {})[exitKey]],
-                 ["Stop" + (trailedRung ? ` · trailed to ${trailedRung}` : "") + (waitStep ? ` · to ${waitStep.rung} at ${waitStep.at}` : ""),
+                 ["Stop" + (t.fixed_stop ? " · fixed" : "") + (trailedRung ? ` · trailed to ${trailedRung}` : "")
+                  + (waitStep ? ` · to ${waitStep.rung} at ${waitStep.at}` : ""),
                   t.stop, "var(--down)", t.sl_hit, t.sl_hit_time]];
   const ladder = rungs.map(([name, v, c, done, when]) => {
     let pct = 0;
