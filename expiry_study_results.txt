@@ -1,0 +1,153 @@
+========================================================================================================================
+ALL FOUR POOLED   per lot after costs, realistic option prices  (to 15 Aug 2025 | held out)
+  RULES
+      at least  0 days to expiry (today)         5218   48% ₹  -596,164 PF 0.86 DD ₹ 740,505 day ₹ -32,524  | 1642   50% ₹   -65,453 PF 0.96 DD ₹ 161,061 day ₹ -40,282
+      at least  3 days to expiry                 5218   49% ₹  -509,406 PF 0.88 DD ₹ 681,192 day ₹ -32,489  | 1642   51% ₹   -22,881 PF 0.98 DD ₹ 130,495 day ₹ -40,008
+      at least  7 days to expiry                 5218   49% ₹  -422,892 PF 0.90 DD ₹ 629,934 day ₹ -32,522  | 1642   52% ₹   +64,726 PF 1.05 DD ₹ 114,042 day ₹ -39,557
+      at least 14 days to expiry                 5218   55% ₹  +586,810 PF 1.16 DD ₹  73,403 day ₹ -30,227  | 1642   58% ₹  +343,813 PF 1.28 DD ₹  97,128 day ₹ -38,431
+   KEEP  RULES: at least 7 days vs the nearest        profit: in-sample  +173,272  held-out  +130,179   worst drop: -110,571 /  -47,019   worst day:       +1 /     +725
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹767,300 (today's ₹931,581), chance of a loss 99%;  held-out: 95% worst drop ₹225,320 (today's ₹316,786), chance of a loss 31%  -> STEADY
+  TV_RATING
+      at least  0 days to expiry (today)         7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481
+      at least  3 days to expiry                 7076   38% ₹  -281,981 PF 0.96 DD ₹ 578,143 day ₹ -42,087  | 1867   42% ₹  +174,590 PF 1.10 DD ₹ 168,988 day ₹ -39,532
+      at least  7 days to expiry                 7076   38% ₹  -286,302 PF 0.96 DD ₹ 612,345 day ₹ -42,354  | 1867   43% ₹  +251,000 PF 1.15 DD ₹ 138,482 day ₹ -39,532
+      at least 14 days to expiry                 7076   47% ₹+1,226,589 PF 1.21 DD ₹  96,715 day ₹ -40,222  | 1867   51% ₹  +621,547 PF 1.41 DD ₹  67,285 day ₹ -38,883
+   KEEP  TV_RATING: at least 7 days vs the nearest    profit: in-sample  +199,140  held-out  +188,512   worst drop: -113,635 /  -70,246   worst day:   -4,494 /   -4,051
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹957,023 (today's ₹1,165,232), chance of a loss 80%;  held-out: 95% worst drop ₹276,652 (today's ₹391,203), chance of a loss 11%  -> STEADY
+  TREND_RIDER
+      at least  0 days to expiry (today)         2663   35% ₹  -230,303 PF 0.91 DD ₹ 348,279 day ₹ -17,580  |  678   38% ₹   -16,815 PF 0.97 DD ₹  89,279 day ₹ -14,037
+      at least  3 days to expiry                 2663   36% ₹  -180,955 PF 0.93 DD ₹ 285,460 day ₹ -19,417  |  678   39% ₹   +26,592 PF 1.05 DD ₹  66,429 day ₹ -14,037
+      at least  7 days to expiry                 2663   36% ₹  -172,636 PF 0.93 DD ₹ 290,742 day ₹ -19,417  |  678   41% ₹   +64,305 PF 1.11 DD ₹  55,735 day ₹ -13,569
+      at least 14 days to expiry                 2663   47% ₹  +426,364 PF 1.20 DD ₹  85,583 day ₹ -19,306  |  678   50% ₹  +194,035 PF 1.39 DD ₹  34,590 day ₹ -12,945
+   KEEP  TREND_RIDER: at least 7 days vs the nearest  profit: in-sample   +57,667  held-out   +81,120   worst drop:  -57,537 /  -33,543   worst day:   -1,837 /     +468
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹506,491 (today's ₹573,614), chance of a loss 85%;  held-out: 95% worst drop ₹124,620 (today's ₹182,082), chance of a loss 21%  -> STEADY
+  BIG_CANDLE
+      at least  0 days to expiry (today)         1198   40% ₹  +174,715 PF 1.10 DD ₹ 190,000 day ₹ -29,999  |  236   45% ₹  +107,401 PF 1.34 DD ₹  45,355 day ₹ -18,282
+      at least  3 days to expiry                 1198   42% ₹  +203,959 PF 1.12 DD ₹ 178,454 day ₹ -34,676  |  236   47% ₹  +121,451 PF 1.40 DD ₹  43,344 day ₹ -18,493
+      at least  7 days to expiry                 1198   42% ₹  +204,852 PF 1.12 DD ₹ 179,959 day ₹ -35,764  |  236   48% ₹  +129,697 PF 1.43 DD ₹  43,898 day ₹ -18,513
+      at least 14 days to expiry                 1198   45% ₹  +586,775 PF 1.40 DD ₹ 118,814 day ₹ -35,501  |  236   51% ₹  +184,523 PF 1.67 DD ₹  37,396 day ₹ -18,594
+   KEEP  BIG_CANDLE: at least 7 days vs the nearest   profit: in-sample   +30,137  held-out   +22,295   worst drop:  -10,041 /   -1,457   worst day:   -5,764 /     -231
+           walk-forward: beats today's in 9 of 13 half-years;  first two years: 95% worst drop ₹276,293 (today's ₹306,002), chance of a loss 14%;  held-out: 95% worst drop ₹103,730 (today's ₹116,965), chance of a loss 6%  -> STEADY
+  COIN
+      at least  0 days to expiry (today)        10005   43% ₹-2,311,638 PF 0.70 DD ₹2,315,708 day ₹ -22,588  | 2901   44% ₹  -723,477 PF 0.73 DD ₹ 751,627 day ₹ -35,067
+      at least  3 days to expiry                10006   44% ₹-2,138,402 PF 0.72 DD ₹2,141,871 day ₹ -22,588  | 2902   45% ₹  -671,680 PF 0.75 DD ₹ 698,871 day ₹ -35,067
+      at least  7 days to expiry                10006   44% ₹-2,025,050 PF 0.73 DD ₹2,028,230 day ₹ -22,588  | 2902   45% ₹  -597,282 PF 0.77 DD ₹ 624,289 day ₹ -33,428
+      at least 14 days to expiry                10006   47% ₹  -970,126 PF 0.86 DD ₹ 983,405 day ₹ -22,588  | 2902   48% ₹  -340,212 PF 0.86 DD ₹ 392,084 day ₹ -35,694
+   KEEP  COIN: at least 7 days vs the nearest         profit: in-sample  +286,588  held-out  +126,195   worst drop: -287,477 / -127,338   worst day:       +0 /   +1,639
+           walk-forward: beats today's in 13 of 13 half-years;  first two years: 95% worst drop ₹2,305,191 (today's ₹2,595,469), chance of a loss 100%;  held-out: 95% worst drop ₹808,460 (today's ₹930,838), chance of a loss 100%  -> STEADY
+========================================================================================================================
+NIFTY   per lot after costs, realistic option prices  (to 15 Aug 2025 | held out)
+  RULES
+      at least  0 days to expiry (today)         1545   47% ₹  -228,247 PF 0.79 DD ₹ 230,076 day ₹  -8,483  |  387   47% ₹   -64,246 PF 0.79 DD ₹  81,527 day ₹ -10,011
+      at least  3 days to expiry                 1545   48% ₹  -213,462 PF 0.80 DD ₹ 216,481 day ₹  -8,448  |  387   48% ₹   -54,506 PF 0.82 DD ₹  73,701 day ₹ -10,011
+      at least  7 days to expiry                 1545   48% ₹  -183,499 PF 0.83 DD ₹ 191,847 day ₹  -8,448  |  387   48% ₹   -40,484 PF 0.86 DD ₹  62,219 day ₹  -9,560
+      at least 14 days to expiry                 1545   55% ₹  +115,625 PF 1.13 DD ₹  41,930 day ₹  -7,870  |  387   59% ₹   +49,469 PF 1.21 DD ₹  25,803 day ₹  -8,985
+   KEEP  RULES: at least 7 days vs the nearest        profit: in-sample   +44,749  held-out   +23,762   worst drop:  -38,228 /  -19,308   worst day:      +34 /     +451
+  TV_RATING
+      at least  0 days to expiry (today)         2093   36% ₹  -197,166 PF 0.89 DD ₹ 266,293 day ₹ -14,891  |  448   38% ₹   -14,326 PF 0.96 DD ₹  66,800 day ₹  -8,404
+      at least  3 days to expiry                 2093   38% ₹  -141,748 PF 0.92 DD ₹ 224,633 day ₹ -17,787  |  448   39% ₹   +15,314 PF 1.04 DD ₹  55,871 day ₹  -9,670
+      at least  7 days to expiry                 2093   37% ₹  -144,723 PF 0.91 DD ₹ 225,734 day ₹ -17,787  |  448   38% ₹   +22,380 PF 1.06 DD ₹  52,456 day ₹  -9,670
+      at least 14 days to expiry                 2093   47% ₹  +313,370 PF 1.22 DD ₹  40,133 day ₹ -17,263  |  448   50% ₹  +138,704 PF 1.45 DD ₹  28,532 day ₹  -9,383
+   KEEP  TV_RATING: at least 7 days vs the nearest    profit: in-sample   +52,443  held-out   +36,706   worst drop:  -40,559 /  -14,344   worst day:   -2,897 /   -1,265
+  TREND_RIDER
+      at least  0 days to expiry (today)         1323   35% ₹  -117,704 PF 0.89 DD ₹ 164,105 day ₹  -7,169  |  351   34% ₹   -41,632 PF 0.87 DD ₹  61,886 day ₹  -5,784
+      at least  3 days to expiry                 1323   36% ₹   -73,289 PF 0.93 DD ₹ 117,405 day ₹  -8,752  |  351   36% ₹    -9,319 PF 0.97 DD ₹  38,229 day ₹  -5,324
+      at least  7 days to expiry                 1323   36% ₹   -74,895 PF 0.93 DD ₹ 118,902 day ₹  -8,752  |  351   36% ₹       -82 PF 1.00 DD ₹  35,940 day ₹  -5,414
+      at least 14 days to expiry                 1323   48% ₹  +212,424 PF 1.24 DD ₹  28,209 day ₹  -8,893  |  351   49% ₹   +90,455 PF 1.41 DD ₹  20,694 day ₹  -5,176
+   KEEP  TREND_RIDER: at least 7 days vs the nearest  profit: in-sample   +42,809  held-out   +41,550   worst drop:  -45,203 /  -25,946   worst day:   -1,583 /     +369
+  BIG_CANDLE
+      at least  0 days to expiry (today)          332   38% ₹   +52,049 PF 1.12 DD ₹  66,788 day ₹  -7,101  |   61   43% ₹    +7,786 PF 1.11 DD ₹  16,554 day ₹  -4,231
+      at least  3 days to expiry                  332   41% ₹   +45,852 PF 1.11 DD ₹  62,941 day ₹  -8,928  |   61   44% ₹   +12,106 PF 1.18 DD ₹  13,274 day ₹  -4,231
+      at least  7 days to expiry                  332   41% ₹   +41,427 PF 1.10 DD ₹  62,699 day ₹  -8,928  |   61   44% ₹    +9,638 PF 1.14 DD ₹  14,231 day ₹  -4,567
+      at least 14 days to expiry                  332   45% ₹  +147,311 PF 1.42 DD ₹  36,992 day ₹  -9,120  |   61   48% ₹   +29,158 PF 1.47 DD ₹  11,493 day ₹  -4,454
+   drop  BIG_CANDLE: at least 7 days vs the nearest   profit: in-sample   -10,621  held-out    +1,852   worst drop:   -4,089 /   -2,323   worst day:   -1,827 /     -337
+  COIN
+      at least  0 days to expiry (today)         2983   42% ₹  -670,605 PF 0.66 DD ₹ 675,008 day ₹  -7,601  |  734   43% ₹  -138,213 PF 0.75 DD ₹ 159,410 day ₹ -14,066
+      at least  3 days to expiry                 2984   43% ₹  -624,499 PF 0.67 DD ₹ 628,258 day ₹  -8,041  |  735   44% ₹  -123,562 PF 0.77 DD ₹ 145,383 day ₹ -14,066
+      at least  7 days to expiry                 2984   44% ₹  -587,000 PF 0.69 DD ₹ 591,024 day ₹  -8,041  |  735   43% ₹  -112,965 PF 0.79 DD ₹ 134,457 day ₹ -15,349
+      at least 14 days to expiry                 2984   47% ₹  -262,455 PF 0.85 DD ₹ 271,581 day ₹  -7,858  |  735   49% ₹   -18,127 PF 0.96 DD ₹  59,099 day ₹ -16,444
+   KEEP  COIN: at least 7 days vs the nearest         profit: in-sample   +83,605  held-out   +25,248   worst drop:  -83,984 /  -24,952   worst day:     -439 /   -1,283
+========================================================================================================================
+BANKNIFTY   per lot after costs, realistic option prices  (to 15 Aug 2025 | held out)
+  RULES
+      at least  0 days to expiry (today)         1467   48% ₹  -303,197 PF 0.79 DD ₹ 335,864 day ₹  -8,397  |  429   51% ₹   -20,350 PF 0.95 DD ₹  45,601 day ₹  -9,763
+      at least  3 days to expiry                 1467   48% ₹  -273,452 PF 0.81 DD ₹ 308,099 day ₹  -8,397  |  429   51% ₹    -9,991 PF 0.98 DD ₹  39,974 day ₹  -9,763
+      at least  7 days to expiry                 1467   48% ₹  -233,278 PF 0.83 DD ₹ 271,090 day ₹  -8,349  |  429   53% ₹   +26,756 PF 1.07 DD ₹  29,827 day ₹  -9,763
+      at least 14 days to expiry                 1467   54% ₹  +107,757 PF 1.09 DD ₹  37,194 day ₹  -8,397  |  429   57% ₹   +77,028 PF 1.21 DD ₹  22,884 day ₹  -9,763
+   KEEP  RULES: at least 7 days vs the nearest        profit: in-sample   +69,919  held-out   +47,106   worst drop:  -64,774 /  -15,774   worst day:      +48 /       +0
+  TV_RATING
+      at least  0 days to expiry (today)         2110   35% ₹  -213,513 PF 0.91 DD ₹ 288,286 day ₹ -14,219  |  488   44% ₹   +33,630 PF 1.07 DD ₹  72,216 day ₹ -10,855
+      at least  3 days to expiry                 2110   37% ₹  -160,539 PF 0.93 DD ₹ 258,856 day ₹ -15,147  |  488   45% ₹   +57,289 PF 1.12 DD ₹  61,289 day ₹ -11,505
+      at least  7 days to expiry                 2110   37% ₹  -143,339 PF 0.94 DD ₹ 249,360 day ₹ -15,147  |  488   47% ₹   +94,216 PF 1.21 DD ₹  43,480 day ₹ -11,505
+      at least 14 days to expiry                 2110   46% ₹  +371,593 PF 1.19 DD ₹  66,037 day ₹ -15,147  |  488   51% ₹  +150,414 PF 1.35 DD ₹  33,585 day ₹ -11,505
+   KEEP  TV_RATING: at least 7 days vs the nearest    profit: in-sample   +70,173  held-out   +60,585   worst drop:  -38,926 /  -28,736   worst day:     -928 /     -650
+  TREND_RIDER
+      at least  0 days to expiry (today)         1340   35% ₹  -112,599 PF 0.93 DD ₹ 201,297 day ₹ -11,869  |  327   43% ₹   +24,817 PF 1.08 DD ₹  46,691 day ₹  -8,831
+      at least  3 days to expiry                 1340   36% ₹  -107,667 PF 0.93 DD ₹ 182,703 day ₹ -12,189  |  327   43% ₹   +35,911 PF 1.12 DD ₹  36,788 day ₹  -8,831
+      at least  7 days to expiry                 1340   36% ₹   -97,742 PF 0.93 DD ₹ 185,708 day ₹ -12,397  |  327   47% ₹   +64,388 PF 1.22 DD ₹  26,661 day ₹  -8,831
+      at least 14 days to expiry                 1340   45% ₹  +213,940 PF 1.17 DD ₹  64,808 day ₹ -11,903  |  327   52% ₹  +103,581 PF 1.38 DD ₹  25,399 day ₹  -8,831
+   KEEP  TREND_RIDER: at least 7 days vs the nearest  profit: in-sample   +14,857  held-out   +39,571   worst drop:  -15,590 /  -20,030   worst day:     -528 /       +0
+  BIG_CANDLE
+      at least  0 days to expiry (today)          359   39% ₹   -19,622 PF 0.97 DD ₹  81,151 day ₹  -6,839  |   57   51% ₹   +48,033 PF 1.63 DD ₹  20,175 day ₹  -6,052
+      at least  3 days to expiry                  359   41% ₹    -7,582 PF 0.99 DD ₹  76,312 day ₹  -8,366  |   57   53% ₹   +50,837 PF 1.67 DD ₹  20,175 day ₹  -6,052
+      at least  7 days to expiry                  359   41% ₹    -5,601 PF 0.99 DD ₹  77,784 day ₹  -8,366  |   57   53% ₹   +52,010 PF 1.71 DD ₹  20,175 day ₹  -6,052
+      at least 14 days to expiry                  359   46% ₹  +128,728 PF 1.26 DD ₹  45,815 day ₹  -8,275  |   57   53% ₹   +59,406 PF 1.86 DD ₹  17,320 day ₹  -5,374
+   KEEP  BIG_CANDLE: at least 7 days vs the nearest   profit: in-sample   +14,021  held-out    +3,977   worst drop:   -3,367 /       +0   worst day:   -1,527 /       +0
+  COIN
+      at least  0 days to expiry (today)         2887   44% ₹  -740,962 PF 0.71 DD ₹ 766,505 day ₹ -11,459  |  725   46% ₹  -228,015 PF 0.70 DD ₹ 238,458 day ₹ -22,741
+      at least  3 days to expiry                 2887   45% ₹  -687,751 PF 0.73 DD ₹ 714,429 day ₹ -11,459  |  725   47% ₹  -217,554 PF 0.72 DD ₹ 228,152 day ₹ -22,741
+      at least  7 days to expiry                 2887   45% ₹  -640,970 PF 0.74 DD ₹ 669,875 day ₹ -11,504  |  725   47% ₹  -194,350 PF 0.74 DD ₹ 212,273 day ₹ -22,741
+      at least 14 days to expiry                 2887   49% ₹  -289,887 PF 0.87 DD ₹ 343,002 day ₹ -11,392  |  725   49% ₹  -152,005 PF 0.79 DD ₹ 186,296 day ₹ -22,741
+   KEEP  COIN: at least 7 days vs the nearest         profit: in-sample   +99,992  held-out   +33,666   worst drop:  -96,630 /  -26,185   worst day:      -45 /       +0
+========================================================================================================================
+SENSEX   per lot after costs, realistic option prices  (to 15 Aug 2025 | held out)
+  RULES
+      at least  0 days to expiry (today)         1484   48% ₹  -182,454 PF 0.83 DD ₹ 207,850 day ₹  -8,627  |  370   50% ₹   -38,812 PF 0.86 DD ₹  44,808 day ₹  -9,434
+      at least  3 days to expiry                 1484   48% ₹  -177,697 PF 0.83 DD ₹ 205,759 day ₹  -8,627  |  370   50% ₹   -35,069 PF 0.87 DD ₹  40,715 day ₹  -9,160
+      at least  7 days to expiry                 1484   48% ₹  -187,171 PF 0.82 DD ₹ 214,830 day ₹  -8,660  |  370   50% ₹   -26,267 PF 0.90 DD ₹  32,750 day ₹  -9,160
+      at least 14 days to expiry                 1484   54% ₹  +106,451 PF 1.12 DD ₹  42,814 day ₹  -8,416  |  370   57% ₹   +51,511 PF 1.23 DD ₹  22,821 day ₹  -8,610
+   drop  RULES: at least 7 days vs the nearest        profit: in-sample    -4,717  held-out   +12,545   worst drop:   +6,980 /  -12,059   worst day:      -33 /     +273
+  TV_RATING
+      at least  0 days to expiry (today)         2077   36% ₹  -172,085 PF 0.91 DD ₹ 249,999 day ₹ -16,717  |  467   36% ₹   -62,345 PF 0.86 DD ₹  81,448 day ₹  -8,641
+      at least  3 days to expiry                 2077   37% ₹  -133,459 PF 0.92 DD ₹ 209,330 day ₹ -18,048  |  467   37% ₹   -42,354 PF 0.90 DD ₹  63,616 day ₹  -8,641
+      at least  7 days to expiry                 2077   37% ₹  -177,680 PF 0.90 DD ₹ 247,350 day ₹ -18,048  |  467   37% ₹   -41,187 PF 0.90 DD ₹  61,193 day ₹  -9,132
+      at least 14 days to expiry                 2077   47% ₹  +278,374 PF 1.18 DD ₹  47,618 day ₹ -17,369  |  467   49% ₹   +80,863 PF 1.24 DD ₹  22,591 day ₹  -8,374
+   drop  TV_RATING: at least 7 days vs the nearest    profit: in-sample    -5,595  held-out   +21,158   worst drop:   -2,649 /  -20,255   worst day:   -1,331 /     -491
+  BIG_CANDLE
+      at least  0 days to expiry (today)          339   37% ₹   +14,598 PF 1.03 DD ₹  81,013 day ₹  -7,551  |   51   45% ₹   +28,613 PF 1.56 DD ₹  18,674 day ₹  -4,576
+      at least  3 days to expiry                  339   39% ₹   +19,382 PF 1.05 DD ₹  76,061 day ₹  -7,551  |   51   51% ₹   +31,140 PF 1.67 DD ₹  16,727 day ₹  -4,848
+      at least  7 days to expiry                  339   39% ₹    +7,011 PF 1.02 DD ₹  78,128 day ₹  -8,638  |   51   51% ₹   +28,936 PF 1.62 DD ₹  17,198 day ₹  -4,848
+      at least 14 days to expiry                  339   42% ₹  +114,185 PF 1.30 DD ₹  49,867 day ₹  -8,676  |   51   61% ₹   +44,700 PF 2.08 DD ₹  13,020 day ₹  -4,580
+   drop  BIG_CANDLE: at least 7 days vs the nearest   profit: in-sample    -7,587  held-out      +323   worst drop:   -2,885 /   -1,476   worst day:   -1,087 /     -273
+  COIN
+      at least  0 days to expiry (today)         2934   41% ₹  -738,864 PF 0.64 DD ₹ 746,502 day ₹ -10,069  |  737   43% ₹  -194,609 PF 0.66 DD ₹ 201,144 day ₹ -17,357
+      at least  3 days to expiry                 2934   43% ₹  -714,243 PF 0.64 DD ₹ 721,872 day ₹ -10,069  |  737   44% ₹  -194,871 PF 0.65 DD ₹ 201,371 day ₹ -17,357
+      at least  7 days to expiry                 2934   43% ₹  -710,526 PF 0.64 DD ₹ 717,972 day ₹ -11,842  |  737   45% ₹  -181,460 PF 0.67 DD ₹ 189,667 day ₹ -18,005
+      at least 14 days to expiry                 2934   46% ₹  -394,092 PF 0.78 DD ₹ 403,283 day ₹ -12,949  |  737   47% ₹  -103,706 PF 0.80 DD ₹ 124,263 day ₹ -19,175
+   KEEP  COIN: at least 7 days vs the nearest         profit: in-sample   +28,339  held-out   +13,149   worst drop:  -28,530 /  -11,476   worst day:   -1,773 /     -648
+========================================================================================================================
+MIDCPNIFTY   per lot after costs, realistic option prices  (to 15 Aug 2025 | held out)
+  RULES
+      at least  0 days to expiry (today)          722   53% ₹  +117,735 PF 1.17 DD ₹  33,022 day ₹ -10,389  |  456   53% ₹   +57,955 PF 1.12 DD ₹  46,095 day ₹ -11,073
+      at least  3 days to expiry                  722   55% ₹  +155,205 PF 1.24 DD ₹  29,596 day ₹ -10,389  |  456   54% ₹   +76,685 PF 1.17 DD ₹  46,095 day ₹ -11,073
+      at least  7 days to expiry                  722   55% ₹  +181,057 PF 1.28 DD ₹  27,269 day ₹ -10,389  |  456   55% ₹  +104,721 PF 1.24 DD ₹  42,722 day ₹ -11,073
+      at least 14 days to expiry                  722   57% ₹  +256,977 PF 1.42 DD ₹  24,481 day ₹  -9,888  |  456   58% ₹  +165,806 PF 1.40 DD ₹  40,553 day ₹ -11,073
+   KEEP  RULES: at least 7 days vs the nearest        profit: in-sample   +63,322  held-out   +46,767   worst drop:   -5,753 /   -3,374   worst day:       +0 /       +0
+  TV_RATING
+      at least  0 days to expiry (today)          796   45% ₹   +97,322 PF 1.11 DD ₹  71,783 day ₹ -19,058  |  464   46% ₹  +105,528 PF 1.20 DD ₹  34,571 day ₹ -12,192
+      at least  3 days to expiry                  796   47% ₹  +153,765 PF 1.17 DD ₹  71,130 day ₹ -21,365  |  464   48% ₹  +144,342 PF 1.29 DD ₹  32,800 day ₹ -12,192
+      at least  7 days to expiry                  796   48% ₹  +179,441 PF 1.21 DD ₹  66,750 day ₹ -21,365  |  464   50% ₹  +175,591 PF 1.36 DD ₹  29,034 day ₹ -12,192
+      at least 14 days to expiry                  796   51% ₹  +263,252 PF 1.32 DD ₹  59,145 day ₹ -21,365  |  464   54% ₹  +251,565 PF 1.56 DD ₹  20,934 day ₹ -12,192
+   KEEP  TV_RATING: at least 7 days vs the nearest    profit: in-sample   +82,119  held-out   +70,063   worst drop:   -5,033 /   -5,537   worst day:   -2,307 /       +0
+  BIG_CANDLE
+      at least  0 days to expiry (today)          168   48% ₹  +127,691 PF 1.46 DD ₹  29,147 day ₹ -12,170  |   67   43% ₹   +22,969 PF 1.20 DD ₹  24,038 day ₹  -6,026
+      at least  3 days to expiry                  168   49% ₹  +146,307 PF 1.54 DD ₹  23,481 day ₹ -15,468  |   67   43% ₹   +27,367 PF 1.24 DD ₹  24,038 day ₹  -6,026
+      at least  7 days to expiry                  168   51% ₹  +162,015 PF 1.61 DD ₹  22,116 day ₹ -15,468  |   67   45% ₹   +39,112 PF 1.35 DD ₹  19,810 day ₹  -6,026
+      at least 14 days to expiry                  168   53% ₹  +196,551 PF 1.79 DD ₹  22,603 day ₹ -15,468  |   67   46% ₹   +51,259 PF 1.49 DD ₹  18,041 day ₹  -5,353
+   KEEP  BIG_CANDLE: at least 7 days vs the nearest   profit: in-sample   +34,324  held-out   +16,143   worst drop:   -7,031 /   -4,228   worst day:   -3,298 /       +0
+  COIN
+      at least  0 days to expiry (today)         1201   44% ₹  -161,206 PF 0.86 DD ₹ 199,215 day ₹ -11,196  |  705   43% ₹  -162,640 PF 0.80 DD ₹ 186,594 day ₹ -12,582
+      at least  3 days to expiry                 1201   45% ₹  -111,909 PF 0.90 DD ₹ 167,219 day ₹ -11,196  |  705   44% ₹  -135,693 PF 0.83 DD ₹ 161,318 day ₹ -12,582
+      at least  7 days to expiry                 1201   46% ₹   -86,554 PF 0.92 DD ₹ 156,012 day ₹ -11,196  |  705   46% ₹  -108,507 PF 0.86 DD ₹ 136,482 day ₹ -12,582
+      at least 14 days to expiry                 1201   47% ₹   -23,692 PF 0.98 DD ₹ 128,505 day ₹ -11,196  |  705   47% ₹   -66,373 PF 0.91 DD ₹ 102,305 day ₹ -12,582
+   KEEP  COIN: at least 7 days vs the nearest         profit: in-sample   +74,652  held-out   +54,133   worst drop:  -43,203 /  -50,112   worst day:       +0 /       +0
