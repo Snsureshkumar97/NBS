@@ -1,0 +1,27 @@
+REAL RECORDED OPTION PRICES, 2026-09-10 to 2026-10-26 - per lot, after charges and 0.25% slippage a side. Your account since 28 Oct: TradingView + big candle (Midcap: no big candle).
+            system                     trades priced |   NEAREST  won |      NEXT  won (days out)
+NIFTY       TradingView + big candle       50     49 |   -10,880  35% |   -11,006  35%       11 d   (nearest on the same 48: -7,750)
+NIFTY       TradingView rating             47     46 |    -6,077  35% |    -9,156  36%       11 d   (nearest on the same 45: -2,946)
+NIFTY       the big candle                 11     11 |   -10,613  36% |    -8,696  36%       12 d   (nearest on the same 11: -10,613)
+NIFTY       the rules                      44     41 |    -7,197  46% |    -7,263  46%       12 d   (nearest on the same 41: -7,197)
+
+BANKNIFTY   TradingView + big candle       51     50 |   -33,838  30% |   -21,721  35%       39 d   (nearest on the same 49: -34,832)
+BANKNIFTY   TradingView rating             51     50 |   -35,537  30% |   -24,582  33%       39 d   (nearest on the same 49: -36,532)
+BANKNIFTY   the big candle                  6      6 |    +1,351  33% |    +2,983  50%       43 d   (nearest on the same 6: +1,351)
+BANKNIFTY   the rules                      41     39 |   -18,257  41% |   -14,786  45%       41 d   (nearest on the same 38: -18,106)
+
+SENSEX      TradingView + big candle       52     51 |    +5,693  41% |    +1,958  43%        9 d   (nearest on the same 51: +5,693)
+SENSEX      TradingView rating             48     47 |      +984  40% |    -2,251  43%        9 d   (nearest on the same 47: +984)
+SENSEX      the big candle                 11     11 |    +4,974  45% |      -573  45%        8 d   (nearest on the same 11: +4,974)
+SENSEX      the rules                      37     35 |    -4,383  51% |    -3,654  51%        9 d   (nearest on the same 35: -4,383)
+
+MIDCPNIFTY  TradingView + big candle       50     22 |    -9,165  27% |   +12,636  33%       33 d   (nearest on the same 12: -3,205)
+MIDCPNIFTY  TradingView rating             50     22 |    -9,165  27% |   +12,636  33%       33 d   (nearest on the same 12: -3,205)
+MIDCPNIFTY  the big candle                 10      4 |   +18,544  75% |   +14,560 100%       31 d   (nearest on the same 3: +9,978)
+MIDCPNIFTY  the rules                      47     17 |   +25,113  65% |    +8,693  57%       38 d   (nearest on the same 7: +10,929)
+
+ALL FOUR    TradingView + big candle      203    172 |   -48,190  34% |   -18,133  38%       13 d   (nearest on the same 160: -40,094)
+ALL FOUR    TradingView rating            196    165 |   -49,795  34% |   -23,354  37%       13 d   (nearest on the same 153: -41,699)
+ALL FOUR    the big candle                 38     32 |   +14,255  44% |    +8,273  48%       12 d   (nearest on the same 31: +5,689)
+ALL FOUR    the rules                     169    132 |    -4,723  48% |   -17,011  48%       13 d   (nearest on the same 121: -18,756)
+
