@@ -1,0 +1,33 @@
+297 trades priced on the recorder's real option prices, 10 Sep - 26 Oct (TradingView rating 165, rules 132)
+
+1. ENTRY - where the price paid sat in the option's own last-15-minute range
+   both   median  74% of the range; at or above 80% in  41% of trades, in the top half in  75%; risen 13.0% from that 15-minute low (median)
+   TV     median  78% of the range; at or above 80% in  47% of trades, in the top half in  87%; risen 15.8% from that 15-minute low (median)
+   RULES  median  68% of the range; at or above 80% in  34% of trades, in the top half in  61%; risen 9.5% from that 15-minute low (median)
+   after entry: the option dipped a median 6.7% within 15 minutes; 5%+ in 59% of trades, 10%+ in 28%
+   result by where it was bought (net per lot):
+             count   mean      sum
+q                                 
+bottom half     73 -465.0 -33948.0
+50-80%         102 -232.0 -23676.0
+top 20%        122   25.0   3106.0
+
+2. DECAY - what the option made against the index move x 0.5 (what the premium levels assume), per lot
+             trades  option_made  index_x_half    gap
+dte_b                                                
+under 1 day      21        826.0         518.0  308.0
+1-3 days         52       -563.0        -446.0 -117.0
+3-7 days        124        108.0          76.0   32.0
+7+ days         100       -154.0        -158.0    4.0
+   all: the option made -47 a trade where index x 0.5 says -63 - +16 a trade lost to decay and volatility
+
+4. A LIMIT ORDER BELOW THE PRICE PAID, good for 15 minutes (or to the trade's own exit) - per lot, net
+   paying the price (today):  297 trades     -54,519  (-184 a trade)
+   limit  2% lower:  filled 251 ( 85%)     -68,033   | the trades it missed made +72,654 at the market
+   limit  3% lower:  filled 225 ( 76%)     -67,626   | the trades it missed made +91,059 at the market
+   limit  5% lower:  filled 176 ( 59%)     -75,147   | the trades it missed made +116,018 at the market
+   limit  8% lower:  filled 121 ( 41%)     -19,055   | the trades it missed made +60,185 at the market
+   TV     today   -49,795   limit 5%:   -76,355 (filled 102 of 165)
+   RULES  today    -4,723   limit 5%:    +1,208 (filled 74 of 132)
+3. TARGETS - the TradingView rating's trades whose index reached its target (1):
+   the option was BELOW its premium target in 0% of them, by a median -30.2% - a ticket tracked on the premium would still be waiting
