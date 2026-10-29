@@ -1,0 +1,35 @@
+REAL PRICES 2026-09-10 to 2026-10-26 against the MODEL, the same contract at the same minutes, per lot after charges and 0.25% slippage a side
+======================================================================================================================================================
+BANKNIFTY: the six-year backtest credits your setup +391 a trade at 14+ days (1177 trades, +459,768), +119 at the nearest expiry
+   14+ DAYS  MODEL CHECK, 63 distinct trades:   62 trades  model - real     +296 a trade (se 98)  real    -38,062  model    -19,696  model's entry price / real: median 1.03
+             -> NOT CREDIBLE: the model's error +296 a trade against half the six-year profit a trade, +195
+                contracts: 2026-09-29 x4, 2026-10-27 x38, 2026-11-23 x20; days to expiry at entry 14-41 (median 32)
+   NEAREST   MODEL CHECK, 63 distinct trades:   62 trades  model - real      +48 a trade (se 88)  real    -39,262  model    -36,276  model's entry price / real: median 1.03
+   your setup                17 trades | 14+ days: real    -9,078 model    -3,216 (16 priced, 31% won real) | nearest: real    -8,312 model    -6,941 (16 priced, 25% won real)
+   your setup, one a day     15 trades | 14+ days: real    -9,755 model    -4,153 (14 priced, 29% won real) | nearest: real    -7,554 model    -7,380 (14 priced, 21% won real)
+   the rating alone          51 trades | 14+ days: real   -34,345 model   -20,330 (50 priced, 32% won real) | nearest: real   -35,537 model   -35,235 (50 priced, 30% won real)
+======================================================================================================================================================
+MIDCPNIFTY: the six-year backtest credits your setup +684 a trade at 14+ days (474 trades, +324,012), +501 at the nearest expiry
+   14+ DAYS  MODEL CHECK, 63 distinct trades:   21 trades  model - real     -157 a trade (se 654)  real    +14,617  model    +11,316  model's entry price / real: median 0.98
+             -> CREDIBLE: the model's error -157 a trade against half the six-year profit a trade, +342
+                contracts: 2026-10-27 x6, 2026-11-23 x15; days to expiry at entry 14-38 (median 31)
+   NEAREST   MODEL CHECK, 63 distinct trades:   27 trades  model - real     +301 a trade (se 250)  real    -12,584  model     -4,456  model's entry price / real: median 0.92
+   your setup                18 trades | 14+ days: real    +6,725 model    +8,309 (7 priced, 29% won real) | nearest: real    +5,259 model    +5,698 (8 priced, 25% won real)
+   your setup, one a day     13 trades | 14+ days: real   +13,190 model   +16,987 (3 priced, 67% won real) | nearest: real   +17,285 model   +14,163 (4 priced, 50% won real)
+   the rating alone          50 trades | 14+ days: real   +19,098 model   +12,148 (17 priced, 35% won real) | nearest: real    -9,165 model      -956 (22 priced, 27% won real)
+
+WHAT-IF: pricing.SIGMA_RATIO cell (7, *) flattened to its day average (scratchpad far_whatif.py)
+cell (7, *) flattened to 0.8998
+    YOUR SETUP (rating + levels +  14+ DAYS      3302   41% ₹    +2,052 PF 1.00 DD ₹ 256,299 day ₹ -41,304  |  840   40% ₹   +86,852 PF 1.11 DD ₹  77,153 day ₹ -36,471
+    YOUR SETUP (rating + levels +  NEAREST       3302   39% ₹   +74,666 PF 1.02 DD ₹ 277,493 day ₹ -35,328  |  840   39% ₹   +89,080 PF 1.11 DD ₹  86,142 day ₹ -35,853
+      14+ days by index: NIFTY -35,223  BANKNIFTY +53,260  SENSEX -54,938  MIDCPNIFTY +125,805
+    YOUR SETUP, one trade a day 14+ DAYS         2461   39% ₹   +54,762 PF 1.02 DD ₹ 185,460 day ₹ -22,580  |  622   39% ₹   +79,515 PF 1.14 DD ₹  73,151 day ₹ -24,890
+    YOUR SETUP, one trade a day NEAREST          2461   37% ₹  +133,645 PF 1.05 DD ₹ 217,806 day ₹ -20,960  |  622   37% ₹   +81,758 PF 1.13 DD ₹  77,866 day ₹ -24,373
+      14+ days by index: NIFTY -7,080  BANKNIFTY +80,775  SENSEX -65,020  MIDCPNIFTY +125,603
+    the TradingView rating alone 14+ DAYS        7076   38% ₹  -928,141 PF 0.87 DD ₹ 956,560 day ₹ -44,764  | 1867   38% ₹  -149,080 PF 0.92 DD ₹ 266,093 day ₹ -40,833
+    the TradingView rating alone NEAREST         7076   36% ₹  -732,705 PF 0.90 DD ₹ 824,137 day ₹ -39,223  | 1867   37% ₹  -148,072 PF 0.92 DD ₹ 278,900 day ₹ -35,853
+      14+ days by index: NIFTY -211,248  BANKNIFTY -407,919  SENSEX -310,961  MIDCPNIFTY -147,093
+   BANKNIFTY 14+ DAYS MODEL CHECK (flattened):   62 trades  model - real     -141 a trade (se 95)  real    -38,062  model    -46,827  model's entry price / real: median 1.03
+   BANKNIFTY NEAREST MODEL CHECK (flattened):   62 trades  model - real      -34 a trade (se 84)  real    -39,262  model    -41,389  model's entry price / real: median 1.03
+   MIDCPNIFTY 14+ DAYS MODEL CHECK (flattened):   21 trades  model - real     -604 a trade (se 669)  real    +14,617  model     +1,936  model's entry price / real: median 0.99
+   MIDCPNIFTY NEAREST MODEL CHECK (flattened):   27 trades  model - real     +197 a trade (se 272)  real    -12,584  model     -7,257  model's entry price / real: median 0.92
