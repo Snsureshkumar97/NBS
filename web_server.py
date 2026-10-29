@@ -3674,7 +3674,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.80);
 .kdlots .kdl-msg{font-size:12px;color:var(--ink-3);flex-basis:100%}
 .kdlots .kdl-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;flex-basis:100%}
 /* the trade settings: a row per index (7 Oct 2026) */
-.kdlots{display:block;margin:6px 0 10px}
+.kdlots{display:block;margin:6px 0 10px;position:relative}   /* holds the hidden .kdl-sr labels inside its scroll box */
 .kdlots .kdl-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:6px}
 .kdlots .kdl-sub{font-size:12px;color:var(--ink-3)}
 .kdlots .kdl-tab{max-width:760px}
