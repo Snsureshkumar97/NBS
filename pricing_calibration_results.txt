@@ -1,20 +1,20 @@
 THE CLOCK, picked on the recorded days to 9 Oct (table AND trades), then judged on the trades from 10 Oct:
-   ('calendar',)      learning trades (94): gap    -58 a trade   |   held-out (71): gap   -175 a trade (se 94)
-   ('trading', 0.0)   learning trades (94): gap    -42 a trade   |   held-out (71): gap   -164 a trade (se 93)
-   ('trading', 0.1)   learning trades (94): gap    -42 a trade   |   held-out (71): gap   -166 a trade (se 92)
-   ('trading', 0.2)   learning trades (94): gap    -41 a trade   |   held-out (71): gap   -165 a trade (se 92)
-   ('trading', 0.35)  learning trades (94): gap    -41 a trade   |   held-out (71): gap   -164 a trade (se 92)
-   ('trading', 0.5)   learning trades (94): gap    -45 a trade   |   held-out (71): gap   -167 a trade (se 92)
-PICKED ON THE LEARNING TRADES: ('trading', 0.2)
+   ('calendar',)      learning trades (94): gap    +37 a trade   |   held-out (71): gap   -160 a trade (se 93)
+   ('trading', 0.0)   learning trades (94): gap   +133 a trade   |   held-out (71): gap    -53 a trade (se 93)
+   ('trading', 0.1)   learning trades (94): gap    +95 a trade   |   held-out (71): gap   -111 a trade (se 95)
+   ('trading', 0.2)   learning trades (94): gap    +85 a trade   |   held-out (71): gap   -122 a trade (se 94)
+   ('trading', 0.35)  learning trades (94): gap    +75 a trade   |   held-out (71): gap   -133 a trade (se 94)
+   ('trading', 0.5)   learning trades (94): gap    +64 a trade   |   held-out (71): gap   -143 a trade (se 94)
+PICKED ON THE LEARNING TRADES: ('calendar',)
          old_gap        new_gap       
            count   mean   count   mean
 dc                                    
-[0, 1)         5 -957.0       5  207.0
-[1, 3)        12 -616.0      12 -372.0
-[3, 7)        32 -452.0      32 -302.0
-[7, 400)      22   -2.0      22   64.0
-   held-out 71 trades: real -11,847, old model +14,825 (gap -376 a trade), corrected -164 (gap -165 a trade)
-EVERY RECORDED DAY (165 trades) with the table re-learned on all of them: gap -69 a trade (old -296)
-THE CLOCK FOR USE - pricing.TIME = ('trading', 0.2)
+[0, 1)         5 -957.0       5  469.0
+[1, 3)        12 -616.0      12 -416.0
+[3, 7)        32 -452.0      32 -294.0
+[7, 400)      22   -2.0      22   30.0
+   held-out 71 trades: real -11,847, old model +14,825 (gap -376 a trade), corrected -465 (gap -160 a trade)
+EVERY RECORDED DAY (165 trades) with the table re-learned on all of them: gap -49 a trade (old -296)
+THE CLOCK FOR USE - pricing.TIME = ('calendar',)
 THE TABLE FOR USE - pricing.SIGMA_RATIO:
-{(0, 0): 0.931, (0, 1): 0.957, (0, 2): 1.074, (0, 3): 1.488, (1, 0): 1.0, (1, 1): 1.0, (1, 2): 1.0, (1, 3): 1.0, (2, 0): 0.943, (2, 1): 0.96, (2, 2): 0.998, (2, 3): 1.001, (3, 0): 0.851, (3, 1): 0.894, (3, 2): 0.898, (3, 3): 0.903, (4, 0): 0.922, (4, 1): 0.944, (4, 2): 0.956, (4, 3): 0.96, (5, 0): 0.943, (5, 1): 0.931, (5, 2): 0.946, (5, 3): 0.951, (6, 0): 0.909, (6, 1): 0.916, (6, 2): 0.927, (6, 3): 0.916, (7, 0): 0.872, (7, 1): 0.894, (7, 2): 0.914, (7, 3): 0.919}
+{(0, 0): 1.933, (0, 1): 1.987, (0, 2): 2.23, (0, 3): 3.09, (1, 0): 1.0, (1, 1): 1.0, (1, 2): 1.0, (1, 3): 1.0, (2, 0): 1.31, (2, 1): 1.291, (2, 2): 1.273, (2, 3): 1.193, (3, 0): 1.099, (3, 1): 1.13, (3, 2): 1.094, (3, 3): 1.067, (4, 0): 1.031, (4, 1): 1.019, (4, 2): 0.982, (4, 3): 0.978, (5, 0): 0.977, (5, 1): 0.952, (5, 2): 0.942, (5, 3): 0.931, (6, 0): 0.956, (6, 1): 0.949, (6, 2): 0.951, (6, 3): 0.929, (7, 0): 0.92, (7, 1): 0.92, (7, 2): 0.92, (7, 3): 0.92}

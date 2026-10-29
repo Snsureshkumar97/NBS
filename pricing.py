@@ -9,20 +9,25 @@ of day. Without it the model was -296 a trade too rosy on the TradingView rating
 """
 DTE_EDGES = (0, 0.3, 1, 2, 3, 5, 7, 14, 400)          # days to 15:30 on expiry day
 TOD_EDGES = (0, 60, 180, 300, 376)                    # minutes since 09:15: first hour, late morning, midday, last hour
-# {(dte cell, tod cell): real implied volatility / the model's sigma}: pricing_calibration.py, 28 Oct 2026, every recorded
-# day 10 Sep - 26 Oct (14,000+ at-the-money readings). Held out (learned to 9 Oct, judged on 71 trades after): the
-# model's gap to real prices -376 a trade -> -165; over all 165 trades -296 -> -69. Cell (1, *) - 0.3 to 1 day - is
-# the overnight before expiry day: never priced. Empty this and set TIME = ("calendar",) for the studies' old model.
-SIGMA_RATIO = {(0, 0): 0.931, (0, 1): 0.957, (0, 2): 1.074, (0, 3): 1.488, (1, 0): 1.0, (1, 1): 1.0, (1, 2): 1.0,
-               (1, 3): 1.0, (2, 0): 0.943, (2, 1): 0.96, (2, 2): 0.998, (2, 3): 1.001, (3, 0): 0.851, (3, 1): 0.894,
-               (3, 2): 0.898, (3, 3): 0.903, (4, 0): 0.922, (4, 1): 0.944, (4, 2): 0.956, (4, 3): 0.96, (5, 0): 0.943,
-               (5, 1): 0.931, (5, 2): 0.946, (5, 3): 0.951, (6, 0): 0.909, (6, 1): 0.916, (6, 2): 0.927, (6, 3): 0.916,
-               (7, 0): 0.872, (7, 1): 0.894, (7, 2): 0.914, (7, 3): 0.919}
-# The clock the option decays on. ("calendar",): every hour alike, nights and weekends included (the studies until 28
-# Oct 2026). ("trading", w): the session's 375 minutes, and each night (weekend nights too) as w of a session - real
-# premiums lose most of their time value while the market is open. pricing_calibration.py picks w.
-TIME = ("trading", 0.2)        # picked by pricing_calibration.py on the learning weeks (every clock tried was within
-SESSION = 375                   # a few rupees a trade of the others - the correction is the table, not the clock)
+# {(dte cell, tod cell): real implied volatility / the model's sigma}: pricing_calibration.py, every recorded day 10
+# Sep - 26 Oct (14,000+ at-the-money readings). 29 Oct 2026, with its clock_gains guard: far_expiry_check.py found the
+# 28 Oct table's 14+ day row rising through the day (0.872 -> 0.919) faster than a far option decays, so a far option
+# GAINED from the clock alone (+1,009 a lot, 09:45 -> 14:45, the index unchanged) and real Bank Nifty far trades were
+# +296 a trade rosier in the model than real; a row that lets an option held 2+ hours gain over 1% from the clock now
+# takes one ratio all day. Re-learned so, the rule picked the calendar clock (learning trades +37 a trade; the trading
+# clocks +64 to +133). Held out (learned to 9 Oct, judged on 71 trades after): -376 a trade -> -160 (the 28 Oct
+# table -165); over all 165 trades -296 -> -49. Cell (1, *) - 0.3 to 1 day - is the overnight before expiry day:
+# never priced. Empty this for the studies' old model (calendar clock, no correction).
+SIGMA_RATIO = {(0, 0): 1.933, (0, 1): 1.987, (0, 2): 2.23, (0, 3): 3.09, (1, 0): 1.0, (1, 1): 1.0, (1, 2): 1.0,
+               (1, 3): 1.0, (2, 0): 1.31, (2, 1): 1.291, (2, 2): 1.273, (2, 3): 1.193, (3, 0): 1.099, (3, 1): 1.13,
+               (3, 2): 1.094, (3, 3): 1.067, (4, 0): 1.031, (4, 1): 1.019, (4, 2): 0.982, (4, 3): 0.978, (5, 0): 0.977,
+               (5, 1): 0.952, (5, 2): 0.942, (5, 3): 0.931, (6, 0): 0.956, (6, 1): 0.949, (6, 2): 0.951, (6, 3): 0.929,
+               (7, 0): 0.92, (7, 1): 0.92, (7, 2): 0.92, (7, 3): 0.92}
+# The clock the option decays on. ("calendar",): every hour alike, nights and weekends included. ("trading", w): the
+# session's 375 minutes, and each night (weekend nights too) as w of a session. pricing_calibration.py picks it: the
+# trading clock (w 0.2) from 28 Oct, the calendar clock from 29 Oct (held out the two are alike, -160 against -165).
+TIME = ("calendar",)
+SESSION = 375                   # the trading clock's session, in minutes
 # Which expiry a study's trade buys (pro_study.trade_expiry): the first with at least this many calendar days to run.
 # 0 = the nearest, as the live tool buys today. expiry_study.py (28 Oct 2026) measures further ones.
 MIN_DTE = 0

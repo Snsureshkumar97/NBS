@@ -21,6 +21,11 @@ model's sigma: expiry day about 2x (calendar clock), 1-2 days 1.27, 2-3 days 1.1
 Held out (learned to 9 Oct, 71 trades after): the gap per trade -376 -> -165 (expiry day -957 -> +207, 7+ days -2 ->
 +64; 1-7 days still -300 to -370: week-to-week volatility, not a fixed bias). Every clock tried within a few rupees;
 the rule picked ("trading", 0.2). Over all 165 trades with the table learned on every day: -296 -> -69. In pricing.py.
+RE-RUN (29 Oct 2026) with clock_gains: far_expiry_check.py found the 14+ day row (0.872 rising to 0.919 through the
+day) let a far option gain from the clock alone - Bank Nifty's real far trades were +296 a trade rosier in the model.
+fit() now gives such a row one ratio all day (an option held 2+ hours must not gain over 1% from the clock). Re-learned,
+the rule picked the calendar clock (learning trades +37 a trade, the trading clocks +64 to +133); held out -160 a
+trade (se 93; the 28 Oct table -165); every recorded day -49 (old -296). The 14+ day row is 0.92 all day.
 
     python3 pricing_calibration.py OPTION_HISTORY_DIR      (HOME at the six-year history)
 """
@@ -110,8 +115,9 @@ def samples(folder, every=5, time=("calendar",)):
 from pricing import DTE_EDGES, TOD_EDGES   # noqa: E402  (the cells the correction is kept in)
 
 
-def fit(df):
-    """{(dte cell, tod cell): median ratio} - a cell with under 30 readings takes its dte row's median."""
+def fit(df, time=None):
+    """{(dte cell, tod cell): median ratio} - a cell with under 30 readings takes its dte row's median, and a dte row
+    whose times of day would let an option gain from the clock alone (clock_gains) takes its row median all day."""
     df = df.assign(dc=pd.cut(df["dte"], DTE_EDGES, labels=False, right=False),
                    tc=pd.cut(df["tod"], TOD_EDGES, labels=False, right=False))
     row = df.groupby("dc")["ratio"].median().to_dict()
@@ -120,7 +126,36 @@ def fit(df):
         for tc in range(len(TOD_EDGES) - 1):
             cell = df[(df["dc"] == dc) & (df["tc"] == tc)]["ratio"]
             table[(dc, tc)] = round(float(cell.median()), 3) if len(cell) >= 30 else round(float(row.get(dc, 1.0)), 3)
+    for dc in sorted(clock_gains(table, time)):
+        for tc in range(len(TOD_EDGES) - 1):
+            table[(dc, tc)] = round(float(row.get(dc, 1.0)), 3)
     return table
+
+
+def clock_gains(table, time=None, hold=120, tol=0.01):
+    """The dte cells in which an at-the-money option, the index unchanged, can end a hold of `hold` minutes or more
+    worth over `tol` more than it started - value from the clock alone, which no real option has. far_expiry_check.py
+    (29 Oct 2026) found it in the 14+ day cell (0.872 rising to 0.919 through the day): a 35-day option gained Rs 1,009
+    a lot from 09:45 to 14:45, +4.8% over two hours, and the six-year 14+ day result was mostly that; real prices
+    showed the model +296 a trade too rosy there. The nearer cells blip up for an hour at the table's time-of-day
+    steps (+3% at most) but lose over two hours, and real prices confirm them (+48 a trade, se 88, on the same trades
+    at the nearest expiry). Checked over 0-60 days to expiry, from every weekday, every 5 minutes."""
+    import datetime as dt
+    import pricing
+    import pro_study as ps
+    bad = set()
+    for start in range(5):
+        day = dt.date(2026, 10, 5) + dt.timedelta(days=start)
+        open_ = pd.Timestamp(dt.datetime.combine(day, dt.time(9, 15)), tz=IST)
+        whens = [open_ + pd.Timedelta(minutes=m) for m in range(5, 371, 5)]
+        for ahead in range(61):
+            exp = day + dt.timedelta(days=ahead)
+            px = [pricing.premium(24000.0, 24000, exp, w, 0.13, True, table=table, time=time) for w in whens]
+            for i, w in enumerate(whens):
+                later = px[i + hold // 5:]
+                if later and max(later) > px[i] * (1 + tol):
+                    bad.add(pricing._cell(ps.years_to(exp, w) * 365, DTE_EDGES))
+    return bad
 
 
 def backtest_trades():
@@ -170,7 +205,7 @@ def main():
     best, results = None, {}
     for time in GRID:
         S = samples(folder, every=10, time=time)
-        learn = fit(S[S["ts"] < SPLIT])
+        learn = fit(S[S["ts"] < SPLIT], time)
         L = judge(learn, folder, FIRST, SPLIT, bt, time)
         H = judge(learn, folder, SPLIT, LAST, bt, time)
         gl, gh = (L["real"] - L["new"]).mean(), (H["real"] - H["new"]).mean()
@@ -188,7 +223,7 @@ def main():
     print(f"   held-out {len(H)} trades: real {H['real'].sum():+,.0f}, old model {H['old'].sum():+,.0f} "
           f"(gap {(H['real'] - H['old']).mean():+,.0f} a trade), corrected {H['new'].sum():+,.0f} "
           f"(gap {(H['real'] - H['new']).mean():+,.0f} a trade)")
-    full = fit(S)
+    full = fit(S, time)
     A = judge(full, folder, FIRST, LAST, bt, time)
     print(f"EVERY RECORDED DAY ({len(A)} trades) with the table re-learned on all of them: gap "
           f"{(A['real'] - A['new']).mean():+,.0f} a trade (old {(A['real'] - A['old']).mean():+,.0f})")
