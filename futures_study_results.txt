@@ -1,0 +1,106 @@
+########################################################################################################################
+INDEX FUTURES, one lot, after charges and 0.01% slippage a side  (to 15 Aug 2025 | held out)
+========================================================================================================================
+ALL FOUR POOLED
+    the rules                                    5218   48% ₹-2,568,914 PF 0.72 DD ₹2,607,858 day ₹ -71,917  | 1642   47% ₹  -905,886 PF 0.72 DD ₹ 914     +3.6 pts a trade
+    TradingView rating                           7076   37% ₹-2,986,482 PF 0.79 DD ₹2,986,482 day ₹ -94,782  | 1867   37% ₹  -695,696 PF 0.83 DD ₹ 695     +6.6 pts a trade
+    TradingView + levels                         2672   40% ₹  -512,439 PF 0.89 DD ₹ 651,750 day ₹ -53,753  |  724   38% ₹    -3,924 PF 1.00 DD ₹ 193,    +12.3 pts a trade
+    the big candle                               1198   43% ₹  -132,537 PF 0.96 DD ₹ 450,037 day ₹ -83,460  |  236   46% ₹   +85,064 PF 1.12 DD ₹  93,    +16.3 pts a trade
+    TradingView + big candle                     7348   37% ₹-3,015,226 PF 0.80 DD ₹3,019,008 day ₹ -98,543  | 1928   37% ₹  -741,588 PF 0.83 DD ₹ 756     +6.9 pts a trade
+    TradingView + levels + big candle            3409   41% ₹  -418,675 PF 0.94 DD ₹ 804,180 day ₹ -91,652  |  879   38% ₹  -118,214 PF 0.94 DD ₹ 260,    +13.7 pts a trade
+    COIN (control)                              10005   43% ₹-6,849,614 PF 0.58 DD ₹6,856,069 day ₹ -44,496  | 2901   42% ₹-2,673,757 PF 0.56 DD ₹2,69     -2.7 pts a trade
+   drop  the rules vs doing nothing                   profit: in-sample -2,568,914  held-out  -905,886   worst drop: +2,607,858 / +914,339   worst day:  -71,917 /  -83,548
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹3,200,684 (today's ₹0), chance of a loss 100%;  held-out: 95% worst drop ₹1,332,077 (today's ₹0), chance of a loss 100%
+   drop  TradingView rating vs doing nothing          profit: in-sample -2,986,482  held-out  -695,696   worst drop: +2,986,482 / +695,696   worst day:  -94,782 /  -89,918
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹4,091,569 (today's ₹0), chance of a loss 100%;  held-out: 95% worst drop ₹1,441,360 (today's ₹0), chance of a loss 96%
+   drop  TradingView + levels vs doing nothing        profit: in-sample  -512,439  held-out    -3,924   worst drop: +651,750 / +193,032   worst day:  -53,753 /  -77,335
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹1,198,720 (today's ₹0), chance of a loss 92%;  held-out: 95% worst drop ₹476,777 (today's ₹0), chance of a loss 51%
+   drop  the big candle vs doing nothing              profit: in-sample  -132,537  held-out   +85,064   worst drop: +450,037 /  +93,767   worst day:  -83,460 /  -40,979
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹883,663 (today's ₹0), chance of a loss 64%;  held-out: 95% worst drop ₹300,437 (today's ₹0), chance of a loss 31%
+   drop  TradingView + big candle vs doing nothing    profit: in-sample -3,015,226  held-out  -741,588   worst drop: +3,019,008 / +756,957   worst day:  -98,543 /  -77,335
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹4,202,145 (today's ₹0), chance of a loss 100%;  held-out: 95% worst drop ₹1,514,426 (today's ₹0), chance of a loss 97%
+   drop  TradingView + levels + big candle vs doing nothing profit: in-sample  -418,675  held-out  -118,214   worst drop: +804,180 / +260,067   worst day:  -91,652 /  -77,335
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹1,386,153 (today's ₹0), chance of a loss 80%;  held-out: 95% worst drop ₹669,097 (today's ₹0), chance of a loss 68%
+========================================================================================================================
+NIFTY
+    the rules                                    1545   48% ₹  -773,333 PF 0.67 DD ₹ 774,005 day ₹ -17,730  |  387   47% ₹  -233,897 PF 0.64 DD ₹ 241,     +2.0 pts a trade
+    TradingView rating                           2093   37% ₹  -824,492 PF 0.77 DD ₹ 827,353 day ₹ -39,937  |  448   38% ₹  -119,232 PF 0.86 DD ₹ 156,     +4.2 pts a trade
+    TradingView + levels                          791   39% ₹  -181,856 PF 0.86 DD ₹ 261,224 day ₹ -20,485  |  185   35% ₹   -52,013 PF 0.84 DD ₹  70,     +6.2 pts a trade
+    the big candle                                332   43% ₹   -23,530 PF 0.97 DD ₹ 155,693 day ₹ -22,413  |   61   46% ₹    +5,776 PF 1.04 DD ₹  32,     +9.3 pts a trade
+    TradingView + big candle                     2178   37% ₹  -938,360 PF 0.76 DD ₹ 941,041 day ₹ -39,937  |  464   38% ₹  -120,508 PF 0.86 DD ₹ 161,     +3.8 pts a trade
+    TradingView + levels + big candle             999   40% ₹  -259,930 PF 0.86 DD ₹ 368,968 day ₹ -29,929  |  226   36% ₹   -79,860 PF 0.82 DD ₹  92,     +5.6 pts a trade
+    COIN (control)                               2983   43% ₹-1,944,717 PF 0.54 DD ₹1,950,761 day ₹ -18,234  |  734   41% ₹  -522,988 PF 0.57 DD ₹ 548     -0.2 pts a trade
+========================================================================================================================
+BANKNIFTY
+    the rules                                    1467   47% ₹  -871,821 PF 0.71 DD ₹ 895,667 day ₹ -19,035  |  429   43% ₹  -318,739 PF 0.67 DD ₹ 328,     +1.8 pts a trade
+    TradingView rating                           2110   37% ₹  -911,942 PF 0.81 DD ₹ 988,897 day ₹ -35,617  |  488   35% ₹  -246,588 PF 0.78 DD ₹ 260,     +7.5 pts a trade
+    TradingView + levels                          758   40% ₹   -79,264 PF 0.95 DD ₹ 215,836 day ₹ -25,698  |  178   39% ₹   -29,985 PF 0.92 DD ₹  95,    +18.2 pts a trade
+    the big candle                                359   44% ₹  -109,561 PF 0.91 DD ₹ 195,564 day ₹ -19,641  |   57   49% ₹   +51,383 PF 1.31 DD ₹  42,    +17.3 pts a trade
+    TradingView + big candle                     2167   37% ₹  -895,155 PF 0.82 DD ₹ 959,618 day ₹ -35,617  |  501   35% ₹  -239,358 PF 0.80 DD ₹ 252,     +8.1 pts a trade
+    TradingView + levels + big candle             961   42% ₹   -32,924 PF 0.99 DD ₹ 169,176 day ₹ -34,529  |  216   39% ₹   -24,084 PF 0.95 DD ₹  93,    +20.4 pts a trade
+    COIN (control)                               2887   44% ₹-1,941,672 PF 0.63 DD ₹1,968,558 day ₹ -23,888  |  725   41% ₹  -865,502 PF 0.51 DD ₹ 877     -3.5 pts a trade
+========================================================================================================================
+SENSEX
+    the rules                                    1484   48% ₹  -768,549 PF 0.66 DD ₹ 795,724 day ₹ -18,966  |  370   48% ₹  -195,995 PF 0.67 DD ₹ 197,     +7.0 pts a trade
+    TradingView rating                           2077   37% ₹  -934,355 PF 0.76 DD ₹ 934,355 day ₹ -40,077  |  467   35% ₹  -245,617 PF 0.73 DD ₹ 268,     +9.8 pts a trade
+    TradingView + levels                          829   38% ₹  -279,497 PF 0.80 DD ₹ 352,951 day ₹ -19,080  |  181   32% ₹  -103,192 PF 0.68 DD ₹ 114,    +13.8 pts a trade
+    the big candle                                339   40% ₹   -93,836 PF 0.90 DD ₹ 192,120 day ₹ -20,953  |   51   47% ₹   +44,659 PF 1.45 DD ₹  35,    +26.7 pts a trade
+    TradingView + big candle                     2169   37% ₹  -968,467 PF 0.77 DD ₹ 970,710 day ₹ -40,077  |  477   35% ₹  -224,051 PF 0.76 DD ₹ 248,    +10.4 pts a trade
+    TradingView + levels + big candle            1048   38% ₹  -301,943 PF 0.85 DD ₹ 442,767 day ₹ -29,986  |  218   33% ₹   -86,866 PF 0.78 DD ₹ 115,    +17.4 pts a trade
+    COIN (control)                               2934   41% ₹-2,221,838 PF 0.50 DD ₹2,235,092 day ₹ -29,228  |  737   42% ₹  -647,638 PF 0.49 DD ₹ 654     -6.0 pts a trade
+========================================================================================================================
+MIDCPNIFTY
+    the rules                                     722   48% ₹  -155,210 PF 0.90 DD ₹ 237,350 day ₹ -22,999  |  456   49% ₹  -157,255 PF 0.85 DD ₹ 231,     +4.0 pts a trade
+    TradingView rating                            796   39% ₹  -315,693 PF 0.85 DD ₹ 360,554 day ₹ -45,675  |  464   40% ₹   -84,260 PF 0.93 DD ₹ 149,     +3.5 pts a trade
+    TradingView + levels                          294   45% ₹   +28,177 PF 1.05 DD ₹ 139,841 day ₹ -19,016  |  180   48% ₹  +181,266 PF 1.56 DD ₹  34,     +9.8 pts a trade
+    the big candle                                168   48% ₹   +94,389 PF 1.15 DD ₹  87,102 day ₹ -35,723  |   67   43% ₹   -16,753 PF 0.94 DD ₹  74,     +8.8 pts a trade
+    TradingView + big candle                      834   40% ₹  -213,245 PF 0.90 DD ₹ 284,570 day ₹ -45,675  |  486   40% ₹  -157,671 PF 0.88 DD ₹ 202,     +3.8 pts a trade
+    TradingView + levels + big candle             401   48% ₹  +176,122 PF 1.17 DD ₹  94,525 day ₹ -35,723  |  219   46% ₹   +72,596 PF 1.13 DD ₹  59,     +9.4 pts a trade
+    COIN (control)                               1201   41% ₹  -741,386 PF 0.70 DD ₹ 749,159 day ₹ -23,808  |  705   41% ₹  -637,629 PF 0.64 DD ₹ 665,     +0.1 pts a trade
+########################################################################################################################
+INDEX FUTURES, one lot, after charges and 0.02% slippage a side  (to 15 Aug 2025 | held out)
+========================================================================================================================
+ALL FOUR POOLED
+    the rules                                    5218   46% ₹-3,897,630 PF 0.60 DD ₹3,898,814 day ₹ -75,462  | 1642   46% ₹-1,443,272 PF 0.60 DD ₹1,44     +3.6 pts a trade
+    TradingView rating                           7076   36% ₹-4,777,513 PF 0.69 DD ₹4,777,513 day ₹ -99,360  | 1867   36% ₹-1,307,277 PF 0.71 DD ₹1,30     +6.6 pts a trade
+    TradingView + levels                         2672   38% ₹-1,181,795 PF 0.77 DD ₹1,190,285 day ₹ -55,127  |  724   37% ₹  -239,771 PF 0.84 DD ₹ 330    +12.3 pts a trade
+    the big candle                               1198   42% ₹  -439,781 PF 0.88 DD ₹ 642,484 day ₹ -84,699  |  236   46% ₹    +8,289 PF 1.01 DD ₹ 111,    +16.3 pts a trade
+    TradingView + big candle                     7348   36% ₹-4,873,501 PF 0.71 DD ₹4,876,988 day ₹-101,794  | 1928   36% ₹-1,373,011 PF 0.71 DD ₹1,38     +6.9 pts a trade
+    TradingView + levels + big candle            3409   39% ₹-1,274,624 PF 0.83 DD ₹1,428,692 day ₹ -93,727  |  879   37% ₹  -404,556 PF 0.80 DD ₹ 500    +13.7 pts a trade
+    COIN (control)                              10005   40% ₹-9,386,723 PF 0.48 DD ₹9,390,550 day ₹ -48,606  | 2901   40% ₹-3,621,039 PF 0.45 DD ₹3,64     -2.7 pts a trade
+========================================================================================================================
+NIFTY
+    the rules                                    1545   46% ₹-1,153,762 PF 0.54 DD ₹1,153,793 day ₹ -18,697  |  387   44% ₹  -357,556 PF 0.50 DD ₹ 358     +2.0 pts a trade
+    TradingView rating                           2093   36% ₹-1,338,856 PF 0.66 DD ₹1,338,856 day ₹ -41,383  |  448   37% ₹  -261,980 PF 0.71 DD ₹ 261     +4.2 pts a trade
+    TradingView + levels                          791   37% ₹  -374,420 PF 0.73 DD ₹ 397,641 day ₹ -21,131  |  185   32% ₹  -110,898 PF 0.69 DD ₹ 125,     +6.2 pts a trade
+    the big candle                                332   42% ₹  -106,278 PF 0.88 DD ₹ 188,085 day ₹ -22,729  |   61   44% ₹   -13,504 PF 0.91 DD ₹  37,     +9.3 pts a trade
+    TradingView + big candle                     2178   36% ₹-1,472,809 PF 0.66 DD ₹1,474,203 day ₹ -41,383  |  464   37% ₹  -268,374 PF 0.72 DD ₹ 272     +3.8 pts a trade
+    TradingView + levels + big candle             999   38% ₹  -502,834 PF 0.75 DD ₹ 556,897 day ₹ -30,899  |  226   34% ₹  -151,787 PF 0.68 DD ₹ 160,     +5.6 pts a trade
+    COIN (control)                               2983   40% ₹-2,680,873 PF 0.42 DD ₹2,684,961 day ₹ -19,462  |  734   38% ₹  -757,129 PF 0.44 DD ₹ 776     -0.2 pts a trade
+========================================================================================================================
+BANKNIFTY
+    the rules                                    1467   46% ₹-1,244,554 PF 0.61 DD ₹1,248,658 day ₹ -19,940  |  429   43% ₹  -464,933 PF 0.56 DD ₹ 469     +1.8 pts a trade
+    TradingView rating                           2110   35% ₹-1,442,742 PF 0.72 DD ₹1,504,584 day ₹ -36,614  |  488   34% ₹  -413,461 PF 0.67 DD ₹ 413     +7.5 pts a trade
+    TradingView + levels                          758   39% ₹  -267,094 PF 0.84 DD ₹ 365,636 day ₹ -25,948  |  178   37% ₹   -90,589 PF 0.77 DD ₹ 115,    +18.2 pts a trade
+    the big candle                                359   42% ₹  -199,837 PF 0.84 DD ₹ 262,629 day ₹ -19,948  |   57   49% ₹   +31,875 PF 1.18 DD ₹  44,    +17.3 pts a trade
+    TradingView + big candle                     2167   36% ₹-1,439,746 PF 0.74 DD ₹1,486,740 day ₹ -36,614  |  501   34% ₹  -410,639 PF 0.69 DD ₹ 410     +8.1 pts a trade
+    TradingView + levels + big candle             961   40% ₹  -271,284 PF 0.88 DD ₹ 349,825 day ₹ -35,219  |  216   38% ₹   -97,652 PF 0.82 DD ₹ 124,    +20.4 pts a trade
+    COIN (control)                               2887   42% ₹-2,666,825 PF 0.53 DD ₹2,678,756 day ₹ -25,209  |  725   40% ₹-1,112,394 PF 0.42 DD ₹1,12     -3.5 pts a trade
+========================================================================================================================
+SENSEX
+    the rules                                    1484   46% ₹-1,141,971 PF 0.54 DD ₹1,151,711 day ₹ -19,945  |  370   47% ₹  -313,001 PF 0.52 DD ₹ 313     +7.0 pts a trade
+    TradingView rating                           2077   36% ₹-1,458,341 PF 0.65 DD ₹1,458,341 day ₹ -41,540  |  467   34% ₹  -393,877 PF 0.61 DD ₹ 408     +9.8 pts a trade
+    TradingView + levels                          829   36% ₹  -487,244 PF 0.68 DD ₹ 514,005 day ₹ -19,399  |  181   30% ₹  -160,393 PF 0.55 DD ₹ 167,    +13.8 pts a trade
+    the big candle                                339   39% ₹  -181,052 PF 0.81 DD ₹ 244,484 day ₹ -21,273  |   51   47% ₹   +28,730 PF 1.27 DD ₹  40,    +26.7 pts a trade
+    TradingView + big candle                     2169   36% ₹-1,515,028 PF 0.66 DD ₹1,517,121 day ₹ -41,540  |  477   34% ₹  -375,359 PF 0.63 DD ₹ 391    +10.4 pts a trade
+    TradingView + levels + big candle            1048   37% ₹  -565,320 PF 0.74 DD ₹ 644,051 day ₹ -30,688  |  218   32% ₹  -155,674 PF 0.65 DD ₹ 170,    +17.4 pts a trade
+    COIN (control)                               2934   39% ₹-2,962,498 PF 0.40 DD ₹2,973,362 day ₹ -30,194  |  737   39% ₹  -881,102 PF 0.37 DD ₹ 885     -6.0 pts a trade
+========================================================================================================================
+MIDCPNIFTY
+    the rules                                     722   48% ₹  -357,343 PF 0.78 DD ₹ 376,891 day ₹ -23,605  |  456   48% ₹  -307,782 PF 0.73 DD ₹ 365,     +4.0 pts a trade
+    TradingView rating                            796   37% ₹  -537,574 PF 0.76 DD ₹ 558,061 day ₹ -46,564  |  464   38% ₹  -237,958 PF 0.81 DD ₹ 262,     +3.5 pts a trade
+    TradingView + levels                          294   42% ₹   -53,037 PF 0.92 DD ₹ 164,410 day ₹ -19,279  |  180   47% ₹  +122,111 PF 1.34 DD ₹  42,     +9.8 pts a trade
+    the big candle                                168   47% ₹   +47,386 PF 1.07 DD ₹ 103,444 day ₹ -36,017  |   67   43% ₹   -38,811 PF 0.86 DD ₹  93,     +8.8 pts a trade
+    TradingView + big candle                      834   38% ₹  -445,918 PF 0.81 DD ₹ 483,850 day ₹ -46,564  |  486   38% ₹  -318,639 PF 0.77 DD ₹ 350,     +3.8 pts a trade
+    TradingView + levels + big candle             401   46% ₹   +64,815 PF 1.06 DD ₹ 110,952 day ₹ -36,017  |  219   44% ₹      +558 PF 1.00 DD ₹  93,     +9.4 pts a trade
+    COIN (control)                               1201   40% ₹-1,076,528 PF 0.60 DD ₹1,076,528 day ₹ -24,723  |  705   40% ₹  -870,413 PF 0.54 DD ₹ 889     +0.1 pts a trade
