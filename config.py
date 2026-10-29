@@ -681,6 +681,15 @@ BIG_CANDLE_DEFAULT = "off"
 # (the TradingView rating, the Trend Rider and the rules; not the big candle, never tested with it). sr_study.py: the
 # TradingView rating -69 -> +46 a trade over five years, +33 -> +193 the year after, at 1.5x. Per account and index in
 # Trade settings, "off" unless the user turns it on. It only ever holds a ticket - it never places one.
+# ONE TRADE A DAY PER INDEX (oneperday_study.py; the user, 29 Oct 2026: "yes add the one trade a day switch"). "one":
+# once a ticket has opened on that index today (any system, the big candle too; the trade log is read, so a restart
+# forgets nothing), the next waits until tomorrow. The day's first trade is the better one: at the nearest expiry the
+# TradingView rating -69 -> -1 a trade over five years, +33 -> +123 the year after; on the recorder's real prices the
+# rating with the levels + the big candle -2,996 -> +21,816. Per account and index in Trade settings; "any" unless the
+# user picks it. It only ever holds a ticket.
+DAY_TRADES_CHOICES = ("any", "one")
+DAY_TRADES_DEFAULT = "any"
+
 LEVELS_CHOICES = ("off", "on")
 LEVELS_DEFAULT = "off"
 LEVELS_ROOM_R = 1.5

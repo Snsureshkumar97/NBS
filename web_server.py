@@ -2422,7 +2422,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                            expiry=(form.get("expiry") or None),
                            expiry_index=(form.get("expiry_index") or "").upper() or None,
                            levels=(form.get("levels") or None),
-                           levels_index=(form.get("levels_index") or "").upper() or None)
+                           levels_index=(form.get("levels_index") or "").upper() or None,
+                           day_trades=(form.get("day_trades") or None),
+                           day_trades_index=(form.get("day_trades_index") or "").upper() or None)
         return self._send(json.dumps({"ok": True, "session": book.session()}),
                           "application/json")
 
@@ -6796,8 +6798,11 @@ function lotsDash(s){
   // Yesterday's levels in the way, per index (28 Oct 2026; levels.py) - a ticket waits for room, off by default.
   const lvlBy = sess.levels_by || {}, lvlChoices = sess.levels_choices || [], lvlOn = lvlChoices.length > 0;
   const LVLNAME = {off: "Off", on: `On · ${sess.levels_room_r || 1.5}x room`};
+  // Trades a day, per index (29 Oct 2026; oneperday_study.py) - once today's ticket is taken the next waits for tomorrow.
+  const dtBy = sess.day_trades_by || {}, dtChoices = sess.day_trades_choices || [], dtOn = dtChoices.length > 0;
+  const DTNAME = {any: "Any", one: "One a day"};
   const sig = order.join(",") + "|" + choices.join(",") + "|" + (live || []).join(",") + "|" + sysChoices.join(",")
-    + "|" + votesChoices.join(",") + "|" + bigcChoices.join(",") + "|" + expChoices.join(",") + "|" + lvlChoices.join(",")
+    + "|" + votesChoices.join(",") + "|" + bigcChoices.join(",") + "|" + expChoices.join(",") + "|" + lvlChoices.join(",") + "|" + dtChoices.join(",")
     + "|" + order.map(k => sysFor(k).join("+")).join(",");
   if(el.dataset.sig !== sig){
     el.dataset.sig = sig;
@@ -6805,7 +6810,7 @@ function lotsDash(s){
     // 7 Oct 2026: "the lot selector and trend selector are in bottom bring it at top and arrange it in a good way").
     const lotSize = k => ((s.indices || {})[k] || {}).lot_size, isCfd = k => !!((s.indices || {})[k] || {}).cfd;
     el.innerHTML = `<table class="ntab kdl-tab"><thead><tr><th>${order.some(isCfd) ? "Market" : "Index"}</th><th>Lots</th>`
-      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle</th>" : ""}${expOn ? "<th>Expiry</th>" : ""}${lvlOn ? "<th>Levels</th>" : ""}</tr></thead><tbody>`
+      + `${sysChoices.length ? "<th>System</th>" : ""}${votesOn ? "<th>Votes</th>" : ""}<th>Live orders</th>${bigcOn ? "<th>Big candle</th>" : ""}${expOn ? "<th>Expiry</th>" : ""}${lvlOn ? "<th>Levels</th>" : ""}${dtOn ? "<th>Trades a day</th>" : ""}</tr></thead><tbody>`
       + order.map(k => `<tr><td><b>${esc(k)}</b></td>`
           + `<td data-th="Lots"><label><span class="kdl-sr">${esc(k)} lots</span><select data-k="${esc(k)}">`
           + choices.map(v => `<option value="${v}">${v}</option>`).join("") + `</select></label>`
@@ -6827,6 +6832,8 @@ function lotsDash(s){
               + expChoices.map(v => `<option value="${v}">${esc(EXPNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + (lvlOn ? `<td data-th="Levels"><label><span class="kdl-sr">${esc(k)} levels</span><select data-lvl="${esc(k)}">`
               + lvlChoices.map(v => `<option value="${v}">${esc(LVLNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
+          + (dtOn ? `<td data-th="Trades a day"><label><span class="kdl-sr">${esc(k)} trades a day</span><select data-dt="${esc(k)}">`
+              + dtChoices.map(v => `<option value="${v}">${esc(DTNAME[v] || v)}</option>`).join("") + `</select></label></td>` : "")
           + `</tr>`).join("")
       + `</tbody></table><span class="kdl-msg" id="kdlmsg"></span>`;
     el.onchange = async e => {
@@ -6868,6 +6875,31 @@ function lotsDash(s){
           if(was) bs.value = was;
           if(msg) msg.textContent = `${k}: the big candle could not be changed (are you still signed in?) - still ${BIGCNAME[was] || was}.`;
         }finally{ bs.disabled = false; }
+        return;
+      }
+      const ds = e.target.closest("select[data-dt]");
+      if(ds && ds.dataset && ds.dataset.dt){
+        const k = ds.dataset.dt, want = ds.value, msg = $("kdlmsg");
+        KDLOTS_HOLD = Date.now() + 5000;
+        ds.disabled = true;
+        try{
+          const r = await fetch("/api/ticket", {method: "POST", cache: "no-store",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({day_trades: want, day_trades_index: k})});
+          const j = await r.json();
+          const got = j && j.ok && j.session && (j.session.day_trades_by || {})[k];
+          if(!got) throw new Error("not taken");
+          if(LAST) LAST.session = Object.assign(LAST.session || {}, j.session);
+          ds.value = got;
+          if(msg) msg.textContent = got === "one"
+            ? `${k}: one ticket a day - once today's is taken (any system, the big candle too) the next waits for tomorrow.`
+            : `${k}: no daily cap of its own.`;
+          if(LAST) render(LAST);
+        }catch(err){
+          const was = LAST && ((LAST.session || {}).day_trades_by || {})[k];
+          if(was) ds.value = was;
+          if(msg) msg.textContent = `${k}: trades a day could not be changed (are you still signed in?) - still ${DTNAME[was] || was}.`;
+        }finally{ ds.disabled = false; }
         return;
       }
       const ls2 = e.target.closest("select[data-lvl]");
@@ -7023,6 +7055,12 @@ function lotsDash(s){
     const k = sel.dataset && sel.dataset.lvl;
     if(!k) return;
     const v = lvlBy[k];
+    if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
+  });
+  el.querySelectorAll("select[data-dt]").forEach(sel => {
+    const k = sel.dataset && sel.dataset.dt;
+    if(!k) return;
+    const v = dtBy[k];
     if(v && document.activeElement !== sel && !sel.disabled && sel.value !== v) sel.value = v;
   });
   el.querySelectorAll("select[data-votes]").forEach(sel => {
