@@ -1,0 +1,37 @@
+1550 days, 0 stock-days left out (gap over 20%: a corporate action or bad data)
+########################################################################################################################
+3-MINUTE BREAKOUT (arshadakl), Nifty 50 stocks, per Rs 1 lakh a trade after charges  (to 15 Aug 2025 | held out)
+    AS SHIPPED                                   1259   52% ₹   -36,019 PF 0.93 DD ₹  61,960 day ₹  -2,410  |  224   48% ₹   -15,680 PF 0.83 DD ₹  20,406 day ₹  -2,667
+    AS DOCUMENTED (no 1% stock-gap filter)       1679   51% ₹   -42,814 PF 0.94 DD ₹  71,217 day ₹  -2,497  |  327   46% ₹   -33,165 PF 0.75 DD ₹  39,413 day ₹  -2,667
+    as shipped, 0.05% slippage                   1259   51% ₹  -111,033 PF 0.81 DD ₹ 118,198 day ₹  -2,529  |  224   47% ₹   -28,976 PF 0.70 DD ₹  32,992 day ₹  -2,784
+    its own paper trading (candle-close fill)    1259   53% ₹   +12,257 PF 1.02 DD ₹  36,234 day ₹  -2,325  |  224   48% ₹    -7,455 PF 0.91 DD ₹  14,392 day ₹  -2,599
+    MIRROR (the other side, reference only)      1014   50% ₹   -75,549 PF 0.84 DD ₹  86,943 day ₹  -3,142  |  240   52% ₹   -10,313 PF 0.89 DD ₹  17,945 day ₹  -2,307
+   COIN x20 (to 15 Aug 2025): mean -57,506, from -91,998 to -19,883; as shipped -36,019 beats 17 of 20
+   COIN x20 (held out): mean -13,613, from -28,363 to +13,690; as shipped -15,680 beats 9 of 20
+   drop  as shipped vs doing nothing                  profit: in-sample   -36,019  held-out   -15,680   worst drop:  +61,960 /  +20,406   worst day:   -2,410 /   -2,667
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹102,131 (today's ₹0), chance of a loss 86%;  held-out: 95% worst drop ₹40,687 (today's ₹0), chance of a loss 89%
+   drop  as documented vs doing nothing               profit: in-sample   -42,814  held-out   -33,165   worst drop:  +71,217 /  +39,413   worst day:   -2,497 /   -2,667
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹114,348 (today's ₹0), chance of a loss 88%;  held-out: 95% worst drop ₹59,879 (today's ₹0), chance of a loss 99%
+========================================================================================================================
+SHIPPED: 1483 trades on 1046 days; won 51%, avg -0.035% a trade (gross +0.087%); exits TARGET 41%, STOP 34%, SQUARE_OFF 24%, CLOSE 1%; stop and target in one minute 0; wide reference candle 70%
+   FLAT        400 trades  won  51%  Rs    -21,260   (to 15 Aug 2025 -17,279 | held out -3,981)
+   GAP_DOWN    344 trades  won  47%  Rs    -40,146   (to 15 Aug 2025 -31,918 | held out -8,228)
+   GAP_UP      739 trades  won  54%  Rs     +9,707   (to 15 Aug 2025 +13,179 | held out -3,472)
+   2020        126 trades  won  58%  Rs     +6,999
+   2021        272 trades  won  57%  Rs     +8,552
+   2022        285 trades  won  52%  Rs     -7,111
+   2023        197 trades  won  48%  Rs    -15,212
+   2024        240 trades  won  51%  Rs    -16,597
+   2025        186 trades  won  42%  Rs    -24,416
+   2026        177 trades  won  53%  Rs     -3,915
+DOCUMENTED: 2006 trades on 1318 days; won 50%, avg -0.038% a trade (gross +0.084%); exits TARGET 39%, STOP 33%, SQUARE_OFF 26%, CLOSE 2%; stop and target in one minute 0; wide reference candle 58%
+   FLAT        741 trades  won  48%  Rs    -52,315   (to 15 Aug 2025 -39,299 | held out -13,016)
+   GAP_DOWN    400 trades  won  46%  Rs    -49,760   (to 15 Aug 2025 -37,504 | held out -12,256)
+   GAP_UP      865 trades  won  55%  Rs    +26,097   (to 15 Aug 2025 +33,990 | held out -7,893)
+   2020        146 trades  won  57%  Rs     +5,006
+   2021        346 trades  won  57%  Rs    +16,179
+   2022        349 trades  won  50%  Rs    -16,866
+   2023        304 trades  won  49%  Rs     -9,256
+   2024        337 trades  won  52%  Rs    -11,575
+   2025        300 trades  won  40%  Rs    -49,201
+   2026        224 trades  won  50%  Rs    -10,266
