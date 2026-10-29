@@ -34,6 +34,13 @@ money on all four in both periods (TradingView: Nifty +313,370 / +138,704, Bank 
 is thin (the recorder keeps the nearest two expiries only - a Nifty weekly's second is 7-13 days out), a further
 expiry costs more premium a lot, and its spread may be wider than the 0.25% slippage assumed.
 
+RE-RUN (29 Oct 2026, pricing.py fixed - 3ac57e4: the 14+ day row let a far option gain from the clock, real Bank Nifty
+  far trades showed the model +296 a trade too rosy; now -31, se 95). At least 0 / 3 / 7 / 14 days, to 15 Aug 2025 /
+  held out: the rating -518,931 / -51,257, -336,097 / +24,201, -484,495 / +2,035, -82,353 / +90,302; the rules
+  -696,430 / -188,741 ... -489,743 / -130,935; the big candle +171,721 / +95,467 ... +265,224 / +115,178; the coin
+  -2,266,670 / -828,319 ... -2,036,449 / -785,067 (it loses at every expiry - before the fix it lost half as much at
+  14+ days). Further out still helps, but far less than the 28 Oct figures said, and no longer smoothly.
+
     /usr/bin/python3 expiry_study.py        (HOME at the six-year history)
 """
 import os

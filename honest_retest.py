@@ -54,6 +54,12 @@ second half). Per lot after costs, to 15 Aug 2025 / held out. Weekly options los
   +110,198 and Supertrend +270,541 / +155,511 there. The coin -2,311,638 / -723,477. The rules' exit: today's steps
   -596,164 / -65,453 pooled, the fixed stop out at T3 -918,157 / -38,579 - no longer better in both periods.
 
+RE-RUN (29 Oct 2026, pricing.py fixed - 3ac57e4: no option gains from the clock; the calendar clock; results file
+  replaced). Per lot, to 15 Aug 2025 / held out, the nearest expiry: the rules -696,430 / -188,741, the rating
+  -518,931 / -51,257, the Trend Rider -195,857 / -51,819, the big candle +171,721 / +95,467, Supertrend +281,513 /
+  +62,940, Camarilla +106,024 / -39,936, ORB15 / ORB30 lose, the coin -2,266,670 / -828,319. The rules' exit: the
+  2-hour breakeven alone now KEEP against today (+89,489 / +147,110); out at T3 drop (-16,059 / +59,957).
+
     /usr/bin/python3 honest_retest.py          (with HOME at the six-year history)
     /usr/bin/python3 honest_retest.py tvcoin   (the TradingView walk's own coin control)
 """

@@ -28,6 +28,12 @@ RESULT (29 Oct 2026; oneperday_study_results.txt). Per lot, pooled, to 15 Aug 20
   -2,996 (74 trades) -> one a day +21,816 (57); the rating with the levels +7,367 -> +24,637; the rules -4,723 ->
   +1,846; the rating alone -49,795 -> -36,006. Seven weeks, and the levels were chosen on years that include them.
 
+RE-RUN (29 Oct 2026, pricing.py fixed - 3ac57e4: far options no longer gain from the clock; the calendar clock).
+  The user's setup (the rating + levels + big candle), to 15 Aug 2025 / held out: nearest every trade +182,678 /
+  +140,522, ONE A DAY +203,121 / +121,914 (drop by the rule - about the same profit; worst day -34,871 -> -20,907,
+  worst drop 256,662 -> 206,059); 14+ days every trade +429,277 / +192,774, one a day +418,464 / +169,571 (drop, the
+  same story). The rating alone: one a day still KEEP (nearest -518,931 / -51,257 -> -128,816 / +9,332).
+
     /usr/bin/python3 oneperday_study.py                         (HOME at the six-year history)
     /usr/bin/python3 oneperday_study.py real OPTION_HISTORY_DIR
 """

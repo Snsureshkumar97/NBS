@@ -34,6 +34,10 @@ RESULT (29 Oct 2026; far_expiry_check_results.txt). NOT CREDIBLE - the 14+ day r
   +160,000 / +152,775 -> +74,666 / +89,080); one a day 14+ days +54,762 / +79,515, nearest +133,645 / +81,758; the
   rating alone loses both ways. Flattened, Bank Nifty's far error is -141 a trade (se 95): slightly cautious - the
   truth lies between, much nearer the flattened figures. 14+ days is no better than the nearest expiry.
+  AFTER THE FIX (3ac57e4: one ratio all day for 14+ days, the calendar clock): Bank Nifty's far error -31 a trade (se
+  95), the nearest +8 (se 86) - the model now matches the real prices both ways. The six-year setup at 14+ days
+  +429,277 / +192,774 against +182,678 / +140,522 at the nearest (oneperday_study re-run): further out helps, about
+  twice the nearest - not the 28 Oct six times. Midcap still unmeasurable (-483, se 663).
 
     HOME=<six-year history> /usr/bin/python3 far_expiry_check.py OPTION_HISTORY_DIR
 """

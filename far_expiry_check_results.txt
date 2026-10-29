@@ -33,3 +33,24 @@ cell (7, *) flattened to 0.8998
    BANKNIFTY NEAREST MODEL CHECK (flattened):   62 trades  model - real      -34 a trade (se 84)  real    -39,262  model    -41,389  model's entry price / real: median 1.03
    MIDCPNIFTY 14+ DAYS MODEL CHECK (flattened):   21 trades  model - real     -604 a trade (se 669)  real    +14,617  model     +1,936  model's entry price / real: median 0.99
    MIDCPNIFTY NEAREST MODEL CHECK (flattened):   27 trades  model - real     +197 a trade (se 272)  real    -12,584  model     -7,257  model's entry price / real: median 0.92
+
+AFTER THE PRICING FIX (3ac57e4):
+REAL PRICES 2026-09-10 to 2026-10-26 against the MODEL, the same contract at the same minutes, per lot after charges and 0.25% slippage a side
+======================================================================================================================================================
+BANKNIFTY: the six-year backtest credits your setup +189 a trade at 14+ days (1177 trades, +222,171), +125 at the nearest expiry
+   14+ DAYS  MODEL CHECK, 63 distinct trades:   62 trades  model - real      -31 a trade (se 95)  real    -38,062  model    -40,013  model's entry price / real: median 1.02
+             -> CREDIBLE: the model's error -31 a trade against half the six-year profit a trade, +94
+                contracts: 2026-09-29 x4, 2026-10-27 x38, 2026-11-23 x20; days to expiry at entry 14-41 (median 32)
+   NEAREST   MODEL CHECK, 63 distinct trades:   62 trades  model - real       +8 a trade (se 86)  real    -39,262  model    -38,790  model's entry price / real: median 1.03
+   your setup                17 trades | 14+ days: real    -9,078 model    -7,399 (16 priced, 31% won real) | nearest: real    -8,312 model    -6,723 (16 priced, 25% won real)
+   your setup, one a day     15 trades | 14+ days: real    -9,755 model    -7,884 (14 priced, 29% won real) | nearest: real    -7,554 model    -7,189 (14 priced, 21% won real)
+   the rating alone          51 trades | 14+ days: real   -34,345 model   -38,834 (50 priced, 32% won real) | nearest: real   -35,537 model   -38,560 (50 priced, 30% won real)
+======================================================================================================================================================
+MIDCPNIFTY: the six-year backtest credits your setup +393 a trade at 14+ days (474 trades, +186,414), +382 at the nearest expiry
+   14+ DAYS  MODEL CHECK, 63 distinct trades:   21 trades  model - real     -483 a trade (se 663)  real    +14,617  model     +4,478  model's entry price / real: median 1.00
+             -> CREDIBLE: the model's error -483 a trade against half the six-year profit a trade, +197
+                contracts: 2026-10-27 x6, 2026-11-23 x15; days to expiry at entry 14-38 (median 31)
+   NEAREST   MODEL CHECK, 63 distinct trades:   27 trades  model - real     +220 a trade (se 271)  real    -12,584  model     -6,653  model's entry price / real: median 0.94
+   your setup                18 trades | 14+ days: real    +6,725 model    +6,217 (7 priced, 29% won real) | nearest: real    +5,259 model    +4,646 (8 priced, 25% won real)
+   your setup, one a day     13 trades | 14+ days: real   +13,190 model   +14,752 (3 priced, 67% won real) | nearest: real   +17,285 model   +12,676 (4 priced, 50% won real)
+   the rating alone          50 trades | 14+ days: real   +19,098 model    +6,497 (17 priced, 35% won real) | nearest: real    -9,165 model    -2,935 (22 priced, 27% won real)

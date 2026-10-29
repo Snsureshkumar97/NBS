@@ -37,6 +37,10 @@ RESULT (28 Oct 2026; sr_study_results.txt), per lot after costs, to 15 Aug 2025 
   -498 a trade (111), the rest +4 (186); closer than 0.6%: -553 (161) against +253 (136) - the same story as the
   levels, too short to judge alone.
 
+RE-RUN (29 Oct 2026, pricing.py fixed - 3ac57e4). The rating: today -518,931 / -51,257, LEVELS_1.5 +134,919 /
+  +121,397 KEEP (-73 -> +50 a trade, -27 -> +168 held out), LEVELS_1.0 KEEP, LEVELS_0.5 and ROUND drop. The rules:
+  LEVELS_1.5 -172,366 / -15,622 KEEP (it trades less). The verdicts stand.
+
     /usr/bin/python3 sr_study.py                       (HOME at the six-year history)
     /usr/bin/python3 sr_study.py walls OPTION_HISTORY_DIR
 """
