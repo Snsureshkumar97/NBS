@@ -1,0 +1,88 @@
+========================================================================================================================
+TRADINGVIEW RATING - all four pooled, per lot  (to 15 Aug 2025 | held out)
+  OPTIONS, nearest expiry
+      every trade                                7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481
+      ONE A DAY                                  3829   34% ₹    -3,132 PF 1.00 DD ₹ 365,756 day ₹ -28,291  | 1064   39% ₹  +130,871 PF 1.11 DD ₹ 170,037 day ₹ -22,732
+   KEEP  one a day vs every trade                     profit: in-sample  +482,310  held-out   +68,384   worst drop: -360,224 /  -38,691   worst day:   +9,569 /  +12,749
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹627,118 (today's ₹1,165,232), chance of a loss 51%;  held-out: 95% worst drop ₹265,207 (today's ₹391,203), chance of a loss 22%  -> STEADY
+  OPTIONS, 14+ days
+      every trade                                7076   47% ₹+1,226,589 PF 1.21 DD ₹  96,715 day ₹ -40,222  | 1867   51% ₹  +621,547 PF 1.41 DD ₹  67,285 day ₹ -38,883
+      ONE A DAY                                  3829   49% ₹+1,322,799 PF 1.40 DD ₹  77,710 day ₹ -29,481  | 1064   54% ₹  +573,654 PF 1.63 DD ₹  63,001 day ₹ -22,901
+   drop  one a day vs every trade                     profit: in-sample   +96,210  held-out   -47,893   worst drop:  -19,006 /   -4,284   worst day:  +10,741 /  +15,982
+           walk-forward: beats today's in 9 of 13 half-years;  first two years: 95% worst drop ₹164,420 (today's ₹255,721), chance of a loss 0%;  held-out: 95% worst drop ₹119,210 (today's ₹163,847), chance of a loss 0%
+  FUTURES
+      every trade                                7076   37% ₹-2,986,482 PF 0.79 DD ₹2,986,482 day ₹ -94,782  | 1867   37% ₹  -695,696 PF 0.83 DD ₹ 695,696 day ₹ -89,918
+      ONE A DAY                                  3829   33% ₹-1,412,720 PF 0.84 DD ₹1,412,720 day ₹ -71,516  | 1064   32% ₹  -344,584 PF 0.87 DD ₹ 533,925 day ₹ -53,085
+   KEEP  one a day vs every trade                     profit: in-sample +1,573,762  held-out  +351,112   worst drop: -1,573,762 / -161,771   worst day:  +23,266 /  +36,833
+           walk-forward: beats today's in 13 of 13 half-years;  first two years: 95% worst drop ₹2,370,438 (today's ₹4,091,569), chance of a loss 100%;  held-out: 95% worst drop ₹959,406 (today's ₹1,441,360), chance of a loss 85%  -> STEADY
+========================================================================================================================
+TRADINGVIEW + LEVELS - all four pooled, per lot  (to 15 Aug 2025 | held out)
+  OPTIONS, nearest expiry
+      every trade                                2672   40% ₹  +122,255 PF 1.05 DD ₹ 181,534 day ₹ -19,919  |  724   41% ₹  +139,842 PF 1.23 DD ₹  73,678 day ₹ -33,869
+      ONE A DAY                                  1953   38% ₹  +224,008 PF 1.13 DD ₹ 117,962 day ₹ -19,919  |  535   40% ₹  +144,659 PF 1.31 DD ₹  56,718 day ₹ -22,732
+   KEEP  one a day vs every trade                     profit: in-sample  +101,753  held-out    +4,817   worst drop:  -63,573 /  -16,960   worst day:       +0 /  +11,137
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹273,030 (today's ₹359,249), chance of a loss 15%;  held-out: 95% worst drop ₹126,491 (today's ₹161,434), chance of a loss 8%  -> STEADY
+  OPTIONS, 14+ days
+      every trade                                2672   48% ₹  +640,890 PF 1.32 DD ₹  75,774 day ₹ -21,906  |  724   51% ₹  +316,853 PF 1.63 DD ₹  51,865 day ₹ -33,190
+      ONE A DAY                                  1953   48% ₹  +665,761 PF 1.45 DD ₹  45,242 day ₹ -20,079  |  535   53% ₹  +304,296 PF 1.83 DD ₹  31,348 day ₹ -22,070
+   drop  one a day vs every trade                     profit: in-sample   +24,871  held-out   -12,557   worst drop:  -30,532 /  -20,517   worst day:   +1,826 /  +11,120
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹121,474 (today's ₹147,387), chance of a loss 0%;  held-out: 95% worst drop ₹73,500 (today's ₹95,755), chance of a loss 0%
+  FUTURES
+      every trade                                2672   40% ₹  -512,439 PF 0.89 DD ₹ 651,750 day ₹ -53,753  |  724   38% ₹    -3,924 PF 1.00 DD ₹ 193,032 day ₹ -77,335
+      ONE A DAY                                  1953   38% ₹  -208,727 PF 0.94 DD ₹ 372,014 day ₹ -48,916  |  535   37% ₹   +62,870 PF 1.06 DD ₹ 167,874 day ₹ -53,085
+   KEEP  one a day vs every trade                     profit: in-sample  +303,712  held-out   +66,794   worst drop: -279,737 /  -25,158   worst day:   +4,836 /  +24,249
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹908,610 (today's ₹1,198,720), chance of a loss 73%;  held-out: 95% worst drop ₹360,939 (today's ₹476,777), chance of a loss 38%  -> STEADY
+========================================================================================================================
+THE RULES - all four pooled, per lot  (to 15 Aug 2025 | held out)
+  OPTIONS, nearest expiry
+      every trade                                5218   48% ₹  -596,164 PF 0.86 DD ₹ 740,505 day ₹ -32,524  | 1642   50% ₹   -65,453 PF 0.96 DD ₹ 161,061 day ₹ -40,282
+      ONE A DAY                                  3016   47% ₹  -294,016 PF 0.89 DD ₹ 480,205 day ₹ -13,945  |  921   50% ₹   -19,942 PF 0.98 DD ₹  99,441 day ₹ -21,066
+   KEEP  one a day vs every trade                     profit: in-sample  +302,148  held-out   +45,510   worst drop: -260,300 /  -61,620   worst day:  +18,579 /  +19,216
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹563,111 (today's ₹931,581), chance of a loss 98%;  held-out: 95% worst drop ₹211,529 (today's ₹316,786), chance of a loss 58%  -> STEADY
+  OPTIONS, 14+ days
+      every trade                                5218   55% ₹  +586,810 PF 1.16 DD ₹  73,403 day ₹ -30,227  | 1642   58% ₹  +343,813 PF 1.28 DD ₹  97,128 day ₹ -38,431
+      ONE A DAY                                  3016   55% ₹  +518,499 PF 1.24 DD ₹  52,433 day ₹ -13,367  |  921   60% ₹  +272,226 PF 1.37 DD ₹  79,802 day ₹ -19,226
+   drop  one a day vs every trade                     profit: in-sample   -68,311  held-out   -71,588   worst drop:  -20,970 /  -17,326   worst day:  +16,860 /  +19,205
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹117,125 (today's ₹165,595), chance of a loss 0%;  held-out: 95% worst drop ₹83,392 (today's ₹117,644), chance of a loss 0%
+  FUTURES
+      every trade                                5218   48% ₹-2,568,914 PF 0.72 DD ₹2,607,858 day ₹ -71,917  | 1642   47% ₹  -905,886 PF 0.72 DD ₹ 914,339 day ₹ -83,548
+      ONE A DAY                                  3016   46% ₹-1,672,325 PF 0.70 DD ₹1,734,530 day ₹ -32,483  |  921   46% ₹  -595,682 PF 0.70 DD ₹ 644,482 day ₹ -45,749
+   KEEP  one a day vs every trade                     profit: in-sample  +896,588  held-out  +310,204   worst drop: -873,327 / -269,857   worst day:  +39,435 /  +37,799
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹2,169,429 (today's ₹3,200,684), chance of a loss 100%;  held-out: 95% worst drop ₹922,643 (today's ₹1,332,077), chance of a loss 100%  -> STEADY
+========================================================================================================================
+TRADINGVIEW + LEVELS + BIG CANDLE - all four pooled, per lot  (to 15 Aug 2025 | held out)
+  OPTIONS, nearest expiry
+      every trade                                3302   39% ₹  +160,000 PF 1.05 DD ₹ 271,831 day ₹ -35,328  |  840   41% ₹  +152,775 PF 1.20 DD ₹  77,536 day ₹ -33,869
+      ONE A DAY                                  2461   38% ₹  +214,527 PF 1.08 DD ₹ 212,805 day ₹ -19,919  |  622   40% ₹  +141,070 PF 1.24 DD ₹  58,867 day ₹ -22,732
+   drop  one a day vs every trade                     profit: in-sample   +54,527  held-out   -11,705   worst drop:  -59,026 /  -18,670   worst day:  +15,409 /  +11,137
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹365,677 (today's ₹441,859), chance of a loss 20%;  held-out: 95% worst drop ₹151,110 (today's ₹184,523), chance of a loss 11%
+  OPTIONS, 14+ days
+      every trade                                3302   47% ₹  +954,607 PF 1.35 DD ₹ 100,200 day ₹ -38,530  |  840   50% ₹  +371,902 PF 1.58 DD ₹  50,467 day ₹ -33,190
+      ONE A DAY                                  2461   47% ₹  +941,830 PF 1.45 DD ₹  77,760 day ₹ -20,079  |  622   52% ₹  +343,022 PF 1.73 DD ₹  30,487 day ₹ -22,070
+   drop  one a day vs every trade                     profit: in-sample   -12,777  held-out   -28,880   worst drop:  -22,440 /  -19,979   worst day:  +18,451 /  +11,120
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹132,788 (today's ₹162,266), chance of a loss 0%;  held-out: 95% worst drop ₹83,667 (today's ₹107,825), chance of a loss 0%
+  FUTURES
+      every trade                                3302   40% ₹  -566,620 PF 0.92 DD ₹ 848,110 day ₹ -91,652  |  840   39% ₹    -9,544 PF 0.99 DD ₹ 201,713 day ₹ -77,335
+      ONE A DAY                                  2461   39% ₹  -264,179 PF 0.95 DD ₹ 502,142 day ₹ -48,916  |  622   38% ₹   +45,686 PF 1.04 DD ₹ 177,593 day ₹ -53,085
+   KEEP  one a day vs every trade                     profit: in-sample  +302,441  held-out   +55,230   worst drop: -345,968 /  -24,121   worst day:  +42,736 /  +24,249
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹1,112,170 (today's ₹1,452,022), chance of a loss 72%;  held-out: 95% worst drop ₹420,528 (today's ₹541,992), chance of a loss 43%  -> STEADY
+
+ONE A DAY BY INDEX - the rating with the levels + the big candle, OPTIONS 14+ days (to 15 Aug 2025 | held out)
+    NIFTY       every trade                       999   46% ₹  +225,150 PF 1.30 DD ₹  32,448 day ₹ -12,623  |  226   47% ₹   +50,803 PF 1.30 DD ₹  19,021 day ₹  -8,324
+    NIFTY       ONE A DAY                         744   45% ₹  +216,469 PF 1.37 DD ₹  33,401 day ₹  -8,457  |  166   49% ₹   +64,875 PF 1.57 DD ₹  13,235 day ₹  -4,246
+    BANKNIFTY   every trade                       961   48% ₹  +361,238 PF 1.38 DD ₹  36,634 day ₹ -14,595  |  216   49% ₹   +98,530 PF 1.50 DD ₹  24,748 day ₹ -10,775
+    BANKNIFTY   ONE A DAY                         722   48% ₹  +374,530 PF 1.52 DD ₹  34,197 day ₹  -8,275  |  162   50% ₹   +86,194 PF 1.58 DD ₹  25,432 day ₹  -5,374
+    SENSEX      every trade                      1048   45% ₹  +224,847 PF 1.28 DD ₹  35,112 day ₹ -12,634  |  218   47% ₹   +41,929 PF 1.28 DD ₹  21,513 day ₹  -8,374
+    SENSEX      ONE A DAY                         768   44% ₹  +202,044 PF 1.33 DD ₹  34,208 day ₹  -8,040  |  158   47% ₹   +28,575 PF 1.25 DD ₹  21,262 day ₹  -4,911
+    MIDCPNIFTY  every trade                       294   54% ₹  +143,372 PF 1.56 DD ₹  34,931 day ₹  -7,673  |  180   60% ₹  +180,640 PF 2.38 DD ₹  12,802 day ₹  -8,317
+    MIDCPNIFTY  ONE A DAY                         227   56% ₹  +148,787 PF 1.77 DD ₹  22,562 day ₹  -7,673  |  136   63% ₹  +163,377 PF 2.77 DD ₹  12,357 day ₹  -7,686
+
+REAL RECORDED OPTION PRICES, 2026-09-10 to 2026-10-26, nearest expiry and the next recorded one, per lot after costs
+   TradingView rating                 every trade   196 trades | nearest   -49,795 ( 34% won) | next expiry   -23,354
+   TradingView rating                 ONE A DAY     112 trades | nearest   -36,006 ( 33% won) | next expiry   -20,638
+   TradingView + levels               every trade    56 trades | nearest    +7,367 ( 35% won) | next expiry    -6,740
+   TradingView + levels               ONE A DAY      45 trades | nearest   +24,637 ( 39% won) | next expiry    +6,627
+   the rules                          every trade   169 trades | nearest    -4,723 ( 48% won) | next expiry   -17,011
+   the rules                          ONE A DAY      98 trades | nearest    +1,846 ( 50% won) | next expiry    -4,860
+   TradingView + levels + big candle  every trade    74 trades | nearest    -2,996 ( 34% won) | next expiry   -16,996
+   TradingView + levels + big candle  ONE A DAY      57 trades | nearest   +21,816 ( 38% won) | next expiry    +1,778
