@@ -1,0 +1,88 @@
+trades left out (no targets captured): none
+check: ATM at the nearest expiry against the harness's own price, the rating's 8943 trades - largest difference Rs 0.00
+============================================================================================================================================================================
+YOUR SETUP (RATING + LEVELS + BIG CANDLE) - NEAREST EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    ATM                                          3302   39% ₹  +160,000 PF 1.05 DD ₹ 271,831 day ₹ -35,328  |  840   41% ₹  +152,775 PF 1.20 DD ₹  77,536 day ₹ -33,869   premium a lot Rs 9,916, Rs +762 a lakh paid
+    ITM1                                         3302   40% ₹  +237,915 PF 1.06 DD ₹ 260,606 day ₹ -39,337  |  840   41% ₹  +182,991 PF 1.22 DD ₹  81,350 day ₹ -35,687   premium a lot Rs 11,391, Rs +892 a lakh paid
+    ITM2                                         3302   41% ₹  +327,632 PF 1.08 DD ₹ 243,359 day ₹ -43,416  |  840   42% ₹  +213,259 PF 1.24 DD ₹  83,903 day ₹ -37,495   premium a lot Rs 13,041, Rs +1,001 a lakh paid
+    OTM1                                         3302   38% ₹  +115,252 PF 1.04 DD ₹ 269,096 day ₹ -31,454  |  840   40% ₹  +127,608 PF 1.18 DD ₹  71,773 day ₹ -32,059   premium a lot Rs 8,624, Rs +680 a lakh paid
+   KEEP  ITM1 vs ATM                                  profit: in-sample   +77,914  held-out   +30,216   worst drop:  -11,225 /   +3,814   worst day:   -4,008 /   -1,818
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹445,817 (today's ₹441,859), chance of a loss 20%;  held-out: 95% worst drop ₹188,872 (today's ₹184,523), chance of a loss 10%  -> STEADY
+   KEEP  ITM2 vs ATM                                  profit: in-sample  +167,632  held-out   +60,484   worst drop:  -28,472 /   +6,367   worst day:   -8,088 /   -3,626
+           walk-forward: beats today's in 13 of 13 half-years;  first two years: 95% worst drop ₹443,459 (today's ₹441,859), chance of a loss 14%;  held-out: 95% worst drop ₹193,060 (today's ₹184,523), chance of a loss 8%  -> STEADY
+   drop  OTM1 vs ATM                                  profit: in-sample   -44,748  held-out   -25,167   worst drop:   -2,735 /   -5,764   worst day:   +3,874 /   +1,810
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹419,479 (today's ₹441,859), chance of a loss 32%;  held-out: 95% worst drop ₹178,692 (today's ₹184,523), chance of a loss 16%
+   by index, six years:  NIFTY ATM -19,837 / ITM1 +17,758 / ITM2 +59,181 / OTM1 -36,202   BANKNIFTY ATM +140,598 / ITM1 +172,332 / ITM2 +206,668 / OTM1 +116,048   SENSEX ATM -45,249 / ITM1 -17,956 / ITM2 +14,692 / OTM1 -62,878   MIDCPNIFTY ATM +237,263 / ITM1 +248,772 / ITM2 +260,350 / OTM1 +225,892
+============================================================================================================================================================================
+YOUR SETUP (RATING + LEVELS + BIG CANDLE) - 14+ DAYS TO EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    ATM                                          3302   47% ₹  +954,607 PF 1.35 DD ₹ 100,200 day ₹ -38,530  |  840   50% ₹  +371,902 PF 1.58 DD ₹  50,467 day ₹ -33,190   premium a lot Rs 19,441, Rs +1,647 a lakh paid
+    ITM1                                         3302   47% ₹  +952,005 PF 1.33 DD ₹ 104,834 day ₹ -40,373  |  840   50% ₹  +373,165 PF 1.55 DD ₹  52,526 day ₹ -34,374   premium a lot Rs 20,859, Rs +1,534 a lakh paid
+    ITM2                                         3302   47% ₹  +944,359 PF 1.31 DD ₹ 109,568 day ₹ -42,232  |  840   49% ₹  +373,461 PF 1.53 DD ₹  54,609 day ₹ -35,564   premium a lot Rs 22,349, Rs +1,424 a lakh paid
+    OTM1                                         3302   47% ₹  +952,276 PF 1.37 DD ₹  95,676 day ₹ -36,707  |  840   50% ₹  +369,694 PF 1.60 DD ₹  48,435 day ₹ -32,013   premium a lot Rs 18,094, Rs +1,764 a lakh paid
+   drop  ITM1 vs ATM                                  profit: in-sample    -2,602  held-out    +1,263   worst drop:   +4,634 /   +2,059   worst day:   -1,843 /   -1,184
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹175,953 (today's ₹162,266), chance of a loss 0%;  held-out: 95% worst drop ₹114,008 (today's ₹107,825), chance of a loss 0%
+   drop  ITM2 vs ATM                                  profit: in-sample   -10,248  held-out    +1,559   worst drop:   +9,368 /   +4,142   worst day:   -3,702 /   -2,374
+           walk-forward: beats today's in 5 of 13 half-years;  first two years: 95% worst drop ₹189,975 (today's ₹162,266), chance of a loss 0%;  held-out: 95% worst drop ₹120,281 (today's ₹107,825), chance of a loss 0%
+   drop  OTM1 vs ATM                                  profit: in-sample    -2,331  held-out    -2,208   worst drop:   -4,524 /   -2,032   worst day:   +1,823 /   +1,177
+           walk-forward: beats today's in 8 of 13 half-years;  first two years: 95% worst drop ₹150,144 (today's ₹162,266), chance of a loss 0%;  held-out: 95% worst drop ₹101,315 (today's ₹107,825), chance of a loss 0%
+   by index, six years:  NIFTY ATM +275,953 / ITM1 +272,624 / ITM2 +266,560 / OTM1 +276,602   BANKNIFTY ATM +459,768 / ITM1 +460,241 / ITM2 +458,967 / OTM1 +457,586   SENSEX ATM +266,776 / ITM1 +264,718 / ITM2 +261,632 / OTM1 +267,820   MIDCPNIFTY ATM +324,012 / ITM1 +327,586 / ITM2 +330,661 / OTM1 +319,963
+============================================================================================================================================================================
+YOUR SETUP, ONE TRADE A DAY - NEAREST EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    ATM                                          2461   38% ₹  +214,527 PF 1.08 DD ₹ 212,805 day ₹ -19,919  |  622   40% ₹  +141,070 PF 1.24 DD ₹  58,867 day ₹ -22,732   premium a lot Rs 10,111, Rs +1,141 a lakh paid
+    ITM1                                         2461   38% ₹  +266,473 PF 1.09 DD ₹ 206,309 day ₹ -21,103  |  622   41% ₹  +167,604 PF 1.27 DD ₹  59,714 day ₹ -23,984   premium a lot Rs 11,585, Rs +1,215 a lakh paid
+    ITM2                                         2461   39% ₹  +328,502 PF 1.11 DD ₹ 194,492 day ₹ -22,293  |  622   41% ₹  +194,222 PF 1.29 DD ₹  60,482 day ₹ -25,230   premium a lot Rs 13,231, Rs +1,281 a lakh paid
+    OTM1                                         2461   37% ₹  +185,990 PF 1.08 DD ₹ 208,019 day ₹ -18,750  |  622   40% ₹  +117,646 PF 1.22 DD ₹  58,767 day ₹ -21,488   premium a lot Rs 8,813, Rs +1,117 a lakh paid
+   KEEP  ITM1 vs ATM                                  profit: in-sample   +51,946  held-out   +26,534   worst drop:   -6,497 /     +847   worst day:   -1,184 /   -1,251
+           walk-forward: beats today's in 10 of 13 half-years;  first two years: 95% worst drop ₹378,809 (today's ₹365,677), chance of a loss 16%;  held-out: 95% worst drop ₹155,162 (today's ₹151,110), chance of a loss 9%  -> STEADY
+   KEEP  ITM2 vs ATM                                  profit: in-sample  +113,974  held-out   +53,151   worst drop:  -18,313 /   +1,615   worst day:   -2,374 /   -2,497
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹385,978 (today's ₹365,677), chance of a loss 13%;  held-out: 95% worst drop ₹158,266 (today's ₹151,110), chance of a loss 7%  -> STEADY
+   drop  OTM1 vs ATM                                  profit: in-sample   -28,538  held-out   -23,424   worst drop:   -4,787 /     -100   worst day:   +1,169 /   +1,244
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹335,660 (today's ₹365,677), chance of a loss 21%;  held-out: 95% worst drop ₹144,942 (today's ₹151,110), chance of a loss 14%
+   by index, six years:  NIFTY ATM +12,159 / ITM1 +41,217 / ITM2 +72,846 / OTM1 -2,176   BANKNIFTY ATM +163,589 / ITM1 +188,797 / ITM2 +216,576 / OTM1 +142,880   SENSEX ATM -53,000 / ITM1 -39,761 / ITM2 -21,600 / OTM1 -59,517   MIDCPNIFTY ATM +232,849 / ITM1 +243,823 / ITM2 +254,901 / OTM1 +222,448
+============================================================================================================================================================================
+YOUR SETUP, ONE TRADE A DAY - 14+ DAYS TO EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    ATM                                          2461   47% ₹  +941,830 PF 1.45 DD ₹  77,760 day ₹ -20,079  |  622   52% ₹  +343,022 PF 1.73 DD ₹  30,487 day ₹ -22,070   premium a lot Rs 19,575, Rs +2,129 a lakh paid
+    ITM1                                         2461   46% ₹  +941,144 PF 1.42 DD ₹  82,776 day ₹ -20,712  |  622   51% ₹  +345,456 PF 1.70 DD ₹  31,616 day ₹ -22,888   premium a lot Rs 20,996, Rs +1,988 a lakh paid
+    ITM2                                         2461   46% ₹  +936,125 PF 1.40 DD ₹  87,966 day ₹ -21,348  |  622   51% ₹  +347,062 PF 1.67 DD ₹  32,758 day ₹ -23,710   premium a lot Rs 22,488, Rs +1,851 a lakh paid
+    OTM1                                         2461   47% ₹  +938,246 PF 1.47 DD ₹  72,928 day ₹ -19,451  |  622   52% ₹  +339,785 PF 1.76 DD ₹  29,374 day ₹ -21,258   premium a lot Rs 18,226, Rs +2,275 a lakh paid
+   drop  ITM1 vs ATM                                  profit: in-sample      -686  held-out    +2,434   worst drop:   +5,016 /   +1,128   worst day:     -633 /     -818
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹143,597 (today's ₹132,788), chance of a loss 0%;  held-out: 95% worst drop ₹88,978 (today's ₹83,667), chance of a loss 0%
+   drop  ITM2 vs ATM                                  profit: in-sample    -5,705  held-out    +4,040   worst drop:  +10,205 /   +2,270   worst day:   -1,269 /   -1,641
+           walk-forward: beats today's in 7 of 13 half-years;  first two years: 95% worst drop ₹155,295 (today's ₹132,788), chance of a loss 0%;  held-out: 95% worst drop ₹94,339 (today's ₹83,667), chance of a loss 0%
+   drop  OTM1 vs ATM                                  profit: in-sample    -3,584  held-out    -3,236   worst drop:   -4,832 /   -1,113   worst day:     +629 /     +812
+           walk-forward: beats today's in 6 of 13 half-years;  first two years: 95% worst drop ₹123,250 (today's ₹132,788), chance of a loss 0%;  held-out: 95% worst drop ₹78,636 (today's ₹83,667), chance of a loss 0%
+   by index, six years:  NIFTY ATM +281,345 / ITM1 +279,610 / ITM2 +275,518 / OTM1 +280,751   BANKNIFTY ATM +460,724 / ITM1 +462,858 / ITM2 +463,487 / OTM1 +457,115   SENSEX ATM +230,620 / ITM1 +228,422 / ITM2 +225,358 / OTM1 +231,957   MIDCPNIFTY ATM +312,164 / ITM1 +315,710 / ITM2 +318,824 / OTM1 +308,209
+============================================================================================================================================================================
+THE TRADINGVIEW RATING ALONE - NEAREST EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    ATM                                          7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481   premium a lot Rs 10,251, Rs -461 a lakh paid
+    ITM1                                         7076   38% ₹  -397,185 PF 0.95 DD ₹ 675,134 day ₹ -43,209  | 1867   41% ₹   +77,464 PF 1.04 DD ₹ 216,924 day ₹ -42,461   premium a lot Rs 11,734, Rs -305 a lakh paid
+    ITM2                                         7076   38% ₹  -288,523 PF 0.97 DD ₹ 607,320 day ₹ -48,774  | 1867   41% ₹  +100,077 PF 1.05 DD ₹ 223,040 day ₹ -49,215   premium a lot Rs 13,392, Rs -157 a lakh paid
+    OTM1                                         7076   36% ₹  -512,529 PF 0.92 DD ₹ 725,982 day ₹ -33,297  | 1867   40% ₹   +60,968 PF 1.04 DD ₹ 196,206 day ₹ -32,059   premium a lot Rs 8,950, Rs -564 a lakh paid
+   KEEP  ITM1 vs ATM                                  profit: in-sample   +88,256  held-out   +14,977   worst drop:  -50,845 /   +8,196   worst day:   -5,349 /   -6,980
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹1,165,638 (today's ₹1,165,232), chance of a loss 85%;  held-out: 95% worst drop ₹417,027 (today's ₹391,203), chance of a loss 36%  -> STEADY
+   KEEP  ITM2 vs ATM                                  profit: in-sample  +196,919  held-out   +37,590   worst drop: -118,659 /  +14,312   worst day:  -10,913 /  -13,734
+           walk-forward: beats today's in 12 of 13 half-years;  first two years: 95% worst drop ₹1,140,584 (today's ₹1,165,232), chance of a loss 75%;  held-out: 95% worst drop ₹435,418 (today's ₹391,203), chance of a loss 33%  -> STEADY
+   drop  OTM1 vs ATM                                  profit: in-sample   -27,087  held-out    -1,519   worst drop:       +3 /  -12,523   worst day:   +4,563 /   +3,422
+           walk-forward: beats today's in 4 of 13 half-years;  first two years: 95% worst drop ₹1,120,049 (today's ₹1,165,232), chance of a loss 94%;  held-out: 95% worst drop ₹357,536 (today's ₹391,203), chance of a loss 37%
+   by index, six years:  NIFTY ATM -211,493 / ITM1 -155,372 / ITM2 -84,299 / OTM1 -226,327   BANKNIFTY ATM -179,882 / ITM1 -172,278 / ITM2 -156,511 / OTM1 -169,572   SENSEX ATM -234,430 / ITM1 -200,585 / ITM2 -160,447 / OTM1 -253,686   MIDCPNIFTY ATM +202,850 / ITM1 +208,515 / ITM2 +212,811 / OTM1 +198,023
+============================================================================================================================================================================
+THE TRADINGVIEW RATING ALONE - 14+ DAYS TO EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    ATM                                          7076   47% ₹+1,226,589 PF 1.21 DD ₹  96,715 day ₹ -40,222  | 1867   51% ₹  +621,547 PF 1.41 DD ₹  67,285 day ₹ -38,883   premium a lot Rs 19,727, Rs +1,048 a lakh paid
+    ITM1                                         7076   47% ₹+1,186,229 PF 1.19 DD ₹ 105,214 day ₹ -41,917  | 1867   51% ₹  +616,199 PF 1.38 DD ₹  69,874 day ₹ -40,536   premium a lot Rs 21,153, Rs +953 a lakh paid
+    ITM2                                         7076   46% ₹+1,134,994 PF 1.18 DD ₹ 115,775 day ₹ -43,624  | 1867   50% ₹  +608,347 PF 1.36 DD ₹  72,490 day ₹ -42,196   premium a lot Rs 22,652, Rs +861 a lakh paid
+    OTM1                                         7076   48% ₹+1,256,203 PF 1.23 DD ₹  88,741 day ₹ -38,544  | 1867   51% ₹  +624,434 PF 1.43 DD ₹  64,727 day ₹ -37,242   premium a lot Rs 18,372, Rs +1,145 a lakh paid
+   drop  ITM1 vs ATM                                  profit: in-sample   -40,359  held-out    -5,347   worst drop:   +8,499 /   +2,589   worst day:   -1,695 /   -1,653
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹282,896 (today's ₹255,721), chance of a loss 0%;  held-out: 95% worst drop ₹175,969 (today's ₹163,847), chance of a loss 0%
+   drop  ITM2 vs ATM                                  profit: in-sample   -91,595  held-out   -13,199   worst drop:  +19,060 /   +5,205   worst day:   -3,403 /   -3,314
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹311,642 (today's ₹255,721), chance of a loss 0%;  held-out: 95% worst drop ₹189,851 (today's ₹163,847), chance of a loss 0%
+   KEEP  OTM1 vs ATM                                  profit: in-sample   +29,615  held-out    +2,887   worst drop:   -7,974 /   -2,558   worst day:   +1,678 /   +1,641
+           walk-forward: beats today's in 11 of 13 half-years;  first two years: 95% worst drop ₹232,572 (today's ₹255,721), chance of a loss 0%;  held-out: 95% worst drop ₹152,940 (today's ₹163,847), chance of a loss 0%  -> STEADY
+   by index, six years:  NIFTY ATM +452,074 / ITM1 +440,437 / ITM2 +422,963 / OTM1 +457,989   BANKNIFTY ATM +522,007 / ITM1 +502,506 / ITM2 +479,189 / OTM1 +537,708   SENSEX ATM +359,237 / ITM1 +349,631 / ITM2 +337,881 / OTM1 +366,725   MIDCPNIFTY ATM +514,817 / ITM1 +509,854 / ITM2 +503,307 / OTM1 +518,215
+============================================================================================================================================================================
+REAL RECORDED PRICES, 2026-09-10 to 2026-10-26 - per lot, after charges and 0.25% slippage a side, every strike from a candle at most 5 minutes old, on the trades priced every way (and the model on those same trades, nearest expiry)
+   YOUR SETUP (rating + levels + big  nearest         61 of  74 priced | ATM    -2,996  34% (model -1,107) | ITM1    -3,887  38% (model +2,615) | ITM2    -3,190  41% (model +5,662) | OTM1    -6,434  31% (model -4,378)
+   YOUR SETUP (rating + levels + big  next recorded   57 of  74 priced | ATM   -14,559  37% | ITM1    +6,270  47% | ITM2    +1,266  44% | OTM1   +14,269  46%
+   YOUR SETUP, one trade a day        nearest         45 of  57 priced | ATM   +21,816  38% (model +14,711) | ITM1   +22,449  42% (model +19,810) | ITM2   +24,613  44% (model +24,149) | OTM1   +16,907  36% (model +9,889)
+   YOUR SETUP, one trade a day        next recorded   42 of  57 priced | ATM    +4,215  40% | ITM1   +21,667  52% | ITM2   +12,788  48% | OTM1   +15,783  45%
+   the TradingView rating alone       nearest        164 of 196 priced | ATM   -49,062  34% (model -37,145) | ITM1   -56,084  35% (model -42,032) | ITM2   -60,467  37% (model -47,189) | OTM1   -43,366  34% (model -33,076)
+   the TradingView rating alone       next recorded  147 of 196 priced | ATM   -23,037  37% | ITM1   -39,274  36% | ITM2   -21,989  38% | OTM1   -14,920  38%
