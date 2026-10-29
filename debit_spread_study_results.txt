@@ -1,0 +1,109 @@
+trades without their targets captured (left out): none
+check: NAKED at the nearest expiry against the harness's own price, the rating's 8943 trades - largest difference Rs 0.00
+============================================================================================================================================================================
+YOUR SETUP (RATING + LEVELS + BIG CANDLE) - NEAREST EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    NAKED                                        3302   39% ₹  +160,000 PF 1.05 DD ₹ 271,831 day ₹ -35,328  |  840   41% ₹  +152,775 PF 1.20 DD ₹  77,536 day ₹ -33,869
+    spread, sell at T1                           3302   27% ₹  -266,335 PF 0.84 DD ₹ 319,918 day ₹ -24,420  |  840   21% ₹  -103,713 PF 0.72 DD ₹ 127,764 day ₹ -21,348
+    spread, sell at T2                           3302   31% ₹  -140,757 PF 0.93 DD ₹ 305,249 day ₹ -28,356  |  840   26% ₹   -49,958 PF 0.89 DD ₹ 108,795 day ₹ -25,426
+    spread, sell at T3                           3302   33% ₹   -98,062 PF 0.96 DD ₹ 305,024 day ₹ -30,820  |  840   28% ₹   -14,422 PF 0.97 DD ₹  94,302 day ₹ -26,671
+   drop  spread at T1 vs naked                        profit: in-sample  -426,335  held-out  -256,488   worst drop:  +48,087 /  +50,228   worst day:  +10,908 /  +12,521
+           walk-forward: beats today's in 2 of 13 half-years;  first two years: 95% worst drop ₹524,908 (today's ₹441,859), chance of a loss 96%;  held-out: 95% worst drop ₹218,285 (today's ₹184,523), chance of a loss 95%
+   drop  spread at T2 vs naked                        profit: in-sample  -300,758  held-out  -202,733   worst drop:  +33,418 /  +31,259   worst day:   +6,972 /   +8,443
+           walk-forward: beats today's in 4 of 13 half-years;  first two years: 95% worst drop ₹496,098 (today's ₹441,859), chance of a loss 77%;  held-out: 95% worst drop ₹210,486 (today's ₹184,523), chance of a loss 73%
+   drop  spread at T3 vs naked                        profit: in-sample  -258,062  held-out  -167,197   worst drop:  +33,193 /  +16,765   worst day:   +4,509 /   +7,198
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹496,756 (today's ₹441,859), chance of a loss 68%;  held-out: 95% worst drop ₹203,326 (today's ₹184,523), chance of a loss 58%
+   by index, six years:  NIFTY NAKED -19,837 / T1 -108,401 / T2 -79,618 / T3 -72,950   BANKNIFTY NAKED +140,598 / T1 -54,482 / T2 -1,374 / T3 +18,692   SENSEX NAKED -45,249 / T1 -105,834 / T2 -79,196 / T3 -77,111   MIDCPNIFTY NAKED +237,263 / T1 -101,332 / T2 -30,528 / T3 +18,885
+============================================================================================================================================================================
+YOUR SETUP (RATING + LEVELS + BIG CANDLE) - 14+ DAYS TO EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    NAKED                                        3302   47% ₹  +954,607 PF 1.35 DD ₹ 100,200 day ₹ -38,530  |  840   50% ₹  +371,902 PF 1.58 DD ₹  50,467 day ₹ -33,190
+    spread, sell at T1                           3302   15% ₹  -900,278 PF 0.31 DD ₹ 900,278 day ₹ -17,452  |  840   12% ₹  -292,815 PF 0.21 DD ₹ 293,984 day ₹ -18,810
+    spread, sell at T2                           3302   20% ₹  -678,910 PF 0.52 DD ₹ 678,910 day ₹ -19,497  |  840   17% ₹  -215,185 PF 0.45 DD ₹ 230,232 day ₹ -24,656
+    spread, sell at T3                           3302   23% ₹  -499,429 PF 0.67 DD ₹ 499,429 day ₹ -21,218  |  840   21% ₹  -140,653 PF 0.66 DD ₹ 172,979 day ₹ -26,000
+   drop  spread at T1 vs naked                        profit: in-sample -1,854,885  held-out  -664,717   worst drop: +800,077 / +243,517   worst day:  +21,078 /  +14,380
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹1,007,706 (today's ₹162,266), chance of a loss 100%;  held-out: 95% worst drop ₹348,199 (today's ₹107,825), chance of a loss 100%
+   drop  spread at T2 vs naked                        profit: in-sample -1,633,517  held-out  -587,087   worst drop: +578,710 / +179,765   worst day:  +19,033 /   +8,534
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹856,213 (today's ₹162,266), chance of a loss 100%;  held-out: 95% worst drop ₹308,122 (today's ₹107,825), chance of a loss 100%
+   drop  spread at T3 vs naked                        profit: in-sample -1,454,036  held-out  -512,555   worst drop: +399,229 / +122,512   worst day:  +17,312 /   +7,190
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹732,371 (today's ₹162,266), chance of a loss 100%;  held-out: 95% worst drop ₹264,474 (today's ₹107,825), chance of a loss 98%
+   by index, six years:  NIFTY NAKED +275,953 / T1 -310,183 / T2 -251,735 / T3 -202,167   BANKNIFTY NAKED +459,768 / T1 -350,923 / T2 -241,019 / T3 -156,278   SENSEX NAKED +266,776 / T1 -328,983 / T2 -262,254 / T3 -205,540   MIDCPNIFTY NAKED +324,012 / T1 -203,004 / T2 -139,088 / T3 -76,097
+============================================================================================================================================================================
+YOUR SETUP, ONE TRADE A DAY - NEAREST EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    NAKED                                        2461   38% ₹  +214,527 PF 1.08 DD ₹ 212,805 day ₹ -19,919  |  622   40% ₹  +141,070 PF 1.24 DD ₹  58,867 day ₹ -22,732
+    spread, sell at T1                           2461   27% ₹  -141,560 PF 0.89 DD ₹ 231,456 day ₹ -12,013  |  622   22% ₹   -62,244 PF 0.79 DD ₹  98,098 day ₹ -18,243
+    spread, sell at T2                           2461   30% ₹   -33,909 PF 0.98 DD ₹ 216,842 day ₹ -15,518  |  622   26% ₹   -11,538 PF 0.97 DD ₹  87,694 day ₹ -21,929
+    spread, sell at T3                           2461   32% ₹    +2,061 PF 1.00 DD ₹ 211,272 day ₹ -16,233  |  622   28% ₹   +22,886 PF 1.06 DD ₹  73,932 day ₹ -22,659
+   drop  spread at T1 vs naked                        profit: in-sample  -356,087  held-out  -203,314   worst drop:  +18,651 /  +39,232   worst day:   +7,906 /   +4,489
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹400,920 (today's ₹365,677), chance of a loss 83%;  held-out: 95% worst drop ₹171,692 (today's ₹151,110), chance of a loss 85%
+   drop  spread at T2 vs naked                        profit: in-sample  -248,436  held-out  -152,609   worst drop:   +4,036 /  +28,828   worst day:   +4,401 /     +804
+           walk-forward: beats today's in 4 of 13 half-years;  first two years: 95% worst drop ₹388,502 (today's ₹365,677), chance of a loss 59%;  held-out: 95% worst drop ₹166,734 (today's ₹151,110), chance of a loss 58%
+   drop  spread at T3 vs naked                        profit: in-sample  -212,466  held-out  -118,184   worst drop:   -1,534 /  +15,066   worst day:   +3,686 /      +73
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹386,059 (today's ₹365,677), chance of a loss 51%;  held-out: 95% worst drop ₹160,793 (today's ₹151,110), chance of a loss 42%
+   by index, six years:  NIFTY NAKED +12,159 / T1 -47,704 / T2 -24,767 / T3 -21,032   BANKNIFTY NAKED +163,589 / T1 -21,150 / T2 +32,278 / T3 +53,674   SENSEX NAKED -53,000 / T1 -78,224 / T2 -68,440 / T3 -72,239   MIDCPNIFTY NAKED +232,849 / T1 -56,725 / T2 +15,482 / T3 +64,545
+============================================================================================================================================================================
+YOUR SETUP, ONE TRADE A DAY - 14+ DAYS TO EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    NAKED                                        2461   47% ₹  +941,830 PF 1.45 DD ₹  77,760 day ₹ -20,079  |  622   52% ₹  +343,022 PF 1.73 DD ₹  30,487 day ₹ -22,070
+    spread, sell at T1                           2461   17% ₹  -614,425 PF 0.38 DD ₹ 614,425 day ₹  -8,614  |  622   14% ₹  -208,774 PF 0.26 DD ₹ 212,828 day ₹ -15,427
+    spread, sell at T2                           2461   21% ₹  -413,251 PF 0.62 DD ₹ 413,251 day ₹ -12,600  |  622   19% ₹  -137,433 PF 0.54 DD ₹ 161,220 day ₹ -20,956
+    spread, sell at T3                           2461   24% ₹  -258,974 PF 0.78 DD ₹ 280,831 day ₹ -15,750  |  622   23% ₹   -69,107 PF 0.78 DD ₹ 111,137 day ₹ -22,030
+   drop  spread at T1 vs naked                        profit: in-sample -1,556,256  held-out  -551,795   worst drop: +536,665 / +182,340   worst day:  +11,466 /   +6,643
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹722,537 (today's ₹132,788), chance of a loss 100%;  held-out: 95% worst drop ₹256,833 (today's ₹83,667), chance of a loss 100%
+   drop  spread at T2 vs naked                        profit: in-sample -1,355,081  held-out  -480,454   worst drop: +335,491 / +130,733   worst day:   +7,479 /   +1,114
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹603,296 (today's ₹132,788), chance of a loss 100%;  held-out: 95% worst drop ₹225,063 (today's ₹83,667), chance of a loss 100%
+   drop  spread at T3 vs naked                        profit: in-sample -1,200,804  held-out  -412,128   worst drop: +203,071 /  +80,649   worst day:   +4,330 /      +40
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹508,725 (today's ₹132,788), chance of a loss 94%;  held-out: 95% worst drop ₹191,145 (today's ₹83,667), chance of a loss 85%
+   by index, six years:  NIFTY NAKED +281,345 / T1 -209,330 / T2 -155,015 / T3 -111,250   BANKNIFTY NAKED +460,724 / T1 -247,784 / T2 -147,976 / T3 -71,137   SENSEX NAKED +230,620 / T1 -223,351 / T2 -168,274 / T3 -126,489   MIDCPNIFTY NAKED +312,164 / T1 -142,735 / T2 -79,418 / T3 -19,205
+============================================================================================================================================================================
+THE TRADINGVIEW RATING ALONE - NEAREST EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    NAKED                                        7076   37% ₹  -485,442 PF 0.93 DD ₹ 725,980 day ₹ -37,860  | 1867   41% ₹   +62,487 PF 1.03 DD ₹ 208,728 day ₹ -35,481
+    spread, sell at T1                           7076   25% ₹-1,075,817 PF 0.63 DD ₹1,075,817 day ₹ -20,726  | 1867   22% ₹  -414,775 PF 0.49 DD ₹ 414,775 day ₹ -21,348
+    spread, sell at T2                           7076   30% ₹  -918,872 PF 0.78 DD ₹ 918,872 day ₹ -26,698  | 1867   27% ₹  -343,039 PF 0.68 DD ₹ 350,540 day ₹ -29,926
+    spread, sell at T3                           7076   32% ₹  -846,848 PF 0.83 DD ₹ 846,848 day ₹ -31,556  | 1867   29% ₹  -282,653 PF 0.78 DD ₹ 302,817 day ₹ -33,885
+   drop  spread at T1 vs naked                        profit: in-sample  -590,375  held-out  -477,262   worst drop: +349,837 / +206,046   worst day:  +17,135 /  +14,133
+           walk-forward: beats today's in 4 of 13 half-years;  first two years: 95% worst drop ₹1,332,624 (today's ₹1,165,232), chance of a loss 100%;  held-out: 95% worst drop ₹547,666 (today's ₹391,203), chance of a loss 100%
+   drop  spread at T2 vs naked                        profit: in-sample  -433,430  held-out  -405,526   worst drop: +192,892 / +141,812   worst day:  +11,162 /   +5,555
+           walk-forward: beats today's in 3 of 13 half-years;  first two years: 95% worst drop ₹1,336,154 (today's ₹1,165,232), chance of a loss 100%;  held-out: 95% worst drop ₹552,806 (today's ₹391,203), chance of a loss 100%
+   drop  spread at T3 vs naked                        profit: in-sample  -361,406  held-out  -345,140   worst drop: +120,868 /  +94,089   worst day:   +6,304 /   +1,596
+           walk-forward: beats today's in 1 of 13 half-years;  first two years: 95% worst drop ₹1,345,752 (today's ₹1,165,232), chance of a loss 100%;  held-out: 95% worst drop ₹547,102 (today's ₹391,203), chance of a loss 98%
+   by index, six years:  NIFTY NAKED -211,493 / T1 -325,510 / T2 -287,474 / T3 -269,551   BANKNIFTY NAKED -179,882 / T1 -461,787 / T2 -391,828 / T3 -356,797   SENSEX NAKED -234,430 / T1 -310,717 / T2 -286,121 / T3 -284,333   MIDCPNIFTY NAKED +202,850 / T1 -392,577 / T2 -296,488 / T3 -218,820
+============================================================================================================================================================================
+THE TRADINGVIEW RATING ALONE - 14+ DAYS TO EXPIRY, the model, all four pooled, per lot   (to 15 Aug 2025 | held out)
+    NAKED                                        7076   47% ₹+1,226,589 PF 1.21 DD ₹  96,715 day ₹ -40,222  | 1867   51% ₹  +621,547 PF 1.41 DD ₹  67,285 day ₹ -38,883
+    spread, sell at T1                           7076   10% ₹-2,248,812 PF 0.17 DD ₹2,248,812 day ₹ -15,080  | 1867    9% ₹  -690,102 PF 0.14 DD ₹ 690,102 day ₹ -18,810
+    spread, sell at T2                           7076   18% ₹-1,849,698 PF 0.40 DD ₹1,849,698 day ₹ -21,397  | 1867   17% ₹  -540,676 PF 0.38 DD ₹ 540,676 day ₹ -24,656
+    spread, sell at T3                           7076   23% ₹-1,473,365 PF 0.57 DD ₹1,473,365 day ₹ -26,014  | 1867   23% ₹  -391,821 PF 0.59 DD ₹ 391,821 day ₹ -26,000
+   drop  spread at T1 vs naked                        profit: in-sample -3,475,401  held-out -1,311,648   worst drop: +2,152,097 / +622,817   worst day:  +25,141 /  +20,073
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹2,370,473 (today's ₹255,721), chance of a loss 100%;  held-out: 95% worst drop ₹760,954 (today's ₹163,847), chance of a loss 100%
+   drop  spread at T2 vs naked                        profit: in-sample -3,076,287  held-out -1,162,223   worst drop: +1,752,983 / +473,391   worst day:  +18,825 /  +14,227
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹2,066,161 (today's ₹255,721), chance of a loss 100%;  held-out: 95% worst drop ₹666,846 (today's ₹163,847), chance of a loss 100%
+   drop  spread at T3 vs naked                        profit: in-sample -2,699,954  held-out -1,013,368   worst drop: +1,376,650 / +324,536   worst day:  +14,208 /  +12,883
+           walk-forward: beats today's in 0 of 13 half-years;  first two years: 95% worst drop ₹1,770,923 (today's ₹255,721), chance of a loss 100%;  held-out: 95% worst drop ₹570,361 (today's ₹163,847), chance of a loss 100%
+   by index, six years:  NIFTY NAKED +452,074 / T1 -700,827 / T2 -570,369 / T3 -440,523   BANKNIFTY NAKED +522,007 / T1 -923,214 / T2 -739,604 / T3 -576,444   SENSEX NAKED +359,237 / T1 -728,069 / T2 -605,807 / T3 -485,425   MIDCPNIFTY NAKED +514,817 / T1 -586,805 / T2 -474,594 / T3 -362,796
+============================================================================================================================================================================
+REAL RECORDED PRICES, 2026-09-10 to 2026-10-26 - per lot, after charges and 0.25% slippage a leg; each spread against NAKED on the SAME trades (those its sold leg has a fresh price for), and the model on those same trades
+YOUR SETUP (rating + levels + big candle)  (74 trades)
+   nearest        NAKED   61 priced    -2,996  (34% won)
+      sell at T1:   57 priced  spread      +329 (37% won)  naked on the same    +3,182 | the model on those: naked    +3,212 spread       -91
+      sell at T2:   46 priced  spread   +14,136 (39% won)  naked on the same   +15,707 | the model on those: naked   +15,783 spread   +12,152
+      sell at T3:   38 priced  spread    -5,871 (37% won)  naked on the same   -16,262 | the model on those: naked   -11,066 spread    -3,319
+   next recorded  NAKED   58 priced   -16,996  (36% won)
+      sell at T1:   53 priced  spread   -46,656 (28% won)  naked on the same   -10,606
+      sell at T2:   44 priced  spread   -25,577 (25% won)  naked on the same    -1,468
+      sell at T3:   37 priced  spread   -20,777 (24% won)  naked on the same   -13,528
+YOUR SETUP, one trade a day  (57 trades)
+   nearest        NAKED   45 priced   +21,816  (38% won)
+      sell at T1:   42 priced  spread    +6,500 (40% won)  naked on the same   +24,409 | the model on those: naked   +16,597 spread    +5,745
+      sell at T2:   34 priced  spread   +19,614 (47% won)  naked on the same   +31,171 | the model on those: naked   +26,298 spread   +18,564
+      sell at T3:   29 priced  spread    -3,520 (38% won)  naked on the same    -9,755 | the model on those: naked    -7,967 spread    -1,683
+   next recorded  NAKED   43 priced    +1,778  (40% won)
+      sell at T1:   39 priced  spread   -27,932 (33% won)  naked on the same    +5,138
+      sell at T2:   32 priced  spread   -18,957 (31% won)  naked on the same    +9,598
+      sell at T3:   28 priced  spread   -17,616 (29% won)  naked on the same    -8,754
+the TradingView rating alone  (196 trades)
+   nearest        NAKED  165 priced   -49,795  (34% won)
+      sell at T1:  163 priced  spread   -43,030 (27% won)  naked on the same   -43,769 | the model on those: naked   -32,849 spread   -40,405
+      sell at T2:  129 priced  spread    +1,294 (31% won)  naked on the same   +20,338 | the model on those: naked   +27,951 spread    +2,698
+      sell at T3:   91 priced  spread   +21,753 (37% won)  naked on the same   +52,517 | the model on those: naked   +53,906 spread   +28,745
+   next recorded  NAKED  153 priced   -23,354  (37% won)
+      sell at T1:  145 priced  spread   -59,081 (22% won)  naked on the same    -7,305
+      sell at T2:  118 priced  spread   -36,434 (29% won)  naked on the same   +20,600
+      sell at T3:   83 priced  spread    -4,593 (31% won)  naked on the same   +48,373
