@@ -221,7 +221,7 @@ check("side by side when the card is wide enough for both, one under the other o
       and "#sigcard{container:sigcard / inline-size}" in src
       and ':root[data-look="kite"] #sigtrade{order:10}' in src)
 check("the Signal page reads the same chain as the Option chain tab, every 20 seconds while it shows",
-      "SIGCHAIN = {for: want, at: Date.now(), d};   // the Signal page's drawing reads the same chain" in src
+      "sigChainKeep(want, d);                    // the Signal page's drawing reads the same chain" in src
       and 'TAB === "signal" && (SIGCHAIN.for !== CUR || Date.now() - SIGCHAIN.at > 20000)' in src)
 check("until the chain comes: the levels as the short table", "set(wd, sellersRows(se));" in src)
 check("the header names the ringed strike, the note says what the lines are",

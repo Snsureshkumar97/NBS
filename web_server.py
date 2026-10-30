@@ -3297,6 +3297,10 @@ PAGE = r"""<!doctype html>
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
+/* No pull-to-refresh: the page updates itself, and on a phone a swipe down at the top reloaded it - easily set off
+   when a block shrank under a scrolling finger (the user, 30 Oct 2026: on the Signal tab "as soon as i go down it just
+   start to reload so i coundt do anything"). */
+html,body{overscroll-behavior-y:none}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   -webkit-font-smoothing:antialiased}
@@ -8995,6 +8999,8 @@ function sigCpr(r){
   const el = $("sigcpr");
   if(!el) return;
   const c = r && r.cpr;
+  if(!(c && c.bc != null) && el.innerHTML && el._for === CUR && Date.now() - (el._at || 0) < LIVE_HOLD_MS) return;
+  if(c && c.bc != null){ el._for = CUR; el._at = Date.now(); }
   const h = c && c.bc != null ? `<div class="rr-h">CPR &middot; central pivot range</div><div class="se-rows">`
     + `<div class="se-r"><span class="se-l">Range ${c.for === "next" ? "(next session)" : "(today)"}</span>`
     + `<span class="se-lv"><b>${num(c.bc, 0)} – ${num(c.tc, 0)}</b> <span class="se-oi">pivot ${num(c.pivot, 0)}</span></span></div>`
@@ -9011,15 +9017,27 @@ function sigCpr(r){
 // cross"). Its chain is the one the Option chain tab reads - a memory read on the server - fetched every 20 seconds while
 // the Signal page shows an index with sellers; until it comes (or if it cannot), the levels as a short table. The note on
 // what the bars mean sits in a fold that a redraw does not close.
-let SIGCHAIN = {for: null, at: 0, d: null}, SIGCHAIN_BUSY = false;
+let SIGCHAIN = {for: null, at: 0, got: 0, d: null}, SIGCHAIN_BUSY = false;
+// A chain fetch that fails or comes back empty used to replace the last good one, and the Signal tab's drawing (about
+// 1,100px on a phone) vanished until the next fetch 20 seconds later - the page shrank under the reader and threw them
+// up it (30 Oct 2026). A miss now keeps the last good chain of the same index for CHAIN_HOLD_MS; the price line on the
+// drawing follows the live index price meanwhile (ladderSpot). The same goes for the sellers and the CPR, which a
+// reading can come without for a moment (LIVE_HOLD_MS).
+const CHAIN_HOLD_MS = 90000, LIVE_HOLD_MS = 20000;
+function sigChainKeep(want, d){
+  const good = !!(d && d.rows && d.rows.length && d.spot != null);
+  const had = SIGCHAIN.for === want && SIGCHAIN.d && SIGCHAIN.d.rows && SIGCHAIN.d.rows.length;
+  if(good || !had || Date.now() - (SIGCHAIN.got || 0) > CHAIN_HOLD_MS)
+    SIGCHAIN = {for: want, at: Date.now(), got: good ? Date.now() : 0, d};
+  else SIGCHAIN.at = Date.now();             // a miss: keep the last good one, ask again in 20 s
+}
 async function sigChainFetch(){
   if(SIGCHAIN_BUSY) return;
   const want = CUR;
   SIGCHAIN_BUSY = true;
   try{
-    const d = await (await fetch("/api/chain?index=" + encodeURIComponent(want), {cache: "no-store"})).json();
-    SIGCHAIN = {for: want, at: Date.now(), d};
-  }catch(e){ SIGCHAIN = {for: want, at: Date.now(), d: null}; }
+    sigChainKeep(want, await (await fetchWithin("/api/chain?index=" + encodeURIComponent(want), 15000)).json());
+  }catch(e){ sigChainKeep(want, null); }
   finally{ SIGCHAIN_BUSY = false; }
   if(want === CUR && LAST) sigSellers((LAST.indices || {})[CUR]);
 }
@@ -9028,9 +9046,11 @@ function sigSellers(r){
   if(!el) return;
   const se = r && r.sellers;
   if(!se || (!se.call && !se.put)){
+    if(el._sk && el._for === CUR && Date.now() - (el._at || 0) < LIVE_HOLD_MS) return;   // a moment without them
     if(el._sk){ el._sk = false; el.innerHTML = ""; }
     return;
   }
+  el._for = CUR; el._at = Date.now();
   if(TAB === "signal" && (SIGCHAIN.for !== CUR || Date.now() - SIGCHAIN.at > 20000)) sigChainFetch();
   if(!el._sk){
     el.innerHTML = `<div class="rr-h" data-h></div><div data-l></div><div class="sl-draw" data-d></div><div data-w></div>`
@@ -10356,9 +10376,22 @@ function greet(s){
     : "Connect your Zerodha account to see live signals.";
 }
 
+// A fetch that gives up: an answer that never comes must not hold the next poll back for ever.
+function fetchWithin(url, ms){
+  const c = typeof AbortController === "function" ? new AbortController() : null;
+  const t = c ? setTimeout(() => c.abort(), ms) : null;
+  return fetch(url, {cache: "no-store", signal: c ? c.signal : undefined}).finally(() => { if(t) clearTimeout(t); });
+}
+// Each poll waits for its last answer before asking again. They did not: on a slow phone connection the 250 ms price
+// poll and the 3 s state poll piled up requests, and their answers arrived in bursts, out of order, each redrawing the
+// whole page - the page stalled and could not be scrolled (the user, 30 Oct 2026, on a phone's Signal tab).
+let TICK_BUSY = false, PRICE_BUSY = false;
 async function tick(){
-  try{ LAST=await (await fetch("/api/state",{cache:"no-store"})).json(); render(LAST); }
+  if(TICK_BUSY) return;
+  TICK_BUSY = true;
+  try{ LAST=await (await fetchWithin("/api/state", 15000)).json(); render(LAST); }
   catch(e){ $("mkt").textContent="connection lost"; $("beat").className="beat"; }
+  finally{ TICK_BUSY = false; }
 }
 
 // ---------------------------------------------------------------- ticks
@@ -10368,6 +10401,12 @@ async function tick(){
 // and the premium move here the way they move in the desktop app, instead of
 // stepping once every poll.
 async function priceTick(){
+  if(PRICE_BUSY) return;
+  PRICE_BUSY = true;
+  try{ await priceTickOnce(); }
+  finally{ PRICE_BUSY = false; }
+}
+async function priceTickOnce(){
   // Used to pause here while document.hidden - "a background tab is not
   // watching". Asked to be removed on 22 Sep 2026: a window that is visibly
   // on screen but not the OS's frontmost one (a second monitor, a window
@@ -10382,8 +10421,8 @@ async function priceTick(){
   // "Live" over prices that had stopped arriving the moment the server or the
   // network went away - the exact claim the tag exists to avoid making.
   const k = CUR || "";
-  try{ t = await (await fetch("/api/tick?k=" + encodeURIComponent(k) + "&at="
-                              + encodeURIComponent(READAT[k] || ""), {cache:"no-store"})).json(); }
+  try{ t = await (await fetchWithin("/api/tick?k=" + encodeURIComponent(k) + "&at="
+                                    + encodeURIComponent(READAT[k] || ""), 8000)).json(); }
   catch(e){ feedTag(false, null); return; }
   LIVE = t;
   if(!LAST || !LAST.indices) return;
@@ -10691,7 +10730,7 @@ async function chainFetch(force){
                                  {cache:"no-store"})).json();
     if(want !== CUR) return;                  // the index changed while it loaded
     CHAIN_LIVE = !!(d && d.live);
-    SIGCHAIN = {for: want, at: Date.now(), d};   // the Signal page's drawing reads the same chain
+    sigChainKeep(want, d);                    // the Signal page's drawing reads the same chain
     chainDraw(d);
   }catch(e){}
   finally{ CHAIN_BUSY = false; }
